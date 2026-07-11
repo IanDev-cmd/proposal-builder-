@@ -1,0 +1,3184 @@
+WORKSPACE SUITE — SOURCE CODE EXPORT
+Generated: 2026-07-11 15:22 UTC
+Scope: app-specific source (pages, components, hooks, styles, entry files).
+Excluded: build/config files (package.json, tsconfig, vite.config, artifact.toml, etc.) and generated shadcn/ui primitive library components under components/ui/ (boilerplate, not app logic).
+======================================================================
+
+======================================================================
+FILE: src/App.tsx
+======================================================================
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import NotFound from '@/pages/not-found';
+import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { AppNav } from '@/components/AppNav';
+import { Home } from '@/pages/Home';
+import { Dashboard } from '@/pages/Dashboard';
+import { CalendarPage } from '@/pages/Calendar';
+import { SetupWizard } from '@/pages/SetupWizard';
+import { EmployeeDashboard } from '@/pages/EmployeeDashboard';
+import { ProcessTimeline } from '@/pages/ProcessTimeline';
+
+const queryClient = new QueryClient();
+
+function Router() {
+  return (
+    <>
+      <AppNav />
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/calendar" component={CalendarPage} />
+        <Route path="/setup" component={SetupWizard} />
+        <Route path="/employees" component={EmployeeDashboard} />
+        <Route path="/timeline" component={ProcessTimeline} />
+        <Route component={NotFound} />
+      </Switch>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+          <Router />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
+
+
+======================================================================
+FILE: src/main.tsx
+======================================================================
+import { createRoot } from 'react-dom/client';
+
+import App from './App';
+
+import './index.css';
+
+createRoot(document.getElementById('root')!).render(<App />);
+
+
+======================================================================
+FILE: src/index.css
+======================================================================
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Brand green — every "emerald" utility in the app (bg-emerald-500, text-emerald-700, etc.)
+   is repointed to this single hue so the whole app matches the Home page tile color (#2ecc71). */
+@theme {
+  --color-emerald-50: #f3fcf7;
+  --color-emerald-100: #daf7e6;
+  --color-emerald-200: #b8efcf;
+  --color-emerald-300: #8fe6b4;
+  --color-emerald-400: #61db95;
+  --color-emerald-500: #2ecc71;
+  --color-emerald-600: #27af61;
+  --color-emerald-700: #219251;
+  --color-emerald-800: #19703e;
+  --color-emerald-900: #13532e;
+  --color-emerald-950: #0a2e19;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-primary-border: var(--sidebar-primary-border);
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-accent-border: var(--sidebar-accent-border);
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* LIGHT MODE */
+:root {
+  --button-outline: rgba(0, 0, 0, 0.1);
+  --badge-outline: rgba(0, 0, 0, 0.05);
+
+  /* Automatic computation of border around primary / danger buttons */
+  --opaque-button-border-intensity: -8; /* In terms of percentages */
+
+  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --elevate-1: rgba(0, 0, 0, 0.03);
+  --elevate-2: rgba(0, 0, 0, 0.08);
+
+  --background: 0 0% 100%;
+
+  --foreground: 145 35% 11%;
+
+  --border: 145 20% 90%;
+
+  --card: 0 0% 100%;
+
+  --card-foreground: 145 35% 11%;
+
+  --card-border: 145 20% 90%;
+
+  --sidebar: 145 63% 13%;
+
+  --sidebar-foreground: 0 0% 100%;
+
+  --sidebar-border: 145 45% 22%;
+
+  --sidebar-primary: 145 63% 49%;
+
+  --sidebar-primary-foreground: 0 0% 100%;
+
+  --sidebar-accent: 145 50% 22%;
+
+  --sidebar-accent-foreground: 0 0% 100%;
+
+  --sidebar-ring: 145 63% 49%;
+
+  --popover: 0 0% 100%;
+
+  --popover-foreground: 145 45% 11%;
+
+  --popover-border: 145 25% 90%;
+
+  --primary: 145 63% 49%;
+
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 145 30% 95%;
+
+  --secondary-foreground: 145 45% 15%;
+
+  --muted: 145 30% 96%;
+
+  --muted-foreground: 145 10% 45%;
+
+  --accent: 145 63% 93%;
+
+  --accent-foreground: 145 63% 22%;
+
+  --destructive: 4 78% 55%;
+
+  --destructive-foreground: 0 0% 100%;
+
+  --input: 145 25% 88%;
+  --ring: 145 63% 49%;
+  --chart-1: 145 63% 40%;
+  --chart-2: 145 60% 55%;
+  --chart-3: 145 55% 30%;
+  --chart-4: 145 40% 65%;
+  --chart-5: 145 30% 75%;
+
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: Menlo, monospace;
+  --radius: 0.5rem; /* 8px */
+  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
+  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
+  --shadow-sm:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-md:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-lg:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xl:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
+
+  /* Fallback for older browsers */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(
+    from hsl(var(--sidebar-primary)) h s
+      calc(l + var(--opaque-button-border-intensity)) / alpha
+  );
+
+  /* Fallback for older browsers */
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --sidebar-accent-border: hsl(
+    from hsl(var(--sidebar-accent)) h s
+      calc(l + var(--opaque-button-border-intensity)) / alpha
+  );
+
+  /* Fallback for older browsers */
+  --primary-border: hsl(var(--primary));
+  --primary-border: hsl(
+    from hsl(var(--primary)) h s
+      calc(l + var(--opaque-button-border-intensity)) / alpha
+  );
+
+  /* Fallback for older browsers */
+  --secondary-border: hsl(var(--secondary));
+  --secondary-border: hsl(
+    from hsl(var(--secondary)) h s
+      calc(l + var(--opaque-button-border-intensity)) / alpha
+  );
+
+  /* Fallback for older browsers */
+  --muted-border: hsl(var(--muted));
+  --muted-border: hsl(
+    from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) /
+      alpha
+  );
+
+  /* Fallback for older browsers */
+  --accent-border: hsl(var(--accent));
+  --accent-border: hsl(
+    from hsl(var(--accent)) h s
+      calc(l + var(--opaque-button-border-intensity)) / alpha
+  );
+
+  /* Fallback for older browsers */
+  --destructive-border: hsl(var(--destructive));
+  --destructive-border: hsl(
+    from hsl(var(--destructive)) h s
+      calc(l + var(--opaque-button-border-intensity)) / alpha
+  );
+}
+
+.dark {
+  --button-outline: rgba(255, 255, 255, 0.1);
+  --badge-outline: rgba(255, 255, 255, 0.05);
+
+  --opaque-button-border-intensity: 9; /* In terms of percentages */
+
+  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --elevate-1: rgba(255, 255, 255, 0.04);
+  --elevate-2: rgba(255, 255, 255, 0.09);
+
+  --background: 145 35% 6%;
+
+  --foreground: 0 0% 98%;
+
+  --border: 145 25% 18%;
+
+  --card: 145 30% 9%;
+
+  --card-foreground: 0 0% 98%;
+
+  --card-border: 145 25% 18%;
+
+  --sidebar: 145 40% 8%;
+
+  --sidebar-foreground: 0 0% 98%;
+
+  --sidebar-border: 145 25% 18%;
+
+  --sidebar-primary: 145 63% 55%;
+
+  --sidebar-primary-foreground: 0 0% 100%;
+
+  --sidebar-accent: 145 30% 16%;
+
+  --sidebar-accent-foreground: 0 0% 98%;
+
+  --sidebar-ring: 145 63% 55%;
+
+  --popover: 145 30% 9%;
+
+  --popover-foreground: 0 0% 98%;
+
+  --popover-border: 145 25% 18%;
+
+  --primary: 145 63% 55%;
+
+  --primary-foreground: 0 0% 8%;
+
+  --secondary: 145 25% 14%;
+
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 145 25% 14%;
+
+  --muted-foreground: 145 10% 65%;
+
+  --accent: 145 40% 18%;
+
+  --accent-foreground: 145 60% 85%;
+
+  --destructive: 4 70% 55%;
+
+  --destructive-foreground: 0 0% 100%;
+
+  /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
+  --input: 145 25% 20%;
+  --ring: 145 63% 55%;
+  --chart-1: 145 63% 48%;
+  --chart-2: 145 55% 60%;
+  --chart-3: 145 50% 35%;
+  --chart-4: 145 40% 65%;
+  --chart-5: 145 30% 75%;
+
+  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-sm:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-md:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-lg:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xl:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/**
+ * Using the elevate system.
+ * Automatic contrast adjustment.
+ *
+ * <element className="hover-elevate" />
+ * <element className="active-elevate-2" />
+ *
+ * // Using the tailwind utility when a data attribute is "on"
+ * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
+ * // Or manually controlling the toggle state
+ * <element className="toggle-elevate toggle-elevated" />
+ *
+ * Elevation systems have to handle many states.
+ * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
+ * - toggled or not
+ * - focused or not (this is not handled with these utilities)
+ *
+ * Even without handling focused or not, this is six possible combinations that
+ * need to be distinguished from eachother visually.
+ */
+@layer utilities {
+  /* Hide ugly search cancel button in Chrome until we can style it properly */
+  input[type='search']::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  /* Placeholder styling for contentEditable div */
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+
+  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
+   * buttons/badges can remove the automatic brightness adjustment on interactions
+   * and program their own. */
+  .no-default-hover-elevate {
+  }
+
+  .no-default-active-elevate {
+  }
+
+  /**
+   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
+   * This way they can stack/compound. Both will overlap the parent's borders!
+   * So borders will be automatically adjusted both on toggle, and hover/active,
+   * and they will be compounded.
+   */
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
+    border-radius: inherit;
+    z-index: -1;
+    /* sits behind content but above backdrop */
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  /* Does not work on elements with overflow:hidden! */
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
+    border-radius: inherit;
+    z-index: 999;
+    /* sits in front of content */
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+    inset: -1px;
+  }
+}
+
+
+======================================================================
+FILE: src/components/AppNav.tsx
+======================================================================
+import { Link, useLocation } from 'wouter';
+import { Home, LayoutDashboard, CalendarDays, Settings2, Users, GitBranch } from 'lucide-react';
+
+const navItems = [
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/employees', label: 'Employees', icon: Users },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/setup', label: 'Setup', icon: Settings2 },
+  { href: '/timeline', label: 'Timeline', icon: GitBranch },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+];
+
+export function AppNav() {
+  const [location] = useLocation();
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/80 backdrop-blur-md">
+      <div className="flex h-16 items-center justify-between px-6">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-500/30">
+            W
+          </span>
+          <span className="text-[15px] font-semibold text-gray-900">Workspace Suite</span>
+        </div>
+
+        <nav className="flex items-center gap-1 rounded-full bg-emerald-50/70 p-1">
+          {navItems.map((item) => {
+            const isActive = location === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
+                  isActive
+                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-600 text-white shadow-sm'
+                    : 'text-emerald-800/70 hover:text-emerald-900'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+export default AppNav;
+
+
+======================================================================
+FILE: src/hooks/use-mobile.tsx
+======================================================================
+import * as React from 'react';
+
+const MOBILE_BREAKPOINT = 768;
+
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
+    undefined,
+  );
+
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const onChange = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    };
+    mql.addEventListener('change', onChange);
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  return !!isMobile;
+}
+
+
+======================================================================
+FILE: src/hooks/use-toast.ts
+======================================================================
+import * as React from 'react';
+import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
+
+const TOAST_LIMIT = 1;
+const TOAST_REMOVE_DELAY = 1000000;
+
+type ToasterToast = ToastProps & {
+  id: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  action?: ToastActionElement;
+};
+
+const actionTypes = {
+  ADD_TOAST: 'ADD_TOAST',
+  UPDATE_TOAST: 'UPDATE_TOAST',
+  DISMISS_TOAST: 'DISMISS_TOAST',
+  REMOVE_TOAST: 'REMOVE_TOAST',
+} as const;
+
+let count = 0;
+
+function genId() {
+  count = (count + 1) % Number.MAX_SAFE_INTEGER;
+  return count.toString();
+}
+
+type ActionType = typeof actionTypes;
+
+type Action =
+  | {
+      type: ActionType['ADD_TOAST'];
+      toast: ToasterToast;
+    }
+  | {
+      type: ActionType['UPDATE_TOAST'];
+      toast: Partial<ToasterToast>;
+    }
+  | {
+      type: ActionType['DISMISS_TOAST'];
+      toastId?: ToasterToast['id'];
+    }
+  | {
+      type: ActionType['REMOVE_TOAST'];
+      toastId?: ToasterToast['id'];
+    };
+
+interface State {
+  toasts: ToasterToast[];
+}
+
+const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+const addToRemoveQueue = (toastId: string) => {
+  if (toastTimeouts.has(toastId)) {
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    toastTimeouts.delete(toastId);
+    dispatch({
+      type: 'REMOVE_TOAST',
+      toastId: toastId,
+    });
+  }, TOAST_REMOVE_DELAY);
+
+  toastTimeouts.set(toastId, timeout);
+};
+
+export const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case 'ADD_TOAST':
+      return {
+        ...state,
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+      };
+
+    case 'UPDATE_TOAST':
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t,
+        ),
+      };
+
+    case 'DISMISS_TOAST': {
+      const { toastId } = action;
+
+      // ! Side effects ! - This could be extracted into a dismissToast() action,
+      // but I'll keep it here for simplicity
+      if (toastId) {
+        addToRemoveQueue(toastId);
+      } else {
+        state.toasts.forEach((toast) => {
+          addToRemoveQueue(toast.id);
+        });
+      }
+
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === toastId || toastId === undefined
+            ? {
+                ...t,
+                open: false,
+              }
+            : t,
+        ),
+      };
+    }
+    case 'REMOVE_TOAST':
+      if (action.toastId === undefined) {
+        return {
+          ...state,
+          toasts: [],
+        };
+      }
+      return {
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+      };
+  }
+};
+
+const listeners: Array<(state: State) => void> = [];
+
+let memoryState: State = { toasts: [] };
+
+function dispatch(action: Action) {
+  memoryState = reducer(memoryState, action);
+  listeners.forEach((listener) => {
+    listener(memoryState);
+  });
+}
+
+type Toast = Omit<ToasterToast, 'id'>;
+
+function toast({ ...props }: Toast) {
+  const id = genId();
+
+  const update = (props: ToasterToast) =>
+    dispatch({
+      type: 'UPDATE_TOAST',
+      toast: { ...props, id },
+    });
+  const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id });
+
+  dispatch({
+    type: 'ADD_TOAST',
+    toast: {
+      ...props,
+      id,
+      open: true,
+      onOpenChange: (open) => {
+        if (!open) dismiss();
+      },
+    },
+  });
+
+  return {
+    id: id,
+    dismiss,
+    update,
+  };
+}
+
+function useToast() {
+  const [state, setState] = React.useState<State>(memoryState);
+
+  React.useEffect(() => {
+    listeners.push(setState);
+    return () => {
+      const index = listeners.indexOf(setState);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    };
+  }, [state]);
+
+  return {
+    ...state,
+    toast,
+    dismiss: (toastId?: string) => dispatch({ type: 'DISMISS_TOAST', toastId }),
+  };
+}
+
+export { useToast, toast };
+
+
+======================================================================
+FILE: src/lib/utils.ts
+======================================================================
+import { twMerge } from 'tailwind-merge';
+
+import { clsx, type ClassValue } from 'clsx';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+
+======================================================================
+FILE: src/pages/Home.tsx
+======================================================================
+import { useState } from 'react';
+import { useLocation } from 'wouter';
+import { Users, LayoutDashboard, Settings2, GitBranch, CalendarDays, Check, ArrowRight } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+type Tile = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  features: string[];
+};
+
+const TILES: Tile[] = [
+  {
+    href: '/employees',
+    label: 'Employees',
+    icon: Users,
+    features: ['View team roster', 'Track attendance', 'Manage roles', 'Contact staff'],
+  },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    features: ['Track tasks', 'Manage projects', 'View progress', 'Quick search'],
+  },
+  {
+    href: '/setup',
+    label: 'Setup',
+    icon: Settings2,
+    features: ['Configure business info', 'Set modules & permissions', 'Import / export data', 'Map categories'],
+  },
+  {
+    href: '/timeline',
+    label: 'Timeline',
+    icon: GitBranch,
+    features: ['View process steps', 'Track milestones', 'Monitor progress', 'See completed stages'],
+  },
+  {
+    href: '/calendar',
+    label: 'Calendar',
+    icon: CalendarDays,
+    features: ['Schedule events', 'View bookings', 'Manage availability', 'Track appointments'],
+  },
+];
+
+export function Home() {
+  const [, navigate] = useLocation();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = TILES[activeIndex];
+
+  return (
+    <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center bg-[#2ecc71] px-4 py-10">
+      <div className="w-full max-w-[860px] overflow-hidden rounded-[28px] shadow-2xl">
+        {/* ── white top section ── */}
+        <div className="bg-white px-8 pb-10 pt-9 sm:px-12">
+          <div className="text-center">
+            <p className="text-[13px] font-medium text-gray-400">Please select a</p>
+            <h1 className="mt-1 text-[26px] font-bold tracking-tight text-[#101a15] sm:text-[28px]">
+              PAGE
+            </h1>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-5 sm:gap-5">
+            {TILES.map((tile, i) => {
+              const Icon = tile.icon;
+              const isActive = i === activeIndex;
+              return (
+                <button
+                  key={tile.href}
+                  type="button"
+                  onMouseEnter={() => setActiveIndex(i)}
+                  onFocus={() => setActiveIndex(i)}
+                  onClick={() => navigate(tile.href)}
+                  className={`group relative flex flex-col items-center gap-3 rounded-[16px] bg-[#f6f7f9] px-3 py-6 text-center shadow-sm transition-all duration-200 ${
+                    isActive
+                      ? 'bg-white shadow-[0_10px_30px_-8px_rgba(16,60,40,0.25)] ring-2 ring-[#2ecc71]'
+                      : 'hover:bg-white hover:shadow-md'
+                  }`}
+                >
+                  <Icon
+                    className={`h-7 w-7 transition-colors ${isActive ? 'text-[#101a15]' : 'text-gray-400 group-hover:text-gray-600'}`}
+                    strokeWidth={1.6}
+                  />
+                  <span
+                    className={`text-[13px] font-semibold transition-colors ${
+                      isActive ? 'text-[#101a15]' : 'text-gray-500 group-hover:text-gray-700'
+                    }`}
+                  >
+                    {tile.label}
+                  </span>
+
+                  {isActive && (
+                    <span className="absolute -bottom-2.5 -right-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#2ecc71] shadow-md ring-4 ring-white">
+                      <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── green bottom panel ── */}
+        <div className="flex flex-col gap-6 bg-[#2ecc71] px-8 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-12">
+          <ul className="grid grid-cols-1 gap-x-10 gap-y-1.5 sm:grid-cols-2">
+            {active.features.map((feature) => (
+              <li key={feature} className="flex items-center gap-2 text-[13px] font-medium text-[#0d2318]">
+                <Check className="h-3.5 w-3.5 shrink-0 text-[#0d2318]" strokeWidth={3} />
+                {feature}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            onClick={() => navigate(active.href)}
+            className="flex shrink-0 items-center gap-3 self-start sm:self-auto"
+          >
+            <span className="text-right text-[11px] font-bold uppercase tracking-widest text-[#0d2318] sm:text-left">
+              Open
+              <br />
+              {active.label}
+            </span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#2ecc71] shadow-md transition-transform group-hover:scale-105 hover:scale-105">
+              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Home;
+
+
+======================================================================
+FILE: src/pages/Dashboard.tsx
+======================================================================
+import { useState } from 'react';
+import { Menu, Search, MoreHorizontal, Plus, Check } from 'lucide-react';
+
+type Status = 'Approved' | 'In Progress' | 'In Review' | 'Waiting';
+
+type Task = {
+  id: string;
+  label: string;
+  status: Status;
+  done: boolean;
+};
+
+const initialToday: Task[] = [
+  { id: 't1', label: 'Create initial layout for homepage', status: 'Approved', done: true },
+  { id: 't2', label: 'Fixing icons with transparent background', status: 'In Progress', done: true },
+  { id: 't3', label: 'Fixing icons with transparent background', status: 'In Progress', done: true },
+  { id: 't4', label: 'Create initial layout for homepage', status: 'In Progress', done: true },
+  { id: 't5', label: 'Discussions regarding workflow improvement', status: 'In Review', done: false },
+  { id: 't6', label: 'Create quotation for app redesign project', status: 'Waiting', done: false },
+];
+
+const initialUpcoming: Task[] = [
+  { id: 'u1', label: 'Create initial layout for homepage', status: 'Waiting', done: false },
+  { id: 'u2', label: 'Discussions regarding workflow improvement', status: 'Waiting', done: false },
+  { id: 'u3', label: 'Fixing icons with transparent background', status: 'Waiting', done: false },
+];
+
+const statusStyles: Record<Status, string> = {
+  Approved: 'bg-emerald-100 text-emerald-700',
+  'In Progress': 'bg-emerald-200 text-emerald-800',
+  'In Review': 'bg-emerald-50 text-emerald-600',
+  Waiting: 'bg-gray-100 text-gray-500',
+};
+
+type Project = {
+  initials: string;
+  label: string;
+  gradient: string;
+  badge?: boolean;
+  isCount?: boolean;
+};
+
+const projects: Project[] = [
+  { initials: 'GH', label: 'Green House', gradient: 'from-emerald-400 to-emerald-500' },
+  { initials: 'CP', label: 'Cyber Punk', gradient: 'from-emerald-400 to-emerald-600', badge: true },
+  { initials: 'EC', label: 'Easy Crypto', gradient: 'from-emerald-500 to-emerald-700' },
+  { initials: 'TA', label: 'Travel App', gradient: 'from-emerald-400 to-emerald-500' },
+  { initials: 'LP', label: 'Landing Page', gradient: 'from-emerald-500 to-emerald-700', badge: true },
+  { initials: '8+', label: '', gradient: '', isCount: true },
+];
+
+function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: string) => void }) {
+  return (
+    <div className="flex items-center justify-between py-2.5">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => onToggle(task.id)}
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+            task.done ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 bg-white hover:border-emerald-400'
+          }`}
+          aria-label={task.done ? 'Mark as not done' : 'Mark as done'}
+        >
+          {task.done && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+        </button>
+        <span
+          className={`text-[13px] ${task.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}
+        >
+          {task.label}
+        </span>
+      </div>
+      <span className={`rounded-full px-3 py-1 text-[11px] font-medium ${statusStyles[task.status]}`}>
+        {task.status}
+      </span>
+    </div>
+  );
+}
+
+export function Dashboard() {
+  const [today, setToday] = useState(initialToday);
+  const [upcoming, setUpcoming] = useState(initialUpcoming);
+
+  const toggleToday = (id: string) =>
+    setToday((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggleUpcoming = (id: string) =>
+    setUpcoming((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+
+  return (
+    <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-transparent opacity-60 blur-3xl" />
+        <div className="absolute -bottom-32 -right-16 h-[480px] w-[480px] rounded-full bg-gradient-to-tr from-emerald-400 via-emerald-300 to-transparent opacity-50 blur-3xl" />
+      </div>
+
+      <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="relative w-[420px] shrink-0 overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 p-8 text-white">
+          <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+            <Menu className="h-4 w-4" />
+          </button>
+
+          <div className="mt-10">
+            <h1 className="text-[26px] font-semibold leading-tight">Hi Samantha</h1>
+            <p className="mt-1 text-[13px] text-emerald-100/80">
+              Welcome back to the workspace, we missed you!
+            </p>
+          </div>
+
+          <div className="mt-6 flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5">
+            <Search className="h-4 w-4 text-emerald-100/70" />
+            <span className="text-[13px] text-emerald-100/70">Search Task or Project...</span>
+          </div>
+
+          <div className="mt-8">
+            <p className="text-[13px] font-medium text-emerald-100/90">
+              Projects <span className="text-emerald-200/60">(13)</span>
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-4">
+              {projects.map((project, i) => (
+                <div key={i} className="flex flex-col items-start gap-2">
+                  {project.isCount ? (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-[15px] font-semibold text-white">
+                      8+
+                    </div>
+                  ) : (
+                    <div
+                      className={`relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${project.gradient} text-[15px] font-semibold text-white shadow-lg`}
+                    >
+                      {project.initials}
+                      {project.badge && (
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-emerald-800 bg-white" />
+                      )}
+                    </div>
+                  )}
+                  {project.label && (
+                    <span className="text-[11px] text-emerald-100/70">{project.label}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="absolute bottom-6 left-8 grid grid-cols-4 gap-1.5 opacity-40">
+            {Array.from({ length: 16 }).map((_, i) => (
+              <span key={i} className="h-1 w-1 rounded-full bg-white" />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col overflow-y-auto bg-white p-8 shadow-[0_20px_50px_-15px_rgba(16,60,40,0.25)] ring-1 ring-black/5">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-[22px] font-semibold text-gray-900">Cyber Punk</h2>
+              <p className="mt-1 max-w-[280px] text-[12px] leading-relaxed text-gray-400">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+                incididunt
+              </p>
+            </div>
+            <div className="flex items-center">
+              <div className="flex -space-x-2">
+                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
+                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-600" />
+                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
+              </div>
+              <button className="ml-2 flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-emerald-300 text-emerald-500">
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <h3 className="text-[14px] font-semibold text-gray-800">Today</h3>
+            <MoreHorizontal className="h-4 w-4 text-gray-300" />
+          </div>
+          <div className="mt-1 divide-y divide-gray-50">
+            {today.map((task) => (
+              <TaskRow key={task.id} task={task} onToggle={toggleToday} />
+            ))}
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <h3 className="text-[14px] font-semibold text-gray-800">Upcoming</h3>
+            <MoreHorizontal className="h-4 w-4 text-gray-300" />
+          </div>
+          <div className="mt-1 divide-y divide-gray-50">
+            {upcoming.map((task) => (
+              <TaskRow key={task.id} task={task} onToggle={toggleUpcoming} />
+            ))}
+          </div>
+
+          <button className="absolute -bottom-5 -right-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105">
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;
+
+
+======================================================================
+FILE: src/pages/EmployeeDashboard.tsx
+======================================================================
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Home, Clock, MessageSquare, Folder, Megaphone,
+  Search, Bell, ChevronDown, MoreVertical, Plus,
+} from 'lucide-react';
+
+/* ─────────── data ─────────── */
+
+const EMPLOYEES = [
+  {
+    id: 1,
+    name: 'Jimmy Henderson',
+    email: 'henderson399@gmail.com',
+    code: 'CU009',
+    designation: 'Angular Developer',
+    phone: '788-998-1643',
+    joined: 'Mar 27, 2016',
+    color: '#4e9af1',
+    initials: 'JH',
+  },
+  {
+    id: 2,
+    name: 'Eva W Ramirez',
+    email: 'eva_ramirez@gmail.com',
+    code: 'CU012',
+    designation: 'Front-end Developer',
+    phone: '603-801-5810',
+    joined: 'Jul 02, 2016',
+    color: '#f97316',
+    initials: 'EW',
+  },
+  {
+    id: 3,
+    name: 'Bernita D Stubbs',
+    email: 'Subbsbernita@gmail.com',
+    code: 'CU081',
+    designation: 'Graphic Designer',
+    phone: '434-709-1874',
+    joined: 'Dec 12, 2017',
+    color: '#8b5cf6',
+    initials: 'BS',
+  },
+  {
+    id: 4,
+    name: 'Terrell Elliott',
+    email: 'elliotterrell@gmail.com',
+    code: 'CU034',
+    designation: 'Mean Developer',
+    phone: '318-225-1064',
+    joined: 'Apr 12, 2017',
+    color: '#14b8a6',
+    initials: 'TE',
+  },
+];
+
+const SIDEBAR_ICONS = [
+  { icon: Home, active: true },
+  { icon: Clock, active: false },
+  { icon: MessageSquare, active: false },
+  { icon: Folder, active: false },
+  { icon: Megaphone, active: false },
+];
+
+const TABS = ['Employee List', 'Management', 'Others'];
+
+/* ─────────── component ─────────── */
+
+export function EmployeeDashboard() {
+  const [activeTab, setActiveTab] = useState(0);
+  const [selectedRow, setSelectedRow] = useState(1); // Eva is highlighted
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-[#f4f4f4] relative">
+
+      {/* ── green decorative blobs ── */}
+      <div
+        className="absolute top-0 right-0 w-[180px] h-[180px] bg-[#2ecc71] pointer-events-none z-0"
+        style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 0)' }}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-[140px] h-[140px] bg-[#2ecc71] pointer-events-none z-0"
+        style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
+      />
+
+      {/* ── left sidebar ── */}
+      <aside className="relative z-10 flex w-[56px] flex-col items-center bg-white border-r border-gray-100 py-5 gap-7 shrink-0">
+        {/* logo */}
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2ecc71]/15 text-[#2ecc71]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+        </div>
+
+        {/* nav icons */}
+        <div className="flex flex-col items-center gap-6 mt-2">
+          {SIDEBAR_ICONS.map(({ icon: Icon, active }, i) => (
+            <div key={i} className="relative flex items-center">
+              {active && (
+                <div className="absolute -left-[18px] w-[3px] h-6 bg-[#2ecc71] rounded-r-full" />
+              )}
+              <button
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                  active ? 'text-[#2ecc71]' : 'text-gray-300 hover:text-gray-400'
+                }`}
+              >
+                <Icon className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* ── main area ── */}
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
+
+        {/* ── inner top bar ── */}
+        <div className="flex h-[56px] items-center justify-between bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 shrink-0">
+          {/* search */}
+          <button className="flex items-center gap-2 text-gray-300 hover:text-gray-400 transition-colors">
+            <Search className="h-[18px] w-[18px]" />
+          </button>
+
+          {/* right: bell + user */}
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <Bell className="h-[18px] w-[18px] text-gray-400" />
+              <span className="absolute -top-0.5 -right-0.5 h-[6px] w-[6px] rounded-full bg-[#2ecc71]" />
+            </div>
+            <div className="flex items-center gap-2.5 cursor-pointer">
+              <div className="h-8 w-8 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-[11px] font-bold">
+                AV
+              </div>
+              <span className="text-[13px] font-medium text-gray-700">Alief Vinicius</span>
+              <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* ── content ── */}
+        <div className="flex-1 overflow-auto px-8 py-7">
+
+          {/* heading row */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-[26px] font-bold text-gray-800 tracking-tight">Dashbaord</h1>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] text-white text-[13px] font-semibold px-4 py-2 rounded-[5px] transition-colors shadow-sm shadow-[#2ecc71]/30"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Employee
+            </motion.button>
+          </div>
+
+          {/* tabs */}
+          <div className="flex gap-0 border-b border-gray-200 mb-4">
+            {TABS.map((tab, i) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(i)}
+                className={`relative px-5 pb-3 pt-1 text-[13px] font-medium transition-colors ${
+                  activeTab === i ? 'text-gray-800' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {tab}
+                {activeTab === i && (
+                  <motion.span
+                    layoutId="emp-tab-line"
+                    className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2ecc71] rounded-full"
+                    transition={{ type: 'spring', stiffness: 500, damping: 36 }}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* table */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            {/* table header */}
+            <div className="grid grid-cols-[40px_1fr_140px_160px_150px_140px_40px] px-6 py-3 border-b border-gray-100">
+              <div />
+              <span className="text-[11.5px] font-medium text-gray-400">Basic Info</span>
+              <span className="text-[11.5px] font-medium text-gray-400">Employee Code</span>
+              <span className="text-[11.5px] font-medium text-gray-400">Designation</span>
+              <span className="text-[11.5px] font-medium text-gray-400">Phone Number</span>
+              <span className="text-[11.5px] font-medium text-gray-400">Joining Date</span>
+              <div />
+            </div>
+
+            {/* rows */}
+            {EMPLOYEES.map((emp, idx) => (
+              <motion.div
+                key={emp.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.06, duration: 0.22 }}
+                onClick={() => setSelectedRow(emp.id)}
+                className={`grid grid-cols-[40px_1fr_140px_160px_150px_140px_40px] px-6 py-[14px] border-b border-gray-50 last:border-0 cursor-pointer transition-colors ${
+                  selectedRow === emp.id ? 'bg-gray-50/80' : 'hover:bg-gray-50/40'
+                }`}
+              >
+                {/* # */}
+                <span className="text-[12px] text-gray-400 self-center">{emp.id}</span>
+
+                {/* basic info */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                    style={{ backgroundColor: emp.color }}
+                  >
+                    {emp.initials}
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-gray-800 leading-tight">{emp.name}</p>
+                    <p className="text-[11.5px] text-gray-400">{emp.email}</p>
+                  </div>
+                </div>
+
+                {/* code */}
+                <span className="text-[13px] text-gray-600 self-center">{emp.code}</span>
+
+                {/* designation */}
+                <span className="text-[13px] font-medium text-gray-700 self-center">{emp.designation}</span>
+
+                {/* phone */}
+                <span className="text-[13px] text-gray-600 self-center">{emp.phone}</span>
+
+                {/* joined */}
+                <span className="text-[13px] text-gray-600 self-center">{emp.joined}</span>
+
+                {/* actions */}
+                <button className="self-center text-gray-300 hover:text-gray-500 transition-colors">
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default EmployeeDashboard;
+
+
+======================================================================
+FILE: src/pages/SetupWizard.tsx
+======================================================================
+import { useState } from 'react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { Check, ChevronDown, ArrowLeft, ArrowRight, Upload, Plus, X, FileText } from 'lucide-react';
+
+/* ─────────── constants ─────────── */
+
+const STEPS = [
+  { id: 1, lines: ['Tell us about your', 'Business'] },
+  { id: 2, lines: ['Tell us about your', 'Business Operations'] },
+  { id: 3, lines: ['Configure your', 'Account Here'] },
+  { id: 4, lines: ['Add Relevant Data'] },
+  { id: 5, lines: ['Map Categories'] },
+];
+
+const STEP_TABS: Record<number, string[]> = {
+  1: ['General', 'Address', 'Contact', 'Display', 'Others', 'Tax Info'],
+  2: ['Module', 'Set Up', 'Auto-Logout', 'Commission', 'Settings'],
+  3: ['Overview', 'Permissions'],
+  4: ['Import', 'Export'],
+  5: ['Categories'],
+};
+
+/* ─────────── tiny shared atoms ─────────── */
+
+function HelpBadge() {
+  return (
+    <div className="h-[18px] w-[18px] rounded-full border border-gray-300 flex items-center justify-center text-gray-400 text-[10px] shrink-0 cursor-default select-none">
+      ?
+    </div>
+  );
+}
+
+function SkipLabel({ onClick }: { onClick?: () => void }) {
+  return (
+    <span
+      onClick={onClick}
+      className="text-[11px] text-[#2ecc71] font-semibold tracking-widest cursor-pointer select-none hover:text-[#27af61]"
+    >
+      SKIP
+    </span>
+  );
+}
+
+/* ─────────── reusable field rows ─────────── */
+
+function Dropdown({ label, options }: { label: string; options: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState('');
+
+  return (
+    <div className="flex items-center py-[10px] border-b border-gray-50 last:border-0">
+      <span className="w-[185px] text-right text-[13px] text-gray-600 pr-8 shrink-0">{label}</span>
+      <div className="relative w-[210px]">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          className="flex items-center justify-between border border-[#b8efcf] rounded-[3px] px-3 py-[7px] w-full cursor-pointer hover:border-[#2ecc71] transition-colors bg-white"
+        >
+          <span className={`text-[12px] truncate ${value ? 'text-gray-700' : 'text-gray-300'}`}>
+            {value || 'Select…'}
+          </span>
+          <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute top-full left-0 right-0 z-30 bg-white shadow-xl border border-gray-100 rounded-[4px] mt-1 max-h-[180px] overflow-auto">
+            {options.map((opt) => (
+              <button
+                type="button"
+                key={opt}
+                onMouseDown={() => {
+                  setValue(opt);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-[7px] text-[12px] hover:bg-[#f3fcf7] transition-colors ${
+                  value === opt ? 'text-[#2ecc71] font-medium bg-[#f3fcf7]' : 'text-gray-700'
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InputRow({
+  label,
+  skip = false,
+  wide = false,
+  placeholder,
+}: {
+  label: string;
+  skip?: boolean;
+  wide?: boolean;
+  placeholder?: string;
+}) {
+  const [value, setValue] = useState('');
+  const [skipped, setSkipped] = useState(false);
+  return (
+    <div className="flex items-center py-[10px] border-b border-gray-50 last:border-0">
+      <span className="w-[185px] text-right text-[13px] text-gray-600 pr-8 shrink-0">{label}</span>
+      <div className="flex items-center gap-3">
+        <input
+          value={skipped ? '' : value}
+          disabled={skipped}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={skipped ? 'Skipped' : placeholder}
+          className={`border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors disabled:bg-gray-50 disabled:text-gray-300 ${
+            wide ? 'w-[240px]' : 'w-[210px]'
+          }`}
+        />
+        {skip && (
+          <span
+            onClick={() => setSkipped((s) => !s)}
+            className={`text-[11px] font-semibold tracking-widest cursor-pointer select-none ${
+              skipped ? 'text-gray-400' : 'text-[#2ecc71] hover:text-[#27af61]'
+            }`}
+          >
+            {skipped ? 'UNDO' : 'SKIP'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function YesNoRow({
+  text,
+  help = false,
+  skip = false,
+  action,
+}: {
+  text: string;
+  help?: boolean;
+  skip?: boolean;
+  action?: { label: string; onDone?: () => void };
+}) {
+  const [value, setValue] = useState<'yes' | 'no' | null>(null);
+  const [skipped, setSkipped] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const name = text.replace(/\s+/g, '_');
+
+  return (
+    <div className="flex items-center py-3 border-b border-gray-50 last:border-0">
+      <div className="flex items-center gap-2 flex-1 pr-6 justify-end">
+        <span className="text-[13px] text-gray-700 text-right">{text}</span>
+        {help && <HelpBadge />}
+      </div>
+      <div className="flex items-center gap-4 shrink-0 w-[160px]">
+        {action ? (
+          <button
+            type="button"
+            onClick={() => {
+              setUploaded(true);
+              action.onDone?.();
+            }}
+            className={`flex items-center gap-1.5 text-white text-[12px] font-medium px-3 py-1.5 rounded-[3px] transition-colors ${
+              uploaded ? 'bg-[#2ecc71] hover:bg-[#27af61]' : 'bg-[#2ecc71] hover:bg-[#27af61]'
+            }`}
+          >
+            {uploaded ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
+            {uploaded ? 'Uploaded' : action.label}
+          </button>
+        ) : (
+          <>
+            <label className="flex items-center gap-[5px] text-[13px] text-gray-600 cursor-pointer">
+              <input
+                type="radio"
+                name={name}
+                checked={value === 'yes'}
+                onChange={() => setValue('yes')}
+                className="accent-[#2ecc71]"
+              />
+              Yes
+            </label>
+            <label className="flex items-center gap-[5px] text-[13px] text-gray-600 cursor-pointer">
+              <input
+                type="radio"
+                name={name}
+                checked={value === 'no'}
+                onChange={() => setValue('no')}
+                className="accent-[#2ecc71]"
+              />
+              No
+            </label>
+          </>
+        )}
+        {skip && <SkipLabel onClick={() => setSkipped((s) => !s)} />}
+      </div>
+    </div>
+  );
+}
+
+function ToggleSwitch({
+  label,
+  help = false,
+  defaultChecked = false,
+  onChange,
+}: {
+  label: string;
+  help?: boolean;
+  defaultChecked?: boolean;
+  onChange?: (checked: boolean) => void;
+}) {
+  const [checked, setChecked] = useState(defaultChecked);
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] text-gray-700">{label}</span>
+        {help && <HelpBadge />}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          const next = !checked;
+          setChecked(next);
+          onChange?.(next);
+        }}
+        className={`relative h-[22px] w-[40px] rounded-full transition-colors shrink-0 ${
+          checked ? 'bg-[#2ecc71]' : 'bg-gray-200'
+        }`}
+      >
+        <motion.span
+          className="absolute top-[3px] h-[16px] w-[16px] rounded-full bg-white shadow"
+          animate={{ left: checked ? 21 : 3 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+        />
+      </button>
+    </div>
+  );
+}
+
+/* ─────────── step-1 tab panels ─────────── */
+
+function GeneralTab() {
+  return (
+    <div className="pt-1">
+      <Dropdown label="Country" options={['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'India']} />
+      <Dropdown
+        label="Time Zone"
+        options={[
+          '(GMT-08:00) Pacific Time',
+          '(GMT-05:00) Eastern Time',
+          '(GMT+00:00) UTC',
+          '(GMT+01:00) Central European Time',
+          '(GMT+05:30) India Standard Time',
+        ]}
+      />
+      <Dropdown label="State or Province" options={['California', 'Texas', 'New York', 'Florida', 'Ontario', 'Quebec']} />
+      <Dropdown
+        label="Currency"
+        options={['USD - US Dollar', 'EUR - Euro', 'GBP - British Pound', 'CAD - Canadian Dollar', 'INR - Indian Rupee']}
+      />
+      <Dropdown label="City" options={['Los Angeles', 'San Diego', 'Miami', 'New York', 'Toronto']} />
+    </div>
+  );
+}
+
+function AddressTab() {
+  return (
+    <div className="pt-1">
+      <InputRow label="Business Name" placeholder="DiveShop360" />
+      <InputRow label="Website" skip placeholder="www.example.com" />
+      <InputRow label="Phone" placeholder="(555) 555-0100" />
+      <InputRow label="Fax" skip placeholder="(555) 555-0101" />
+      <InputRow label="Postal Code" placeholder="90210" />
+    </div>
+  );
+}
+
+function ContactTab() {
+  const [address, setAddress] = useState('');
+  const [same, setSame] = useState<'yes' | 'no' | null>(null);
+  const [skipped, setSkipped] = useState(false);
+  return (
+    <div className="pt-1">
+      <div className="flex items-start py-3 border-b border-gray-50">
+        <span className="w-[185px] text-right text-[13px] text-gray-600 pr-8 shrink-0 pt-[3px]">
+          Business Address
+        </span>
+        <textarea
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="123 Ocean Ave, Suite 4"
+          className="border border-[#b8efcf] rounded-[3px] px-3 py-2 text-[13px] w-[240px] h-[96px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
+        />
+      </div>
+      <div className="flex items-center py-3">
+        <span className="w-[185px] text-right text-[13px] text-gray-600 pr-8 shrink-0 leading-tight">
+          Is Your Shipping Address<br />Same?
+        </span>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-[5px] text-[13px] text-gray-600 cursor-pointer">
+            <input
+              type="radio"
+              name="shipping_same"
+              checked={same === 'yes'}
+              onChange={() => setSame('yes')}
+              disabled={skipped}
+              className="accent-[#2ecc71]"
+            />
+            Yes
+          </label>
+          <label className="flex items-center gap-[5px] text-[13px] text-gray-600 cursor-pointer">
+            <input
+              type="radio"
+              name="shipping_same"
+              checked={same === 'no'}
+              onChange={() => setSame('no')}
+              disabled={skipped}
+              className="accent-[#2ecc71]"
+            />
+            No
+          </label>
+          <SkipLabel onClick={() => setSkipped((s) => !s)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DisplayTab() {
+  const [uploaded, setUploaded] = useState(false);
+  return (
+    <div className="pt-1">
+      <YesNoRow text="Do you want your Logo to appear on Screen?" help skip />
+      <YesNoRow text="Do you want your Invoice to appear on Screen" help />
+      <YesNoRow text="Do you want to hide Store Name on Invoice Documents?" help />
+      <div className="flex items-center py-3">
+        <div className="flex items-center gap-2 flex-1 pr-6 justify-end">
+          <span className="text-[13px] text-gray-700 text-right">
+            Upload Image for Store Location Here
+          </span>
+          <HelpBadge />
+        </div>
+        <div className="flex items-center gap-3 shrink-0 w-[160px]">
+          <button
+            type="button"
+            onClick={() => setUploaded(true)}
+            className={`flex items-center gap-1.5 text-white text-[12px] font-medium px-3 py-1.5 rounded-[3px] transition-colors ${
+              uploaded ? 'bg-[#2ecc71] hover:bg-[#27af61]' : 'bg-[#2ecc71] hover:bg-[#27af61]'
+            }`}
+          >
+            {uploaded ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
+            {uploaded ? 'Uploaded' : 'Upload'}
+          </button>
+          <SkipLabel />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OthersTab() {
+  const fields = ['SMTP Info', 'PO Prefix', 'Tax Permit ID', 'Barcode Prefix', 'Scale for Tax'];
+  const [values, setValues] = useState<Record<string, string>>({});
+  return (
+    <div className="pt-1">
+      {fields.map((label) => (
+        <div key={label} className="flex items-center py-[10px] border-b border-gray-50 last:border-0">
+          <span className="w-[185px] text-right text-[13px] text-gray-600 pr-8 shrink-0">{label}</span>
+          <div className="flex items-center gap-2">
+            <input
+              value={values[label] ?? ''}
+              onChange={(e) => setValues((v) => ({ ...v, [label]: e.target.value }))}
+              className="border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] w-[190px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
+            />
+            <HelpBadge />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+let taxRowId = 0;
+function newTaxRow() {
+  taxRowId += 1;
+  return { id: taxRowId, country: '', title: '', pct: '', types: [] as string[] };
+}
+
+function TaxInfoTab() {
+  const [open, setOpen] = useState<number | null>(null);
+  const [rows, setRows] = useState(() => [newTaxRow(), newTaxRow(), newTaxRow(), newTaxRow()]);
+  const opts = ['All', 'Products', 'Rental', 'Travels', 'Course', 'Services'];
+
+  const updateRow = (id: number, patch: Partial<ReturnType<typeof newTaxRow>>) => {
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+
+  const toggleType = (id: number, opt: string) => {
+    setRows((rs) =>
+      rs.map((r) =>
+        r.id === id
+          ? { ...r, types: r.types.includes(opt) ? r.types.filter((t) => t !== opt) : [...r.types, opt] }
+          : r
+      )
+    );
+  };
+
+  return (
+    <div className="pt-1 overflow-x-auto">
+      <table className="w-full text-[12px] border-collapse">
+        <thead>
+          <tr className="bg-[#2ecc71] text-white">
+            {['Country', 'Tax Title', 'Tax %'].map((h) => (
+              <th key={h} className="text-left px-3 py-[9px] font-medium">{h}</th>
+            ))}
+            <th className="text-left px-3 py-[9px] font-medium min-w-[170px]">Tax by Inventory Type</th>
+            <th className="text-left px-3 py-[9px] font-medium w-[60px]">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f3fcf7]'}>
+              <td className="px-3 py-2 border-b border-gray-50">
+                <input
+                  value={row.country}
+                  onChange={(e) => updateRow(row.id, { country: e.target.value })}
+                  placeholder="e.g. USA"
+                  className="w-full border border-[#b8efcf] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
+                />
+              </td>
+              <td className="px-3 py-2 border-b border-gray-50">
+                <input
+                  value={row.title}
+                  onChange={(e) => updateRow(row.id, { title: e.target.value })}
+                  placeholder="e.g. VAT"
+                  className="w-full border border-[#b8efcf] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
+                />
+              </td>
+              <td className="px-3 py-2 border-b border-gray-50">
+                <input
+                  value={row.pct}
+                  onChange={(e) => updateRow(row.id, { pct: e.target.value.replace(/[^0-9.]/g, '') })}
+                  placeholder="0.0"
+                  className="w-[70px] border border-[#b8efcf] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
+                />
+              </td>
+              <td className="px-3 py-2 border-b border-gray-50 relative">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 cursor-pointer whitespace-nowrap text-gray-700"
+                  onClick={() => setOpen(open === row.id ? null : row.id)}
+                >
+                  {row.types.length ? `${row.types.length} selected` : 'Choose types'}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {open === row.id && (
+                  <div className="absolute top-full left-3 z-30 bg-white shadow-xl border border-gray-100 rounded-[4px] min-w-[160px] p-2 mt-0.5">
+                    {opts.map((opt) => (
+                      <label
+                        key={opt}
+                        className="flex items-center gap-2 py-1.5 px-2 text-gray-700 cursor-pointer hover:bg-gray-50 rounded-[2px]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={row.types.includes(opt)}
+                          onChange={() => toggleType(row.id, opt)}
+                          className="accent-[#2ecc71]"
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => setOpen(null)}
+                      className="mt-1.5 w-full bg-[#2ecc71] hover:bg-[#27af61] text-white text-[11px] py-1.5 rounded-[3px] font-medium transition-colors"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
+              </td>
+              <td className="px-3 py-2 border-b border-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setRows((rs) => rs.filter((r) => r.id !== row.id))}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  aria-label="Remove row"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button
+        type="button"
+        onClick={() => setRows((rs) => [...rs, newTaxRow()])}
+        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27af61]"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add Tax Rate
+      </button>
+    </div>
+  );
+}
+
+/* ─────────── step-2 tab panels ─────────── */
+
+function ModuleTab() {
+  const modules = ['Travel', 'Charter', 'Courses', 'Rental', 'Repairs'];
+  const [values, setValues] = useState<Record<string, 'yes' | 'no' | null>>({});
+  return (
+    <div className="py-4">
+      <p className="text-[14px] font-semibold text-gray-800 text-center mb-6 px-4">
+        What Modules would you Like to Be Activated on your Account?
+      </p>
+      <div className="flex flex-col gap-3 pl-[80px]">
+        {modules.map((mod) => (
+          <div key={mod} className="flex items-center gap-5">
+            <HelpBadge />
+            <span className="w-[72px] text-[13px] text-gray-700">{mod}</span>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-[5px] text-[13px] text-gray-600 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`mod_${mod}`}
+                  checked={values[mod] === 'yes'}
+                  onChange={() => setValues((v) => ({ ...v, [mod]: 'yes' }))}
+                  className="accent-[#2ecc71]"
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-[5px] text-[13px] text-gray-600 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`mod_${mod}`}
+                  checked={values[mod] === 'no'}
+                  onChange={() => setValues((v) => ({ ...v, [mod]: 'no' }))}
+                  className="accent-[#2ecc71]"
+                />
+                No
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SetUpTab() {
+  return (
+    <div className="pt-1">
+      <ToggleSwitch label="Enable Multi-Location Management" help defaultChecked />
+      <ToggleSwitch label="Enable Barcode Scanning" help />
+      <ToggleSwitch label="Enable Online Booking" help defaultChecked />
+      <ToggleSwitch label="Enable Inventory Tracking" help defaultChecked />
+      <ToggleSwitch label="Enable Equipment Rental Tracking" help />
+    </div>
+  );
+}
+
+function AutoLogoutTab() {
+  const [enabled, setEnabled] = useState(true);
+  const [minutes, setMinutes] = useState('15');
+  return (
+    <div className="pt-1">
+      <ToggleSwitch label="Enable Auto-Logout for Inactive Sessions" help defaultChecked={enabled} onChange={setEnabled} />
+      <AnimatePresence initial={false}>
+        {enabled && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center py-[10px] border-b border-gray-50">
+              <span className="w-[185px] text-right text-[13px] text-gray-600 pr-8 shrink-0">
+                Timeout (minutes)
+              </span>
+              <input
+                type="number"
+                min={1}
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
+                className="border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] w-[100px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <ToggleSwitch label="Warn Users Before Logging Out" help defaultChecked />
+    </div>
+  );
+}
+
+let commissionRowId = 3;
+function newCommissionRow(role: string, pct: string) {
+  commissionRowId += 1;
+  return { id: commissionRowId, role, pct };
+}
+
+function CommissionTab() {
+  const [rows, setRows] = useState([
+    { id: 1, role: 'Instructor', pct: '12' },
+    { id: 2, role: 'Sales Staff', pct: '5' },
+    { id: 3, role: 'Rental Desk', pct: '3' },
+  ]);
+
+  return (
+    <div className="pt-1">
+      <div className="flex items-center py-2 border-b border-gray-100 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+        <span className="w-[185px] text-right pr-8 shrink-0">Role</span>
+        <span>Commission %</span>
+      </div>
+      {rows.map((row) => (
+        <div key={row.id} className="flex items-center py-[10px] border-b border-gray-50 last:border-0">
+          <input
+            value={row.role}
+            onChange={(e) =>
+              setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, role: e.target.value } : r)))
+            }
+            className="w-[185px] text-right text-[13px] text-gray-700 pr-8 shrink-0 outline-none bg-transparent border-b border-transparent focus:border-[#2ecc71] transition-colors"
+          />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center border border-[#b8efcf] rounded-[3px] focus-within:border-[#2ecc71] transition-colors">
+              <input
+                value={row.pct}
+                onChange={(e) =>
+                  setRows((rs) =>
+                    rs.map((r) => (r.id === row.id ? { ...r, pct: e.target.value.replace(/[^0-9.]/g, '') } : r))
+                  )
+                }
+                className="px-3 py-[7px] text-[13px] w-[80px] outline-none rounded-[3px]"
+              />
+              <span className="pr-3 text-[12px] text-gray-400">%</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRows((rs) => rs.filter((r) => r.id !== row.id))}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+              aria-label="Remove role"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setRows((rs) => [...rs, newCommissionRow('New Role', '0')])}
+        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27af61]"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add Role
+      </button>
+    </div>
+  );
+}
+
+function SettingsTab() {
+  return (
+    <div className="pt-1">
+      <ToggleSwitch label="Email Notifications" defaultChecked />
+      <ToggleSwitch label="SMS Alerts" />
+      <ToggleSwitch label="Weekly Summary Reports" defaultChecked />
+      <ToggleSwitch label="Dark Mode for Staff Portal" />
+      <ToggleSwitch label="Require 2FA for Admins" help defaultChecked />
+    </div>
+  );
+}
+
+/* ─────────── step-3 tab panels ─────────── */
+
+function OverviewTab() {
+  const sections = ['Business Details', 'Operations & Modules', 'Auto-Logout & Commission', 'Notification Settings'];
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [notes, setNotes] = useState('');
+  return (
+    <div className="pt-2">
+      <p className="text-[13px] text-gray-600 mb-4">
+        Confirm you've reviewed each section before finishing setup.
+      </p>
+      {sections.map((s) => (
+        <label
+          key={s}
+          className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0 cursor-pointer"
+        >
+          <input
+            type="checkbox"
+            checked={!!checked[s]}
+            onChange={(e) => setChecked((c) => ({ ...c, [s]: e.target.checked }))}
+            className="h-4 w-4 accent-[#2ecc71]"
+          />
+          <span className={`text-[13px] transition-colors ${checked[s] ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+            {s} reviewed
+          </span>
+        </label>
+      ))}
+      <div className="mt-4">
+        <span className="text-[13px] text-gray-600 block mb-1.5">Notes for your team</span>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Anything worth flagging before go-live…"
+          className="border border-[#b8efcf] rounded-[3px] px-3 py-2 text-[13px] w-full max-w-[420px] h-[80px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
+        />
+      </div>
+    </div>
+  );
+}
+
+const ROLES = ['Owner', 'Manager', 'Staff', 'Instructor'];
+const PERMISSIONS = ['View Bookings', 'Edit Bookings', 'Manage Payments', 'Manage Staff', 'View Reports'];
+
+function PermissionsTab() {
+  const [grid, setGrid] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    ROLES.forEach((role, ri) => {
+      PERMISSIONS.forEach((perm) => {
+        init[`${role}|${perm}`] = ri === 0; // Owner starts fully checked
+      });
+    });
+    return init;
+  });
+
+  const toggle = (key: string) => setGrid((g) => ({ ...g, [key]: !g[key] }));
+
+  return (
+    <div className="pt-1 overflow-x-auto">
+      <table className="w-full text-[12px] border-collapse">
+        <thead>
+          <tr className="bg-[#2ecc71] text-white">
+            <th className="text-left px-3 py-[9px] font-medium">Permission</th>
+            {ROLES.map((role) => (
+              <th key={role} className="text-center px-3 py-[9px] font-medium">{role}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {PERMISSIONS.map((perm, i) => (
+            <tr key={perm} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f3fcf7]'}>
+              <td className="px-3 py-2.5 border-b border-gray-50 text-gray-700">{perm}</td>
+              {ROLES.map((role) => {
+                const key = `${role}|${perm}`;
+                return (
+                  <td key={role} className="px-3 py-2.5 border-b border-gray-50 text-center">
+                    <input
+                      type="checkbox"
+                      checked={!!grid[key]}
+                      onChange={() => toggle(key)}
+                      className="h-4 w-4 accent-[#2ecc71] cursor-pointer"
+                    />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ─────────── step-4 tab panels ─────────── */
+
+function ImportTab() {
+  const [files, setFiles] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'importing' | 'done'>('idle');
+
+  const addFiles = (fileList: FileList | null) => {
+    if (!fileList) return;
+    setFiles((f) => [...f, ...Array.from(fileList).map((file) => file.name)]);
+    setStatus('idle');
+  };
+
+  return (
+    <div className="pt-2">
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          addFiles(e.dataTransfer.files);
+        }}
+        className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-[8px] py-10 cursor-pointer transition-colors ${
+          dragOver ? 'border-[#2ecc71] bg-[#f3fcf7]' : 'border-gray-200 hover:border-[#2ecc71]'
+        }`}
+      >
+        <Upload className="h-5 w-5 text-[#2ecc71]" />
+        <span className="text-[13px] text-gray-600">Drag files here, or click to browse</span>
+        <span className="text-[11px] text-gray-400">CSV or Excel — customers, inventory, bookings</span>
+        <input type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+      </label>
+
+      {files.length > 0 && (
+        <div className="mt-4 flex flex-col gap-2">
+          {files.map((name, i) => (
+            <div key={`${name}-${i}`} className="flex items-center justify-between border border-gray-100 rounded-[4px] px-3 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span className="text-[12px] text-gray-700 truncate">{name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFiles((f) => f.filter((_, idx) => idx !== i))}
+                className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            disabled={status === 'importing'}
+            onClick={() => {
+              setStatus('importing');
+              setTimeout(() => setStatus('done'), 900);
+            }}
+            className="mt-1 self-start flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] disabled:opacity-60 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
+          >
+            {status === 'importing' ? 'Importing…' : status === 'done' ? 'Imported ✓' : `Import ${files.length} File${files.length > 1 ? 's' : ''}`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExportTab() {
+  const dataTypes = ['Customers', 'Bookings', 'Inventory', 'Financials'];
+  const [checked, setChecked] = useState<Record<string, boolean>>({ Customers: true, Bookings: true });
+  const [format, setFormat] = useState<'CSV' | 'Excel' | 'PDF'>('CSV');
+  const [status, setStatus] = useState<'idle' | 'preparing' | 'ready'>('idle');
+
+  const anyChecked = Object.values(checked).some(Boolean);
+
+  return (
+    <div className="pt-2">
+      <p className="text-[13px] text-gray-600 mb-3">Choose what to export</p>
+      <div className="flex flex-col gap-2.5 mb-5">
+        {dataTypes.map((dt) => (
+          <label key={dt} className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!checked[dt]}
+              onChange={(e) => {
+                setChecked((c) => ({ ...c, [dt]: e.target.checked }));
+                setStatus('idle');
+              }}
+              className="h-4 w-4 accent-[#2ecc71]"
+            />
+            <span className="text-[13px] text-gray-700">{dt}</span>
+          </label>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 mb-5">
+        <span className="text-[13px] text-gray-600">Format</span>
+        {(['CSV', 'Excel', 'PDF'] as const).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => {
+              setFormat(f);
+              setStatus('idle');
+            }}
+            className={`px-3 py-1.5 rounded-[3px] text-[12px] font-medium border transition-colors ${
+              format === f
+                ? 'bg-[#2ecc71] border-[#2ecc71] text-white'
+                : 'border-[#b8efcf] text-gray-600 hover:border-[#2ecc71]'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={!anyChecked || status === 'preparing'}
+        onClick={() => {
+          setStatus('preparing');
+          setTimeout(() => setStatus('ready'), 900);
+        }}
+        className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] disabled:opacity-40 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
+      >
+        {status === 'preparing' ? 'Preparing…' : status === 'ready' ? `${format} Ready ✓` : `Export as ${format}`}
+      </button>
+    </div>
+  );
+}
+
+/* ─────────── step-5 tab panels ─────────── */
+
+let categoryId = 0;
+function newCategory(name: string) {
+  categoryId += 1;
+  return { id: categoryId, name };
+}
+
+function CategoriesTab() {
+  const [categories, setCategories] = useState(() =>
+    ['Scuba Gear', 'Snorkeling Gear', 'Apparel', 'Courses', 'Charters'].map(newCategory)
+  );
+  const [input, setInput] = useState('');
+
+  const addCategory = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setCategories((c) => [...c, newCategory(trimmed)]);
+    setInput('');
+  };
+
+  return (
+    <div className="pt-2">
+      <div className="flex items-center gap-2 mb-4 max-w-[400px]">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+          placeholder="New category name"
+          className="flex-1 border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={addCategory}
+          className="flex items-center gap-1 bg-[#2ecc71] hover:bg-[#27af61] text-white text-[12px] font-medium px-3 py-[7px] rounded-[3px] transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add
+        </button>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {categories.map((cat) => (
+          <div
+            key={cat.id}
+            className="flex items-center justify-between border border-gray-100 rounded-[4px] px-3 py-2 max-w-[400px]"
+          >
+            <span className="text-[13px] text-gray-700">{cat.name}</span>
+            <button
+              type="button"
+              onClick={() => setCategories((c) => c.filter((x) => x.id !== cat.id))}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        {categories.length === 0 && (
+          <p className="text-[12px] text-gray-400">No categories yet — add one above.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── animation variants ─────────── */
+const EASE_OUT: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
+
+const slideVariants: Variants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 36 : -36,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: { duration: 0.24, ease: EASE_OUT },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? -36 : 36,
+    opacity: 0,
+    transition: { duration: 0.18, ease: EASE_OUT },
+  }),
+};
+
+const circleVariants: Variants = {
+  initial: { scale: 0.6, opacity: 0 },
+  animate: { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 420, damping: 24 } },
+  exit: { scale: 0.6, opacity: 0, transition: { duration: 0.12 } },
+};
+
+/* ─────────── main page ─────────── */
+
+export function SetupWizard() {
+  const [activeStep, setActiveStep] = useState(1);
+  const [activeTab, setActiveTab] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const [furthestStep, setFurthestStep] = useState(1);
+
+  const tabs = STEP_TABS[activeStep] ?? ['General'];
+
+  const goToStep = (step: number, tabIndex = 0) => {
+    setDirection(step >= activeStep ? 1 : -1);
+    setActiveStep(step);
+    setActiveTab(tabIndex);
+    setFurthestStep((f) => Math.max(f, step));
+  };
+
+  const handleNext = () => {
+    setDirection(1);
+    if (activeTab < tabs.length - 1) {
+      setActiveTab(activeTab + 1);
+    } else if (activeStep < 5) {
+      goToStep(activeStep + 1, 0);
+    }
+  };
+
+  const handlePrev = () => {
+    setDirection(-1);
+    if (activeTab > 0) {
+      setActiveTab(activeTab - 1);
+    } else if (activeStep > 1) {
+      const prevStep = activeStep - 1;
+      setActiveStep(prevStep);
+      setActiveTab((STEP_TABS[prevStep]?.length ?? 1) - 1);
+    }
+  };
+
+  // Steps are unlocked once you've reached them at least once, plus the very next one.
+  const stepStatus = (id: number) =>
+    id < activeStep ? 'done' : id === activeStep ? 'active' : 'pending';
+  const isReachable = (id: number) => id <= furthestStep + 1;
+
+  /* progress: step contributes 20%, each tab contributes 20/tabCount */
+  const tabCount = tabs.length;
+  const pct = Math.round(((activeStep - 1) * 20) + (activeTab / tabCount) * 20);
+  const leftPct = 100 - pct;
+
+  const renderContent = () => {
+    const tab = tabs[activeTab];
+    if (activeStep === 1) {
+      if (tab === 'General') return <GeneralTab />;
+      if (tab === 'Address') return <AddressTab />;
+      if (tab === 'Contact') return <ContactTab />;
+      if (tab === 'Display') return <DisplayTab />;
+      if (tab === 'Others') return <OthersTab />;
+      if (tab === 'Tax Info') return <TaxInfoTab />;
+    }
+    if (activeStep === 2) {
+      if (tab === 'Module') return <ModuleTab />;
+      if (tab === 'Set Up') return <SetUpTab />;
+      if (tab === 'Auto-Logout') return <AutoLogoutTab />;
+      if (tab === 'Commission') return <CommissionTab />;
+      if (tab === 'Settings') return <SettingsTab />;
+    }
+    if (activeStep === 3) {
+      if (tab === 'Overview') return <OverviewTab />;
+      if (tab === 'Permissions') return <PermissionsTab />;
+    }
+    if (activeStep === 4) {
+      if (tab === 'Import') return <ImportTab />;
+      if (tab === 'Export') return <ExportTab />;
+    }
+    if (activeStep === 5) {
+      if (tab === 'Categories') return <CategoriesTab />;
+    }
+    return null;
+  };
+
+  return (
+    <div className="relative flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#f3fcf7]">
+
+      {/* ── decorative blobs ── */}
+      <div
+        className="absolute top-0 right-0 w-[240px] h-[240px] bg-[#27af61] pointer-events-none"
+        style={{ borderBottomLeftRadius: '100%' }}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-[110px] h-[170px] bg-[#27af61] pointer-events-none"
+        style={{ borderTopLeftRadius: '60px' }}
+      />
+
+      {/* ── DiveShop360 vertical label ── */}
+      <div
+        className="absolute text-[#27af61] text-[11px] font-semibold tracking-[0.25em] opacity-80 pointer-events-none z-10"
+        style={{
+          right: '38px',
+          top: '50%',
+          transform: 'translateY(-50%) rotate(90deg)',
+          transformOrigin: 'center center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        DiveShop360
+      </div>
+
+      {/* ── main card ── */}
+      <motion.div
+        className="relative flex w-full h-full z-10"
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+      >
+
+        {/* ── left sidebar ── */}
+        <div className="w-[230px] shrink-0 bg-[#19703e] flex flex-col py-9 rounded-l-[18px]">
+          <div className="flex-1 flex flex-col gap-7">
+            {STEPS.map((step) => {
+              const status = stepStatus(step.id);
+              const reachable = isReachable(step.id);
+              return (
+                <div
+                  key={step.id}
+                  className={`flex items-start pl-7 pr-10 ${reachable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                  onClick={() => {
+                    if (reachable) goToStep(step.id, 0);
+                  }}
+                >
+                  <div className="flex flex-col">
+                    {step.lines.map((line, li) => (
+                      <p
+                        key={li}
+                        className={`text-[13px] leading-[1.45] font-medium transition-colors ${
+                          status === 'active'
+                            ? 'text-white'
+                            : status === 'done'
+                            ? 'text-white/70'
+                            : reachable
+                            ? 'text-white/55'
+                            : 'text-white/40'
+                        }`}
+                      >
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* dots grid */}
+          <div className="pl-7 mt-6">
+            <div className="grid grid-cols-4 gap-[5px] opacity-25">
+              {Array.from({ length: 20 }).map((_, i) => (
+                <span key={i} className="h-[3px] w-[3px] rounded-full bg-white" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── step circles — absolutely positioned over the sidebar/content seam ── */}
+        {(() => {
+          // Match the sidebar's py-9 (36px) + gap-7 (28px) rhythm.
+          // Each step row is roughly ~40px tall (two lines ≈ 38px with gap).
+          // We use a flex column with the same gap to align circles to step rows.
+          return (
+            <div
+              className="absolute top-0 flex flex-col py-9 gap-7 pointer-events-none"
+              style={{ left: '214px', zIndex: 30 }}
+            >
+              {STEPS.map((step) => {
+                const status = stepStatus(step.id);
+                const reachable = isReachable(step.id);
+                return (
+                  <div
+                    key={step.id}
+                    className={`pointer-events-auto h-[38px] flex items-start pt-0.5 ${
+                      reachable ? 'cursor-pointer' : 'cursor-not-allowed'
+                    }`}
+                    onClick={() => {
+                      if (reachable) goToStep(step.id, 0);
+                    }}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      {status === 'done' ? (
+                        <motion.div
+                          key="done"
+                          variants={circleVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className="h-8 w-8 rounded-full bg-[#2ecc71] flex items-center justify-center shadow-md"
+                        >
+                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                        </motion.div>
+                      ) : status === 'active' ? (
+                        <motion.div
+                          key="active"
+                          variants={circleVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className="h-8 w-8 rounded-full bg-white flex items-center justify-center"
+                          style={{ boxShadow: '0 0 0 2.5px #19703e, 0 0 0 5px #61db95, 0 2px 8px rgba(0,0,0,0.15)' }}
+                        >
+                          <span className="text-[13px] font-bold text-[#19703e]">{step.id}</span>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="pending"
+                          variants={circleVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                            reachable ? 'bg-white/35' : 'bg-white/20'
+                          }`}
+                        >
+                          <span className={`text-[13px] font-medium ${reachable ? 'text-white/85' : 'text-white/60'}`}>
+                            {step.id}
+                          </span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* ── right content ── */}
+        <div className="flex-1 bg-white flex flex-col min-w-0 rounded-r-[18px]">
+
+          {/* tab bar — layoutId underline slides between tabs */}
+          <div className="flex items-end px-7 pt-5 border-b border-gray-100 gap-0">
+            <div className="flex flex-1 gap-0">
+              {tabs.map((tab, i) => (
+                <button
+                  key={tab}
+                  onClick={() => { setDirection(i > activeTab ? 1 : -1); setActiveTab(i); }}
+                  className={`relative px-[14px] pb-2.5 pt-0.5 text-[13px] font-medium transition-colors duration-150 whitespace-nowrap ${
+                    activeTab === i ? 'text-[#2ecc71]' : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {tab}
+                  {activeTab === i && (
+                    <motion.span
+                      layoutId="tab-underline"
+                      className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2ecc71] rounded-full"
+                      transition={{ type: 'spring', stiffness: 500, damping: 36 }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+            <span className="text-[10.5px] text-gray-400 pb-2 shrink-0 ml-2">
+              Approx Time: 2 Mins
+            </span>
+          </div>
+
+          {/* form content — slides in/out based on navigation direction */}
+          <div className="flex-1 overflow-hidden relative">
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={`${activeStep}-${activeTab}`}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                className="absolute inset-0 overflow-auto px-7 py-3"
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* progress + nav */}
+          <div className="flex items-center px-7 py-4 gap-5 border-t border-gray-50">
+            {/* progress bar */}
+            <div className="flex flex-1 items-center gap-2.5 min-w-0">
+              <div className="flex-1 bg-gray-100 rounded-full h-[3px] overflow-hidden">
+                <motion.div
+                  className="h-full bg-[#2ecc71] rounded-full"
+                  animate={{ width: `${pct}%` }}
+                  transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                />
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={leftPct}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-[11px] text-gray-400 shrink-0"
+                >
+                  {leftPct}% Left
+                </motion.span>
+              </AnimatePresence>
+            </div>
+
+            {/* nav buttons */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <motion.button
+                onClick={handlePrev}
+                disabled={activeStep === 1 && activeTab === 0}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                className="flex items-center gap-1.5 px-4 py-[7px] text-[11px] font-semibold text-gray-500 border border-gray-300 rounded-[3px] hover:border-gray-400 disabled:opacity-30 transition-colors tracking-widest"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                PREVIOUS
+              </motion.button>
+              <motion.button
+                onClick={handleNext}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                className="flex items-center gap-1.5 px-5 py-[7px] text-[11px] font-semibold text-white bg-[#2ecc71] hover:bg-[#27af61] rounded-[3px] transition-colors tracking-widest"
+              >
+                NEXT
+                <ArrowRight className="h-3 w-3" />
+              </motion.button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export default SetupWizard;
+
+
+======================================================================
+FILE: src/pages/ProcessTimeline.tsx
+======================================================================
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Check, Mail } from 'lucide-react';
+
+/* ─────────── icons (SVG outlines matching the design) ─────────── */
+
+function HandshakeIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 18l10-6h8l10 6" />
+      <path d="M4 22c0 0 2-4 6-4s6 2 6 2l8 8s2 2 4 0 0-4 0-4" />
+      <path d="M28 24l6-6s2-2 4 0 0 4 0 4l-8 8s-2 2-4 0" />
+      <path d="M44 22c0 0-2-4-6-4" />
+      <path d="M16 32l-6 8" />
+      <path d="M32 32l6 8" />
+    </svg>
+  );
+}
+
+function MapIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="6,10 18,6 30,10 42,6 42,38 30,42 18,38 6,42" />
+      <line x1="18" y1="6" x2="18" y2="38" />
+      <line x1="30" y1="10" x2="30" y2="42" />
+      <circle cx="24" cy="22" r="3" />
+    </svg>
+  );
+}
+
+function OfferIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="10" y="6" width="28" height="36" rx="2" />
+      <path d="M24 14v20M18 20l6-6 6 6" />
+      <line x1="16" y1="34" x2="32" y2="34" />
+    </svg>
+  );
+}
+
+function ContractIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="10" y="4" width="28" height="36" rx="2" />
+      <line x1="16" y1="14" x2="32" y2="14" />
+      <line x1="16" y1="20" x2="32" y2="20" />
+      <line x1="16" y1="26" x2="24" y2="26" />
+      <path d="M28 32l4 4 8-8" />
+    </svg>
+  );
+}
+
+function HouseIcon({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 24L24 8l18 16" />
+      <path d="M10 20v20h10V30h8v10h10V20" />
+      <circle cx="38" cy="16" r="3" fill={color === '#2ecc71' ? '#2ecc71' : 'none'} />
+    </svg>
+  );
+}
+
+/* ─────────── step data ─────────── */
+
+const STEPS = [
+  { id: 0, label: 'Prospect', Icon: HandshakeIcon },
+  { id: 1, label: 'Tour',     Icon: MapIcon },
+  { id: 2, label: 'Offer',    Icon: OfferIcon },
+  { id: 3, label: 'Contract', Icon: ContractIcon },
+  { id: 4, label: 'Settled',  Icon: HouseIcon },
+];
+
+const ACTIVE_STEP = 2; // Offer
+
+/* ─────────── sub-components ─────────── */
+
+function TimelineTrack({
+  activeStep,
+  dark = false,
+  compact = false,
+}: {
+  activeStep: number;
+  dark?: boolean;
+  compact?: boolean;
+}) {
+  const iconSize = compact ? 32 : 42;
+  const nodeSize = compact ? 26 : 32;
+  const labelSize = compact ? 'text-[11px]' : 'text-[13px]';
+  const trackColor = dark ? '#6b7a8a' : '#d1d5db';
+  const doneColor = '#2ecc71';
+
+  return (
+    <div className="flex items-start justify-between w-full relative" style={{ gap: 0 }}>
+      {STEPS.map((step, i) => {
+        const done = i < activeStep;
+        const active = i === activeStep;
+        const pending = i > activeStep;
+
+        return (
+          <div key={step.id} className="flex flex-col items-center flex-1 relative">
+            {/* connector line left */}
+            {i > 0 && (
+              <div
+                className="absolute top-0 right-[50%] h-[2px]"
+                style={{
+                  width: '100%',
+                  top: compact
+                    ? `${iconSize + 14}px`
+                    : `${iconSize + 18}px`,
+                  backgroundColor: i <= activeStep ? doneColor : trackColor,
+                  zIndex: 0,
+                }}
+              />
+            )}
+
+            {/* icon */}
+            <div style={{ width: iconSize, height: iconSize }} className="mb-3 relative z-10">
+              <step.Icon
+                color={
+                  done ? '#9ca3af'
+                  : active ? doneColor
+                  : dark ? '#6b7a8a'
+                  : '#9ca3af'
+                }
+              />
+            </div>
+
+            {/* circle node */}
+            <div className="relative z-10 flex items-center justify-center" style={{ width: nodeSize, height: nodeSize }}>
+              {done ? (
+                <motion.div
+                  initial={{ scale: 0.6 }}
+                  animate={{ scale: 1 }}
+                  className="rounded-full bg-[#2ecc71] flex items-center justify-center"
+                  style={{ width: nodeSize, height: nodeSize }}
+                >
+                  <Check className="text-white" style={{ width: nodeSize * 0.45, height: nodeSize * 0.45 }} strokeWidth={3} />
+                </motion.div>
+              ) : active ? (
+                <div className="relative flex items-center justify-center" style={{ width: nodeSize, height: nodeSize }}>
+                  {/* outer ring */}
+                  <div
+                    className="absolute rounded-full border-[2.5px] border-[#2ecc71] bg-white"
+                    style={{ width: nodeSize, height: nodeSize }}
+                  />
+                  {/* inner dot */}
+                  <motion.div
+                    animate={{ scale: [0.7, 1, 0.7] }}
+                    transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+                    className="rounded-full bg-[#2ecc71]"
+                    style={{ width: nodeSize * 0.38, height: nodeSize * 0.38 }}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="rounded-full border-[2px]"
+                  style={{
+                    width: nodeSize * 0.55,
+                    height: nodeSize * 0.55,
+                    borderColor: dark ? '#6b7a8a' : '#d1d5db',
+                    backgroundColor: dark ? '#4f5f6e' : 'white',
+                  }}
+                />
+              )}
+            </div>
+
+            {/* label */}
+            <span
+              className={`mt-2 font-medium ${labelSize} ${
+                active
+                  ? 'text-[#2ecc71]'
+                  : done
+                  ? dark ? 'text-gray-400' : 'text-gray-400'
+                  : dark ? 'text-gray-400' : 'text-gray-400'
+              }`}
+            >
+              {step.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────── main page ─────────── */
+
+export function ProcessTimeline() {
+  const [email, setEmail] = useState('');
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] w-full bg-white flex flex-col">
+
+      {/* ── light section ── */}
+      <div className="flex flex-col items-center justify-center flex-1 px-12 pt-14 pb-10">
+        <motion.h1
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-[32px] font-bold text-gray-800 mb-14 tracking-tight"
+        >
+          Process Timeline
+        </motion.h1>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.1 }}
+          className="w-full max-w-[640px]"
+        >
+          <TimelineTrack activeStep={ACTIVE_STEP} />
+        </motion.div>
+      </div>
+
+      {/* ── dark section ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.22 }}
+        className="w-full bg-[#4f5f6e] px-12 py-10"
+      >
+        <div className="flex items-center gap-12 max-w-[900px] mx-auto">
+          {/* timeline */}
+          <div className="flex-1">
+            <p className="text-white text-[13px] font-semibold mb-8">Alternative Dark Mode</p>
+            <TimelineTrack activeStep={ACTIVE_STEP} dark compact />
+          </div>
+
+          {/* email + CTA */}
+          <div className="flex flex-col gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 border border-[#6b7a8a] rounded-[4px] px-3 py-2.5 bg-transparent min-w-[200px]">
+              <Mail className="h-4 w-4 text-gray-400 shrink-0" />
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter Email"
+                className="flex-1 bg-transparent text-[13px] text-gray-300 placeholder-gray-500 outline-none"
+              />
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="bg-[#2ecc71] hover:bg-[#27af61] text-white text-[13px] font-semibold px-5 py-2.5 rounded-[4px] transition-colors"
+            >
+              Get Notifications
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export default ProcessTimeline;
+
+
+======================================================================
+FILE: src/pages/Calendar.tsx
+======================================================================
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Star } from 'lucide-react';
+
+const weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+type Day = {
+  n: number;
+  muted?: boolean;
+  underline?: boolean;
+};
+
+const weeks: Day[][] = [
+  [{ n: 29, muted: true }, { n: 30, muted: true }, { n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }, { n: 5 }],
+  [{ n: 6 }, { n: 7 }, { n: 8 }, { n: 9 }, { n: 10 }, { n: 11 }, { n: 12 }],
+  [{ n: 13 }, { n: 14 }, { n: 15 }, { n: 16 }, { n: 17 }, { n: 18 }, { n: 19 }],
+  [{ n: 20 }, { n: 21 }, { n: 22 }, { n: 23 }, { n: 24 }, { n: 25, underline: true }, { n: 26 }],
+  [{ n: 27 }, { n: 28 }, { n: 29 }, { n: 30 }, { n: 31, underline: true }, { n: 1, muted: true }, { n: 2, muted: true }],
+  [
+    { n: 3, muted: true },
+    { n: 4, muted: true },
+    { n: 5, muted: true },
+    { n: 6, muted: true },
+    { n: 7, muted: true },
+    { n: 8, muted: true },
+    { n: 9, muted: true },
+  ],
+];
+
+type EventItem = {
+  title: string;
+  time: string;
+  highlighted?: boolean;
+};
+
+const eventsByDay: Record<number, EventItem[]> = {
+  15: [
+    { title: 'TEDx Talk (2016 web design trends)', time: '14:00 PM - 16:30 PM' },
+    { title: 'Buy a new telescope', time: '17:00 PM - 17:30 PM' },
+    { title: 'Buy tickets for Star Wars movie', time: '18:00 PM - 18:30 PM', highlighted: true },
+    { title: 'Visit my Grandparents', time: '19:00 PM - 21:30 PM' },
+    { title: 'Dinner with my girlfriend', time: '22:00 PM - 23:30 PM' },
+    { title: 'Plans for tomorrow', time: '23:50 PM - 00:20 PM' },
+  ],
+  25: [{ title: 'Team offsite planning', time: '10:00 AM - 12:00 PM' }],
+  31: [
+    { title: "New Year's Eve prep", time: '20:00 PM - 23:59 PM' },
+    { title: 'Countdown with friends', time: '23:59 PM - 00:30 AM' },
+  ],
+};
+
+const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function dayOfWeekLabel(day: number) {
+  for (const week of weeks) {
+    const idx = week.findIndex((d) => d.n === day && !d.muted);
+    if (idx !== -1) return dayNames[idx];
+  }
+  return dayNames[2];
+}
+
+export function CalendarPage() {
+  const [selected, setSelected] = useState(15);
+  const events = eventsByDay[selected] ?? [];
+
+  return (
+    <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-20 top-0 h-[380px] w-[380px] rounded-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
+        <div className="absolute -bottom-28 -right-20 h-[460px] w-[460px] rounded-full bg-gradient-to-tr from-emerald-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
+      </div>
+
+      <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="relative z-10 w-[430px] shrink-0 bg-white p-8 shadow-[0_10px_40px_-10px_rgba(16,60,40,0.25)]">
+          <div className="flex items-center justify-between">
+            <button className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-50">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <h2 className="text-[16px] font-semibold text-gray-800">December 2015</h2>
+            <button className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-50">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-6 grid grid-cols-7 gap-y-3 text-center">
+            {weekdays.map((d) => (
+              <span key={d} className="text-[11px] font-medium tracking-wide text-gray-400">
+                {d}
+              </span>
+            ))}
+
+            {weeks.map((week, wi) =>
+              week.map((day, di) => {
+                const isSelected = !day.muted && day.n === selected;
+                return (
+                  <div key={`${wi}-${di}`} className="flex items-center justify-center py-1.5">
+                    {isSelected ? (
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-[13px] font-semibold text-white shadow-md shadow-emerald-500/40">
+                        {day.n}
+                      </span>
+                    ) : (
+                      <button
+                        disabled={day.muted}
+                        onClick={() => setSelected(day.n)}
+                        className={`relative text-[13px] transition-colors ${
+                          day.muted
+                            ? 'cursor-default text-gray-300'
+                            : 'text-gray-600 hover:text-emerald-600'
+                        }`}
+                      >
+                        {day.n}
+                        {day.underline && (
+                          <span className="absolute -bottom-1 left-0 h-[2px] w-full bg-emerald-500" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                );
+              }),
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 p-8 text-white">
+          <div>
+            <h2 className="text-[22px] font-semibold">{dayOfWeekLabel(selected)}</h2>
+            <p className="mt-0.5 text-[12px] text-emerald-100/60">{selected}th December 2015</p>
+          </div>
+
+          <div className="mt-6 flex-1 space-y-4 overflow-y-auto">
+            {events.length === 0 ? (
+              <p className="text-[13px] text-emerald-100/60">No events scheduled for this day.</p>
+            ) : (
+              events.map((event, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${
+                    event.highlighted ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                        event.highlighted ? 'bg-white' : 'bg-emerald-300'
+                      }`}
+                    />
+                    <div>
+                      <p className="text-[13px] font-medium text-white">{event.title}</p>
+                      <p
+                        className={`text-[11px] ${
+                          event.highlighted ? 'text-emerald-50/90' : 'text-emerald-100/50'
+                        }`}
+                      >
+                        {event.time}
+                      </p>
+                    </div>
+                  </div>
+                  {event.highlighted && <Star className="h-4 w-4 shrink-0 fill-white text-white" />}
+                </div>
+              ))
+            )}
+          </div>
+
+          <button className="absolute -bottom-5 -right-5 flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-700 shadow-lg shadow-emerald-900/30 transition-transform hover:scale-105">
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CalendarPage;
+
+
+======================================================================
+FILE: src/pages/not-found.tsx
+======================================================================
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertCircle } from 'lucide-react';
+
+export default function NotFound() {
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md mx-4">
+        <CardContent className="pt-6">
+          <div className="flex mb-4 gap-2">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <h1 className="text-2xl font-bold text-gray-900">
+              404 Page Not Found
+            </h1>
+          </div>
+
+          <p className="mt-4 text-sm text-gray-600">
+            Did you forget to add the page to the router?
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+

@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Xy37BCXSIUJNctxTZIeSi"
+uri = "file://exports/workspace-suite-source-code.txt"
+type = "text"
+title = "Workspace Suite — Source Code Export"
