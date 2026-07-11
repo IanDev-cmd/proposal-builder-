@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppNav } from '@/components/AppNav';
 import { Dashboard } from '@/pages/Dashboard';
 import { CalendarPage } from '@/pages/Calendar';
+import { SetupWizard } from '@/pages/SetupWizard';
 
 const queryClient = new QueryClient();
 
@@ -16,6 +17,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/calendar" component={CalendarPage} />
+        <Route path="/setup" component={SetupWizard} />
         <Route component={NotFound} />
       </Switch>
     </>

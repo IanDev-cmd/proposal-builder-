@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings2 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/setup', label: 'Setup', icon: Settings2 },
 ];
 
 export function AppNav() {
