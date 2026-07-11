@@ -1,36 +1,43 @@
-# [Project name]
+# Workspace Suite
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A business/workspace management suite (Dashboard, Calendar, Employee Dashboard, Process Timeline, and a multi-step account Setup Wizard) built as a pnpm-workspace monorepo, imported from GitHub.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm install` — install dependencies (already run once during import setup)
+- `pnpm --filter @workspace/workspace-suite run dev` — run the frontend (bound via the `artifacts/workspace-suite: web` workflow, port from `PORT` env var, currently 23392)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000, not currently wired into a workflow)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — Postgres connection string (not yet configured; only needed once the API server/DB packages are actually used)
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
+- Frontend: React + Vite, Tailwind, Radix UI, Framer Motion, wouter (in `artifacts/workspace-suite`)
+- API: Express 5 (in `artifacts/api-server`, scaffolded but not yet wired to the frontend)
+- DB: PostgreSQL + Drizzle ORM (in `lib/db`, not yet provisioned)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
+- API codegen: Orval (from OpenAPI spec in `lib/api-spec`)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/workspace-suite/src/pages/` — top-level pages: `Dashboard.tsx`, `Calendar.tsx`, `EmployeeDashboard.tsx`, `ProcessTimeline.tsx`, `SetupWizard.tsx`
+- `artifacts/workspace-suite/src/pages/SetupWizard.tsx` — 5-step account setup wizard; every field/tab is fully interactive (dropdowns, toggles, editable tables, file upload, permission matrix) with local component state, no backend wiring yet
+- `artifacts/api-server` — Express API scaffold, not yet connected to the frontend
+- `lib/db`, `lib/api-spec`, `lib/api-zod`, `lib/api-client-react` — shared DB schema, OpenAPI spec, and generated client packages, currently unused by the frontend
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The project was imported with the frontend (`workspace-suite`) and backend (`api-server`) scaffolded as separate, currently-disconnected packages — the frontend uses no live data yet.
+- Only one workflow (`artifacts/workspace-suite: web`) is currently configured; the API server has no workflow of its own.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Internal business-operations suite: dashboard overview, calendar/scheduling, employee dashboard, a process timeline view, and a guided setup wizard (business info, operations, account config, data import/export, category mapping).
 
 ## User preferences
 
@@ -38,7 +45,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- After `pnpm install`, dependencies weren't present yet (fresh import) — `vite: not found` will show until `pnpm install` is run at the repo root.
 
 ## Pointers
 
