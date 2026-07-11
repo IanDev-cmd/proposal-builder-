@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppNav } from '@/components/AppNav';
+import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
 import { CalendarPage } from '@/pages/Calendar';
 import { SetupWizard } from '@/pages/SetupWizard';
@@ -17,7 +18,8 @@ function Router() {
     <>
       <AppNav />
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route path="/" component={Home} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/setup" component={SetupWizard} />
         <Route path="/employees" component={EmployeeDashboard} />

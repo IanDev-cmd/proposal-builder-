@@ -25,7 +25,8 @@ A business/workspace management suite (Dashboard, Calendar, Employee Dashboard, 
 
 ## Where things live
 
-- `artifacts/workspace-suite/src/pages/` — top-level pages: `Dashboard.tsx`, `Calendar.tsx`, `EmployeeDashboard.tsx`, `ProcessTimeline.tsx`, `SetupWizard.tsx`
+- `artifacts/workspace-suite/src/pages/Home.tsx` — landing page ("/"), cloned from a reference mockup: a white card with 5 square icon tiles (Employees, Dashboard, Setup, Timeline, Calendar) and a green bottom panel showing a feature checklist for the highlighted tile; clicking/opening a tile navigates to that page
+- `artifacts/workspace-suite/src/pages/` — other top-level pages: `Dashboard.tsx` (now at `/dashboard`), `Calendar.tsx`, `EmployeeDashboard.tsx`, `ProcessTimeline.tsx`, `SetupWizard.tsx`
 - `artifacts/workspace-suite/src/pages/SetupWizard.tsx` — 5-step account setup wizard; every field/tab is fully interactive (dropdowns, toggles, editable tables, file upload, permission matrix) with local component state, no backend wiring yet
 - `artifacts/api-server` — Express API scaffold, not yet connected to the frontend
 - `lib/db`, `lib/api-spec`, `lib/api-zod`, `lib/api-client-react` — shared DB schema, OpenAPI spec, and generated client packages, currently unused by the frontend
@@ -34,10 +35,11 @@ A business/workspace management suite (Dashboard, Calendar, Employee Dashboard, 
 
 - The project was imported with the frontend (`workspace-suite`) and backend (`api-server`) scaffolded as separate, currently-disconnected packages — the frontend uses no live data yet.
 - Only one workflow (`artifacts/workspace-suite: web`) is currently configured; the API server has no workflow of its own.
+- Global color scheme is a single bright green (`#2ecc71`) + white/dark-navy, taken from a user-provided reference mockup for the Home page. `SetupWizard.tsx` previously used an unrelated blue palette (`#3b3be8` etc.) — it was recolored to match the same green tokens so the whole app is visually consistent.
 
 ## Product
 
-Internal business-operations suite: dashboard overview, calendar/scheduling, employee dashboard, a process timeline view, and a guided setup wizard (business info, operations, account config, data import/export, category mapping).
+Internal business-operations suite: a Home page for picking a section, dashboard overview, calendar/scheduling, employee dashboard, a process timeline view, and a guided setup wizard (business info, operations, account config, data import/export, category mapping).
 
 ## User preferences
 

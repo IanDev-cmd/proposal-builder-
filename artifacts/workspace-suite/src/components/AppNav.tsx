@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, CalendarDays, Settings2, Users, GitBranch } from 'lucide-react';
+import { Home, LayoutDashboard, CalendarDays, Settings2, Users, GitBranch } from 'lucide-react';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
-  { href: '/setup', label: 'Setup', icon: Settings2 },
+  { href: '/', label: 'Home', icon: Home },
   { href: '/employees', label: 'Employees', icon: Users },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/setup', label: 'Setup', icon: Settings2 },
   { href: '/timeline', label: 'Timeline', icon: GitBranch },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
 export function AppNav() {

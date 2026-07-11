@@ -34,7 +34,7 @@ function SkipLabel({ onClick }: { onClick?: () => void }) {
   return (
     <span
       onClick={onClick}
-      className="text-[11px] text-[#3b3be8] font-semibold tracking-widest cursor-pointer select-none hover:text-[#2e2ed8]"
+      className="text-[11px] text-[#2ecc71] font-semibold tracking-widest cursor-pointer select-none hover:text-[#27ae60]"
     >
       SKIP
     </span>
@@ -55,7 +55,7 @@ function Dropdown({ label, options }: { label: string; options: string[] }) {
           type="button"
           onClick={() => setOpen((o) => !o)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
-          className="flex items-center justify-between border border-[#dcdcec] rounded-[3px] px-3 py-[7px] w-full cursor-pointer hover:border-[#3b3be8] transition-colors bg-white"
+          className="flex items-center justify-between border border-[#d9ede1] rounded-[3px] px-3 py-[7px] w-full cursor-pointer hover:border-[#2ecc71] transition-colors bg-white"
         >
           <span className={`text-[12px] truncate ${value ? 'text-gray-700' : 'text-gray-300'}`}>
             {value || 'Select…'}
@@ -72,8 +72,8 @@ function Dropdown({ label, options }: { label: string; options: string[] }) {
                   setValue(opt);
                   setOpen(false);
                 }}
-                className={`w-full text-left px-3 py-[7px] text-[12px] hover:bg-[#f0f0f8] transition-colors ${
-                  value === opt ? 'text-[#3b3be8] font-medium bg-[#f0f0f8]' : 'text-gray-700'
+                className={`w-full text-left px-3 py-[7px] text-[12px] hover:bg-[#eefaf3] transition-colors ${
+                  value === opt ? 'text-[#2ecc71] font-medium bg-[#eefaf3]' : 'text-gray-700'
                 }`}
               >
                 {opt}
@@ -108,7 +108,7 @@ function InputRow({
           disabled={skipped}
           onChange={(e) => setValue(e.target.value)}
           placeholder={skipped ? 'Skipped' : placeholder}
-          className={`border border-[#dcdcec] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#3b3be8] focus:ring-1 focus:ring-[#3b3be8]/20 transition-colors disabled:bg-gray-50 disabled:text-gray-300 ${
+          className={`border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors disabled:bg-gray-50 disabled:text-gray-300 ${
             wide ? 'w-[240px]' : 'w-[210px]'
           }`}
         />
@@ -116,7 +116,7 @@ function InputRow({
           <span
             onClick={() => setSkipped((s) => !s)}
             className={`text-[11px] font-semibold tracking-widest cursor-pointer select-none ${
-              skipped ? 'text-gray-400' : 'text-[#3b3be8] hover:text-[#2e2ed8]'
+              skipped ? 'text-gray-400' : 'text-[#2ecc71] hover:text-[#27ae60]'
             }`}
           >
             {skipped ? 'UNDO' : 'SKIP'}
@@ -158,7 +158,7 @@ function YesNoRow({
               action.onDone?.();
             }}
             className={`flex items-center gap-1.5 text-white text-[12px] font-medium px-3 py-1.5 rounded-[3px] transition-colors ${
-              uploaded ? 'bg-[#3ecf8e] hover:bg-[#33b87c]' : 'bg-[#3b3be8] hover:bg-[#2e2ed8]'
+              uploaded ? 'bg-[#3ecf8e] hover:bg-[#33b87c]' : 'bg-[#2ecc71] hover:bg-[#27ae60]'
             }`}
           >
             {uploaded ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
@@ -172,7 +172,7 @@ function YesNoRow({
                 name={name}
                 checked={value === 'yes'}
                 onChange={() => setValue('yes')}
-                className="accent-[#3b3be8]"
+                className="accent-[#2ecc71]"
               />
               Yes
             </label>
@@ -182,7 +182,7 @@ function YesNoRow({
                 name={name}
                 checked={value === 'no'}
                 onChange={() => setValue('no')}
-                className="accent-[#3b3be8]"
+                className="accent-[#2ecc71]"
               />
               No
             </label>
@@ -220,7 +220,7 @@ function ToggleSwitch({
           onChange?.(next);
         }}
         className={`relative h-[22px] w-[40px] rounded-full transition-colors shrink-0 ${
-          checked ? 'bg-[#3b3be8]' : 'bg-gray-200'
+          checked ? 'bg-[#2ecc71]' : 'bg-gray-200'
         }`}
       >
         <motion.span
@@ -285,7 +285,7 @@ function ContactTab() {
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="123 Ocean Ave, Suite 4"
-          className="border border-[#dcdcec] rounded-[3px] px-3 py-2 text-[13px] w-[240px] h-[96px] outline-none focus:border-[#3b3be8] focus:ring-1 focus:ring-[#3b3be8]/20 resize-none transition-colors"
+          className="border border-[#d9ede1] rounded-[3px] px-3 py-2 text-[13px] w-[240px] h-[96px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
         />
       </div>
       <div className="flex items-center py-3">
@@ -300,7 +300,7 @@ function ContactTab() {
               checked={same === 'yes'}
               onChange={() => setSame('yes')}
               disabled={skipped}
-              className="accent-[#3b3be8]"
+              className="accent-[#2ecc71]"
             />
             Yes
           </label>
@@ -311,7 +311,7 @@ function ContactTab() {
               checked={same === 'no'}
               onChange={() => setSame('no')}
               disabled={skipped}
-              className="accent-[#3b3be8]"
+              className="accent-[#2ecc71]"
             />
             No
           </label>
@@ -341,7 +341,7 @@ function DisplayTab() {
             type="button"
             onClick={() => setUploaded(true)}
             className={`flex items-center gap-1.5 text-white text-[12px] font-medium px-3 py-1.5 rounded-[3px] transition-colors ${
-              uploaded ? 'bg-[#3ecf8e] hover:bg-[#33b87c]' : 'bg-[#3b3be8] hover:bg-[#2e2ed8]'
+              uploaded ? 'bg-[#3ecf8e] hover:bg-[#33b87c]' : 'bg-[#2ecc71] hover:bg-[#27ae60]'
             }`}
           >
             {uploaded ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
@@ -366,7 +366,7 @@ function OthersTab() {
             <input
               value={values[label] ?? ''}
               onChange={(e) => setValues((v) => ({ ...v, [label]: e.target.value }))}
-              className="border border-[#dcdcec] rounded-[3px] px-3 py-[7px] text-[13px] w-[190px] outline-none focus:border-[#3b3be8] focus:ring-1 focus:ring-[#3b3be8]/20 transition-colors"
+              className="border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] w-[190px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
             />
             <HelpBadge />
           </div>
@@ -405,7 +405,7 @@ function TaxInfoTab() {
     <div className="pt-1 overflow-x-auto">
       <table className="w-full text-[12px] border-collapse">
         <thead>
-          <tr className="bg-[#3b3be8] text-white">
+          <tr className="bg-[#2ecc71] text-white">
             {['Country', 'Tax Title', 'Tax %'].map((h) => (
               <th key={h} className="text-left px-3 py-[9px] font-medium">{h}</th>
             ))}
@@ -415,13 +415,13 @@ function TaxInfoTab() {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f0f0f8]'}>
+            <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-[#eefaf3]'}>
               <td className="px-3 py-2 border-b border-gray-50">
                 <input
                   value={row.country}
                   onChange={(e) => updateRow(row.id, { country: e.target.value })}
                   placeholder="e.g. USA"
-                  className="w-full border border-[#dcdcec] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#3b3be8] bg-white"
+                  className="w-full border border-[#d9ede1] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
                 />
               </td>
               <td className="px-3 py-2 border-b border-gray-50">
@@ -429,7 +429,7 @@ function TaxInfoTab() {
                   value={row.title}
                   onChange={(e) => updateRow(row.id, { title: e.target.value })}
                   placeholder="e.g. VAT"
-                  className="w-full border border-[#dcdcec] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#3b3be8] bg-white"
+                  className="w-full border border-[#d9ede1] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
                 />
               </td>
               <td className="px-3 py-2 border-b border-gray-50">
@@ -437,7 +437,7 @@ function TaxInfoTab() {
                   value={row.pct}
                   onChange={(e) => updateRow(row.id, { pct: e.target.value.replace(/[^0-9.]/g, '') })}
                   placeholder="0.0"
-                  className="w-[70px] border border-[#dcdcec] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#3b3be8] bg-white"
+                  className="w-[70px] border border-[#d9ede1] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
                 />
               </td>
               <td className="px-3 py-2 border-b border-gray-50 relative">
@@ -460,14 +460,14 @@ function TaxInfoTab() {
                           type="checkbox"
                           checked={row.types.includes(opt)}
                           onChange={() => toggleType(row.id, opt)}
-                          className="accent-[#3b3be8]"
+                          className="accent-[#2ecc71]"
                         />
                         {opt}
                       </label>
                     ))}
                     <button
                       onClick={() => setOpen(null)}
-                      className="mt-1.5 w-full bg-[#3b3be8] hover:bg-[#2e2ed8] text-white text-[11px] py-1.5 rounded-[3px] font-medium transition-colors"
+                      className="mt-1.5 w-full bg-[#2ecc71] hover:bg-[#27ae60] text-white text-[11px] py-1.5 rounded-[3px] font-medium transition-colors"
                     >
                       Apply
                     </button>
@@ -491,7 +491,7 @@ function TaxInfoTab() {
       <button
         type="button"
         onClick={() => setRows((rs) => [...rs, newTaxRow()])}
-        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#3b3be8] hover:text-[#2e2ed8]"
+        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27ae60]"
       >
         <Plus className="h-3.5 w-3.5" /> Add Tax Rate
       </button>
@@ -521,7 +521,7 @@ function ModuleTab() {
                   name={`mod_${mod}`}
                   checked={values[mod] === 'yes'}
                   onChange={() => setValues((v) => ({ ...v, [mod]: 'yes' }))}
-                  className="accent-[#3b3be8]"
+                  className="accent-[#2ecc71]"
                 />
                 Yes
               </label>
@@ -531,7 +531,7 @@ function ModuleTab() {
                   name={`mod_${mod}`}
                   checked={values[mod] === 'no'}
                   onChange={() => setValues((v) => ({ ...v, [mod]: 'no' }))}
-                  className="accent-[#3b3be8]"
+                  className="accent-[#2ecc71]"
                 />
                 No
               </label>
@@ -578,7 +578,7 @@ function AutoLogoutTab() {
                 min={1}
                 value={minutes}
                 onChange={(e) => setMinutes(e.target.value)}
-                className="border border-[#dcdcec] rounded-[3px] px-3 py-[7px] text-[13px] w-[100px] outline-none focus:border-[#3b3be8] focus:ring-1 focus:ring-[#3b3be8]/20 transition-colors"
+                className="border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] w-[100px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
               />
             </div>
           </motion.div>
@@ -615,10 +615,10 @@ function CommissionTab() {
             onChange={(e) =>
               setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, role: e.target.value } : r)))
             }
-            className="w-[185px] text-right text-[13px] text-gray-700 pr-8 shrink-0 outline-none bg-transparent border-b border-transparent focus:border-[#3b3be8] transition-colors"
+            className="w-[185px] text-right text-[13px] text-gray-700 pr-8 shrink-0 outline-none bg-transparent border-b border-transparent focus:border-[#2ecc71] transition-colors"
           />
           <div className="flex items-center gap-3">
-            <div className="flex items-center border border-[#dcdcec] rounded-[3px] focus-within:border-[#3b3be8] transition-colors">
+            <div className="flex items-center border border-[#d9ede1] rounded-[3px] focus-within:border-[#2ecc71] transition-colors">
               <input
                 value={row.pct}
                 onChange={(e) =>
@@ -644,7 +644,7 @@ function CommissionTab() {
       <button
         type="button"
         onClick={() => setRows((rs) => [...rs, newCommissionRow('New Role', '0')])}
-        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#3b3be8] hover:text-[#2e2ed8]"
+        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27ae60]"
       >
         <Plus className="h-3.5 w-3.5" /> Add Role
       </button>
@@ -684,7 +684,7 @@ function OverviewTab() {
             type="checkbox"
             checked={!!checked[s]}
             onChange={(e) => setChecked((c) => ({ ...c, [s]: e.target.checked }))}
-            className="h-4 w-4 accent-[#3b3be8]"
+            className="h-4 w-4 accent-[#2ecc71]"
           />
           <span className={`text-[13px] transition-colors ${checked[s] ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
             {s} reviewed
@@ -697,7 +697,7 @@ function OverviewTab() {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Anything worth flagging before go-live…"
-          className="border border-[#dcdcec] rounded-[3px] px-3 py-2 text-[13px] w-full max-w-[420px] h-[80px] outline-none focus:border-[#3b3be8] focus:ring-1 focus:ring-[#3b3be8]/20 resize-none transition-colors"
+          className="border border-[#d9ede1] rounded-[3px] px-3 py-2 text-[13px] w-full max-w-[420px] h-[80px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
         />
       </div>
     </div>
@@ -724,7 +724,7 @@ function PermissionsTab() {
     <div className="pt-1 overflow-x-auto">
       <table className="w-full text-[12px] border-collapse">
         <thead>
-          <tr className="bg-[#3b3be8] text-white">
+          <tr className="bg-[#2ecc71] text-white">
             <th className="text-left px-3 py-[9px] font-medium">Permission</th>
             {ROLES.map((role) => (
               <th key={role} className="text-center px-3 py-[9px] font-medium">{role}</th>
@@ -733,7 +733,7 @@ function PermissionsTab() {
         </thead>
         <tbody>
           {PERMISSIONS.map((perm, i) => (
-            <tr key={perm} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f0f0f8]'}>
+            <tr key={perm} className={i % 2 === 0 ? 'bg-white' : 'bg-[#eefaf3]'}>
               <td className="px-3 py-2.5 border-b border-gray-50 text-gray-700">{perm}</td>
               {ROLES.map((role) => {
                 const key = `${role}|${perm}`;
@@ -743,7 +743,7 @@ function PermissionsTab() {
                       type="checkbox"
                       checked={!!grid[key]}
                       onChange={() => toggle(key)}
-                      className="h-4 w-4 accent-[#3b3be8] cursor-pointer"
+                      className="h-4 w-4 accent-[#2ecc71] cursor-pointer"
                     />
                   </td>
                 );
@@ -783,10 +783,10 @@ function ImportTab() {
           addFiles(e.dataTransfer.files);
         }}
         className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-[8px] py-10 cursor-pointer transition-colors ${
-          dragOver ? 'border-[#3b3be8] bg-[#f0f0f8]' : 'border-gray-200 hover:border-[#3b3be8]'
+          dragOver ? 'border-[#2ecc71] bg-[#eefaf3]' : 'border-gray-200 hover:border-[#2ecc71]'
         }`}
       >
-        <Upload className="h-5 w-5 text-[#3b3be8]" />
+        <Upload className="h-5 w-5 text-[#2ecc71]" />
         <span className="text-[13px] text-gray-600">Drag files here, or click to browse</span>
         <span className="text-[11px] text-gray-400">CSV or Excel — customers, inventory, bookings</span>
         <input type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
@@ -816,7 +816,7 @@ function ImportTab() {
               setStatus('importing');
               setTimeout(() => setStatus('done'), 900);
             }}
-            className="mt-1 self-start flex items-center gap-1.5 bg-[#3b3be8] hover:bg-[#2e2ed8] disabled:opacity-60 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
+            className="mt-1 self-start flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27ae60] disabled:opacity-60 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
           >
             {status === 'importing' ? 'Importing…' : status === 'done' ? 'Imported ✓' : `Import ${files.length} File${files.length > 1 ? 's' : ''}`}
           </button>
@@ -847,7 +847,7 @@ function ExportTab() {
                 setChecked((c) => ({ ...c, [dt]: e.target.checked }));
                 setStatus('idle');
               }}
-              className="h-4 w-4 accent-[#3b3be8]"
+              className="h-4 w-4 accent-[#2ecc71]"
             />
             <span className="text-[13px] text-gray-700">{dt}</span>
           </label>
@@ -865,8 +865,8 @@ function ExportTab() {
             }}
             className={`px-3 py-1.5 rounded-[3px] text-[12px] font-medium border transition-colors ${
               format === f
-                ? 'bg-[#3b3be8] border-[#3b3be8] text-white'
-                : 'border-[#dcdcec] text-gray-600 hover:border-[#3b3be8]'
+                ? 'bg-[#2ecc71] border-[#2ecc71] text-white'
+                : 'border-[#d9ede1] text-gray-600 hover:border-[#2ecc71]'
             }`}
           >
             {f}
@@ -880,7 +880,7 @@ function ExportTab() {
           setStatus('preparing');
           setTimeout(() => setStatus('ready'), 900);
         }}
-        className="flex items-center gap-1.5 bg-[#3b3be8] hover:bg-[#2e2ed8] disabled:opacity-40 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
+        className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27ae60] disabled:opacity-40 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
       >
         {status === 'preparing' ? 'Preparing…' : status === 'ready' ? `${format} Ready ✓` : `Export as ${format}`}
       </button>
@@ -917,12 +917,12 @@ function CategoriesTab() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && addCategory()}
           placeholder="New category name"
-          className="flex-1 border border-[#dcdcec] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#3b3be8] focus:ring-1 focus:ring-[#3b3be8]/20 transition-colors"
+          className="flex-1 border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
         />
         <button
           type="button"
           onClick={addCategory}
-          className="flex items-center gap-1 bg-[#3b3be8] hover:bg-[#2e2ed8] text-white text-[12px] font-medium px-3 py-[7px] rounded-[3px] transition-colors"
+          className="flex items-center gap-1 bg-[#2ecc71] hover:bg-[#27ae60] text-white text-[12px] font-medium px-3 py-[7px] rounded-[3px] transition-colors"
         >
           <Plus className="h-3.5 w-3.5" /> Add
         </button>
@@ -1056,21 +1056,21 @@ export function SetupWizard() {
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#ecebf7]">
+    <div className="relative flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#eafaf1]">
 
       {/* ── decorative blobs ── */}
       <div
-        className="absolute top-0 right-0 w-[240px] h-[240px] bg-[#3535e2] pointer-events-none"
+        className="absolute top-0 right-0 w-[240px] h-[240px] bg-[#059669] pointer-events-none"
         style={{ borderBottomLeftRadius: '100%' }}
       />
       <div
-        className="absolute bottom-0 right-0 w-[110px] h-[170px] bg-[#3535e2] pointer-events-none"
+        className="absolute bottom-0 right-0 w-[110px] h-[170px] bg-[#059669] pointer-events-none"
         style={{ borderTopLeftRadius: '60px' }}
       />
 
       {/* ── DiveShop360 vertical label ── */}
       <div
-        className="absolute text-[#3535e2] text-[11px] font-semibold tracking-[0.25em] opacity-80 pointer-events-none z-10"
+        className="absolute text-[#059669] text-[11px] font-semibold tracking-[0.25em] opacity-80 pointer-events-none z-10"
         style={{
           right: '38px',
           top: '50%',
@@ -1091,7 +1091,7 @@ export function SetupWizard() {
       >
 
         {/* ── left sidebar ── */}
-        <div className="w-[230px] shrink-0 bg-[#2626cc] flex flex-col py-9 rounded-l-[18px]">
+        <div className="w-[230px] shrink-0 bg-[#065f46] flex flex-col py-9 rounded-l-[18px]">
           <div className="flex-1 flex flex-col gap-7">
             {STEPS.map((step) => {
               const status = stepStatus(step.id);
@@ -1180,9 +1180,9 @@ export function SetupWizard() {
                           animate="animate"
                           exit="exit"
                           className="h-8 w-8 rounded-full bg-white flex items-center justify-center"
-                          style={{ boxShadow: '0 0 0 2.5px #2626cc, 0 0 0 5px #40d8b8, 0 2px 8px rgba(0,0,0,0.15)' }}
+                          style={{ boxShadow: '0 0 0 2.5px #065f46, 0 0 0 5px #34d399, 0 2px 8px rgba(0,0,0,0.15)' }}
                         >
-                          <span className="text-[13px] font-bold text-[#2626cc]">{step.id}</span>
+                          <span className="text-[13px] font-bold text-[#065f46]">{step.id}</span>
                         </motion.div>
                       ) : (
                         <motion.div
@@ -1219,14 +1219,14 @@ export function SetupWizard() {
                   key={tab}
                   onClick={() => { setDirection(i > activeTab ? 1 : -1); setActiveTab(i); }}
                   className={`relative px-[14px] pb-2.5 pt-0.5 text-[13px] font-medium transition-colors duration-150 whitespace-nowrap ${
-                    activeTab === i ? 'text-[#3b3be8]' : 'text-gray-400 hover:text-gray-600'
+                    activeTab === i ? 'text-[#2ecc71]' : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
                   {tab}
                   {activeTab === i && (
                     <motion.span
                       layoutId="tab-underline"
-                      className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#3b3be8] rounded-full"
+                      className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2ecc71] rounded-full"
                       transition={{ type: 'spring', stiffness: 500, damping: 36 }}
                     />
                   )}
@@ -1261,7 +1261,7 @@ export function SetupWizard() {
             <div className="flex flex-1 items-center gap-2.5 min-w-0">
               <div className="flex-1 bg-gray-100 rounded-full h-[3px] overflow-hidden">
                 <motion.div
-                  className="h-full bg-[#3b3be8] rounded-full"
+                  className="h-full bg-[#2ecc71] rounded-full"
                   animate={{ width: `${pct}%` }}
                   transition={{ type: 'spring', stiffness: 120, damping: 20 }}
                 />
@@ -1296,7 +1296,7 @@ export function SetupWizard() {
                 onClick={handleNext}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                className="flex items-center gap-1.5 px-5 py-[7px] text-[11px] font-semibold text-white bg-[#3b3be8] hover:bg-[#2e2ed8] rounded-[3px] transition-colors tracking-widest"
+                className="flex items-center gap-1.5 px-5 py-[7px] text-[11px] font-semibold text-white bg-[#2ecc71] hover:bg-[#27ae60] rounded-[3px] transition-colors tracking-widest"
               >
                 NEXT
                 <ArrowRight className="h-3 w-3" />
