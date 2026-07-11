@@ -47,7 +47,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-- After `pnpm install`, dependencies weren't present yet (fresh import) — `vite: not found` will show until `pnpm install` is run at the repo root.
+- Dependencies are installed and the `artifacts/workspace-suite: web` workflow is running (verified via `curl localhost:23392` returning 200 and Vite serving the app with no console errors).
+- The `api-server` and DB packages are still just scaffolding — no workflow, no `DATABASE_URL` configured. Only set those up if/when the user asks to wire up the backend.
 
 ## Pointers
 
