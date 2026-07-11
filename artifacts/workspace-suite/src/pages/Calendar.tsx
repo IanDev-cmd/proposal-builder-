@@ -63,14 +63,14 @@ export function CalendarPage() {
   const events = eventsByDay[selected] ?? [];
 
   return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] w-full items-center justify-center overflow-hidden bg-white p-10">
+    <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-20 top-0 h-[380px] w-[380px] rounded-full bg-gradient-to-br from-lime-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
         <div className="absolute -bottom-28 -right-20 h-[460px] w-[460px] rounded-full bg-gradient-to-tr from-teal-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
       </div>
 
-      <div className="relative flex h-[560px] w-full max-w-[820px] rounded-[28px] bg-white shadow-2xl ring-1 ring-black/5">
-        <div className="relative z-10 w-[430px] shrink-0 rounded-[28px] bg-white p-8 shadow-[0_10px_40px_-10px_rgba(16,60,40,0.25)]">
+      <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="relative z-10 w-[430px] shrink-0 bg-white p-8 shadow-[0_10px_40px_-10px_rgba(16,60,40,0.25)]">
           <div className="flex items-center justify-between">
             <button className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-50">
               <ChevronLeft className="h-4 w-4" />
@@ -120,7 +120,7 @@ export function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col overflow-hidden rounded-r-[28px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-600 p-8 text-white">
+        <div className="flex flex-1 flex-col overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-600 p-8 text-white">
           <div>
             <h2 className="text-[22px] font-semibold">{dayOfWeekLabel(selected)}</h2>
             <p className="mt-0.5 text-[12px] text-emerald-100/60">{selected}th December 2015</p>

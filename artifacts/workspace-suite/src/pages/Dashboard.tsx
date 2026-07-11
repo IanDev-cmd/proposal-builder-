@@ -85,14 +85,14 @@ export function Dashboard() {
     setUpcoming((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
 
   return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] w-full items-center justify-center overflow-hidden bg-white p-10">
+    <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-lime-300 via-emerald-400 to-transparent opacity-60 blur-3xl" />
         <div className="absolute -bottom-32 -right-16 h-[480px] w-[480px] rounded-full bg-gradient-to-tr from-emerald-400 via-teal-300 to-transparent opacity-50 blur-3xl" />
       </div>
 
-      <div className="relative flex h-[560px] w-full max-w-[900px] rounded-[28px] bg-white shadow-2xl ring-1 ring-black/5">
-        <div className="relative w-[420px] shrink-0 overflow-hidden rounded-[28px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-600 p-8 text-white">
+      <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="relative w-[420px] shrink-0 overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-600 p-8 text-white">
           <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
             <Menu className="h-4 w-4" />
           </button>
@@ -146,7 +146,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="absolute inset-y-4 right-0 flex w-[calc(100%-380px)] max-w-[520px] flex-col overflow-y-auto rounded-[24px] bg-white p-8 shadow-[0_20px_50px_-15px_rgba(16,60,40,0.25)] ring-1 ring-black/5">
+        <div className="flex flex-1 flex-col overflow-y-auto bg-white p-8 shadow-[0_20px_50px_-15px_rgba(16,60,40,0.25)] ring-1 ring-black/5">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-[22px] font-semibold text-gray-900">Cyber Punk</h2>

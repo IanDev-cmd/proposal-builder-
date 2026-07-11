@@ -11,6 +11,27 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/workspace-suite: web"
+
+[[workflows.workflow]]
+name = "artifacts/workspace-suite: web"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=23392 BASE_PATH=/ pnpm --filter @workspace/workspace-suite run dev"
+waitForPort = 23392
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
