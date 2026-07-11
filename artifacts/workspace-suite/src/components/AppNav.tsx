@@ -17,7 +17,7 @@ export function AppNav() {
     <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/80 backdrop-blur-md">
       <div className="flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-lime-400 to-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-500/30">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-500/30">
             W
           </span>
           <span className="text-[15px] font-semibold text-gray-900">Workspace Suite</span>
@@ -33,7 +33,7 @@ export function AppNav() {
                 href={item.href}
                 className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
                   isActive
-                    ? 'bg-gradient-to-br from-emerald-600 to-green-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-600 text-white shadow-sm'
                     : 'text-emerald-800/70 hover:text-emerald-900'
                 }`}
               >

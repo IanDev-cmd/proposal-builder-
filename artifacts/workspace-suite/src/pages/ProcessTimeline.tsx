@@ -240,7 +240,7 @@ export function ProcessTimeline() {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              className="bg-[#2ecc71] hover:bg-[#27b863] text-white text-[13px] font-semibold px-5 py-2.5 rounded-[4px] transition-colors"
+              className="bg-[#2ecc71] hover:bg-[#27af61] text-white text-[13px] font-semibold px-5 py-2.5 rounded-[4px] transition-colors"
             >
               Get Notifications
             </motion.button>

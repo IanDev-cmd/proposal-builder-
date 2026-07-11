@@ -34,7 +34,7 @@ function SkipLabel({ onClick }: { onClick?: () => void }) {
   return (
     <span
       onClick={onClick}
-      className="text-[11px] text-[#2ecc71] font-semibold tracking-widest cursor-pointer select-none hover:text-[#27ae60]"
+      className="text-[11px] text-[#2ecc71] font-semibold tracking-widest cursor-pointer select-none hover:text-[#27af61]"
     >
       SKIP
     </span>
@@ -55,7 +55,7 @@ function Dropdown({ label, options }: { label: string; options: string[] }) {
           type="button"
           onClick={() => setOpen((o) => !o)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
-          className="flex items-center justify-between border border-[#d9ede1] rounded-[3px] px-3 py-[7px] w-full cursor-pointer hover:border-[#2ecc71] transition-colors bg-white"
+          className="flex items-center justify-between border border-[#b8efcf] rounded-[3px] px-3 py-[7px] w-full cursor-pointer hover:border-[#2ecc71] transition-colors bg-white"
         >
           <span className={`text-[12px] truncate ${value ? 'text-gray-700' : 'text-gray-300'}`}>
             {value || 'Select…'}
@@ -72,8 +72,8 @@ function Dropdown({ label, options }: { label: string; options: string[] }) {
                   setValue(opt);
                   setOpen(false);
                 }}
-                className={`w-full text-left px-3 py-[7px] text-[12px] hover:bg-[#eefaf3] transition-colors ${
-                  value === opt ? 'text-[#2ecc71] font-medium bg-[#eefaf3]' : 'text-gray-700'
+                className={`w-full text-left px-3 py-[7px] text-[12px] hover:bg-[#f3fcf7] transition-colors ${
+                  value === opt ? 'text-[#2ecc71] font-medium bg-[#f3fcf7]' : 'text-gray-700'
                 }`}
               >
                 {opt}
@@ -108,7 +108,7 @@ function InputRow({
           disabled={skipped}
           onChange={(e) => setValue(e.target.value)}
           placeholder={skipped ? 'Skipped' : placeholder}
-          className={`border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors disabled:bg-gray-50 disabled:text-gray-300 ${
+          className={`border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors disabled:bg-gray-50 disabled:text-gray-300 ${
             wide ? 'w-[240px]' : 'w-[210px]'
           }`}
         />
@@ -116,7 +116,7 @@ function InputRow({
           <span
             onClick={() => setSkipped((s) => !s)}
             className={`text-[11px] font-semibold tracking-widest cursor-pointer select-none ${
-              skipped ? 'text-gray-400' : 'text-[#2ecc71] hover:text-[#27ae60]'
+              skipped ? 'text-gray-400' : 'text-[#2ecc71] hover:text-[#27af61]'
             }`}
           >
             {skipped ? 'UNDO' : 'SKIP'}
@@ -158,7 +158,7 @@ function YesNoRow({
               action.onDone?.();
             }}
             className={`flex items-center gap-1.5 text-white text-[12px] font-medium px-3 py-1.5 rounded-[3px] transition-colors ${
-              uploaded ? 'bg-[#3ecf8e] hover:bg-[#33b87c]' : 'bg-[#2ecc71] hover:bg-[#27ae60]'
+              uploaded ? 'bg-[#2ecc71] hover:bg-[#27af61]' : 'bg-[#2ecc71] hover:bg-[#27af61]'
             }`}
           >
             {uploaded ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
@@ -285,7 +285,7 @@ function ContactTab() {
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="123 Ocean Ave, Suite 4"
-          className="border border-[#d9ede1] rounded-[3px] px-3 py-2 text-[13px] w-[240px] h-[96px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
+          className="border border-[#b8efcf] rounded-[3px] px-3 py-2 text-[13px] w-[240px] h-[96px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
         />
       </div>
       <div className="flex items-center py-3">
@@ -341,7 +341,7 @@ function DisplayTab() {
             type="button"
             onClick={() => setUploaded(true)}
             className={`flex items-center gap-1.5 text-white text-[12px] font-medium px-3 py-1.5 rounded-[3px] transition-colors ${
-              uploaded ? 'bg-[#3ecf8e] hover:bg-[#33b87c]' : 'bg-[#2ecc71] hover:bg-[#27ae60]'
+              uploaded ? 'bg-[#2ecc71] hover:bg-[#27af61]' : 'bg-[#2ecc71] hover:bg-[#27af61]'
             }`}
           >
             {uploaded ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
@@ -366,7 +366,7 @@ function OthersTab() {
             <input
               value={values[label] ?? ''}
               onChange={(e) => setValues((v) => ({ ...v, [label]: e.target.value }))}
-              className="border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] w-[190px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
+              className="border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] w-[190px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
             />
             <HelpBadge />
           </div>
@@ -415,13 +415,13 @@ function TaxInfoTab() {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-[#eefaf3]'}>
+            <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f3fcf7]'}>
               <td className="px-3 py-2 border-b border-gray-50">
                 <input
                   value={row.country}
                   onChange={(e) => updateRow(row.id, { country: e.target.value })}
                   placeholder="e.g. USA"
-                  className="w-full border border-[#d9ede1] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
+                  className="w-full border border-[#b8efcf] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
                 />
               </td>
               <td className="px-3 py-2 border-b border-gray-50">
@@ -429,7 +429,7 @@ function TaxInfoTab() {
                   value={row.title}
                   onChange={(e) => updateRow(row.id, { title: e.target.value })}
                   placeholder="e.g. VAT"
-                  className="w-full border border-[#d9ede1] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
+                  className="w-full border border-[#b8efcf] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
                 />
               </td>
               <td className="px-3 py-2 border-b border-gray-50">
@@ -437,7 +437,7 @@ function TaxInfoTab() {
                   value={row.pct}
                   onChange={(e) => updateRow(row.id, { pct: e.target.value.replace(/[^0-9.]/g, '') })}
                   placeholder="0.0"
-                  className="w-[70px] border border-[#d9ede1] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
+                  className="w-[70px] border border-[#b8efcf] rounded-[3px] px-2 py-1 text-[12px] outline-none focus:border-[#2ecc71] bg-white"
                 />
               </td>
               <td className="px-3 py-2 border-b border-gray-50 relative">
@@ -467,7 +467,7 @@ function TaxInfoTab() {
                     ))}
                     <button
                       onClick={() => setOpen(null)}
-                      className="mt-1.5 w-full bg-[#2ecc71] hover:bg-[#27ae60] text-white text-[11px] py-1.5 rounded-[3px] font-medium transition-colors"
+                      className="mt-1.5 w-full bg-[#2ecc71] hover:bg-[#27af61] text-white text-[11px] py-1.5 rounded-[3px] font-medium transition-colors"
                     >
                       Apply
                     </button>
@@ -491,7 +491,7 @@ function TaxInfoTab() {
       <button
         type="button"
         onClick={() => setRows((rs) => [...rs, newTaxRow()])}
-        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27ae60]"
+        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27af61]"
       >
         <Plus className="h-3.5 w-3.5" /> Add Tax Rate
       </button>
@@ -578,7 +578,7 @@ function AutoLogoutTab() {
                 min={1}
                 value={minutes}
                 onChange={(e) => setMinutes(e.target.value)}
-                className="border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] w-[100px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
+                className="border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] w-[100px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
               />
             </div>
           </motion.div>
@@ -618,7 +618,7 @@ function CommissionTab() {
             className="w-[185px] text-right text-[13px] text-gray-700 pr-8 shrink-0 outline-none bg-transparent border-b border-transparent focus:border-[#2ecc71] transition-colors"
           />
           <div className="flex items-center gap-3">
-            <div className="flex items-center border border-[#d9ede1] rounded-[3px] focus-within:border-[#2ecc71] transition-colors">
+            <div className="flex items-center border border-[#b8efcf] rounded-[3px] focus-within:border-[#2ecc71] transition-colors">
               <input
                 value={row.pct}
                 onChange={(e) =>
@@ -644,7 +644,7 @@ function CommissionTab() {
       <button
         type="button"
         onClick={() => setRows((rs) => [...rs, newCommissionRow('New Role', '0')])}
-        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27ae60]"
+        className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#2ecc71] hover:text-[#27af61]"
       >
         <Plus className="h-3.5 w-3.5" /> Add Role
       </button>
@@ -697,7 +697,7 @@ function OverviewTab() {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Anything worth flagging before go-live…"
-          className="border border-[#d9ede1] rounded-[3px] px-3 py-2 text-[13px] w-full max-w-[420px] h-[80px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
+          className="border border-[#b8efcf] rounded-[3px] px-3 py-2 text-[13px] w-full max-w-[420px] h-[80px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 resize-none transition-colors"
         />
       </div>
     </div>
@@ -733,7 +733,7 @@ function PermissionsTab() {
         </thead>
         <tbody>
           {PERMISSIONS.map((perm, i) => (
-            <tr key={perm} className={i % 2 === 0 ? 'bg-white' : 'bg-[#eefaf3]'}>
+            <tr key={perm} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f3fcf7]'}>
               <td className="px-3 py-2.5 border-b border-gray-50 text-gray-700">{perm}</td>
               {ROLES.map((role) => {
                 const key = `${role}|${perm}`;
@@ -783,7 +783,7 @@ function ImportTab() {
           addFiles(e.dataTransfer.files);
         }}
         className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-[8px] py-10 cursor-pointer transition-colors ${
-          dragOver ? 'border-[#2ecc71] bg-[#eefaf3]' : 'border-gray-200 hover:border-[#2ecc71]'
+          dragOver ? 'border-[#2ecc71] bg-[#f3fcf7]' : 'border-gray-200 hover:border-[#2ecc71]'
         }`}
       >
         <Upload className="h-5 w-5 text-[#2ecc71]" />
@@ -816,7 +816,7 @@ function ImportTab() {
               setStatus('importing');
               setTimeout(() => setStatus('done'), 900);
             }}
-            className="mt-1 self-start flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27ae60] disabled:opacity-60 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
+            className="mt-1 self-start flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] disabled:opacity-60 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
           >
             {status === 'importing' ? 'Importing…' : status === 'done' ? 'Imported ✓' : `Import ${files.length} File${files.length > 1 ? 's' : ''}`}
           </button>
@@ -866,7 +866,7 @@ function ExportTab() {
             className={`px-3 py-1.5 rounded-[3px] text-[12px] font-medium border transition-colors ${
               format === f
                 ? 'bg-[#2ecc71] border-[#2ecc71] text-white'
-                : 'border-[#d9ede1] text-gray-600 hover:border-[#2ecc71]'
+                : 'border-[#b8efcf] text-gray-600 hover:border-[#2ecc71]'
             }`}
           >
             {f}
@@ -880,7 +880,7 @@ function ExportTab() {
           setStatus('preparing');
           setTimeout(() => setStatus('ready'), 900);
         }}
-        className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27ae60] disabled:opacity-40 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
+        className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] disabled:opacity-40 text-white text-[12px] font-medium px-4 py-2 rounded-[3px] transition-colors"
       >
         {status === 'preparing' ? 'Preparing…' : status === 'ready' ? `${format} Ready ✓` : `Export as ${format}`}
       </button>
@@ -917,12 +917,12 @@ function CategoriesTab() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && addCategory()}
           placeholder="New category name"
-          className="flex-1 border border-[#d9ede1] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
+          className="flex-1 border border-[#b8efcf] rounded-[3px] px-3 py-[7px] text-[13px] outline-none focus:border-[#2ecc71] focus:ring-1 focus:ring-[#2ecc71]/20 transition-colors"
         />
         <button
           type="button"
           onClick={addCategory}
-          className="flex items-center gap-1 bg-[#2ecc71] hover:bg-[#27ae60] text-white text-[12px] font-medium px-3 py-[7px] rounded-[3px] transition-colors"
+          className="flex items-center gap-1 bg-[#2ecc71] hover:bg-[#27af61] text-white text-[12px] font-medium px-3 py-[7px] rounded-[3px] transition-colors"
         >
           <Plus className="h-3.5 w-3.5" /> Add
         </button>
@@ -1056,21 +1056,21 @@ export function SetupWizard() {
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#eafaf1]">
+    <div className="relative flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#f3fcf7]">
 
       {/* ── decorative blobs ── */}
       <div
-        className="absolute top-0 right-0 w-[240px] h-[240px] bg-[#059669] pointer-events-none"
+        className="absolute top-0 right-0 w-[240px] h-[240px] bg-[#27af61] pointer-events-none"
         style={{ borderBottomLeftRadius: '100%' }}
       />
       <div
-        className="absolute bottom-0 right-0 w-[110px] h-[170px] bg-[#059669] pointer-events-none"
+        className="absolute bottom-0 right-0 w-[110px] h-[170px] bg-[#27af61] pointer-events-none"
         style={{ borderTopLeftRadius: '60px' }}
       />
 
       {/* ── DiveShop360 vertical label ── */}
       <div
-        className="absolute text-[#059669] text-[11px] font-semibold tracking-[0.25em] opacity-80 pointer-events-none z-10"
+        className="absolute text-[#27af61] text-[11px] font-semibold tracking-[0.25em] opacity-80 pointer-events-none z-10"
         style={{
           right: '38px',
           top: '50%',
@@ -1091,7 +1091,7 @@ export function SetupWizard() {
       >
 
         {/* ── left sidebar ── */}
-        <div className="w-[230px] shrink-0 bg-[#065f46] flex flex-col py-9 rounded-l-[18px]">
+        <div className="w-[230px] shrink-0 bg-[#19703e] flex flex-col py-9 rounded-l-[18px]">
           <div className="flex-1 flex flex-col gap-7">
             {STEPS.map((step) => {
               const status = stepStatus(step.id);
@@ -1168,7 +1168,7 @@ export function SetupWizard() {
                           initial="initial"
                           animate="animate"
                           exit="exit"
-                          className="h-8 w-8 rounded-full bg-[#3ecf8e] flex items-center justify-center shadow-md"
+                          className="h-8 w-8 rounded-full bg-[#2ecc71] flex items-center justify-center shadow-md"
                         >
                           <Check className="h-4 w-4 text-white" strokeWidth={3} />
                         </motion.div>
@@ -1180,9 +1180,9 @@ export function SetupWizard() {
                           animate="animate"
                           exit="exit"
                           className="h-8 w-8 rounded-full bg-white flex items-center justify-center"
-                          style={{ boxShadow: '0 0 0 2.5px #065f46, 0 0 0 5px #34d399, 0 2px 8px rgba(0,0,0,0.15)' }}
+                          style={{ boxShadow: '0 0 0 2.5px #19703e, 0 0 0 5px #61db95, 0 2px 8px rgba(0,0,0,0.15)' }}
                         >
-                          <span className="text-[13px] font-bold text-[#065f46]">{step.id}</span>
+                          <span className="text-[13px] font-bold text-[#19703e]">{step.id}</span>
                         </motion.div>
                       ) : (
                         <motion.div
@@ -1296,7 +1296,7 @@ export function SetupWizard() {
                 onClick={handleNext}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                className="flex items-center gap-1.5 px-5 py-[7px] text-[11px] font-semibold text-white bg-[#2ecc71] hover:bg-[#27ae60] rounded-[3px] transition-colors tracking-widest"
+                className="flex items-center gap-1.5 px-5 py-[7px] text-[11px] font-semibold text-white bg-[#2ecc71] hover:bg-[#27af61] rounded-[3px] transition-colors tracking-widest"
               >
                 NEXT
                 <ArrowRight className="h-3 w-3" />

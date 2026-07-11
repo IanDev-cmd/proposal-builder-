@@ -27,8 +27,8 @@ const initialUpcoming: Task[] = [
 
 const statusStyles: Record<Status, string> = {
   Approved: 'bg-emerald-100 text-emerald-700',
-  'In Progress': 'bg-lime-100 text-lime-700',
-  'In Review': 'bg-teal-100 text-teal-700',
+  'In Progress': 'bg-emerald-200 text-emerald-800',
+  'In Review': 'bg-emerald-50 text-emerald-600',
   Waiting: 'bg-gray-100 text-gray-500',
 };
 
@@ -41,11 +41,11 @@ type Project = {
 };
 
 const projects: Project[] = [
-  { initials: 'GH', label: 'Green House', gradient: 'from-emerald-400 to-teal-500' },
-  { initials: 'CP', label: 'Cyber Punk', gradient: 'from-lime-400 to-emerald-600', badge: true },
-  { initials: 'EC', label: 'Easy Crypto', gradient: 'from-teal-500 to-emerald-700' },
-  { initials: 'TA', label: 'Travel App', gradient: 'from-green-400 to-lime-500' },
-  { initials: 'LP', label: 'Landing Page', gradient: 'from-emerald-500 to-green-700', badge: true },
+  { initials: 'GH', label: 'Green House', gradient: 'from-emerald-400 to-emerald-500' },
+  { initials: 'CP', label: 'Cyber Punk', gradient: 'from-emerald-400 to-emerald-600', badge: true },
+  { initials: 'EC', label: 'Easy Crypto', gradient: 'from-emerald-500 to-emerald-700' },
+  { initials: 'TA', label: 'Travel App', gradient: 'from-emerald-400 to-emerald-500' },
+  { initials: 'LP', label: 'Landing Page', gradient: 'from-emerald-500 to-emerald-700', badge: true },
   { initials: '8+', label: '', gradient: '', isCount: true },
 ];
 
@@ -87,12 +87,12 @@ export function Dashboard() {
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-lime-300 via-emerald-400 to-transparent opacity-60 blur-3xl" />
-        <div className="absolute -bottom-32 -right-16 h-[480px] w-[480px] rounded-full bg-gradient-to-tr from-emerald-400 via-teal-300 to-transparent opacity-50 blur-3xl" />
+        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-transparent opacity-60 blur-3xl" />
+        <div className="absolute -bottom-32 -right-16 h-[480px] w-[480px] rounded-full bg-gradient-to-tr from-emerald-400 via-emerald-300 to-transparent opacity-50 blur-3xl" />
       </div>
 
       <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
-        <div className="relative w-[420px] shrink-0 overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-600 p-8 text-white">
+        <div className="relative w-[420px] shrink-0 overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 p-8 text-white">
           <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
             <Menu className="h-4 w-4" />
           </button>
@@ -158,8 +158,8 @@ export function Dashboard() {
             <div className="flex items-center">
               <div className="flex -space-x-2">
                 <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
-                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-lime-300 to-emerald-600" />
-                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-teal-300 to-emerald-500" />
+                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-600" />
+                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
               </div>
               <button className="ml-2 flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-emerald-300 text-emerald-500">
                 <Plus className="h-3.5 w-3.5" />
@@ -187,7 +187,7 @@ export function Dashboard() {
             ))}
           </div>
 
-          <button className="absolute -bottom-5 -right-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-lime-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105">
+          <button className="absolute -bottom-5 -right-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105">
             <Plus className="h-5 w-5" />
           </button>
         </div>

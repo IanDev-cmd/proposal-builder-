@@ -147,7 +147,7 @@ export function EmployeeDashboard() {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27b863] text-white text-[13px] font-semibold px-4 py-2 rounded-[5px] transition-colors shadow-sm shadow-[#2ecc71]/30"
+              className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] text-white text-[13px] font-semibold px-4 py-2 rounded-[5px] transition-colors shadow-sm shadow-[#2ecc71]/30"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Employee

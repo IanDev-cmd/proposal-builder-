@@ -65,8 +65,8 @@ export function CalendarPage() {
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-20 top-0 h-[380px] w-[380px] rounded-full bg-gradient-to-br from-lime-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
-        <div className="absolute -bottom-28 -right-20 h-[460px] w-[460px] rounded-full bg-gradient-to-tr from-teal-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
+        <div className="absolute -left-20 top-0 h-[380px] w-[380px] rounded-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
+        <div className="absolute -bottom-28 -right-20 h-[460px] w-[460px] rounded-full bg-gradient-to-tr from-emerald-300 via-emerald-400 to-transparent opacity-50 blur-3xl" />
       </div>
 
       <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
@@ -94,7 +94,7 @@ export function CalendarPage() {
                 return (
                   <div key={`${wi}-${di}`} className="flex items-center justify-center py-1.5">
                     {isSelected ? (
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-lime-400 to-emerald-600 text-[13px] font-semibold text-white shadow-md shadow-emerald-500/40">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-[13px] font-semibold text-white shadow-md shadow-emerald-500/40">
                         {day.n}
                       </span>
                     ) : (
@@ -120,7 +120,7 @@ export function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-600 p-8 text-white">
+        <div className="flex flex-1 flex-col overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 p-8 text-white">
           <div>
             <h2 className="text-[22px] font-semibold">{dayOfWeekLabel(selected)}</h2>
             <p className="mt-0.5 text-[12px] text-emerald-100/60">{selected}th December 2015</p>
@@ -134,7 +134,7 @@ export function CalendarPage() {
                 <div
                   key={i}
                   className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${
-                    event.highlighted ? 'bg-gradient-to-r from-lime-400 to-emerald-500' : ''
+                    event.highlighted ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
