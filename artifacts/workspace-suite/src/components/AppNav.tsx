@@ -22,7 +22,7 @@ export function AppNav() {
       }`}
     >
       <div className="relative flex h-16 items-center px-6">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-500/30">
             N
           </span>
@@ -39,7 +39,7 @@ export function AppNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
+                className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
                   isActive
                     ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30'
                     : isHome
@@ -47,7 +47,7 @@ export function AppNav() {
                     : 'text-white/60 hover:text-white'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 {item.label}
               </Link>
             );
