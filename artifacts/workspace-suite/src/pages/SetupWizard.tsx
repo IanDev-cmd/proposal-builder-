@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronDown, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 
 /* ─────────── constants ─────────── */
@@ -302,13 +303,39 @@ function PlaceholderTab({ name }: { name: string }) {
 
 /* ─────────── main page ─────────── */
 
+/* ─────────── animation variants ─────────── */
+const slideVariants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 36 : -36,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: { duration: 0.24, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? -36 : 36,
+    opacity: 0,
+    transition: { duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] },
+  }),
+};
+
+const circleVariants = {
+  initial: { scale: 0.6, opacity: 0 },
+  animate: { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 420, damping: 24 } },
+  exit: { scale: 0.6, opacity: 0, transition: { duration: 0.12 } },
+};
+
 export function SetupWizard() {
   const [activeStep, setActiveStep] = useState(1);
   const [activeTab, setActiveTab] = useState(0);
+  const [direction, setDirection] = useState(1);
 
   const tabs = STEP_TABS[activeStep] ?? ['General'];
 
   const handleNext = () => {
+    setDirection(1);
     if (activeTab < tabs.length - 1) {
       setActiveTab(activeTab + 1);
     } else if (activeStep < 5) {
@@ -318,6 +345,7 @@ export function SetupWizard() {
   };
 
   const handlePrev = () => {
+    setDirection(-1);
     if (activeTab > 0) {
       setActiveTab(activeTab - 1);
     } else if (activeStep > 1) {
@@ -382,7 +410,12 @@ export function SetupWizard() {
       </div>
 
       {/* ── main card ── */}
-      <div className="relative flex w-full max-w-[840px] min-h-[470px] rounded-[18px] shadow-2xl z-10">
+      <motion.div
+        className="relative flex w-full max-w-[840px] min-h-[470px] rounded-[18px] shadow-2xl z-10"
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+      >
 
         {/* ── left sidebar ── */}
         <div className="w-[230px] shrink-0 bg-[#2626cc] flex flex-col py-9 rounded-l-[18px]">
@@ -454,22 +487,43 @@ export function SetupWizard() {
                       }
                     }}
                   >
-                    {status === 'done' ? (
-                      <div className="h-8 w-8 rounded-full bg-[#3ecf8e] flex items-center justify-center shadow-md">
-                        <Check className="h-4 w-4 text-white" strokeWidth={3} />
-                      </div>
-                    ) : status === 'active' ? (
-                      <div
-                        className="h-8 w-8 rounded-full bg-white flex items-center justify-center"
-                        style={{ boxShadow: '0 0 0 2.5px #2626cc, 0 0 0 5px #40d8b8, 0 2px 8px rgba(0,0,0,0.15)' }}
-                      >
-                        <span className="text-[13px] font-bold text-[#2626cc]">{step.id}</span>
-                      </div>
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                        <span className="text-[13px] font-medium text-white/60">{step.id}</span>
-                      </div>
-                    )}
+                    <AnimatePresence mode="wait" initial={false}>
+                      {status === 'done' ? (
+                        <motion.div
+                          key="done"
+                          variants={circleVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className="h-8 w-8 rounded-full bg-[#3ecf8e] flex items-center justify-center shadow-md"
+                        >
+                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                        </motion.div>
+                      ) : status === 'active' ? (
+                        <motion.div
+                          key="active"
+                          variants={circleVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className="h-8 w-8 rounded-full bg-white flex items-center justify-center"
+                          style={{ boxShadow: '0 0 0 2.5px #2626cc, 0 0 0 5px #40d8b8, 0 2px 8px rgba(0,0,0,0.15)' }}
+                        >
+                          <span className="text-[13px] font-bold text-[#2626cc]">{step.id}</span>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="pending"
+                          variants={circleVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center"
+                        >
+                          <span className="text-[13px] font-medium text-white/60">{step.id}</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 );
               })}
@@ -480,20 +534,25 @@ export function SetupWizard() {
         {/* ── right content ── */}
         <div className="flex-1 bg-white flex flex-col min-w-0 rounded-r-[18px]">
 
-          {/* tab bar */}
+          {/* tab bar — layoutId underline slides between tabs */}
           <div className="flex items-end px-7 pt-5 border-b border-gray-100 gap-0">
             <div className="flex flex-1 gap-0">
               {tabs.map((tab, i) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(i)}
-                  className={`px-[14px] pb-2.5 pt-0.5 text-[13px] font-medium border-b-[2.5px] transition-colors whitespace-nowrap ${
-                    activeTab === i
-                      ? 'border-[#3b3be8] text-[#3b3be8]'
-                      : 'border-transparent text-gray-400 hover:text-gray-600'
+                  onClick={() => { setDirection(i > activeTab ? 1 : -1); setActiveTab(i); }}
+                  className={`relative px-[14px] pb-2.5 pt-0.5 text-[13px] font-medium transition-colors duration-150 whitespace-nowrap ${
+                    activeTab === i ? 'text-[#3b3be8]' : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
                   {tab}
+                  {activeTab === i && (
+                    <motion.span
+                      layoutId="tab-underline"
+                      className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#3b3be8] rounded-full"
+                      transition={{ type: 'spring', stiffness: 500, damping: 36 }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -502,9 +561,21 @@ export function SetupWizard() {
             </span>
           </div>
 
-          {/* form content */}
-          <div className="flex-1 overflow-auto px-7 py-3">
-            {renderContent()}
+          {/* form content — slides in/out based on navigation direction */}
+          <div className="flex-1 overflow-hidden relative">
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={`${activeStep}-${activeTab}`}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                className="absolute inset-0 overflow-auto px-7 py-3"
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* progress + nav */}
@@ -512,37 +583,51 @@ export function SetupWizard() {
             {/* progress bar */}
             <div className="flex flex-1 items-center gap-2.5 min-w-0">
               <div className="flex-1 bg-gray-100 rounded-full h-[3px] overflow-hidden">
-                <div
-                  className="h-full bg-[#3b3be8] rounded-full transition-all duration-300"
-                  style={{ width: `${pct}%` }}
+                <motion.div
+                  className="h-full bg-[#3b3be8] rounded-full"
+                  animate={{ width: `${pct}%` }}
+                  transition={{ type: 'spring', stiffness: 120, damping: 20 }}
                 />
               </div>
-              <span className="text-[11px] text-gray-400 shrink-0">
-                {leftPct}% Left
-              </span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={leftPct}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-[11px] text-gray-400 shrink-0"
+                >
+                  {leftPct}% Left
+                </motion.span>
+              </AnimatePresence>
             </div>
 
             {/* nav buttons */}
             <div className="flex items-center gap-2.5 shrink-0">
-              <button
+              <motion.button
                 onClick={handlePrev}
                 disabled={activeStep === 1 && activeTab === 0}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
                 className="flex items-center gap-1.5 px-4 py-[7px] text-[11px] font-semibold text-gray-500 border border-gray-300 rounded-[3px] hover:border-gray-400 disabled:opacity-30 transition-colors tracking-widest"
               >
                 <ArrowLeft className="h-3 w-3" />
                 PREVIOUS
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={handleNext}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
                 className="flex items-center gap-1.5 px-5 py-[7px] text-[11px] font-semibold text-white bg-[#3b3be8] hover:bg-[#2e2ed8] rounded-[3px] transition-colors tracking-widest"
               >
                 NEXT
                 <ArrowRight className="h-3 w-3" />
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
