@@ -1,0 +1,1 @@
+- [Imported artifacts missing from registry](imported-artifact-registry-gap.md) — listArtifacts()/Screenshot tool can't see pre-existing imported artifacts; use externalUrl screenshots + configureWorkflow as a fallback.

@@ -9,6 +9,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { CalendarPage } from '@/pages/Calendar';
 import { SetupWizard } from '@/pages/SetupWizard';
 import { EmployeeDashboard } from '@/pages/EmployeeDashboard';
+import { ProposalDoc } from '@/pages/ProposalDoc';
 import { ProcessTimeline } from '@/pages/ProcessTimeline';
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ function Router() {
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/setup" component={SetupWizard} />
         <Route path="/employees" component={EmployeeDashboard} />
+        <Route path="/proposal-doc" component={ProposalDoc} />
         <Route path="/timeline" component={ProcessTimeline} />
         <Route component={NotFound} />
       </Switch>

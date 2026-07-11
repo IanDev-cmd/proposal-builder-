@@ -17,13 +17,14 @@ function HandshakeIcon({ color = 'currentColor' }: { color?: string }) {
   );
 }
 
-function MapIcon({ color = 'currentColor' }: { color?: string }) {
+function FormSignedIcon({ color = 'currentColor' }: { color?: string }) {
   return (
     <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="6,10 18,6 30,10 42,6 42,38 30,42 18,38 6,42" />
-      <line x1="18" y1="6" x2="18" y2="38" />
-      <line x1="30" y1="10" x2="30" y2="42" />
-      <circle cx="24" cy="22" r="3" />
+      <rect x="10" y="4" width="28" height="36" rx="2" />
+      <line x1="16" y1="14" x2="32" y2="14" />
+      <line x1="16" y1="20" x2="32" y2="20" />
+      <line x1="16" y1="26" x2="24" y2="26" />
+      <path d="M28 32l4 4 8-8" />
     </svg>
   );
 }
@@ -41,11 +42,9 @@ function OfferIcon({ color = 'currentColor' }: { color?: string }) {
 function ContractIcon({ color = 'currentColor' }: { color?: string }) {
   return (
     <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="10" y="4" width="28" height="36" rx="2" />
-      <line x1="16" y1="14" x2="32" y2="14" />
-      <line x1="16" y1="20" x2="32" y2="20" />
-      <line x1="16" y1="26" x2="24" y2="26" />
-      <path d="M28 32l4 4 8-8" />
+      <path d="M14 4h14l8 8v26a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      <path d="M28 4v8h8" />
+      <path d="M17 26l4 4 10-10" />
     </svg>
   );
 }
@@ -63,50 +62,47 @@ function HouseIcon({ color = 'currentColor' }: { color?: string }) {
 /* ─────────── step data ─────────── */
 
 const STEPS = [
-  { id: 0, label: 'Prospect', Icon: HandshakeIcon },
-  { id: 1, label: 'Tour',     Icon: MapIcon },
-  { id: 2, label: 'Offer',    Icon: OfferIcon },
-  { id: 3, label: 'Contract', Icon: ContractIcon },
-  { id: 4, label: 'Settled',  Icon: HouseIcon },
+  { id: 0, label: 'Lead Received', Icon: HandshakeIcon },
+  { id: 1, label: 'Booking Form Signed', Icon: FormSignedIcon },
+  { id: 2, label: 'Deposit Paid', Icon: OfferIcon },
+  { id: 3, label: 'Contract Signed', Icon: ContractIcon },
+  { id: 4, label: 'Job Confirmed', Icon: HouseIcon },
 ];
 
-const ACTIVE_STEP = 2; // Offer
+const ACTIVE_STEP = 2; // Deposit Paid
 
 /* ─────────── sub-components ─────────── */
 
-function TimelineTrack({
-  activeStep,
-  dark = false,
-  compact = false,
-}: {
-  activeStep: number;
-  dark?: boolean;
-  compact?: boolean;
-}) {
-  const iconSize = compact ? 32 : 42;
-  const nodeSize = compact ? 26 : 32;
-  const labelSize = compact ? 'text-[11px]' : 'text-[13px]';
-  const trackColor = dark ? '#6b7a8a' : '#d1d5db';
+const ICON_SIZE = 38;
+const NODE_SIZE = 28;
+const ICON_MARGIN = 14; // px gap between icon and node (mb-3.5 equivalent)
+// The connector line must cross exactly through the vertical center of each node.
+const LINE_TOP = ICON_SIZE + ICON_MARGIN + NODE_SIZE / 2;
+
+function TimelineTrack({ activeStep }: { activeStep: number }) {
+  const trackColor = '#6b7a8a';
   const doneColor = '#2ecc71';
 
   return (
-    <div className="flex items-start justify-between w-full relative" style={{ gap: 0 }}>
+    <div className="flex items-start justify-between w-full relative" style={{ gap: '8px' }}>
       {STEPS.map((step, i) => {
         const done = i < activeStep;
         const active = i === activeStep;
-        const pending = i > activeStep;
 
         return (
-          <div key={step.id} className="flex flex-col items-center flex-1 relative">
-            {/* connector line left */}
+          <div
+            key={step.id}
+            className="flex flex-col items-center relative"
+            style={{ flex: '1 1 0', minWidth: 150 }}
+          >
+            {/* connector line — passes through the exact center of the circle nodes */}
             {i > 0 && (
               <div
-                className="absolute top-0 right-[50%] h-[2px]"
+                className="absolute h-[2px]"
                 style={{
+                  right: '50%',
                   width: '100%',
-                  top: compact
-                    ? `${iconSize + 14}px`
-                    : `${iconSize + 18}px`,
+                  top: `${LINE_TOP}px`,
                   backgroundColor: i <= activeStep ? doneColor : trackColor,
                   zIndex: 0,
                 }}
@@ -114,64 +110,51 @@ function TimelineTrack({
             )}
 
             {/* icon */}
-            <div style={{ width: iconSize, height: iconSize }} className="mb-3 relative z-10">
-              <step.Icon
-                color={
-                  done ? '#9ca3af'
-                  : active ? doneColor
-                  : dark ? '#6b7a8a'
-                  : '#9ca3af'
-                }
-              />
+            <div style={{ width: ICON_SIZE, height: ICON_SIZE, marginBottom: ICON_MARGIN }} className="relative z-10">
+              <step.Icon color={done ? '#9ca3af' : active ? doneColor : '#6b7a8a'} />
             </div>
 
             {/* circle node */}
-            <div className="relative z-10 flex items-center justify-center" style={{ width: nodeSize, height: nodeSize }}>
+            <div className="relative z-10 flex items-center justify-center" style={{ width: NODE_SIZE, height: NODE_SIZE }}>
               {done ? (
                 <motion.div
                   initial={{ scale: 0.6 }}
                   animate={{ scale: 1 }}
                   className="rounded-full bg-[#2ecc71] flex items-center justify-center"
-                  style={{ width: nodeSize, height: nodeSize }}
+                  style={{ width: NODE_SIZE, height: NODE_SIZE }}
                 >
-                  <Check className="text-white" style={{ width: nodeSize * 0.45, height: nodeSize * 0.45 }} strokeWidth={3} />
+                  <Check className="text-[#0a0a0a]" style={{ width: NODE_SIZE * 0.45, height: NODE_SIZE * 0.45 }} strokeWidth={3} />
                 </motion.div>
               ) : active ? (
-                <div className="relative flex items-center justify-center" style={{ width: nodeSize, height: nodeSize }}>
-                  {/* outer ring */}
+                <div className="relative flex items-center justify-center" style={{ width: NODE_SIZE, height: NODE_SIZE }}>
                   <div
-                    className="absolute rounded-full border-[2.5px] border-[#2ecc71] bg-white"
-                    style={{ width: nodeSize, height: nodeSize }}
+                    className="absolute rounded-full border-[2.5px] border-[#2ecc71] bg-[#4f5f6e]"
+                    style={{ width: NODE_SIZE, height: NODE_SIZE }}
                   />
-                  {/* inner dot */}
                   <motion.div
                     animate={{ scale: [0.7, 1, 0.7] }}
                     transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
                     className="rounded-full bg-[#2ecc71]"
-                    style={{ width: nodeSize * 0.38, height: nodeSize * 0.38 }}
+                    style={{ width: NODE_SIZE * 0.38, height: NODE_SIZE * 0.38 }}
                   />
                 </div>
               ) : (
                 <div
                   className="rounded-full border-[2px]"
                   style={{
-                    width: nodeSize * 0.55,
-                    height: nodeSize * 0.55,
-                    borderColor: dark ? '#6b7a8a' : '#d1d5db',
-                    backgroundColor: dark ? '#4f5f6e' : 'white',
+                    width: NODE_SIZE * 0.55,
+                    height: NODE_SIZE * 0.55,
+                    borderColor: '#6b7a8a',
+                    backgroundColor: '#4f5f6e',
                   }}
                 />
               )}
             </div>
 
-            {/* label */}
+            {/* label — generous min-width above keeps every step on a single line */}
             <span
-              className={`mt-2 font-medium ${labelSize} ${
-                active
-                  ? 'text-[#2ecc71]'
-                  : done
-                  ? dark ? 'text-gray-400' : 'text-gray-400'
-                  : dark ? 'text-gray-400' : 'text-gray-400'
+              className={`mt-3 font-medium text-[13px] text-center whitespace-nowrap ${
+                active ? 'text-[#2ecc71]' : 'text-gray-400'
               }`}
             >
               {step.label}
@@ -189,46 +172,23 @@ export function ProcessTimeline() {
   const [email, setEmail] = useState('');
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] w-full bg-white flex flex-col">
-
-      {/* ── light section ── */}
-      <div className="flex flex-col items-center justify-center flex-1 px-12 pt-14 pb-10">
-        <motion.h1
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="text-[32px] font-bold text-gray-800 mb-14 tracking-tight"
-        >
-          Process Timeline
-        </motion.h1>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.1 }}
-          className="w-full max-w-[640px]"
-        >
-          <TimelineTrack activeStep={ACTIVE_STEP} />
-        </motion.div>
-      </div>
-
-      {/* ── dark section ── */}
+    <div className="min-h-[calc(100vh-4rem)] w-full bg-[#0a0a0a] flex flex-col items-center justify-center px-6">
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.22 }}
-        className="w-full bg-[#4f5f6e] px-12 py-10"
+        transition={{ duration: 0.45 }}
+        className="w-full max-w-[980px] rounded-[14px] bg-[#4f5f6e] px-12 py-12 shadow-2xl ring-1 ring-white/10"
       >
-        <div className="flex items-center gap-12 max-w-[900px] mx-auto">
-          {/* timeline */}
-          <div className="flex-1">
-            <p className="text-white text-[13px] font-semibold mb-8">Alternative Dark Mode</p>
-            <TimelineTrack activeStep={ACTIVE_STEP} dark compact />
-          </div>
+        <p className="text-white text-[13px] font-semibold mb-10 text-center tracking-wide">
+          Alternative Dark Mode
+        </p>
 
-          {/* email + CTA */}
-          <div className="flex flex-col gap-3 shrink-0">
-            <div className="flex items-center gap-2.5 border border-[#6b7a8a] rounded-[4px] px-3 py-2.5 bg-transparent min-w-[200px]">
+        <TimelineTrack activeStep={ACTIVE_STEP} />
+
+        <div className="mt-12 flex flex-col items-center gap-3 border-t border-white/10 pt-8">
+          <p className="text-white/60 text-[12px]">Get notified the moment this lead moves to the next stage</p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 border border-[#6b7a8a] rounded-[4px] px-3 py-2.5 bg-transparent min-w-[240px]">
               <Mail className="h-4 w-4 text-gray-400 shrink-0" />
               <input
                 value={email}
@@ -240,7 +200,7 @@ export function ProcessTimeline() {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              className="bg-[#2ecc71] hover:bg-[#27af61] text-white text-[13px] font-semibold px-5 py-2.5 rounded-[4px] transition-colors"
+              className="bg-[#2ecc71] hover:bg-[#27af61] text-[#0a0a0a] text-[13px] font-semibold px-5 py-2.5 rounded-[4px] transition-colors"
             >
               Get Notifications
             </motion.button>

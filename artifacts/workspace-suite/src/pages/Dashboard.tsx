@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Menu, Search, MoreHorizontal, Plus, Check } from 'lucide-react';
+import { ProfileModal } from '@/components/ProfileModal';
 
 type Status = 'Approved' | 'In Progress' | 'In Review' | 'Waiting';
 
@@ -78,61 +79,68 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: string) => voi
 export function Dashboard() {
   const [today, setToday] = useState(initialToday);
   const [upcoming, setUpcoming] = useState(initialUpcoming);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileIndex, setProfileIndex] = useState(0);
 
   const toggleToday = (id: string) =>
     setToday((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   const toggleUpcoming = (id: string) =>
     setUpcoming((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
 
+  const openProfile = (i: number) => {
+    setProfileIndex(i);
+    setProfileOpen(true);
+  };
+
   return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
+    <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#0a0a0a]">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-transparent opacity-60 blur-3xl" />
-        <div className="absolute -bottom-32 -right-16 h-[480px] w-[480px] rounded-full bg-gradient-to-tr from-emerald-400 via-emerald-300 to-transparent opacity-50 blur-3xl" />
+        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent opacity-60 blur-3xl" />
+        <div className="absolute -bottom-32 -right-16 h-[480px] w-[480px] rounded-full bg-gradient-to-tr from-emerald-500/20 via-emerald-500/10 to-transparent opacity-50 blur-3xl" />
       </div>
 
-      <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-white shadow-2xl ring-1 ring-black/5">
-        <div className="relative w-[420px] shrink-0 overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 p-8 text-white">
+      <div className="relative flex min-h-[calc(100vh-4rem)] w-full bg-[#0a0a0a] shadow-2xl ring-1 ring-white/10">
+        <div className="relative w-[420px] shrink-0 overflow-hidden bg-gradient-to-br from-[#101010] via-[#0c0c0c] to-[#050505] p-8 text-white ring-1 ring-white/5">
           <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
             <Menu className="h-4 w-4" />
           </button>
 
           <div className="mt-10">
             <h1 className="text-[26px] font-semibold leading-tight">Hi Samantha</h1>
-            <p className="mt-1 text-[13px] text-emerald-100/80">
+            <p className="mt-1 text-[13px] text-white/50">
               Welcome back to the workspace, we missed you!
             </p>
           </div>
 
-          <div className="mt-6 flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5">
-            <Search className="h-4 w-4 text-emerald-100/70" />
-            <span className="text-[13px] text-emerald-100/70">Search Task or Project...</span>
+          <div className="mt-6 flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 ring-1 ring-white/10">
+            <Search className="h-4 w-4 text-white/40" />
+            <span className="text-[13px] text-white/40">Search Task or Project...</span>
           </div>
 
           <div className="mt-8">
-            <p className="text-[13px] font-medium text-emerald-100/90">
-              Projects <span className="text-emerald-200/60">(13)</span>
+            <p className="text-[13px] font-medium text-white/70">
+              Projects <span className="text-white/30">(13)</span>
             </p>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
               {projects.map((project, i) => (
                 <div key={i} className="flex flex-col items-start gap-2">
                   {project.isCount ? (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-[15px] font-semibold text-white">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 text-[15px] font-semibold text-white ring-1 ring-white/10">
                       8+
                     </div>
                   ) : (
                     <div
-                      className={`relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${project.gradient} text-[15px] font-semibold text-white shadow-lg`}
+                      className={`relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${project.gradient} text-[15px] font-semibold text-[#0a0a0a] shadow-lg`}
                     >
                       {project.initials}
                       {project.badge && (
-                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-emerald-800 bg-white" />
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[#0a0a0a] bg-white" />
                       )}
                     </div>
                   )}
                   {project.label && (
-                    <span className="text-[11px] text-emerald-100/70">{project.label}</span>
+                    <span className="text-[11px] text-white/50">{project.label}</span>
                   )}
                 </div>
               ))}
@@ -146,52 +154,66 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col overflow-y-auto bg-white p-8 shadow-[0_20px_50px_-15px_rgba(16,60,40,0.25)] ring-1 ring-black/5">
+        <div className="flex flex-1 flex-col overflow-y-auto bg-[#0e0e0e] p-8 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-1 ring-white/5">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-[22px] font-semibold text-gray-900">Cyber Punk</h2>
-              <p className="mt-1 max-w-[280px] text-[12px] leading-relaxed text-gray-400">
+              <h2 className="text-[22px] font-semibold text-white">Cyber Punk</h2>
+              <p className="mt-1 max-w-[280px] text-[12px] leading-relaxed text-white/40">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
                 incididunt
               </p>
             </div>
             <div className="flex items-center">
               <div className="flex -space-x-2">
-                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
-                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-600" />
-                <div className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
+                <button
+                  onClick={() => openProfile(0)}
+                  className="h-8 w-8 rounded-full border-2 border-[#0e0e0e] bg-gradient-to-br from-emerald-300 to-emerald-500 transition-transform hover:z-10 hover:scale-110"
+                  aria-label="Open profile 1"
+                />
+                <button
+                  onClick={() => openProfile(1)}
+                  className="h-8 w-8 rounded-full border-2 border-[#0e0e0e] bg-gradient-to-br from-emerald-300 to-emerald-600 transition-transform hover:z-10 hover:scale-110"
+                  aria-label="Open profile 2"
+                />
+                <button
+                  onClick={() => openProfile(2)}
+                  className="h-8 w-8 rounded-full border-2 border-[#0e0e0e] bg-gradient-to-br from-emerald-300 to-emerald-500 transition-transform hover:z-10 hover:scale-110"
+                  aria-label="Open profile 3"
+                />
               </div>
-              <button className="ml-2 flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-emerald-300 text-emerald-500">
+              <button className="ml-2 flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-emerald-400/50 text-emerald-400">
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
           <div className="mt-6 flex items-center justify-between">
-            <h3 className="text-[14px] font-semibold text-gray-800">Today</h3>
-            <MoreHorizontal className="h-4 w-4 text-gray-300" />
+            <h3 className="text-[14px] font-semibold text-white/80">Today</h3>
+            <MoreHorizontal className="h-4 w-4 text-white/20" />
           </div>
-          <div className="mt-1 divide-y divide-gray-50">
+          <div className="mt-1 divide-y divide-white/5">
             {today.map((task) => (
               <TaskRow key={task.id} task={task} onToggle={toggleToday} />
             ))}
           </div>
 
           <div className="mt-6 flex items-center justify-between">
-            <h3 className="text-[14px] font-semibold text-gray-800">Upcoming</h3>
-            <MoreHorizontal className="h-4 w-4 text-gray-300" />
+            <h3 className="text-[14px] font-semibold text-white/80">Upcoming</h3>
+            <MoreHorizontal className="h-4 w-4 text-white/20" />
           </div>
-          <div className="mt-1 divide-y divide-gray-50">
+          <div className="mt-1 divide-y divide-white/5">
             {upcoming.map((task) => (
               <TaskRow key={task.id} task={task} onToggle={toggleUpcoming} />
             ))}
           </div>
 
-          <button className="absolute -bottom-5 -right-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105">
+          <button className="absolute -bottom-5 -right-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-[#0a0a0a] shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105">
             <Plus className="h-5 w-5" />
           </button>
         </div>
       </div>
+
+      <ProfileModal open={profileOpen} index={profileIndex} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }
