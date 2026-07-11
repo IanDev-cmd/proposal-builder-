@@ -12,7 +12,7 @@ const DOC = {
   breadcrumb: 'Proposals › Hospitality Sector › WE.18795',
   body: [
     `This proposal outlines the scope, pricing and service levels for Blue Apple Contract Catering's staff dining programme across its Manchester and Leeds sites, effective from the agreed start date for an initial 12-month term.`,
-    `Workspace Suite will provide day-to-day catering operations, menu planning, allergen management and monthly reporting. `,
+    `Nexus will provide day-to-day catering operations, menu planning, allergen management and monthly reporting. `,
     `The agreed management fee is £4,250 per site per month, inclusive of staffing, equipment servicing and compliance audits. Food cost is charged at net invoice plus an 8% handling margin, reviewed quarterly.`,
     `Either party may terminate this agreement with 90 days' written notice. Blue Apple Contract Catering retains the right to request a service review after the first 3 months of operation.`,
   ],

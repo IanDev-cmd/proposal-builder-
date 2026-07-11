@@ -3,9 +3,9 @@ import { Home, LayoutDashboard, CalendarDays, Settings2, Users, GitBranch, FileT
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/employees', label: 'Employees', icon: Users },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/setup', label: 'Setup', icon: Settings2 },
+  { href: '/employees', label: 'Leads', icon: Users },
+  { href: '/dashboard', label: 'Tasks', icon: LayoutDashboard },
+  { href: '/setup', label: 'Forms', icon: Settings2 },
   { href: '/proposal-doc', label: 'Proposal Doc', icon: FileText },
   { href: '/timeline', label: 'Timeline', icon: GitBranch },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
@@ -21,21 +21,17 @@ export function AppNav() {
         isHome ? 'border-emerald-100 bg-white/80' : 'border-white/10 bg-[#0a0a0a]/95'
       }`}
     >
-      <div className="flex h-16 items-center justify-between px-6">
+      <div className="relative flex h-16 items-center px-6">
         <div className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-500/30">
-            W
+            N
           </span>
           <span className={`text-[15px] font-semibold ${isHome ? 'text-gray-900' : 'text-white'}`}>
-            Workspace Suite
+            Nexus
           </span>
         </div>
 
-        <nav
-          className={`flex items-center gap-1 rounded-full p-1 ${
-            isHome ? 'bg-emerald-50/70' : 'bg-white/5 border border-white/10'
-          }`}
-        >
+        <nav className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1">
           {navItems.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;

@@ -13,19 +13,19 @@ type Tile = {
 const TILES: Tile[] = [
   {
     href: '/employees',
-    label: 'Employees',
+    label: 'Leads',
     icon: Users,
     features: ['View team roster', 'Track attendance', 'Manage roles', 'Contact staff'],
   },
   {
     href: '/dashboard',
-    label: 'Dashboard',
+    label: 'Tasks',
     icon: LayoutDashboard,
     features: ['Track tasks', 'Manage projects', 'View progress', 'Quick search'],
   },
   {
     href: '/setup',
-    label: 'Setup',
+    label: 'Forms',
     icon: Settings2,
     features: ['Configure business info', 'Set modules & permissions', 'Import / export data', 'Map categories'],
   },
