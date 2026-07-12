@@ -6,3 +6,9 @@ id = "Xy37BCXSIUJNctxTZIeSi"
 uri = "file://exports/workspace-suite-source-code.txt"
 type = "text"
 title = "Workspace Suite — Source Code Export"
+
+[[outputs]]
+id = "QBRJToSGKAI4dU92yzG2B"
+uri = "file://attached_assets/frontend_code_export.txt"
+type = "text"
+title = "Frontend code export (all src files)"
