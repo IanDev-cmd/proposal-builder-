@@ -3,9 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Check, X, ChevronDown, Tag } from 'lucide-react';
 import { LeadPanel, type Lead } from '@/components/LeadPanel';
 import { soundClick, soundOpen, soundClose, soundTab, soundToggle } from '@/lib/sounds';
+import { loadRepTasks, saveRepTasks } from '@/lib/taskStore';
+
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // ── Client Relationship Representatives ───────────────────────────────────────
-const CRR_REPS: Lead[] = [
+// Exported so other pages (e.g. Calendar) can resolve a task's repId to a name.
+export const CRR_REPS: Lead[] = [
   { id: 9001, name: 'Katherine',  initials: 'KA', email: '', code: 'CRR-1', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
   { id: 9002, name: 'Sapphire',   initials: 'SA', email: '', code: 'CRR-2', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
   { id: 9003, name: 'Elizabeth',  initials: 'EL', email: '', code: 'CRR-3', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
@@ -48,6 +55,7 @@ type TaskItem = {
   list:         TaskList;
   taskType:     string;
   emailAccount: string;
+  date:         string; // ISO yyyy-mm-dd — the calendar day this task is scheduled for
 };
 
 type RepTasks = Record<string, TaskItem[]>;
@@ -316,8 +324,12 @@ export function Tasks() {
   // Active rep
   const [activeRepId,  setActiveRepId]  = useState<string>(String(CRR_REPS[0].id));
 
-  // Tasks per rep
-  const [tasksByRep,   setTasksByRep]   = useState<RepTasks>({});
+  // Tasks per rep — persisted to localStorage so the Calendar page can read them
+  const [tasksByRep,   setTasksByRep]   = useState<RepTasks>(() => loadRepTasks() as RepTasks);
+
+  useEffect(() => {
+    saveRepTasks(tasksByRep);
+  }, [tasksByRep]);
 
   // Rep detail panel (reuse LeadPanel)
   const [panelRep, setPanelRep] = useState<Lead | null>(null);
@@ -333,6 +345,7 @@ export function Tasks() {
   const [newList,         setNewList]         = useState<TaskList>('today');
   const [newTaskType,     setNewTaskType]      = useState('');
   const [newEmailAccount, setNewEmailAccount]  = useState('');
+  const [newDate,         setNewDate]          = useState(todayIso());
   const [tagged,          setTagged]          = useState<Lead[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [showTagDrop,  setShowTagDrop]  = useState(false);
@@ -415,6 +428,7 @@ export function Tasks() {
       list:         newList,
       taskType:     newTaskType,
       emailAccount: newEmailAccount,
+      date:         newDate,
     };
     setTasksByRep(prev => ({
       ...prev,
@@ -424,7 +438,7 @@ export function Tasks() {
     setTagged([]);
     setMentionQuery(null);
     soundClick();
-  }, [newText, activeKey, tagged, newList, newTaskType]);
+  }, [newText, activeKey, tagged, newList, newTaskType, newEmailAccount, newDate]);
 
   const toggleTask = useCallback((taskId: string) => {
     setTasksByRep(prev => ({
@@ -698,6 +712,15 @@ export function Tasks() {
 
               {/* Email account picker */}
               <EmailPicker value={newEmailAccount} onSelect={setNewEmailAccount} />
+
+              {/* Calendar date — determines which day this task appears on in Calendar */}
+              <input
+                type="date"
+                value={newDate}
+                onChange={e => setNewDate(e.target.value)}
+                title="Date this task is scheduled for"
+                className="shrink-0 border border-black/12 px-2.5 py-2 text-[11px] font-medium text-black/60 outline-none focus:border-[#2ecc71] transition-colors"
+              />
 
               {/* Text input + @ mention dropdown */}
               <div className="relative flex-1">

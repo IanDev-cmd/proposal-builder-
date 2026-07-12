@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X } from 'lucide-react';
+import { addProposal } from '@/lib/proposalStore';
+
+const QUOTE_WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/QuoteBuilder';
 
 const VESSEL_TYPES = [
   'WEOTT I (Rose)',
@@ -85,6 +89,7 @@ type FormData = {
   vesselType: string;
   eventType: string;
   source: string;
+  eventDate: string;
   guestCount: string;
   embarkation: string;
   departure: string;
@@ -96,10 +101,16 @@ type FormData = {
   selectedUpgrades: string[];
 };
 
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const INIT: FormData = {
   vesselType: '',
   eventType: '',
   source: '',
+  eventDate: todayIso(),
   guestCount: '',
   embarkation: '10:00',
   departure: '12:00',
@@ -109,6 +120,16 @@ const INIT: FormData = {
   repeatClient: false,
   totalCost: '',
   selectedUpgrades: [],
+};
+
+type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
+
+const STAGE_META: Record<Exclude<GenerationStage, 'idle'>, { label: string; color: string }> = {
+  preparing: { label: 'Preparing your event details', color: '#7c8a82' },
+  sending: { label: 'Sending to Ravenmark', color: '#3b82f6' },
+  generating: { label: 'Generating your PDF proposal', color: '#e8b93f' },
+  done: { label: 'Proposal ready — redirecting…', color: '#2ecc71' },
+  error: { label: 'Something went wrong', color: '#ef4444' },
 };
 
 function calcFinancials(data: FormData) {
@@ -218,9 +239,12 @@ const STEPS = [
 ];
 
 export function Forms() {
+  const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormData>(INIT);
   const [hoverField, setHoverField] = useState<string | null>(null);
+  const [stage, setStage] = useState<GenerationStage>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const set = (key: keyof FormData, val: unknown) =>
     setData((prev) => ({ ...prev, [key]: val }));
@@ -235,6 +259,91 @@ export function Forms() {
 
   const fin = calcFinancials(data);
   const previewImg = getStoredPreview(hoverField);
+
+  const handleGenerate = async () => {
+    setErrorMessage('');
+    setStage('preparing');
+
+    const payload = {
+      ...data,
+      financials: {
+        subtotal: fin.subtotal,
+        contingency: fin.contingency,
+        vat: fin.vat,
+        grandTotal: fin.grand,
+        upgradeTotal: fin.upgradeTotal,
+      },
+    };
+
+    await new Promise((r) => setTimeout(r, 500));
+    setStage('sending');
+
+    try {
+      const res = await fetch(QUOTE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
+
+      setStage('generating');
+
+      const contentType = res.headers.get('content-type') ?? '';
+      let pdfDataUrl = '';
+
+      if (contentType.includes('application/pdf') || contentType.includes('octet-stream')) {
+        const blob = await res.blob();
+        pdfDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        const json = await res.json().catch(() => null);
+        const base64OrUrl: string | undefined =
+          json?.pdfBase64 ?? json?.pdf ?? json?.fileUrl ?? json?.pdfUrl ?? json?.url;
+        if (base64OrUrl?.startsWith('data:')) {
+          pdfDataUrl = base64OrUrl;
+        } else if (base64OrUrl) {
+          // Assume a bare base64 string, or a fetchable URL.
+          if (/^[A-Za-z0-9+/=]+$/.test(base64OrUrl) && base64OrUrl.length > 100) {
+            pdfDataUrl = `data:application/pdf;base64,${base64OrUrl}`;
+          } else {
+            const fileRes = await fetch(base64OrUrl);
+            const blob = await fileRes.blob();
+            pdfDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } else {
+          throw new Error('The webhook did not return a PDF.');
+        }
+      }
+
+      addProposal({
+        id: `proposal-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        eventDate: data.eventDate,
+        title: `${data.eventType || 'Event'} Proposal — ${data.vesselType || 'Vessel TBC'}`,
+        vesselType: data.vesselType,
+        eventType: data.eventType,
+        guestCount: data.guestCount,
+        grandTotal: fin.grand,
+        pdfDataUrl,
+      });
+
+      setStage('done');
+      setTimeout(() => navigate('/proposal-doc'), 1200);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to generate the proposal.');
+      setStage('error');
+    }
+  };
 
   const pageVariants = {
     initial: { opacity: 0, x: 24 },
@@ -318,7 +427,7 @@ export function Forms() {
                 </div>
 
                 <p className={sectionLabelCls}>Vessel &amp; Event Type</p>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="mb-7 grid grid-cols-2 gap-5">
                   <FormSelect
                     label="Vessel Type"
                     field="vesselType"
@@ -334,6 +443,22 @@ export function Forms() {
                     value={data.eventType}
                     onChange={(v) => set('eventType', v)}
                     onHoverField={setHoverField}
+                  />
+                </div>
+
+                <p className={sectionLabelCls}>Event Date</p>
+                <div onMouseEnter={() => setHoverField('eventDate')} onMouseLeave={() => setHoverField(null)}>
+                  <label className={fieldLabelCls}>
+                    Date of Event
+                    <span title="The calendar day this event takes place — used to place it on the Calendar page">
+                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
+                    </span>
+                  </label>
+                  <input
+                    type="date"
+                    value={data.eventDate}
+                    onChange={(e) => set('eventDate', e.target.value)}
+                    className={inputCls}
                   />
                 </div>
               </motion.div>
@@ -571,7 +696,10 @@ export function Forms() {
                 Next
               </button>
             ) : (
-              <button className="flex items-center gap-2 rounded-full bg-[#2ecc71] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#27af61]">
+              <button
+                onClick={handleGenerate}
+                className="flex items-center gap-2 rounded-full bg-[#2ecc71] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#27af61]"
+              >
                 Generate Proposal
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
@@ -600,6 +728,90 @@ export function Forms() {
                  hoverField === 'financials' ? 'Financial Summary' : 'Upgrades'}
               </p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Generation overlay: animated stage transitions while the proposal builds ── */}
+      <AnimatePresence>
+        {stage !== 'idle' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              className="w-[380px] rounded-[16px] bg-white p-8 shadow-2xl"
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={stage}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col items-center text-center"
+                >
+                  <div
+                    className="mb-5 flex h-16 w-16 items-center justify-center rounded-full"
+                    style={{ backgroundColor: `${STAGE_META[stage as keyof typeof STAGE_META].color}18` }}
+                  >
+                    {stage === 'done' ? (
+                      <FileCheck2 className="h-7 w-7" style={{ color: STAGE_META.done.color }} />
+                    ) : stage === 'error' ? (
+                      <AlertTriangle className="h-7 w-7" style={{ color: STAGE_META.error.color }} />
+                    ) : (
+                      <Loader2
+                        className="h-7 w-7 animate-spin"
+                        style={{ color: STAGE_META[stage as keyof typeof STAGE_META].color }}
+                      />
+                    )}
+                  </div>
+                  <p className="text-[15px] font-bold text-gray-800">
+                    {stage === 'error' ? errorMessage || STAGE_META.error.label : STAGE_META[stage as keyof typeof STAGE_META].label}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Stage progress dots */}
+              {stage !== 'error' && (
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  {(['preparing', 'sending', 'generating', 'done'] as const).map((s) => {
+                    const order = ['preparing', 'sending', 'generating', 'done'];
+                    const reached = order.indexOf(stage) >= order.indexOf(s);
+                    return (
+                      <span
+                        key={s}
+                        className="h-1.5 w-8 rounded-full transition-colors"
+                        style={{ backgroundColor: reached ? STAGE_META[s].color : '#e5e7eb' }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {stage === 'error' && (
+                <div className="mt-6 flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => setStage('idle')}
+                    className="flex items-center gap-1.5 rounded-full border border-[#e3e6e4] px-4 py-2 text-[12.5px] font-semibold text-gray-500 transition-colors hover:bg-gray-50"
+                  >
+                    <X className="h-3.5 w-3.5" /> Close
+                  </button>
+                  <button
+                    onClick={handleGenerate}
+                    className="rounded-full bg-[#2ecc71] px-5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-[#27af61]"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

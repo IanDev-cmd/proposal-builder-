@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Grid2x2, FileText, PenSquare, CheckCircle2, MessageSquareText, Star,
   MoreVertical, Search, LayoutGrid, List, Share2, Pencil, Trash2,
-  ChevronRight, Home as HomeIcon, Download, Printer, X,
+  ChevronRight, Home as HomeIcon, Download, Printer, X, ChevronUp, ChevronDown,
+  FileIcon as FileGeneratedIcon, MousePointerClick,
 } from 'lucide-react';
+import { loadProposals, subscribeProposals, type GeneratedProposal } from '@/lib/proposalStore';
 
 /* ─── Real document pages from the uploaded PDF ─── */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pageImg = (n: number) => `${BASE}/doc-pages/page_${String(n).padStart(2, '0')}.png`;
 
-type FileKind = 'page' | 'draft';
+type FileKind = 'page' | 'draft' | 'generated';
 
 type ProposalFile = {
   id: string;
@@ -20,7 +22,20 @@ type ProposalFile = {
   section?: string;
   sizeLabel: string;
   description: string;
+  pdfDataUrl?: string;
 };
+
+/** Maps a webhook-generated proposal (from the Forms wizard) into a file card. */
+function proposalToFile(p: GeneratedProposal): ProposalFile {
+  return {
+    id: p.id,
+    title: p.title,
+    kind: 'generated',
+    sizeLabel: 'PDF',
+    description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total £${p.grandTotal.toFixed(2)}.`,
+    pdfDataUrl: p.pdfDataUrl,
+  };
+}
 
 /* ─── Real content: 18 document pages + 3 drafts, as "files" ─── */
 const DOC_PAGES: ProposalFile[] = [
@@ -73,6 +88,7 @@ const RAIL_ITEMS = [
 const KIND_COLORS: Record<FileKind, string> = {
   page: '#2ecc71',
   draft: '#27af61',
+  generated: '#e8b93f',
 };
 
 function FileIcon({ file }: { file: ProposalFile }) {
@@ -88,7 +104,7 @@ function FileIcon({ file }: { file: ProposalFile }) {
       className="flex h-14 w-11 items-center justify-center rounded-[4px] text-white"
       style={{ backgroundColor: KIND_COLORS[file.kind] }}
     >
-      <PenSquare className="h-5 w-5" />
+      {file.kind === 'generated' ? <FileGeneratedIcon className="h-5 w-5" /> : <PenSquare className="h-5 w-5" />}
     </div>
   );
 }
@@ -137,16 +153,38 @@ function FileCard({
 /* ──────────────────────── Main export ──────────────────────── */
 export function ProposalDoc() {
   const [railIndex, setRailIndex] = useState(0);
-  const [activeId, setActiveId] = useState<string>(ALL_FILES[0].id);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [starred, setStarred] = useState<Set<string>>(new Set(['d2']));
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [generated, setGenerated] = useState<GeneratedProposal[]>(() => loadProposals());
+  const gridRef = useRef<HTMLDivElement>(null);
 
-  const active = ALL_FILES.find((f) => f.id === activeId) ?? ALL_FILES[0];
+  useEffect(() => subscribeProposals(() => setGenerated(loadProposals())), []);
+
+  // Auto-select and open the newest generated proposal the moment it lands here
+  // (e.g. arriving fresh from the Forms wizard).
+  const generatedIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const newest = generated[0];
+    if (newest && !generatedIds.current.has(newest.id)) {
+      generatedIds.current.add(newest.id);
+      if (generatedIds.current.size === generated.length) return; // first load, don't auto-open
+      setActiveId(newest.id);
+      setRailIndex(0);
+    } else {
+      generated.forEach((p) => generatedIds.current.add(p.id));
+    }
+  }, [generated]);
+
+  const generatedFiles = generated.map(proposalToFile);
+  const allFilesWithGenerated: ProposalFile[] = [...generatedFiles, ...ALL_FILES];
+
+  const active = allFilesWithGenerated.find((f) => f.id === activeId) ?? null;
 
   const files =
     railIndex === 2 ? DRAFTS
-    : railIndex === 0 ? ALL_FILES
-    : ALL_FILES; // Pricing / Signed / Notes reuse the same file set for now
+    : railIndex === 0 ? allFilesWithGenerated
+    : allFilesWithGenerated; // Pricing / Signed / Notes reuse the same file set for now
 
   const toggleStar = (id: string) =>
     setStarred((prev) => {
@@ -156,6 +194,14 @@ export function ProposalDoc() {
     });
 
   const handleDownload = () => {
+    if (!active) return;
+    if (active.kind === 'generated' && active.pdfDataUrl) {
+      const a = document.createElement('a');
+      a.href = active.pdfDataUrl;
+      a.download = `${active.title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+      a.click();
+      return;
+    }
     if (active.kind !== 'page' || !active.pageNum) return;
     const a = document.createElement('a');
     a.href = pageImg(active.pageNum);
@@ -163,24 +209,28 @@ export function ProposalDoc() {
     a.click();
   };
 
+  const scrollGrid = (dir: 1 | -1) => {
+    gridRef.current?.scrollBy({ top: dir * 260, behavior: 'smooth' });
+  };
+
   return (
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
 
       {/* ══ LEFT ICON RAIL ══ */}
-      <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[68px] shrink-0 flex-col items-center gap-2 border-r border-black/8 bg-[#0d2318] py-6">
-        <span className="mb-6 flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#2ecc71] text-[13px] font-bold text-white">
+      <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[68px] shrink-0 flex-col items-center gap-2 border-r border-black/8 bg-[#219251] py-6">
+        <span className="mb-6 flex h-9 w-9 items-center justify-center rounded-[8px] bg-white text-[13px] font-bold text-[#219251]">
           N
         </span>
         {RAIL_ITEMS.map(({ icon: Icon, label }, i) => {
           const isActive = railIndex === i;
           return (
             <div key={label} className="relative flex w-full items-center justify-center py-1.5">
-              {isActive && <span className="absolute left-0 h-6 w-[3px] rounded-r-full bg-[#2ecc71]" />}
+              {isActive && <span className="absolute left-0 h-6 w-[3px] rounded-r-full bg-white" />}
               <button
                 onClick={() => setRailIndex(i)}
                 title={label}
                 className={`flex h-10 w-10 items-center justify-center rounded-[10px] transition-colors ${
-                  isActive ? 'bg-[#2ecc71]/20 text-[#2ecc71]' : 'text-white/40 hover:bg-white/5 hover:text-white/70'
+                  isActive ? 'bg-white/20 text-white' : 'text-white/55 hover:bg-white/10 hover:text-white/85'
                 }`}
               >
                 <Icon className="h-[18px] w-[18px]" />
@@ -193,7 +243,7 @@ export function ProposalDoc() {
       {/* ══ CENTER: header + file grid ══ */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top header */}
-        <div className="flex items-center justify-between border-b border-black/8 px-8 py-5">
+        <div className="flex items-center justify-between border-b border-black/8 px-8 py-3.5">
           <div>
             <h1 className="text-[22px] font-bold text-black">Catering Services Proposal</h1>
             <p className="mt-0.5 text-[11.5px] text-black/35">Proposals · Hospitality Sector · WE.9055</p>
@@ -215,7 +265,7 @@ export function ProposalDoc() {
         </div>
 
         {/* Breadcrumb + view toggle */}
-        <div className="flex items-center justify-between border-b border-black/8 px-8 py-3">
+        <div className="flex items-center justify-between border-b border-black/8 px-8 py-2.5">
           <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-black/70">
             <HomeIcon className="h-3.5 w-3.5 text-black/30" />
             <ChevronRight className="h-3 w-3 text-black/25" />
@@ -240,109 +290,156 @@ export function ProposalDoc() {
           </div>
         </div>
 
-        {/* File grid / list */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={railIndex + viewMode}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-              className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4 xl:grid-cols-4' : 'flex flex-col gap-2'}
-            >
-              {viewMode === 'grid'
-                ? files.map((file) => (
-                    <FileCard
-                      key={file.id}
-                      file={file}
-                      active={file.id === activeId}
-                      starred={starred.has(file.id)}
-                      onToggleStar={() => toggleStar(file.id)}
-                      onClick={() => setActiveId(file.id)}
-                    />
-                  ))
-                : files.map((file) => (
-                    <button
-                      key={file.id}
-                      onClick={() => setActiveId(file.id)}
-                      className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
-                        file.id === activeId ? 'bg-[#eefdf3] ring-1 ring-[#2ecc71]/40' : 'hover:bg-black/3'
-                      }`}
-                    >
-                      <div className="scale-75 origin-left"><FileIcon file={file} /></div>
-                      <span className="flex-1 truncate text-[13px] font-medium text-black/75">{file.title}</span>
-                      <span className="text-[11px] text-black/35">{file.sizeLabel}</span>
-                      <Star
-                        onClick={(e) => { e.stopPropagation(); toggleStar(file.id); }}
-                        className={`h-3.5 w-3.5 ${starred.has(file.id) ? 'text-[#e8b93f]' : 'text-black/15'}`}
-                        fill={starred.has(file.id) ? '#e8b93f' : 'none'}
+        {/* File grid / list — thin scrollbar + small up/down nav arrows instead of a bulky native scrollbar */}
+        <div className="relative flex-1 overflow-hidden pl-8 pr-3 py-5">
+          <div ref={gridRef} className="scrollbar-thin h-full overflow-y-auto pr-5">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={railIndex + viewMode}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4 xl:grid-cols-4' : 'flex flex-col gap-2'}
+              >
+                {viewMode === 'grid'
+                  ? files.map((file) => (
+                      <FileCard
+                        key={file.id}
+                        file={file}
+                        active={file.id === activeId}
+                        starred={starred.has(file.id)}
+                        onToggleStar={() => toggleStar(file.id)}
+                        onClick={() => setActiveId(file.id)}
                       />
-                    </button>
-                  ))}
-            </motion.div>
-          </AnimatePresence>
+                    ))
+                  : files.map((file) => (
+                      <button
+                        key={file.id}
+                        onClick={() => setActiveId(file.id)}
+                        className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                          file.id === activeId ? 'bg-[#eefdf3] ring-1 ring-[#2ecc71]/40' : 'hover:bg-black/3'
+                        }`}
+                      >
+                        <div className="scale-75 origin-left"><FileIcon file={file} /></div>
+                        <span className="flex-1 truncate text-[13px] font-medium text-black/75">{file.title}</span>
+                        <span className="text-[11px] text-black/35">{file.sizeLabel}</span>
+                        <Star
+                          onClick={(e) => { e.stopPropagation(); toggleStar(file.id); }}
+                          className={`h-3.5 w-3.5 ${starred.has(file.id) ? 'text-[#e8b93f]' : 'text-black/15'}`}
+                          fill={starred.has(file.id) ? '#e8b93f' : 'none'}
+                        />
+                      </button>
+                    ))}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Graceful scroll controls, replacing the native scrollbar's visual weight */}
+          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
+            <button
+              onClick={() => scrollGrid(-1)}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/40 transition-colors hover:bg-[#2ecc71]/15 hover:text-[#2ecc71]"
+              aria-label="Scroll up"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => scrollGrid(1)}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/40 transition-colors hover:bg-[#2ecc71]/15 hover:text-[#2ecc71]"
+              aria-label="Scroll down"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ══ RIGHT: File Preview panel ══ */}
-      <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[300px] shrink-0 flex-col border-l border-black/8 bg-[#faf9f4]">
+      {/* ══ RIGHT: File Preview panel — only rendered once a file is selected ══ */}
+      <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[320px] shrink-0 flex-col border-l border-black/8 bg-[#faf9f4]">
         <div className="flex items-center justify-between px-5 py-4">
           <span className="text-[12px] font-bold uppercase tracking-widest text-black/40">File Preview</span>
-          <X className="h-4 w-4 text-black/25" />
+          {active && (
+            <button onClick={() => setActiveId(null)} aria-label="Close preview">
+              <X className="h-4 w-4 text-black/25 hover:text-black/50 transition-colors" />
+            </button>
+          )}
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div
-            key={active.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18 }}
-            className="flex flex-1 flex-col overflow-y-auto px-5 pb-5"
-          >
-            <div className="mb-5 flex items-center justify-center rounded-[12px] bg-white p-6 shadow-sm">
-              {active.kind === 'page' && active.pageNum ? (
-                <img src={pageImg(active.pageNum)} alt={active.title} className="h-[180px] w-auto rounded-[4px] object-cover shadow" />
+          {!active ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/5 text-black/25">
+                <MousePointerClick className="h-5 w-5" />
+              </div>
+              <p className="text-[13px] font-semibold text-black/45">No file selected</p>
+              <p className="text-[12px] leading-relaxed text-black/30">Select a file from the list to preview its details here.</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={active.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-1 flex-col overflow-y-auto pl-3 pr-6 pb-5"
+            >
+              {active.kind === 'generated' && active.pdfDataUrl ? (
+                <div className="mb-5 h-[220px] w-full overflow-hidden rounded-[12px] bg-white shadow-sm">
+                  <iframe src={active.pdfDataUrl} title={active.title} className="h-full w-full border-0" />
+                </div>
               ) : (
-                <div className="flex h-[120px] w-[92px] items-center justify-center rounded-[6px]" style={{ backgroundColor: KIND_COLORS.draft }}>
-                  <PenSquare className="h-8 w-8 text-white" />
+                <div className="mb-5 ml-3 flex items-center justify-center rounded-[12px] bg-white p-6 shadow-sm">
+                  {active.kind === 'page' && active.pageNum ? (
+                    <img src={pageImg(active.pageNum)} alt={active.title} className="h-[180px] w-auto rounded-[4px] object-cover shadow" />
+                  ) : (
+                    <div className="flex h-[120px] w-[92px] items-center justify-center rounded-[6px]" style={{ backgroundColor: KIND_COLORS.draft }}>
+                      <PenSquare className="h-8 w-8 text-white" />
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
 
-            <h2 className="text-[15px] font-bold text-black">{active.title}</h2>
-            <p className="mt-1 text-[11px] text-black/35">{active.sizeLabel} · Modified 3 days ago</p>
+              <h2 className="text-[15px] font-bold text-black">{active.title}</h2>
+              <p className="mt-1 text-[11px] text-black/35">{active.sizeLabel} · Modified 3 days ago</p>
 
-            <div className="mt-5">
-              <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-widest text-black/35">File Description</p>
-              <p className="text-[12.5px] leading-relaxed text-black/60">{active.description}</p>
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-2 text-[10.5px] font-bold uppercase tracking-widest text-black/35">File Shared With</p>
-              <div className="flex flex-col gap-2.5">
-                {['George Williamson', 'Nicholas Peterson', 'Ravenmark (You)'].map((name) => (
-                  <div key={name} className="flex items-center gap-2.5">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2ecc71] text-[10px] font-bold text-white">
-                      {name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
-                    </span>
-                    <span className="text-[12px] text-black/65">{name}</span>
-                  </div>
-                ))}
+              <div className="mt-5">
+                <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-widest text-black/35">File Description</p>
+                <p className="text-[12.5px] leading-relaxed text-black/60">{active.description}</p>
               </div>
-            </div>
 
-            <div className="mt-auto flex items-center gap-2 pt-6">
-              <button className="flex flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-[#2ecc71] py-2.5 text-[11.5px] font-bold text-white hover:bg-[#27af61] transition-colors">
-                <Share2 className="h-3.5 w-3.5" /> Share
-              </button>
-              <button className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-black/10 text-black/45 hover:text-black transition-colors">
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-black/10 text-black/45 hover:text-red-500 transition-colors">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </motion.div>
+              <div className="mt-5">
+                <p className="mb-2 text-[10.5px] font-bold uppercase tracking-widest text-black/35">File Shared With</p>
+                <div className="flex flex-col gap-2.5">
+                  {['George Williamson', 'Nicholas Peterson', 'Ravenmark (You)'].map((name) => (
+                    <div key={name} className="flex items-center gap-2.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2ecc71] text-[10px] font-bold text-white">
+                        {name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
+                      </span>
+                      <span className="text-[12px] text-black/65">{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-auto flex items-center gap-2 pt-6">
+                <button className="flex flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-[#2ecc71] py-2.5 text-[11.5px] font-bold text-white hover:bg-[#27af61] transition-colors">
+                  <Share2 className="h-3.5 w-3.5" /> Share
+                </button>
+                <button className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-black/10 text-black/45 hover:text-black transition-colors">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-black/10 text-black/45 hover:text-red-500 transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </aside>
     </div>

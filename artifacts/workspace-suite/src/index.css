@@ -4,6 +4,31 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Thin, unobtrusive scrollbars — used on panels that pair a real scroll area
+   with small up/down nav arrows so the native OS scrollbar never dominates. */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Brand green — every "emerald" utility in the app (bg-emerald-500, text-emerald-700, etc.)
    is repointed to this single hue so the whole app matches the Home page tile color (#2ecc71). */
 @theme {
