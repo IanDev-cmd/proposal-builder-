@@ -462,24 +462,24 @@ export function Tasks() {
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-white">
 
-      {/* ── Left panel (green) — Representatives ── */}
-      <div className="flex w-[300px] shrink-0 flex-col overflow-hidden bg-[#2ecc71] p-7">
+      {/* ── Left panel — Representatives (only the selected rep gets a green rectangle) ── */}
+      <div className="flex w-[300px] shrink-0 flex-col overflow-hidden bg-white border-r border-black/8 p-7">
         <div className="mt-4">
-          <h1 className="text-[22px] font-semibold leading-tight text-[#0d2318]">Representatives</h1>
-          <p className="mt-1 text-[12px] text-[#0d2318]/55">Select a rep to manage their tasks</p>
+          <h1 className="text-[22px] font-semibold leading-tight text-black">Representatives</h1>
+          <p className="mt-1 text-[12px] text-black/45">Select a rep to manage their tasks</p>
         </div>
 
         {/* Search */}
-        <div className="mt-5 flex items-center gap-2 bg-white/30 px-3.5 py-2.5 focus-within:bg-white/40 transition-colors shrink-0">
-          <Search className="h-3.5 w-3.5 shrink-0 text-[#0d2318]/50" />
+        <div className="mt-5 flex items-center gap-2 bg-black/5 px-3.5 py-2.5 focus-within:bg-black/8 transition-colors shrink-0">
+          <Search className="h-3.5 w-3.5 shrink-0 text-black/35" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search representatives…"
-            className="w-full bg-transparent text-[12.5px] text-[#0d2318] placeholder-[#0d2318]/45 outline-none"
+            className="w-full bg-transparent text-[12.5px] text-black/70 placeholder-black/30 outline-none"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="text-[#0d2318]/40 hover:text-[#0d2318]">
+            <button onClick={() => setQuery('')} className="text-black/30 hover:text-black/60">
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -497,30 +497,32 @@ export function Tasks() {
                 onClick={() => { setActiveRepId(String(rep.id)); soundTab(); }}
                 className={`flex items-center gap-3 px-4 py-3.5 text-left transition-colors ${
                   isActive
-                    ? 'bg-white/25 ring-1 ring-white/40'
-                    : 'hover:bg-white/15'
+                    ? 'bg-[#2ecc71]'
+                    : 'hover:bg-black/5'
                 }`}
               >
                 <div className={`relative h-12 w-12 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0 transition-transform ${
-                  isActive ? 'bg-white text-[#2ecc71] scale-105' : 'bg-white/30 text-[#0d2318]'
+                  isActive ? 'bg-white text-[#2ecc71] scale-105' : 'bg-black/5 text-black/50'
                 }`}>
                   {rep.initials}
                   {taskCount > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 h-[18px] min-w-[18px] px-[3px] rounded-full bg-[#0d2318] border-2 border-[#2ecc71] flex items-center justify-center text-[9px] font-bold text-white leading-none">
+                    <span className={`absolute -right-0.5 -top-0.5 h-[18px] min-w-[18px] px-[3px] rounded-full bg-[#0d2318] border-2 flex items-center justify-center text-[9px] font-bold text-white leading-none ${
+                      isActive ? 'border-[#2ecc71]' : 'border-white'
+                    }`}>
                       {taskCount}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-[13px] font-semibold truncate ${isActive ? 'text-[#0d2318]' : 'text-[#0d2318]/80'}`}>
+                  <p className={`text-[13px] font-semibold truncate ${isActive ? 'text-white' : 'text-black/80'}`}>
                     {rep.name}
                   </p>
                   {taskCount > 0 ? (
-                    <p className="text-[11px] text-[#0d2318]/50 mt-0.5">
+                    <p className={`text-[11px] mt-0.5 ${isActive ? 'text-white/75' : 'text-black/40'}`}>
                       {doneCount}/{taskCount} done
                     </p>
                   ) : (
-                    <p className="text-[11px] text-[#0d2318]/40 mt-0.5">No tasks yet</p>
+                    <p className={`text-[11px] mt-0.5 ${isActive ? 'text-white/60' : 'text-black/35'}`}>No tasks yet</p>
                   )}
                 </div>
               </button>
@@ -528,7 +530,7 @@ export function Tasks() {
           })}
 
           {filteredReps.length === 0 && (
-            <p className="text-[12px] text-[#0d2318]/50 px-2">No representatives match.</p>
+            <p className="text-[12px] text-black/40 px-2">No representatives match.</p>
           )}
         </div>
       </div>
@@ -621,43 +623,8 @@ export function Tasks() {
             </div>
           </div>
 
-          {/* Task list */}
-          <div className="flex-1 overflow-y-auto px-8 pt-6 pb-2">
-            {/* Today */}
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-black/35">Today</p>
-            <div className="divide-y divide-black/5 mb-6">
-              {todayTasks.length === 0 && (
-                <p className="py-3 text-[12.5px] text-black/20">No tasks for today — add one below.</p>
-              )}
-              {todayTasks.map(task => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onToggle={() => toggleTask(task.id)}
-                  onOpenRep={rep => { setPanelRep(rep); soundOpen(); }}
-                />
-              ))}
-            </div>
-
-            {/* Upcoming */}
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-black/35">Upcoming</p>
-            <div className="divide-y divide-black/5">
-              {upcomingTasks.length === 0 && (
-                <p className="py-3 text-[12.5px] text-black/20">Nothing upcoming.</p>
-              )}
-              {upcomingTasks.map(task => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onToggle={() => toggleTask(task.id)}
-                  onOpenRep={rep => { setPanelRep(rep); soundOpen(); }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* ── Add task form ── */}
-          <div className="border-t border-black/8 px-8 py-4 shrink-0 bg-white">
+          {/* ── Add task form (top) ── */}
+          <div className="border-b border-black/8 px-8 py-4 shrink-0 bg-white">
 
             {/* Tagged pills */}
             <AnimatePresence>
@@ -744,7 +711,7 @@ export function Tasks() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{    opacity: 0, y: 6 }}
                       transition={{ duration: 0.1 }}
-                      className="absolute bottom-full left-0 mb-1.5 w-[240px] bg-white border border-black/10 shadow-xl z-50 py-1 max-h-[220px] overflow-y-auto"
+                      className="absolute top-full left-0 mt-1.5 w-[240px] bg-white border border-black/10 shadow-xl z-50 py-1 max-h-[220px] overflow-y-auto"
                     >
                       <p className="px-3 pt-2 pb-1 text-[10.5px] font-semibold text-black/35 uppercase tracking-wider">
                         Tag a representative
@@ -778,6 +745,41 @@ export function Tasks() {
                 <Plus className="h-3.5 w-3.5" />
                 Add
               </button>
+            </div>
+          </div>
+
+          {/* Task list */}
+          <div className="flex-1 overflow-y-auto px-8 pt-6 pb-2">
+            {/* Today */}
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-black/35">Today</p>
+            <div className="divide-y divide-black/5 mb-6">
+              {todayTasks.length === 0 && (
+                <p className="py-3 text-[12.5px] text-black/20">No tasks for today — add one below.</p>
+              )}
+              {todayTasks.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onToggle={() => toggleTask(task.id)}
+                  onOpenRep={rep => { setPanelRep(rep); soundOpen(); }}
+                />
+              ))}
+            </div>
+
+            {/* Upcoming */}
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-black/35">Upcoming</p>
+            <div className="divide-y divide-black/5">
+              {upcomingTasks.length === 0 && (
+                <p className="py-3 text-[12.5px] text-black/20">Nothing upcoming.</p>
+              )}
+              {upcomingTasks.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onToggle={() => toggleTask(task.id)}
+                  onOpenRep={rep => { setPanelRep(rep); soundOpen(); }}
+                />
+              ))}
             </div>
           </div>
         </>

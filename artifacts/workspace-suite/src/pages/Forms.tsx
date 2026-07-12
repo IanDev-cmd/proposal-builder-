@@ -3,42 +3,9 @@ import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X } from 'lucide-react';
 import { addProposal } from '@/lib/proposalStore';
+import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES, getStoredPreview } from '@/lib/formOptions';
 
 const QUOTE_WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/QuoteBuilder';
-
-const VESSEL_TYPES = [
-  'WEOTT I (Rose)',
-  'WEOTT II (Avontuur)',
-  'WEOTT III (Golden Sal)',
-  'WEOTT IV (Vaulla)',
-  'WEOTT V (Dixie)',
-  'WEOTT VI (Elizabethan)',
-  'WEOTT VII (Edwardian)',
-  'WEOTT Limo III (Bourne)',
-];
-
-const EVENT_TYPES = [
-  'Summer Event',
-  'Christmas Event',
-  'Company Anniversary',
-  'Networking Event',
-  'Meeting',
-  'Conference',
-  'Social Gathering',
-  'Team Building',
-  'Corporate Other',
-  'Transfer',
-  'Award Ceremony',
-  'Wedding Reception',
-  'Wedding Anniversary',
-  'Wedding Transfer',
-  'Other',
-  'Unknown - TBC',
-  'Client Event',
-  'Product Launch',
-  'Pre-Wedding Celebration',
-  'Client & Prospects Networking Cruise',
-];
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -63,8 +30,6 @@ const SOURCE_TYPES = [
   'Wedding Planner/Agent',
 ];
 
-const MENU_TYPES = ['Summer Barbecue', 'Street Food', 'Canapés', '2-Course Seated Dinner'];
-
 const UPGRADES = [
   { label: 'Live DJ', price: 500 },
   { label: 'Saxophonist', price: 550 },
@@ -72,18 +37,6 @@ const UPGRADES = [
   { label: 'Close-up Magician', price: 700 },
   { label: 'Branded Vessel Flag', price: 150 },
 ];
-
-/* ─── Read hover preview photo from localStorage (set in /settings) ─── */
-function getStoredPreview(field: string | null): string | null {
-  if (!field) return null;
-  try {
-    const stored = localStorage.getItem('nexus_field_photos');
-    if (!stored) return null;
-    return JSON.parse(stored)[field] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 type FormData = {
   vesselType: string;
@@ -159,7 +112,7 @@ function FormSelect({
   options,
   value,
   onChange,
-  onHoverField,
+  onPreview,
   helper,
 }: {
   label: string;
@@ -167,7 +120,7 @@ function FormSelect({
   options: string[];
   value: string;
   onChange: (v: string) => void;
-  onHoverField: (f: string | null) => void;
+  onPreview?: (field: string, option: string | null) => void;
   helper?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -175,8 +128,8 @@ function FormSelect({
   return (
     <div
       className="relative"
-      onMouseEnter={() => onHoverField(field)}
-      onMouseLeave={() => { onHoverField(null); setOpen(false); }}
+      onMouseEnter={() => onPreview?.(field, value || null)}
+      onMouseLeave={() => { onPreview?.(field, null); setOpen(false); }}
     >
       <label className={fieldLabelCls}>
         {label}
@@ -212,6 +165,7 @@ function FormSelect({
               <motion.li
                 key={opt}
                 whileHover={{ backgroundColor: '#f0fdf5' }}
+                onMouseEnter={() => onPreview?.(field, opt)}
                 onClick={() => {
                   onChange(opt);
                   setOpen(false);
@@ -242,7 +196,8 @@ export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormData>(INIT);
-  const [hoverField, setHoverField] = useState<string | null>(null);
+  const [previewField, setPreviewField] = useState<string | null>(null);
+  const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -258,7 +213,11 @@ export function Forms() {
     );
 
   const fin = calcFinancials(data);
-  const previewImg = getStoredPreview(hoverField);
+  const handlePreview = (field: string, option: string | null) => {
+    setPreviewField(option ? field : null);
+    setPreviewOption(option);
+  };
+  const previewImg = getStoredPreview(previewField, previewOption);
 
   const handleGenerate = async () => {
     setErrorMessage('');
@@ -420,7 +379,6 @@ export function Forms() {
                     options={SOURCE_TYPES}
                     value={data.source}
                     onChange={(v) => set('source', v)}
-                    onHoverField={setHoverField}
                     helper="Where this enquiry originated from"
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">This should match how the lead first reached us.</p>
@@ -434,7 +392,7 @@ export function Forms() {
                     options={VESSEL_TYPES}
                     value={data.vesselType}
                     onChange={(v) => set('vesselType', v)}
-                    onHoverField={setHoverField}
+                    onPreview={handlePreview}
                   />
                   <FormSelect
                     label="Event Type"
@@ -442,12 +400,12 @@ export function Forms() {
                     options={EVENT_TYPES}
                     value={data.eventType}
                     onChange={(v) => set('eventType', v)}
-                    onHoverField={setHoverField}
+                    onPreview={handlePreview}
                   />
                 </div>
 
                 <p className={sectionLabelCls}>Event Date</p>
-                <div onMouseEnter={() => setHoverField('eventDate')} onMouseLeave={() => setHoverField(null)}>
+                <div>
                   <label className={fieldLabelCls}>
                     Date of Event
                     <span title="The calendar day this event takes place — used to place it on the Calendar page">
@@ -516,7 +474,7 @@ export function Forms() {
                   options={MENU_TYPES}
                   value={data.menuType}
                   onChange={(v) => set('menuType', v)}
-                  onHoverField={setHoverField}
+                  onPreview={handlePreview}
                 />
 
                 {data.menuType && (
@@ -553,8 +511,6 @@ export function Forms() {
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.25 }}
-                onMouseEnter={() => setHoverField('financials')}
-                onMouseLeave={() => setHoverField(null)}
               >
                 <p className={sectionLabelCls}>Client Status</p>
                 <div className="mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
@@ -618,8 +574,6 @@ export function Forms() {
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.25 }}
-                onMouseEnter={() => setHoverField('upgrades')}
-                onMouseLeave={() => setHoverField(null)}
               >
                 <p className={sectionLabelCls}>Optional Add-Ons</p>
 
@@ -708,11 +662,11 @@ export function Forms() {
         </div>
       </main>
 
-      {/* ── Right-edge hover image preview (from settings) ── */}
+      {/* ── Right-edge hover image preview (from settings, per selected/hovered option) ── */}
       <AnimatePresence>
-        {previewImg && hoverField && (
+        {previewImg && previewOption && (
           <motion.div
-            key={hoverField}
+            key={`${previewField}-${previewOption}`}
             initial={{ x: 200, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 200, opacity: 0 }}
@@ -721,12 +675,7 @@ export function Forms() {
           >
             <img src={previewImg} alt="" className="h-full w-full object-cover" />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">
-                {hoverField === 'vesselType' ? 'Vessel Selection' :
-                 hoverField === 'eventType' ? 'Event Type' :
-                 hoverField === 'menuType' ? 'Catering' :
-                 hoverField === 'financials' ? 'Financial Summary' : 'Upgrades'}
-              </p>
+              <p className="text-[11px] font-bold text-white/90 leading-snug">{previewOption}</p>
             </div>
           </motion.div>
         )}

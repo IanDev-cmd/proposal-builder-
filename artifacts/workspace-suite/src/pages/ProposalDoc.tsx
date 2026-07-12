@@ -5,6 +5,7 @@ import {
   MoreVertical, Search, LayoutGrid, List, Share2, Pencil, Trash2,
   ChevronRight, Home as HomeIcon, Download, Printer, X, ChevronUp, ChevronDown,
   FileIcon as FileGeneratedIcon, MousePointerClick,
+  Wallet, Anchor, UtensilsCrossed, CalendarCheck, Users, Sparkles, Hash,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, type GeneratedProposal } from '@/lib/proposalStore';
 
@@ -85,6 +86,16 @@ const RAIL_ITEMS = [
   { icon: MessageSquareText, label: 'Notes'     },
 ];
 
+/* ─── Taggable note categories — shown as large icon tiles on the Notes tab ─── */
+const NOTE_CATEGORIES = [
+  { tag: 'financials', label: 'Financials', icon: Wallet,          color: '#e8b93f' },
+  { tag: 'vessel',     label: 'Vessel',      icon: Anchor,         color: '#2ecc71' },
+  { tag: 'catering',   label: 'Catering',    icon: UtensilsCrossed, color: '#ef6f6f' },
+  { tag: 'booking',    label: 'Booking',     icon: CalendarCheck,  color: '#5b8def' },
+  { tag: 'client',     label: 'Client',      icon: Users,          color: '#a06fef' },
+  { tag: 'upgrades',   label: 'Upgrades',    icon: Sparkles,       color: '#27af61' },
+];
+
 const KIND_COLORS: Record<FileKind, string> = {
   page: '#2ecc71',
   draft: '#27af61',
@@ -156,6 +167,7 @@ export function ProposalDoc() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [starred, setStarred] = useState<Set<string>>(new Set(['d2']));
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeNoteTag, setActiveNoteTag] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedProposal[]>(() => loadProposals());
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -181,10 +193,12 @@ export function ProposalDoc() {
 
   const active = allFilesWithGenerated.find((f) => f.id === activeId) ?? null;
 
+  const isNotesTab = railIndex === 4;
+
   const files =
     railIndex === 2 ? DRAFTS
     : railIndex === 0 ? allFilesWithGenerated
-    : allFilesWithGenerated; // Pricing / Signed / Notes reuse the same file set for now
+    : allFilesWithGenerated; // Pricing / Signed reuse the same file set for now
 
   const toggleStar = (id: string) =>
     setStarred((prev) => {
@@ -271,87 +285,128 @@ export function ProposalDoc() {
             <ChevronRight className="h-3 w-3 text-black/25" />
             <span>{RAIL_ITEMS[railIndex].label}</span>
             <span className="ml-2 rounded-full bg-black/5 px-2 py-0.5 text-[10.5px] font-bold text-black/40">
-              {files.length}
+              {isNotesTab ? NOTE_CATEGORIES.length : files.length}
             </span>
           </div>
-          <div className="flex items-center gap-1 rounded-full bg-black/5 p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-black/70' : 'text-black/30'}`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-black/70' : 'text-black/30'}`}
-            >
-              <List className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* File grid / list — thin scrollbar + small up/down nav arrows instead of a bulky native scrollbar */}
-        <div className="relative flex-1 overflow-hidden pl-8 pr-3 py-5">
-          <div ref={gridRef} className="scrollbar-thin h-full overflow-y-auto pr-5">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={railIndex + viewMode}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18 }}
-                className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4 xl:grid-cols-4' : 'flex flex-col gap-2'}
+          {!isNotesTab && (
+            <div className="flex items-center gap-1 rounded-full bg-black/5 p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-black/70' : 'text-black/30'}`}
               >
-                {viewMode === 'grid'
-                  ? files.map((file) => (
-                      <FileCard
-                        key={file.id}
-                        file={file}
-                        active={file.id === activeId}
-                        starred={starred.has(file.id)}
-                        onToggleStar={() => toggleStar(file.id)}
-                        onClick={() => setActiveId(file.id)}
-                      />
-                    ))
-                  : files.map((file) => (
-                      <button
-                        key={file.id}
-                        onClick={() => setActiveId(file.id)}
-                        className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
-                          file.id === activeId ? 'bg-[#eefdf3] ring-1 ring-[#2ecc71]/40' : 'hover:bg-black/3'
-                        }`}
-                      >
-                        <div className="scale-75 origin-left"><FileIcon file={file} /></div>
-                        <span className="flex-1 truncate text-[13px] font-medium text-black/75">{file.title}</span>
-                        <span className="text-[11px] text-black/35">{file.sizeLabel}</span>
-                        <Star
-                          onClick={(e) => { e.stopPropagation(); toggleStar(file.id); }}
-                          className={`h-3.5 w-3.5 ${starred.has(file.id) ? 'text-[#e8b93f]' : 'text-black/15'}`}
-                          fill={starred.has(file.id) ? '#e8b93f' : 'none'}
-                        />
-                      </button>
-                    ))}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Graceful scroll controls, replacing the native scrollbar's visual weight */}
-          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
-            <button
-              onClick={() => scrollGrid(-1)}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/40 transition-colors hover:bg-[#2ecc71]/15 hover:text-[#2ecc71]"
-              aria-label="Scroll up"
-            >
-              <ChevronUp className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => scrollGrid(1)}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/40 transition-colors hover:bg-[#2ecc71]/15 hover:text-[#2ecc71]"
-              aria-label="Scroll down"
-            >
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          </div>
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-black/70' : 'text-black/30'}`}
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
+
+        {isNotesTab ? (
+          /* ── Notes tab: taggable categories as large icon tiles ── */
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            <p className="mb-5 text-[12px] text-black/40">
+              Tag a note with a category below to organize it under that topic.
+            </p>
+            <div className="grid grid-cols-3 gap-4 xl:grid-cols-4">
+              {NOTE_CATEGORIES.map(({ tag, label, icon: Icon, color }) => {
+                const isActive = activeNoteTag === tag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setActiveNoteTag((prev) => (prev === tag ? null : tag))}
+                    className={`flex flex-col items-center gap-3 rounded-[14px] border px-5 py-7 transition-all ${
+                      isActive
+                        ? 'border-transparent shadow-lg ring-2 ring-offset-2'
+                        : 'border-black/8 hover:border-black/15 hover:shadow-sm'
+                    }`}
+                    style={isActive ? { backgroundColor: `${color}12`, boxShadow: `0 0 0 2px ${color}` } : undefined}
+                  >
+                    <div
+                      className="flex h-16 w-16 items-center justify-center rounded-full transition-transform"
+                      style={{ backgroundColor: `${color}1f`, color, transform: isActive ? 'scale(1.08)' : undefined }}
+                    >
+                      <Icon className="h-8 w-8" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[14px] font-semibold text-black/80">{label}</p>
+                      <p className="mt-0.5 flex items-center justify-center gap-0.5 text-[11.5px] font-medium text-black/35">
+                        <Hash className="h-3 w-3" />{tag}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* File grid / list — thin scrollbar + small up/down nav arrows instead of a bulky native scrollbar */
+          <div className="relative flex-1 overflow-hidden pl-8 pr-3 py-5">
+            <div ref={gridRef} className="scrollbar-thin h-full overflow-y-auto pr-5">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={railIndex + viewMode}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4 xl:grid-cols-4' : 'flex flex-col gap-2'}
+                >
+                  {viewMode === 'grid'
+                    ? files.map((file) => (
+                        <FileCard
+                          key={file.id}
+                          file={file}
+                          active={file.id === activeId}
+                          starred={starred.has(file.id)}
+                          onToggleStar={() => toggleStar(file.id)}
+                          onClick={() => setActiveId(file.id)}
+                        />
+                      ))
+                    : files.map((file) => (
+                        <button
+                          key={file.id}
+                          onClick={() => setActiveId(file.id)}
+                          className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                            file.id === activeId ? 'bg-[#eefdf3] ring-1 ring-[#2ecc71]/40' : 'hover:bg-black/3'
+                          }`}
+                        >
+                          <div className="scale-75 origin-left"><FileIcon file={file} /></div>
+                          <span className="flex-1 truncate text-[13px] font-medium text-black/75">{file.title}</span>
+                          <span className="text-[11px] text-black/35">{file.sizeLabel}</span>
+                          <Star
+                            onClick={(e) => { e.stopPropagation(); toggleStar(file.id); }}
+                            className={`h-3.5 w-3.5 ${starred.has(file.id) ? 'text-[#e8b93f]' : 'text-black/15'}`}
+                            fill={starred.has(file.id) ? '#e8b93f' : 'none'}
+                          />
+                        </button>
+                      ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Graceful scroll controls, replacing the native scrollbar's visual weight */}
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
+              <button
+                onClick={() => scrollGrid(-1)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/40 transition-colors hover:bg-[#2ecc71]/15 hover:text-[#2ecc71]"
+                aria-label="Scroll up"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => scrollGrid(1)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/40 transition-colors hover:bg-[#2ecc71]/15 hover:text-[#2ecc71]"
+                aria-label="Scroll down"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══ RIGHT: File Preview panel — only rendered once a file is selected ══ */}
