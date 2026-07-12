@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { soundClick, soundOpen, soundClose, soundTab, soundRefresh } from '@/lib/sounds';
 import { Search, Bell, ChevronDown, MoreVertical, Plus, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { LeadPanel, type Lead } from '@/components/LeadPanel';
 
@@ -134,7 +135,7 @@ export function Leads() {
               className="w-full bg-transparent text-[13px] text-black/70 placeholder-black/30 outline-none"
             />
             {query && (
-              <button onClick={() => setQuery('')} className="text-black/25 hover:text-black/50 transition-colors">
+              <button onClick={() => { setQuery(''); soundClick(); }} className="text-black/25 hover:text-black/50 transition-colors">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -154,7 +155,7 @@ export function Leads() {
           <div className="flex items-center gap-3 shrink-0">
             {/* Refresh */}
             <button
-              onClick={load}
+              onClick={() => { load(); soundRefresh(); }}
               disabled={status === 'loading'}
               className="flex items-center justify-center h-8 w-8 border border-black/10 text-black/35 hover:border-[#2ecc71] hover:text-[#2ecc71] disabled:opacity-40 transition-colors"
               title="Refresh"
@@ -166,6 +167,7 @@ export function Leads() {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
+              onClick={soundClick}
               className="flex items-center gap-1.5 bg-[#2ecc71] hover:bg-[#27af61] text-white text-[13px] font-semibold px-4 py-2 transition-colors whitespace-nowrap"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -183,7 +185,7 @@ export function Leads() {
 
             {/* Avatar */}
             <div className="flex items-center gap-2 cursor-pointer">
-              <div className="h-8 w-8 bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">AV</div>
+              <div className="h-8 w-8 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">AV</div>
               <span className="text-[13px] font-medium text-black/70 whitespace-nowrap">Alief Vinicius</span>
               <ChevronDown className="h-3.5 w-3.5 text-black/30" />
             </div>
@@ -195,7 +197,7 @@ export function Leads() {
           {TABS.map((tab, i) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(i)}
+              onClick={() => { setActiveTab(i); soundTab(); }}
               className={`relative px-5 pb-2.5 pt-2 text-[13px] font-medium transition-colors ${
                 activeTab === i ? 'text-black' : 'text-black/35 hover:text-black/60'
               }`}
@@ -290,7 +292,7 @@ export function Leads() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(idx * 0.025, 0.4), duration: 0.18 }}
-                  onClick={() => setPanelLead(lead)}
+                  onClick={() => { setPanelLead(lead); soundOpen(); }}
                   className={`grid grid-cols-[28px_1fr_116px_1fr_128px_104px_40px] px-8 py-[13px] border-b border-black/5 last:border-0 cursor-pointer transition-colors ${
                     panelLead?.id === lead.id ? 'bg-[#2ecc71]/6' : 'hover:bg-black/[0.02]'
                   }`}
@@ -298,7 +300,7 @@ export function Leads() {
                   <span className="text-[12px] text-black/25 self-center">{idx + 1}</span>
 
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">
+                    <div className="h-9 w-9 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">
                       {lead.initials}
                     </div>
                     <div className="min-w-0">
@@ -325,7 +327,7 @@ export function Leads() {
         </div>
       </div>
 
-      <LeadPanel lead={panelLead} onClose={() => setPanelLead(null)} />
+      <LeadPanel lead={panelLead} onClose={() => { setPanelLead(null); soundClose(); }} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, MoreHorizontal, Plus, Check, X } from 'lucide-react';
 import { ProfileModal } from '@/components/ProfileModal';
+import { soundClick, soundOpen, soundClose, soundTab, soundToggle } from '@/lib/sounds';
 
 type Status = 'Approved' | 'In Progress' | 'In Review' | 'Waiting';
 
@@ -106,7 +107,7 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: string) => voi
     <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => onToggle(task.id)}
+          onClick={() => { onToggle(task.id); soundToggle(); }}
           className={`flex h-5 w-5 shrink-0 items-center justify-center border transition-colors ${
             task.done ? 'border-[#2ecc71] bg-[#2ecc71]' : 'border-black/20 bg-white hover:border-[#2ecc71]'
           }`}
@@ -236,7 +237,7 @@ export function Tasks() {
                 return (
                   <button
                     key={project.id}
-                    onClick={() => setActiveId(project.id)}
+                    onClick={() => { setActiveId(project.id); soundTab(); }}
                     className="flex flex-col items-start gap-2 text-left"
                   >
                     {project.isCount ? (
@@ -280,13 +281,16 @@ export function Tasks() {
               {[0, 1, 2].map((i) => (
                 <button
                   key={i}
-                  onClick={() => { setProfileIndex(i); setProfileOpen(true); }}
-                  className="h-8 w-8 border-2 border-white bg-[#2ecc71] transition-transform hover:z-10 hover:scale-110 flex items-center justify-center text-[10px] font-bold text-white"
+                  onClick={() => { setProfileIndex(i); setProfileOpen(true); soundOpen(); }}
+                  className="h-8 w-8 rounded-full border-2 border-white bg-[#2ecc71] transition-transform hover:z-10 hover:scale-110 flex items-center justify-center text-[10px] font-bold text-white"
                   aria-label={`Open profile ${i + 1}`}
                 />
               ))}
             </div>
-            <button className="ml-2 flex h-8 w-8 items-center justify-center border border-dashed border-[#2ecc71] text-[#2ecc71]">
+            <button
+              onClick={soundClick}
+              className="ml-2 flex h-8 w-8 rounded-full items-center justify-center border border-dashed border-[#2ecc71] text-[#2ecc71]"
+            >
               <Plus className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -320,7 +324,7 @@ export function Tasks() {
         </button>
       </div>
 
-      <ProfileModal open={profileOpen} index={profileIndex} onClose={() => setProfileOpen(false)} />
+      <ProfileModal open={profileOpen} index={profileIndex} onClose={() => { setProfileOpen(false); soundClose(); }} />
     </div>
   );
 }
