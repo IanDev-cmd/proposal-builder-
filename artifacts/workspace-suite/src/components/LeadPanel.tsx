@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type LeadNote } from '@/lib/leadNotes';
 import { soundClick } from '@/lib/sounds';
-import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
+import { personAvatarUrl, personAvatarFallbackUrl, companyAvatarUrl } from '@/lib/avatar';
 
 const NOTE_ICONS: Record<NoteTag, typeof Search> = {
   research: Search,
@@ -50,14 +50,22 @@ export type Lead = {
 
 /* ─── helpers ───
  * Real photos are resolved by pinging public identity services with the
- * data we actually have — email for the contact, LinkedIn for the company —
- * via the shared lib/avatar.ts helpers, with graceful fallbacks. */
+ * data we actually have — email (Gravatar, then a DiceBear illustration)
+ * for the contact, LinkedIn for the company — via the shared lib/avatar.ts
+ * helpers, with graceful fallbacks. */
 const contactPhotoUrl = personAvatarUrl;
+const contactPhotoFallbackUrl = personAvatarFallbackUrl;
 const companyLogoUrl = companyAvatarUrl;
 
 /* ─── Contact View ─── */
 function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
-  const [imgErr, setImgErr] = useState(false);
+  // Two-stage fallback: Gravatar photo -> DiceBear illustration -> initials.
+  const photoCandidates = [contactPhotoUrl(lead), contactPhotoFallbackUrl(lead)].filter(
+    (s): s is string => Boolean(s)
+  );
+  const [photoIdx, setPhotoIdx] = useState(0);
+  useEffect(() => setPhotoIdx(0), [lead.id]);
+  const currentPhoto = photoCandidates[photoIdx];
 
   return (
     <div className="flex h-full w-full">
@@ -126,17 +134,17 @@ function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
       <div className="relative flex w-1/2 items-center justify-center bg-[#111] overflow-hidden">
         <div className="relative">
           <div className="h-52 w-52 overflow-hidden" style={{ borderRadius: '50%' }}>
-            {imgErr ? (
+            {currentPhoto ? (
+              <img
+                src={currentPhoto}
+                alt={lead.name}
+                className="h-full w-full object-cover"
+                onError={() => setPhotoIdx((i) => i + 1)}
+              />
+            ) : (
               <div className="h-full w-full flex items-center justify-center bg-[#1a1a1a] text-white text-[32px] font-black">
                 {lead.initials}
               </div>
-            ) : (
-              <img
-                src={contactPhotoUrl(lead)}
-                alt={lead.name}
-                className="h-full w-full object-cover"
-                onError={() => setImgErr(true)}
-              />
             )}
           </div>
           {/* Play button at bottom of circle */}

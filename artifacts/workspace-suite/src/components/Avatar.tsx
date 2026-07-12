@@ -2,30 +2,38 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Circular/square avatar that pings a real photo (via `src`) and falls back
- * to an initials/text badge if the image 404s or the person has no photo
- * source. Used everywhere a person or company avatar is rendered so real
- * photos show up consistently across the app.
+ * Circular/square avatar with a two-stage image fallback: it tries `src`
+ * first (e.g. a Gravatar photo), then `fallbackSrc` (e.g. a generated
+ * DiceBear illustration) if that 404s or fails to load, and only drops to
+ * a plain initials/text badge if both image sources are unavailable.
+ * Used everywhere a person or company avatar is rendered so real photos
+ * show up consistently across the app.
  */
 export function Avatar({
   src,
+  fallbackSrc,
   alt,
   fallbackText,
   className = '',
   rounded = true,
 }: {
-  src: string;
+  src?: string;
+  fallbackSrc?: string;
   alt: string;
   fallbackText: string;
   className?: string;
   rounded?: boolean;
 }) {
-  const [errored, setErrored] = useState(false);
+  const candidates = [src, fallbackSrc].filter((s): s is string => Boolean(s));
+  const [index, setIndex] = useState(0);
 
-  // Reset error state when the underlying source changes (e.g. a different lead).
-  useEffect(() => setErrored(false), [src]);
+  // Reset back to the first candidate when the underlying sources change
+  // (e.g. a different lead is now rendered by this same element).
+  useEffect(() => setIndex(0), [src, fallbackSrc]);
 
-  if (errored || !src) {
+  const current = candidates[index];
+
+  if (!current) {
     return (
       <div
         className={cn('flex items-center justify-center bg-[#2ecc71] text-white font-bold', rounded && 'rounded-full', className)}
@@ -37,9 +45,9 @@ export function Avatar({
 
   return (
     <img
-      src={src}
+      src={current}
       alt={alt}
-      onError={() => setErrored(true)}
+      onError={() => setIndex((i) => i + 1)}
       className={cn('object-cover', rounded && 'rounded-full', className)}
     />
   );

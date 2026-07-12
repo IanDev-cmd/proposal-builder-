@@ -5,7 +5,7 @@ import { Search, Bell, ChevronDown, MoreVertical, Plus, X, RefreshCw, AlertCircl
 import { LeadPanel, type Lead } from '@/components/LeadPanel';
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
-import { personAvatarUrl } from '@/lib/avatar';
+import { personAvatarUrl, personAvatarFallbackUrl } from '@/lib/avatar';
 
 // ── Webhook ──────────────────────────────────────────────────────────────────
 const WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/LeadDataFetch';
@@ -170,6 +170,7 @@ export function Leads() {
             <div className="flex items-center gap-2 cursor-pointer">
               <Avatar
                 src={personAvatarUrl({ name: 'Alief Vinicius' })}
+                fallbackSrc={personAvatarFallbackUrl({ name: 'Alief Vinicius' })}
                 alt="Alief Vinicius"
                 fallbackText="AV"
                 className="h-8 w-8 text-[11px] shrink-0"
@@ -297,6 +298,7 @@ export function Leads() {
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar
                       src={personAvatarUrl(lead)}
+                      fallbackSrc={personAvatarFallbackUrl(lead)}
                       alt={lead.name}
                       fallbackText={lead.initials}
                       className="h-9 w-9 text-[11px] shrink-0"

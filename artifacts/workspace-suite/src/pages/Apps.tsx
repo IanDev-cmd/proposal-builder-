@@ -1,6 +1,6 @@
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
-import { personAvatarUrl } from '@/lib/avatar';
+import { personAvatarUrl, personAvatarFallbackUrl } from '@/lib/avatar';
 
 interface AppTile {
   name:    string;
@@ -116,6 +116,7 @@ export function Apps() {
         <div className="mb-8 inline-flex items-center gap-3 border border-[#2ecc71]/30 bg-[#f0fdf5] px-4 py-2.5">
           <Avatar
             src={personAvatarUrl(activeLead)}
+            fallbackSrc={personAvatarFallbackUrl(activeLead)}
             alt={activeLead.name}
             fallbackText={activeLead.initials}
             className="h-8 w-8 text-[11px] shrink-0"
