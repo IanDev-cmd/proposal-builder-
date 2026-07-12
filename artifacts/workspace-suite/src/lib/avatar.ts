@@ -24,6 +24,7 @@ function normalizeName(name: string): string {
  */
 const PERSON_AVATAR_OVERRIDES: Record<string, string> = {
   'katherine bulaon': katherineBulaonAvatar,
+  'katherine': katherineBulaonAvatar,
 };
 
 /**
