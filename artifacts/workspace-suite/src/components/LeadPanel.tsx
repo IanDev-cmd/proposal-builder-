@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type LeadNote } from '@/lib/leadNotes';
 import { soundClick } from '@/lib/sounds';
+import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
 
 const NOTE_ICONS: Record<NoteTag, typeof Search> = {
   research: Search,
@@ -47,23 +48,12 @@ export type Lead = {
   status?: string;
 };
 
-/* ─── helpers ─── */
-function contactPhotoUrl(lead: Lead): string {
-  if (lead.photoUrl) return lead.photoUrl;
-  // Try to resolve a real face via email; falls back gracefully if not found
-  if (lead.email && lead.email !== '—') {
-    return `https://unavatar.io/${encodeURIComponent(lead.email)}?fallback=https://ui-avatars.com/api/?name=${encodeURIComponent(lead.name)}&background=1a1a1a&color=ffffff&size=256&bold=true`;
-  }
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(lead.name)}&background=1a1a1a&color=ffffff&size=256&bold=true`;
-}
-
-function companyLogoUrl(lead: Lead): string {
-  if (lead.companyLogo) return lead.companyLogo;
-  // Attempt Clearbit logo lookup using company name as domain guess
-  const slug = lead.company.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
-  if (slug) return `https://logo.clearbit.com/${slug}.com`;
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(lead.company)}&background=1a1a1a&color=ffffff&size=256&bold=true`;
-}
+/* ─── helpers ───
+ * Real photos are resolved by pinging public identity services with the
+ * data we actually have — email for the contact, LinkedIn for the company —
+ * via the shared lib/avatar.ts helpers, with graceful fallbacks. */
+const contactPhotoUrl = personAvatarUrl;
+const companyLogoUrl = companyAvatarUrl;
 
 /* ─── Contact View ─── */
 function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {

@@ -4,6 +4,8 @@ import { Search, Plus, Check, X, ChevronDown, Tag, Trash2 } from 'lucide-react';
 import { LeadPanel, type Lead } from '@/components/LeadPanel';
 import { soundClick, soundOpen, soundClose, soundTab, soundToggle } from '@/lib/sounds';
 import { loadRepTasks, saveRepTasks } from '@/lib/taskStore';
+import { Avatar } from '@/components/Avatar';
+import { personAvatarUrl } from '@/lib/avatar';
 
 function todayIso() {
   const d = new Date();
@@ -109,9 +111,14 @@ function TaskRow({
               key={rep.id}
               onClick={() => onOpenRep(rep)}
               title={rep.name}
-              className="h-6 w-6 rounded-full bg-[#2ecc71] border-2 border-white flex items-center justify-center text-white text-[9px] font-bold hover:z-10 hover:scale-110 transition-transform"
+              className="h-6 w-6 rounded-full border-2 border-white overflow-hidden hover:z-10 hover:scale-110 transition-transform"
             >
-              {rep.initials}
+              <Avatar
+                src={personAvatarUrl(rep)}
+                alt={rep.name}
+                fallbackText={rep.initials}
+                className="h-full w-full text-[9px]"
+              />
             </button>
           ))}
           {task.tagged.length > 3 && (
@@ -518,10 +525,15 @@ export function Tasks() {
                     : 'hover:bg-black/5'
                 }`}
               >
-                <div className={`relative h-12 w-12 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0 transition-transform ${
-                  isActive ? 'bg-white text-[#2ecc71] scale-105' : 'bg-black/5 text-black/50'
+                <div className={`relative h-12 w-12 rounded-full shrink-0 transition-transform overflow-hidden ${
+                  isActive ? 'scale-105' : ''
                 }`}>
-                  {rep.initials}
+                  <Avatar
+                    src={personAvatarUrl(rep)}
+                    alt={rep.name}
+                    fallbackText={rep.initials}
+                    className={`h-full w-full text-[15px] ${isActive ? 'bg-white text-[#2ecc71]' : 'bg-black/5 text-black/50'}`}
+                  />
                   {taskCount > 0 && (
                     <span className={`absolute -right-0.5 -top-0.5 h-[18px] min-w-[18px] px-[3px] rounded-full bg-[#0d2318] border-2 flex items-center justify-center text-[9px] font-bold text-white leading-none ${
                       isActive ? 'border-[#2ecc71]' : 'border-white'
@@ -578,9 +590,14 @@ export function Tasks() {
                         animate={{ scale: 1 }}
                         onClick={() => { setPanelRep(rep); soundOpen(); }}
                         title={rep.name}
-                        className="h-8 w-8 rounded-full border-2 border-white bg-[#2ecc71] flex items-center justify-center text-[10px] font-bold text-white hover:z-10 hover:scale-110 transition-transform"
+                        className="h-8 w-8 rounded-full border-2 border-white overflow-hidden hover:z-10 hover:scale-110 transition-transform"
                       >
-                        {rep.initials}
+                        <Avatar
+                          src={personAvatarUrl(rep)}
+                          alt={rep.name}
+                          fallbackText={rep.initials}
+                          className="h-full w-full text-[10px]"
+                        />
                       </motion.button>
                     ))}
                     {allTagged.length > 5 && (
@@ -622,9 +639,12 @@ export function Tasks() {
                             onClick={() => toggleTagInDrop(rep)}
                             className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-black/[0.03] transition-colors"
                           >
-                            <div className="h-7 w-7 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                              {rep.initials}
-                            </div>
+                            <Avatar
+                              src={personAvatarUrl(rep)}
+                              alt={rep.name}
+                              fallbackText={rep.initials}
+                              className="h-7 w-7 text-[10px] shrink-0"
+                            />
                             <div className="flex-1 text-left min-w-0">
                               <p className="text-[13px] font-medium text-black/80 truncate">{rep.name}</p>
                               <p className="text-[11px] text-black/35 truncate">{rep.designation}</p>
@@ -660,9 +680,12 @@ export function Tasks() {
                       exit={{    opacity: 0, scale: 0.85 }}
                       className="flex items-center gap-1.5 bg-[#2ecc71]/10 border border-[#2ecc71]/20 px-2 py-1 text-[12px] text-[#1a7a40] font-medium"
                     >
-                      <div className="h-4 w-4 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[8px] font-bold shrink-0">
-                        {rep.initials}
-                      </div>
+                      <Avatar
+                        src={personAvatarUrl(rep)}
+                        alt={rep.name}
+                        fallbackText={rep.initials}
+                        className="h-4 w-4 text-[8px] shrink-0"
+                      />
                       @{rep.name.split(' ')[0]}
                       <button
                         onClick={() => removeTagged(rep.id)}
@@ -739,9 +762,12 @@ export function Tasks() {
                           onMouseDown={e => { e.preventDefault(); selectMention(rep); }}
                           className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-[#2ecc71]/8 transition-colors"
                         >
-                          <div className="h-7 w-7 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                            {rep.initials}
-                          </div>
+                          <Avatar
+                            src={personAvatarUrl(rep)}
+                            alt={rep.name}
+                            fallbackText={rep.initials}
+                            className="h-7 w-7 text-[10px] shrink-0"
+                          />
                           <div className="text-left min-w-0">
                             <p className="text-[13px] font-medium text-black/80 truncate">{rep.name}</p>
                             <p className="text-[11px] text-black/35 truncate">{rep.designation}</p>

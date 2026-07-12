@@ -4,6 +4,8 @@ import { soundClick, soundOpen, soundClose, soundTab, soundRefresh } from '@/lib
 import { Search, Bell, ChevronDown, MoreVertical, Plus, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { LeadPanel, type Lead } from '@/components/LeadPanel';
 import { useActiveLead } from '@/context/ActiveLeadContext';
+import { Avatar } from '@/components/Avatar';
+import { personAvatarUrl } from '@/lib/avatar';
 
 // ── Webhook ──────────────────────────────────────────────────────────────────
 const WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/LeadDataFetch';
@@ -166,7 +168,12 @@ export function Leads() {
             </div>
 
             <div className="flex items-center gap-2 cursor-pointer">
-              <div className="h-8 w-8 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">AV</div>
+              <Avatar
+                src={personAvatarUrl({ name: 'Alief Vinicius' })}
+                alt="Alief Vinicius"
+                fallbackText="AV"
+                className="h-8 w-8 text-[11px] shrink-0"
+              />
               <span className="text-[13px] font-medium text-black/70 whitespace-nowrap">Alief Vinicius</span>
               <ChevronDown className="h-3.5 w-3.5 text-black/30" />
             </div>
@@ -288,9 +295,12 @@ export function Leads() {
                   <span className="text-[12px] text-black/25 self-center">{idx + 1}</span>
 
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">
-                      {lead.initials}
-                    </div>
+                    <Avatar
+                      src={personAvatarUrl(lead)}
+                      alt={lead.name}
+                      fallbackText={lead.initials}
+                      className="h-9 w-9 text-[11px] shrink-0"
+                    />
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold text-black leading-tight truncate">{lead.name}</p>
                       <p className="text-[11.5px] text-black/35 truncate">{lead.email}</p>

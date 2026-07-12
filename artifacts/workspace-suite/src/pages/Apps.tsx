@@ -1,4 +1,6 @@
 import { useActiveLead } from '@/context/ActiveLeadContext';
+import { Avatar } from '@/components/Avatar';
+import { personAvatarUrl } from '@/lib/avatar';
 
 interface AppTile {
   name:    string;
@@ -112,9 +114,12 @@ export function Apps() {
       {/* Active lead badge */}
       {activeLead && (
         <div className="mb-8 inline-flex items-center gap-3 border border-[#2ecc71]/30 bg-[#f0fdf5] px-4 py-2.5">
-          <div className="h-8 w-8 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">
-            {activeLead.initials}
-          </div>
+          <Avatar
+            src={personAvatarUrl(activeLead)}
+            alt={activeLead.name}
+            fallbackText={activeLead.initials}
+            className="h-8 w-8 text-[11px] shrink-0"
+          />
           <div>
             <p className="text-[13px] font-semibold text-black">{activeLead.name}</p>
             {activeLead.company && activeLead.company !== '—' && (
