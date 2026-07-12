@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X } from 'lucide-react';
@@ -124,12 +124,25 @@ function FormSelect({
   helper?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
 
   return (
     <div
+      ref={rootRef}
       className="relative"
       onMouseEnter={() => onPreview?.(field, value || null)}
-      onMouseLeave={() => { onPreview?.(field, null); setOpen(false); }}
+      onMouseLeave={() => onPreview?.(field, null)}
     >
       <label className={fieldLabelCls}>
         {label}
