@@ -4,9 +4,9 @@ A business/workspace management suite (Dashboard, Calendar, Employee Dashboard, 
 
 ## Run & Operate
 
-- `pnpm install` — install dependencies (already run once during import setup)
-- `pnpm --filter @workspace/workspace-suite run dev` — run the frontend (bound via the `artifacts/workspace-suite: web` workflow, port from `PORT` env var, currently 23392)
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000, not currently wired into a workflow)
+- `pnpm install` — install dependencies (already run; re-run if `node_modules` is ever missing, e.g. after a fresh clone/import)
+- `pnpm --filter @workspace/workspace-suite run dev` — run the frontend (bound via the `artifacts/workspace-suite: web` workflow, port from `PORT` env var, currently 23392) — **this is the running, verified workflow**
+- `pnpm --filter @workspace/api-server run dev` — run the API server; scaffolded but not wired into a workflow, and currently fails on `pnpm install` alone because `build.mjs` needs `esbuild` as a direct dependency of `artifacts/api-server` (only set up if/when the API server is actually needed)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
