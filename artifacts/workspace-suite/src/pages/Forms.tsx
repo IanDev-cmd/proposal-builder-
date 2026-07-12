@@ -229,7 +229,7 @@ export function Forms() {
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
 
       {/* ── Left: vertical step sidebar ── */}
-      <aside className="sticky top-16 h-[calc(100vh-4rem)] w-[190px] shrink-0 border-r border-[#e8e8e8] flex flex-col bg-white overflow-y-auto">
+      <aside className="sticky top-16 h-[calc(100vh-4rem)] w-[190px] shrink-0 border-r border-[#e8e8e8] flex flex-col justify-center bg-white overflow-y-auto">
         {STEP_LABELS.map((label, i) => {
           const n = i + 1;
           const active = step === n;
