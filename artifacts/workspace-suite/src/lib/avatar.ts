@@ -7,9 +7,24 @@
  * degrades to a clean initials/name badge instead.
  */
 
+import katherineBulaonAvatar from '@/assets/avatars/katherine-bulaon.png';
+
 function slugifyCompany(company: string): string {
   return company.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
 }
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Manually-supplied real photos for specific people, keyed by normalized
+ * name. Checked before any external lookup so a known headshot always wins
+ * over the email/LinkedIn-derived guess.
+ */
+const PERSON_AVATAR_OVERRIDES: Record<string, string> = {
+  'katherine bulaon': katherineBulaonAvatar,
+};
 
 /**
  * A varied, pleasant palette for initials/name-badge fallbacks. Picking a
@@ -33,6 +48,8 @@ export function colorForName(seed: string): string {
 
 /** Best-effort real photo for a person, resolved from their email. */
 export function personAvatarUrl(person: { email?: string; name: string; photoUrl?: string }): string {
+  const override = PERSON_AVATAR_OVERRIDES[normalizeName(person.name)];
+  if (override) return override;
   if (person.photoUrl) return person.photoUrl;
   const bg = colorForName(person.name);
   const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=${bg}&color=ffffff&size=256&bold=true`;
