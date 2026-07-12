@@ -10,6 +10,7 @@ import { Forms } from '@/pages/Forms';
 import { ProposalDoc } from '@/pages/ProposalDoc';
 import { Timeline } from '@/pages/Timeline';
 import { Calendar } from '@/pages/Calendar';
+import { Settings } from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/proposal-doc" component={ProposalDoc} />
         <Route path="/timeline" component={Timeline} />
         <Route path="/calendar" component={Calendar} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </>

@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Menu, Play, ChevronUp, ChevronDown, Linkedin, Mail, Phone } from 'lucide-react';
-import trendImg from '@assets/image_1783809524145.png';
-import leantrackImg from '@assets/Capture_1783809590704.PNG';
+import { X, Menu, Play, ChevronUp, ChevronDown, Mail, Phone } from 'lucide-react';
 
 export type Lead = {
   id: number;
@@ -20,10 +18,32 @@ export type Lead = {
   source: string;
   company: string;
   companyLogo?: string;
+  photoUrl?: string;
+  status?: string;
 };
 
-/* ─── Contact View (Trend. aesthetic — circle photo) ─── */
+/* ─── helpers ─── */
+function contactPhotoUrl(lead: Lead): string {
+  if (lead.photoUrl) return lead.photoUrl;
+  // Try to resolve a real face via email; falls back gracefully if not found
+  if (lead.email && lead.email !== '—') {
+    return `https://unavatar.io/${encodeURIComponent(lead.email)}?fallback=https://ui-avatars.com/api/?name=${encodeURIComponent(lead.name)}&background=1a1a1a&color=ffffff&size=256&bold=true`;
+  }
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(lead.name)}&background=1a1a1a&color=ffffff&size=256&bold=true`;
+}
+
+function companyLogoUrl(lead: Lead): string {
+  if (lead.companyLogo) return lead.companyLogo;
+  // Attempt Clearbit logo lookup using company name as domain guess
+  const slug = lead.company.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
+  if (slug) return `https://logo.clearbit.com/${slug}.com`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(lead.company)}&background=1a1a1a&color=ffffff&size=256&bold=true`;
+}
+
+/* ─── Contact View ─── */
 function ContactView({ lead }: { lead: Lead }) {
+  const [imgErr, setImgErr] = useState(false);
+
   return (
     <div className="flex h-full w-full">
       {/* Left: cream panel */}
@@ -58,7 +78,7 @@ function ContactView({ lead }: { lead: Lead }) {
             <span className="text-[#1a1a1a]/80">{lead.name.split(' ').slice(1).join(' ') || lead.designation}</span>
           </h2>
           <p className="mt-3 max-w-[200px] text-[11px] leading-relaxed text-[#1a1a1a]/50">
-            {lead.designation} — {lead.sector}. {lead.source ? `Sourced via ${lead.source}.` : ''}
+            {lead.designation} — {lead.sector}.{lead.source ? ` Sourced via ${lead.source}.` : ''}
           </p>
           <div className="mt-5 flex items-center gap-3">
             <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 bg-[#1a1a1a] px-4 py-2 text-[11px] font-semibold text-white">
@@ -81,15 +101,22 @@ function ContactView({ lead }: { lead: Lead }) {
         </div>
       </div>
 
-      {/* Right: dark panel */}
+      {/* Right: dark panel — circle photo centred */}
       <div className="relative flex w-1/2 items-center justify-center bg-[#111] overflow-hidden">
-        {/* Circle photo */}
         <div className="relative">
-          <div
-            className="h-52 w-52 overflow-hidden"
-            style={{ borderRadius: '50%' }}
-          >
-            <img src={trendImg} alt="Contact" className="h-full w-full object-cover grayscale" />
+          <div className="h-52 w-52 overflow-hidden" style={{ borderRadius: '50%' }}>
+            {imgErr ? (
+              <div className="h-full w-full flex items-center justify-center bg-[#1a1a1a] text-white text-[32px] font-black">
+                {lead.initials}
+              </div>
+            ) : (
+              <img
+                src={contactPhotoUrl(lead)}
+                alt={lead.name}
+                className="h-full w-full object-cover"
+                onError={() => setImgErr(true)}
+              />
+            )}
           </div>
           {/* Play button at bottom of circle */}
           <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center bg-white shadow-lg">
@@ -114,8 +141,10 @@ function ContactView({ lead }: { lead: Lead }) {
   );
 }
 
-/* ─── Company View (LeanTrack. aesthetic — square photo) ─── */
+/* ─── Company View ─── */
 function CompanyView({ lead }: { lead: Lead }) {
+  const [imgErr, setImgErr] = useState(false);
+
   return (
     <div className="flex h-full w-full">
       {/* Left: cream panel */}
@@ -127,7 +156,7 @@ function CompanyView({ lead }: { lead: Lead }) {
               <div className="h-2 w-2 bg-[#1a1a1a]" />
             </div>
             <span className="text-[13px] font-black tracking-tight text-[#1a1a1a]">
-              {lead.company || 'LeanTrack'}<span className="text-[#1a1a1a]">.</span>
+              {lead.company || 'Company'}<span className="text-[#1a1a1a]">.</span>
             </span>
           </div>
           <Menu className="h-4 w-4 text-[#1a1a1a]" />
@@ -151,9 +180,20 @@ function CompanyView({ lead }: { lead: Lead }) {
           <p className="mt-3 max-w-[200px] text-[11px] leading-relaxed text-[#1a1a1a]/50">
             {lead.company} — {lead.sector}. Reference {lead.referenceNumber}. Joined {lead.joined}.
           </p>
-          <div className="mt-5 flex items-center gap-2 text-[11px] font-semibold text-[#1a1a1a] underline underline-offset-2 cursor-pointer hover:text-[#2ecc71]">
-            Read More
-          </div>
+          {lead.linkedin ? (
+            <a
+              href={lead.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 flex items-center gap-2 text-[11px] font-semibold text-[#1a1a1a] underline underline-offset-2 cursor-pointer hover:text-[#2ecc71]"
+            >
+              View on LinkedIn
+            </a>
+          ) : (
+            <div className="mt-5 flex items-center gap-2 text-[11px] font-semibold text-[#1a1a1a] underline underline-offset-2 cursor-pointer hover:text-[#2ecc71]">
+              Read More
+            </div>
+          )}
 
           {/* Social links */}
           <div className="mt-6 flex items-center gap-3 text-[9.5px] text-[#1a1a1a]/40">
@@ -167,24 +207,22 @@ function CompanyView({ lead }: { lead: Lead }) {
         </div>
       </div>
 
-      {/* Right: dark panel */}
-      <div className="relative flex w-1/2 items-start justify-center bg-[#111] overflow-hidden pt-8">
+      {/* Right: dark panel — square photo centred at same equator as contact circle */}
+      <div className="relative flex w-1/2 items-center justify-center bg-[#111] overflow-hidden">
         {/* Square photo */}
-        <div className="h-52 w-52 overflow-hidden">
-          <img src={leantrackImg} alt={lead.company} className="h-full w-full object-cover" />
-        </div>
-
-        {/* Bottom-right stacked thumbnails */}
-        <div className="absolute bottom-6 right-8 flex flex-col gap-1">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-8 w-14 overflow-hidden border border-white/10"
-              style={{ transform: `translateX(${i * 3}px) translateY(${-i * 2}px)` }}
-            >
-              <img src={leantrackImg} alt="" className="h-full w-full object-cover opacity-60" />
+        <div className="h-52 w-52 overflow-hidden shrink-0">
+          {imgErr ? (
+            <div className="h-full w-full flex items-center justify-center bg-[#1a1a1a] text-white text-[11px] font-bold text-center p-4">
+              {lead.company}
             </div>
-          ))}
+          ) : (
+            <img
+              src={companyLogoUrl(lead)}
+              alt={lead.company}
+              className="h-full w-full object-cover"
+              onError={() => setImgErr(true)}
+            />
+          )}
         </div>
 
         {/* Right edge up/down */}
@@ -203,7 +241,6 @@ function CompanyView({ lead }: { lead: Lead }) {
 
 /* ─── Main export: centered overlay ─── */
 export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () => void }) {
-  // false = circle (lead/contact), true = square (company)
   const [showCompany, setShowCompany] = useState(false);
 
   return (
@@ -228,7 +265,7 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
             className="fixed left-1/2 top-1/2 z-[95] h-[500px] w-[860px] -translate-x-1/2 -translate-y-1/2 overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* View content — animates between contact and company */}
+            {/* View content */}
             <AnimatePresence mode="wait" initial={false}>
               {showCompany ? (
                 <motion.div
@@ -255,7 +292,7 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
               )}
             </AnimatePresence>
 
-            {/* Toggle + close — absolute bottom-center overlay */}
+            {/* Toggle + close */}
             <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 bg-[#111]/80 px-3 py-1.5 backdrop-blur-sm">
               <button
                 onClick={() => setShowCompany(false)}

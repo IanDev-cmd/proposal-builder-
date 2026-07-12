@@ -7,16 +7,17 @@ import {
   FileText,
   GitBranch,
   CalendarDays,
+  Settings,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/',            label: 'Home',         icon: Home           },
-  { href: '/leads',       label: 'Leads',        icon: Users          },
-  { href: '/tasks',       label: 'Tasks',        icon: LayoutDashboard },
-  { href: '/forms',       label: 'Forms',        icon: ClipboardList  },
-  { href: '/proposal-doc',label: 'Proposal Doc', icon: FileText       },
-  { href: '/timeline',    label: 'Timeline',     icon: GitBranch      },
-  { href: '/calendar',    label: 'Calendar',     icon: CalendarDays   },
+  { href: '/',             label: 'Home',         icon: Home           },
+  { href: '/leads',        label: 'Leads',        icon: Users          },
+  { href: '/tasks',        label: 'Tasks',        icon: LayoutDashboard },
+  { href: '/forms',        label: 'Forms',        icon: ClipboardList  },
+  { href: '/proposal-doc', label: 'Proposal Doc', icon: FileText       },
+  { href: '/timeline',     label: 'Timeline',     icon: GitBranch      },
+  { href: '/calendar',     label: 'Calendar',     icon: CalendarDays   },
 ] as const;
 
 export function AppNav() {
@@ -53,6 +54,21 @@ export function AppNav() {
             );
           })}
         </nav>
+
+        {/* Settings gear — right side */}
+        <div className="ml-auto shrink-0">
+          <Link
+            href="/settings"
+            className={`flex h-8 w-8 items-center justify-center transition-colors ${
+              location === '/settings'
+                ? 'bg-[#2ecc71] text-white'
+                : 'text-black/35 hover:text-black hover:bg-black/4'
+            }`}
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </header>
   );

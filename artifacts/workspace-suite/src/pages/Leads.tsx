@@ -7,7 +7,6 @@ import { LeadPanel, type Lead } from '@/components/LeadPanel';
 // ── Webhook ──────────────────────────────────────────────────────────────────
 const WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/LeadDataFetch';
 
-// Raw shape returned by the webhook
 interface RawLead {
   row_number: number;
   'Live/Dead/Blacklisted/Booked': string;
@@ -46,6 +45,7 @@ function mapRaw(raw: RawLead, index: number): Lead {
     referenceNumber: raw['Client Reference Number'] ?? '—',
     source: raw['Source'] ?? '—',
     company: raw['Company Name'] ?? '—',
+    status: (raw['Live/Dead/Blacklisted/Booked'] ?? '').toLowerCase().trim(),
   };
 }
 
@@ -62,7 +62,7 @@ async function fetchLeads(): Promise<Lead[]> {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const TABS = ['All Enquiries', 'Sectors', 'Sources'] as const;
+const TABS = ['Live', 'Booked', 'Dead', 'Blacklisted'] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Leads() {
@@ -86,28 +86,12 @@ export function Leads() {
 
   useEffect(() => { load(); }, []);
 
-  // ── Tab filtering ──
-  const tabFiltered: Lead[] = (() => {
-    if (activeTab === 0) return leads;
-    if (activeTab === 1) {
-      // Group unique sectors — show one representative per sector
-      const seen = new Set<string>();
-      return leads.filter((l) => {
-        const key = l.sector.split('/')[0].trim();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
-    // Sources: one representative per source
-    const seen = new Set<string>();
-    return leads.filter((l) => {
-      const key = l.source.split(' ')[0].trim();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  })();
+  // ── Tab filtering — filter by status ──
+  const tabKey = TABS[activeTab].toLowerCase();
+  const tabFiltered: Lead[] = leads.filter((l) => {
+    const s = (l.status ?? '').toLowerCase();
+    return s === tabKey;
+  });
 
   // ── Search filtering ──
   const visible = query.trim()
@@ -151,9 +135,8 @@ export function Leads() {
 
           <div className="flex-1" />
 
-          {/* Right-side controls — grouped with consistent spacing */}
+          {/* Right-side controls */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Refresh */}
             <button
               onClick={() => { load(); soundRefresh(); }}
               disabled={status === 'loading'}
@@ -163,7 +146,6 @@ export function Leads() {
               <RefreshCw className={`h-3.5 w-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
             </button>
 
-            {/* Add Lead */}
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
@@ -174,16 +156,13 @@ export function Leads() {
               Add Lead
             </motion.button>
 
-            {/* Divider */}
             <div className="h-5 w-px bg-black/10" />
 
-            {/* Bell */}
             <div className="relative">
               <Bell className="h-[17px] w-[17px] text-black/35" />
               <span className="absolute -top-0.5 -right-0.5 h-[6px] w-[6px] bg-[#2ecc71]" />
             </div>
 
-            {/* Avatar */}
             <div className="flex items-center gap-2 cursor-pointer">
               <div className="h-8 w-8 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[11px] font-bold shrink-0">AV</div>
               <span className="text-[13px] font-medium text-black/70 whitespace-nowrap">Alief Vinicius</span>
@@ -194,24 +173,34 @@ export function Leads() {
 
         {/* ── Tabs ── */}
         <div className="flex border-b border-black/8 bg-white px-8 shrink-0">
-          {TABS.map((tab, i) => (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(i); soundTab(); }}
-              className={`relative px-5 pb-2.5 pt-2 text-[13px] font-medium transition-colors ${
-                activeTab === i ? 'text-black' : 'text-black/35 hover:text-black/60'
-              }`}
-            >
-              {tab}
-              {activeTab === i && (
-                <motion.span
-                  layoutId="leads-tab-line"
-                  className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2ecc71]"
-                  transition={{ type: 'spring', stiffness: 500, damping: 36 }}
-                />
-              )}
-            </button>
-          ))}
+          {TABS.map((tab, i) => {
+            const count = leads.filter(l => (l.status ?? '').toLowerCase() === tab.toLowerCase()).length;
+            return (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(i); soundTab(); }}
+                className={`relative px-5 pb-2.5 pt-2 text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
+                  activeTab === i ? 'text-black' : 'text-black/35 hover:text-black/60'
+                }`}
+              >
+                {tab}
+                {status === 'ok' && count > 0 && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm ${
+                    activeTab === i ? 'bg-[#2ecc71]/15 text-[#219251]' : 'bg-black/6 text-black/30'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+                {activeTab === i && (
+                  <motion.span
+                    layoutId="leads-tab-line"
+                    className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2ecc71]"
+                    transition={{ type: 'spring', stiffness: 500, damping: 36 }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Body ── */}
@@ -227,10 +216,7 @@ export function Leads() {
                 className="divide-y divide-black/5"
               >
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[40px_1fr_140px_180px_150px_140px_40px] px-6 py-[13px]"
-                  >
+                  <div key={i} className="grid grid-cols-[40px_1fr_140px_180px_150px_140px_40px] px-6 py-[13px]">
                     <div className="h-4 w-5 bg-black/6 animate-pulse self-center" />
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 bg-black/6 animate-pulse shrink-0" />
@@ -278,10 +264,10 @@ export function Leads() {
                 <div />
               </div>
 
-              {/* Empty search result */}
-              {visible.length === 0 && query && (
+              {/* Empty state */}
+              {visible.length === 0 && (
                 <div className="flex items-center justify-center py-16 text-[13px] text-black/30">
-                  No leads match "{query}"
+                  {query ? `No leads match "${query}"` : `No ${TABS[activeTab].toLowerCase()} leads`}
                 </div>
               )}
 

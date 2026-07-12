@@ -54,6 +54,15 @@ async function fetchLeads(): Promise<Lead[]> {
   return rows.map(mapRaw);
 }
 
+// ── Client Relationship Representatives (fixed list for tagging) ──────────────
+const CRR_REPS: Lead[] = [
+  { id: 9001, name: 'Katherine',  initials: 'KA', email: '', code: 'CRR-1', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
+  { id: 9002, name: 'Sapphire',   initials: 'SA', email: '', code: 'CRR-2', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
+  { id: 9003, name: 'Elizabeth',  initials: 'EL', email: '', code: 'CRR-3', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
+  { id: 9004, name: 'Lily-May',   initials: 'LM', email: '', code: 'CRR-4', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
+  { id: 9005, name: 'Natasha',    initials: 'NA', email: '', code: 'CRR-5', designation: 'Client Relationship Rep', phone: '', joined: '', color: '#2ecc71', sector: '', referenceNumber: '', source: '', company: '' },
+];
+
 // ── Task model ────────────────────────────────────────────────────────────────
 type TaskList = 'today' | 'upcoming';
 
@@ -200,14 +209,12 @@ export function Tasks() {
       )
     : leads;
 
-  // @ mention candidates
+  // @ mention candidates — only CRR representatives
   const mentionResults = mentionQuery !== null
-    ? leads
-        .filter(l =>
-          l.name.toLowerCase().includes(mentionQuery) &&
-          !tagged.find(t => t.id === l.id),
-        )
-        .slice(0, 6)
+    ? CRR_REPS.filter(r =>
+        r.name.toLowerCase().includes(mentionQuery) &&
+        !tagged.find(t => t.id === r.id),
+      )
     : [];
 
   // ── Handlers ──
@@ -423,22 +430,22 @@ export function Tasks() {
                         className="absolute right-0 top-full mt-2 w-[230px] bg-white border border-black/10 shadow-xl z-50 py-1 max-h-[280px] overflow-y-auto"
                       >
                         <p className="px-3 pt-2 pb-1.5 text-[10.5px] font-semibold text-black/35 uppercase tracking-wider">
-                          Tag a lead
+                          Tag a representative
                         </p>
-                        {leads.map(lead => {
-                          const isIn = !!tagged.find(t => t.id === lead.id);
+                        {CRR_REPS.map(rep => {
+                          const isIn = !!tagged.find(t => t.id === rep.id);
                           return (
                             <button
-                              key={lead.id}
-                              onClick={() => toggleTagInDrop(lead)}
+                              key={rep.id}
+                              onClick={() => toggleTagInDrop(rep)}
                               className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-black/[0.03] transition-colors"
                             >
                               <div className="h-7 w-7 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                                {lead.initials}
+                                {rep.initials}
                               </div>
                               <div className="flex-1 text-left min-w-0">
-                                <p className="text-[13px] font-medium text-black/80 truncate">{lead.name}</p>
-                                <p className="text-[11px] text-black/35 truncate">{lead.designation}</p>
+                                <p className="text-[13px] font-medium text-black/80 truncate">{rep.name}</p>
+                                <p className="text-[11px] text-black/35 truncate">{rep.designation}</p>
                               </div>
                               {isIn && <Check className="h-3.5 w-3.5 text-[#2ecc71] shrink-0" />}
                             </button>
@@ -542,7 +549,7 @@ export function Tasks() {
                       if (e.key === 'Enter' && !mentionQuery) addTask();
                       if (e.key === 'Escape') { setMentionQuery(null); setShowTagDrop(false); }
                     }}
-                    placeholder="Add a task… type @ to tag a lead"
+                    placeholder="Add a task… type @ to tag a representative"
                     className="w-full border border-black/12 px-3 py-2 text-[13px] text-black/70 placeholder-black/25 outline-none focus:border-[#2ecc71] transition-colors"
                   />
 
@@ -557,21 +564,20 @@ export function Tasks() {
                         className="absolute bottom-full left-0 mb-1.5 w-[240px] bg-white border border-black/10 shadow-xl z-50 py-1 max-h-[220px] overflow-y-auto"
                       >
                         <p className="px-3 pt-2 pb-1 text-[10.5px] font-semibold text-black/35 uppercase tracking-wider">
-                          Tag a lead
+                          Tag a representative
                         </p>
-                        {mentionResults.map(lead => (
+                        {mentionResults.map(rep => (
                           <button
-                            key={lead.id}
-                            // use onMouseDown so the input doesn't blur before the click fires
-                            onMouseDown={e => { e.preventDefault(); selectMention(lead); }}
+                            key={rep.id}
+                            onMouseDown={e => { e.preventDefault(); selectMention(rep); }}
                             className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-[#2ecc71]/8 transition-colors"
                           >
                             <div className="h-7 w-7 rounded-full bg-[#2ecc71] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                              {lead.initials}
+                              {rep.initials}
                             </div>
                             <div className="text-left min-w-0">
-                              <p className="text-[13px] font-medium text-black/80 truncate">{lead.name}</p>
-                              <p className="text-[11px] text-black/35 truncate">{lead.designation}</p>
+                              <p className="text-[13px] font-medium text-black/80 truncate">{rep.name}</p>
+                              <p className="text-[11px] text-black/35 truncate">{rep.designation}</p>
                             </div>
                           </button>
                         ))}
