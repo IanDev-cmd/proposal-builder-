@@ -28,6 +28,12 @@ const EVENT_TYPES = [
   'Wedding Reception',
   'Wedding Anniversary',
   'Wedding Transfer',
+  'Other',
+  'Unknown - TBC',
+  'Client Event',
+  'Product Launch',
+  'Pre-Wedding Celebration',
+  'Client & Prospects Networking Cruise',
 ];
 
 const MENU_TYPES = ['Summer Barbecue', 'Street Food', 'Canapés', '2-Course Seated Dinner'];
