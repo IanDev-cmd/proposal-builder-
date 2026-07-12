@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 const weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -100,44 +100,55 @@ export function Calendar() {
       </div>
 
       {/* ── Right: events panel ── */}
-      <div className="relative flex flex-1 flex-col overflow-hidden bg-[#2ecc71] p-8 text-white">
+      <div className="relative flex flex-1 flex-col overflow-hidden bg-white p-8">
         <div>
-          <h2 className="text-[22px] font-semibold text-[#0d2318]">{dayOfWeekLabel(selected)}</h2>
-          <p className="mt-0.5 text-[12px] text-[#0d2318]/50">{selected}th December 2015</p>
+          <h2 className="text-[22px] font-semibold text-gray-900">{dayOfWeekLabel(selected)}</h2>
+          <p className="mt-0.5 text-[12px] text-black/35">{selected}th December 2015</p>
         </div>
 
-        <div className="mt-6 flex-1 space-y-4 overflow-y-auto">
+        <div className="relative mt-8 flex-1 overflow-y-auto">
           {events.length === 0 ? (
-            <p className="text-[13px] text-[#0d2318]/50">No events scheduled for this day.</p>
+            <p className="text-[13px] text-black/35">No events scheduled for this day.</p>
           ) : (
-            events.map((event, i) => (
-              <div
-                key={i}
-                className={`flex items-center justify-between px-3 py-2.5 ${
-                  event.highlighted ? 'bg-white/25' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`mt-1.5 h-1.5 w-1.5 shrink-0 ${
-                      event.highlighted ? 'bg-white' : 'bg-[#0d2318]/40'
-                    }`}
-                  />
-                  <div>
-                    <p className="text-[13px] font-medium text-[#0d2318]">{event.title}</p>
-                    <p className={`text-[11px] ${event.highlighted ? 'text-[#0d2318]/70' : 'text-[#0d2318]/45'}`}>
+            /* Vertical timeline at left edge */
+            <div className="relative pl-5">
+              {/* continuous vertical line */}
+              <div className="absolute left-[6px] top-2 bottom-2 w-px bg-black/10" />
+
+              <div className="flex flex-col gap-6">
+                {events.map((event, i) => (
+                  <div key={i} className="relative">
+                    {/* dot node */}
+                    <span
+                      className={`absolute -left-[17px] top-[4px] h-[7px] w-[7px] rounded-full ${
+                        event.highlighted
+                          ? 'bg-[#2ecc71]'
+                          : 'bg-white border border-black/25'
+                      }`}
+                    />
+
+                    {/* time */}
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-black/35 mb-[3px]">
                       {event.time}
                     </p>
+
+                    {/* title */}
+                    <p
+                      className={`text-[13px] font-medium leading-snug ${
+                        event.highlighted ? 'text-[#2ecc71]' : 'text-gray-800'
+                      }`}
+                    >
+                      {event.title}
+                    </p>
                   </div>
-                </div>
-                {event.highlighted && <Star className="h-4 w-4 shrink-0 fill-[#0d2318]/60 text-[#0d2318]/60" />}
+                ))}
               </div>
-            ))
+            </div>
           )}
         </div>
 
         {/* FAB */}
-        <button className="absolute bottom-6 right-6 flex h-12 w-12 items-center justify-center bg-white text-[#2ecc71] shadow-lg transition-transform hover:scale-105">
+        <button className="absolute bottom-6 right-6 flex h-12 w-12 items-center justify-center bg-[#2ecc71] text-white shadow-lg transition-transform hover:scale-105">
           <Plus className="h-5 w-5" />
         </button>
       </div>
