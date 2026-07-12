@@ -55,12 +55,24 @@ export type Lead = {
 const contactPhotoUrl = personAvatarUrl;
 const companyLogoUrl = companyAvatarUrl;
 
+/** Opens a Gmail compose draft pre-addressed to this lead, in a new tab. */
+function gmailDraftUrl(email: string): string {
+  return `https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=${encodeURIComponent(email)}`;
+}
+
 /* ─── Contact View ─── */
 function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
   const [imgErr, setImgErr] = useState(false);
+  const [showCall, setShowCall] = useState(false);
+
+  useEffect(() => {
+    if (!showCall) return;
+    const t = setTimeout(() => setShowCall(false), 4000);
+    return () => clearTimeout(t);
+  }, [showCall]);
 
   return (
-    <div className="flex h-full w-full">
+    <div className="relative flex h-full w-full">
       {/* Left: cream panel */}
       <div className="relative flex w-1/2 flex-col bg-[#f0ece0] overflow-hidden">
         {/* Top nav */}
@@ -96,10 +108,20 @@ function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
             {lead.designation} — {lead.sector}.{lead.source ? ` Sourced via ${lead.source}.` : ''}
           </p>
           <div className="mt-5 flex items-center gap-3">
-            <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 bg-[#1a1a1a] px-4 py-2 text-[11px] font-semibold text-white">
+            <a
+              href={gmailDraftUrl(lead.email)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={soundClick}
+              className="flex items-center gap-1.5 bg-[#1a1a1a] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#1a1a1a]/85 transition-colors"
+            >
               <Mail className="h-3 w-3" /> Email
             </a>
-            <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 border border-[#1a1a1a]/20 px-4 py-2 text-[11px] font-semibold text-[#1a1a1a]">
+            <a
+              href={`tel:${lead.phone}`}
+              onClick={() => { setShowCall(true); soundClick(); }}
+              className="flex items-center gap-1.5 border border-[#1a1a1a]/20 px-4 py-2 text-[11px] font-semibold text-[#1a1a1a] hover:border-[#2ecc71] hover:text-[#2ecc71] transition-colors"
+            >
               <Phone className="h-3 w-3" /> Call
             </a>
             <button
@@ -158,6 +180,38 @@ function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
           <div className="flex h-5 w-5 items-center justify-center border border-white/20 text-[10px] text-white/40">−</div>
         </div>
       </div>
+
+      {/* Call overlay — confirms the exact number being dialed */}
+      <AnimatePresence>
+        {showCall && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 8 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+              className="flex flex-col items-center gap-3 border border-[#2ecc71]/30 bg-[#111] px-8 py-7"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2ecc71]">
+                <Phone className="h-6 w-6 text-white" />
+              </div>
+              <p className="text-[19px] font-bold tracking-wide text-white">{lead.phone}</p>
+              <p className="text-[11px] text-white/50">Calling {lead.name}</p>
+              <button
+                onClick={() => { setShowCall(false); soundClick(); }}
+                className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

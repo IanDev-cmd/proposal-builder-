@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { colorForName } from '@/lib/avatar';
 
 /**
  * Circular/square avatar that pings a real photo (via `src`) and falls back
@@ -28,7 +29,8 @@ export function Avatar({
   if (errored || !src) {
     return (
       <div
-        className={cn('flex items-center justify-center bg-[#2ecc71] text-white font-bold', rounded && 'rounded-full', className)}
+        style={{ backgroundColor: `#${colorForName(alt || fallbackText)}` }}
+        className={cn('flex items-center justify-center text-white font-bold', rounded && 'rounded-full', className)}
       >
         {fallbackText}
       </div>
