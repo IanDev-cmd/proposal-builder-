@@ -81,11 +81,6 @@ export function soundToggle() {
   tone(880, 1100, 0.05, 0.07, 'sine', 0.07);
 }
 
-/** Hover on an interactive row — barely-there tick. */
-export function soundHover() {
-  tone(1400, 1400, 0.025, 0.035, 'sine');
-}
-
 /** Refresh / reload initiated. */
 export function soundRefresh() {
   tone(500, 700, 0.09, 0.09, 'sine');

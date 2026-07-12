@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Users, LayoutDashboard, ClipboardList, GitBranch, CalendarDays, Grid2x2, FileText, Check, ArrowRight } from 'lucide-react';
+import { Users, LayoutDashboard, ClipboardList, GitBranch, CalendarDays, Grid2x2, FileText, Settings, Check, ArrowRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type Tile = {
@@ -52,6 +52,12 @@ const TILES: Tile[] = [
     label: 'Proposal Doc',
     icon: FileText,
     features: ['Browse proposal pages', 'Preview & share drafts', 'Track signed status', 'Publish to clients'],
+  },
+  {
+    href: '/settings',
+    label: 'Settings',
+    icon: Settings,
+    features: ['Manage account details', 'Configure preferences', 'Set field photos', 'Control integrations'],
   },
 ];
 
