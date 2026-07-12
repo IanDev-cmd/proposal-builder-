@@ -1,0 +1,45 @@
+1. Professional Enrichment & Research
+Note Content: These notes capture the "digital profiling" of a lead. This includes exact job titles (e.g., Managing Director, Assistant Manager), company sector (e.g., Hospitality, Technology), and employee numbers found during LinkedIn research
+.
+Purpose: To calibrate the tone of sales communication and predict the event's potential scale
+.
+Icon: Users or Search
+.
+2. Interaction History & Calls
+Note Content: Detailed logs of every touchpoint. This includes "Phone call introduction" outcomes, whether a "voicemail was left," or if the client "confirmed receipt via phone"
+. It also captures "Next Action" reminders such as scheduling a "Video Intro Call"
+.
+Purpose: To provide a chronological record of the client relationship and prevent duplicate outreach
+.
+Icon: MessageSquare or Phone
+.
+3. Financial Modeling & Logic
+Note Content: Critical data on "Repeat Client" status, which triggers a 10% loyalty discount and a margin shift from 25% to 15%
+. It also includes target budgets (e.g., £150pp) and specific costing reasons, such as using the most expensive date to "protect margins" when a date is unconfirmed
+.
+Purpose: To ensure pricing consistency and avoid "pricing contamination" between different quote versions
+.
+Icon: CircleDollarSign (Financial) or Check (Validation)
+.
+4. Operational Logistics
+Note Content: These are the technical details for the event team. This includes "Timing Flexibility" (Firm, Negotiable, TBC), specific vessel requirements (e.g., "remove for Dixie"), and catering staffing ratios based on group size
+.
+Purpose: To replace the "absurdity" of taking screenshots of hover-over notes by preserving this information as persistent metadata
+.
+Icon: Settings2 or Anchor
+.
+5. Pipeline Status & Handoff
+Note Content: Status updates such as "Cost still needs checking," "Proposal created," or "PM handover"
+. This section would also hold the Dropbox pathing logic for the specific "Initial Costs" and "Proposals" folders
+.
+Purpose: To maintain the "check-and-balance" culture between relationship managers and senior management before a proposal is sent
+.
+Icon: GitBranch (Timeline) or Folder
+.
+6. Historical Context (Repeat Business)
+Note Content: Notes retrieved from the "Past Client Database" or previous "Final Event Briefs." This captures specific requests like "just the same as last year," which requires manual retrieval of the absolute final version of the previous event
+.
+Purpose: To address the "same as last year" problem by mapping previous vessel and menu choices to the current lead
+.
+Icon: Clock or History
+.

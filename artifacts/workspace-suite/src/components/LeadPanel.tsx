@@ -1,6 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Menu, Play, ChevronUp, ChevronDown, Mail, Phone } from 'lucide-react';
+import {
+  X, Menu, Play, ChevronUp, ChevronDown, Mail, Phone, FileText, ArrowLeft, Send,
+  Search, CircleDollarSign, Anchor, GitBranch, Clock, Tag as TagIcon,
+} from 'lucide-react';
+import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type LeadNote } from '@/lib/leadNotes';
+import { soundClick } from '@/lib/sounds';
+
+const NOTE_ICONS: Record<NoteTag, typeof Search> = {
+  research: Search,
+  calls: Phone,
+  financial: CircleDollarSign,
+  logistics: Anchor,
+  pipeline: GitBranch,
+  history: Clock,
+};
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
 export type Lead = {
   id: number;
@@ -41,7 +66,7 @@ function companyLogoUrl(lead: Lead): string {
 }
 
 /* ─── Contact View ─── */
-function ContactView({ lead }: { lead: Lead }) {
+function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
   const [imgErr, setImgErr] = useState(false);
 
   return (
@@ -87,6 +112,12 @@ function ContactView({ lead }: { lead: Lead }) {
             <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 border border-[#1a1a1a]/20 px-4 py-2 text-[11px] font-semibold text-[#1a1a1a]">
               <Phone className="h-3 w-3" /> Call
             </a>
+            <button
+              onClick={() => { onNotes(); soundClick(); }}
+              className="flex items-center gap-1.5 border border-[#1a1a1a]/20 px-4 py-2 text-[11px] font-semibold text-[#1a1a1a] hover:border-[#2ecc71] hover:text-[#2ecc71] transition-colors"
+            >
+              <FileText className="h-3 w-3" /> Notes
+            </button>
           </div>
 
           {/* Share row */}
@@ -239,9 +270,136 @@ function CompanyView({ lead }: { lead: Lead }) {
   );
 }
 
+/* ─── Note View: "Add a note" + tag categories + note history ─── */
+function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
+  const leadKey = lead.referenceNumber !== '—' ? lead.referenceNumber : lead.email !== '—' ? lead.email : String(lead.id);
+  const [text, setText] = useState('');
+  const [manualTag, setManualTag] = useState<NoteTag | null>(null);
+  const [notes, setNotes] = useState<LeadNote[]>(() => loadNotes(leadKey));
+
+  const detectedTag = manualTag ?? (text.trim() ? detectTag(text) : null);
+  const detectedCat = detectedTag ? NOTE_CATEGORIES.find((c) => c.tag === detectedTag) ?? null : null;
+
+  function handleSave() {
+    if (!text.trim()) return;
+    const note: LeadNote = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text: text.trim(),
+      tag: detectedTag,
+      createdAt: new Date().toISOString(),
+    };
+    setNotes(addNote(leadKey, note));
+    setText('');
+    setManualTag(null);
+    soundClick();
+  }
+
+  return (
+    <div className="flex h-full w-full bg-white">
+      {/* Left: composer */}
+      <div className="flex w-1/2 flex-col border-r border-black/8 p-6 overflow-auto">
+        <button
+          onClick={onBack}
+          className="mb-4 flex items-center gap-1.5 self-start text-[12px] font-medium text-black/45 hover:text-black transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to profile
+        </button>
+
+        <h2 className="text-[19px] font-bold tracking-tight text-black">Add a note</h2>
+        <p className="mt-0.5 text-[12px] text-black/40">{lead.name} · {lead.company}</p>
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder='Type naturally — e.g. "Repeat client, wants same as last year, next action: send updated quote by Friday"'
+          className="mt-4 h-32 w-full resize-none border border-black/15 p-3 text-[12.5px] text-black/80 placeholder-black/30 outline-none transition-colors focus:border-[#2ecc71]"
+        />
+
+        <div className="mt-2 flex min-h-[18px] items-center gap-1.5">
+          {detectedCat ? (
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: detectedCat.color }}>
+              {(() => { const Icon = NOTE_ICONS[detectedCat.tag]; return <Icon className="h-3 w-3" />; })()}
+              Tagged as {detectedCat.hashtag}
+            </span>
+          ) : (
+            <p className="text-[11px] italic text-black/35">
+              Note types appear here as you type (or tag one yourself, e.g. #financial).
+            </p>
+          )}
+        </div>
+
+        {/* Taggable categories — large icons */}
+        <p className="mt-5 text-[10.5px] font-semibold uppercase tracking-wider text-black/35">Or tag it yourself</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {NOTE_CATEGORIES.map((cat) => {
+            const Icon = NOTE_ICONS[cat.tag];
+            const active = manualTag === cat.tag;
+            return (
+              <button
+                key={cat.tag}
+                onClick={() => { setManualTag(active ? null : cat.tag); soundClick(); }}
+                title={cat.description}
+                className={`flex flex-col items-center gap-1.5 border p-3 text-center transition-colors ${
+                  active ? 'border-current bg-current/8' : 'border-black/10 hover:border-black/25'
+                }`}
+                style={active ? { color: cat.color } : undefined}
+              >
+                <Icon className="h-6 w-6" style={{ color: cat.color }} />
+                <span className="text-[10px] font-semibold text-black/60">{cat.hashtag}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={!text.trim()}
+          className="mt-5 flex items-center justify-center gap-2 bg-[#2ecc71] py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#27af61] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Send className="h-3.5 w-3.5" /> Save Note
+        </button>
+      </div>
+
+      {/* Right: note history */}
+      <div className="flex w-1/2 flex-col p-6 overflow-auto">
+        <h3 className="text-[10.5px] font-bold uppercase tracking-wider text-black/40">Note History</h3>
+
+        {notes.length === 0 ? (
+          <p className="mt-3 text-[12px] text-black/30">No notes yet for this lead.</p>
+        ) : (
+          <div className="mt-3 space-y-2.5">
+            {notes.map((n) => {
+              const cat = n.tag ? NOTE_CATEGORIES.find((c) => c.tag === n.tag) ?? null : null;
+              const Icon = cat ? NOTE_ICONS[cat.tag] : TagIcon;
+              return (
+                <div key={n.id} className="border border-black/8 p-3">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <Icon className="h-3 w-3" style={{ color: cat?.color ?? '#999' }} />
+                    <span className="text-[10px] font-semibold" style={{ color: cat?.color ?? '#999' }}>
+                      {cat?.hashtag ?? 'Untagged'}
+                    </span>
+                    <span className="ml-auto text-[10px] text-black/30">{timeAgo(n.createdAt)}</span>
+                  </div>
+                  <p className="text-[12px] leading-relaxed text-black/70">{n.text}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main export: centered overlay ─── */
 export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () => void }) {
-  const [showCompany, setShowCompany] = useState(false);
+  const [view, setView] = useState<'contact' | 'company' | 'note'>('contact');
+
+  useEffect(() => {
+    if (lead) setView('contact');
+  }, [lead?.id]);
+
+  const showCompany = view === 'company';
 
   return (
     <AnimatePresence>
@@ -267,7 +425,18 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
           >
             {/* View content */}
             <AnimatePresence mode="wait" initial={false}>
-              {showCompany ? (
+              {view === 'note' ? (
+                <motion.div
+                  key="note"
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 40 }}
+                  transition={{ duration: 0.32, ease: 'easeInOut' }}
+                  className="absolute inset-0"
+                >
+                  <NoteView lead={lead} onBack={() => setView('contact')} />
+                </motion.div>
+              ) : view === 'company' ? (
                 <motion.div
                   key="company"
                   initial={{ opacity: 0, x: 40 }}
@@ -287,32 +456,34 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
                   transition={{ duration: 0.32, ease: 'easeInOut' }}
                   className="absolute inset-0"
                 >
-                  <ContactView lead={lead} />
+                  <ContactView lead={lead} onNotes={() => setView('note')} />
                 </motion.div>
               )}
             </AnimatePresence>
 
             {/* Toggle + close */}
-            <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 bg-[#111]/80 px-3 py-1.5 backdrop-blur-sm">
-              <button
-                onClick={() => setShowCompany(false)}
-                className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                  !showCompany ? 'bg-[#2ecc71] text-[#0a0a0a]' : 'text-white/40 hover:text-white'
-                }`}
-              >
-                <div className="h-3 w-3 rounded-full border border-current" />
-                Contact
-              </button>
-              <button
-                onClick={() => setShowCompany(true)}
-                className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                  showCompany ? 'bg-[#2ecc71] text-[#0a0a0a]' : 'text-white/40 hover:text-white'
-                }`}
-              >
-                <div className="h-3 w-3 border border-current" />
-                Company
-              </button>
-            </div>
+            {view !== 'note' && (
+              <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 bg-[#111]/80 px-3 py-1.5 backdrop-blur-sm">
+                <button
+                  onClick={() => setView('contact')}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                    !showCompany ? 'bg-[#2ecc71] text-[#0a0a0a]' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  <div className="h-3 w-3 rounded-full border border-current" />
+                  Contact
+                </button>
+                <button
+                  onClick={() => setView('company')}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                    showCompany ? 'bg-[#2ecc71] text-[#0a0a0a]' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  <div className="h-3 w-3 border border-current" />
+                  Company
+                </button>
+              </div>
+            )}
 
             {/* Close */}
             <button
