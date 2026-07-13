@@ -34,10 +34,10 @@ router.post("/webhooks/leads", async (req, res) => {
       })
       .returning();
 
-    res.status(201).json({ lead });
+    return res.status(201).json({ lead });
   } catch (err) {
     req.log?.error(err, "Failed to insert lead from webhook");
-    res.status(500).json({ error: "Failed to store lead." });
+    return res.status(500).json({ error: "Failed to store lead." });
   }
 });
 

@@ -316,7 +316,7 @@ export function Forms() {
         }
       }
 
-      addProposal({
+      const saved = addProposal({
         id: `proposal-${Date.now()}`,
         createdAt: new Date().toISOString(),
         eventDate: data.eventDate,
@@ -327,6 +327,12 @@ export function Forms() {
         grandTotal: fin.grand,
         pdfDataUrl,
       });
+
+      if (!saved) {
+        throw new Error(
+          'The PDF was generated but is too large to store in this browser — clear some space (e.g. delete older proposals) and try again.',
+        );
+      }
 
       clearQuoteLead();
       setStage('done');
