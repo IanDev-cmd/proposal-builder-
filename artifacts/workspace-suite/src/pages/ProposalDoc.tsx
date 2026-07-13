@@ -165,6 +165,30 @@ export function ProposalDoc() {
   // One card per PDF document (one proposal per lead) — never one card per page.
   const active = allFilesWithGenerated.find((f) => f.id === activeId) ?? null;
 
+  // Chrome's PDF viewer won't reliably render a data: URL inside an <iframe src>
+  // (it renders blank), but it renders a blob: object URL correctly. Convert once
+  // per opened document and revoke it when the modal closes / a different doc opens.
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!active || active.kind !== 'generated' || !active.pdfDataUrl) {
+      setPdfBlobUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    try {
+      const [, base64] = active.pdfDataUrl.split(',');
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      objectUrl = URL.createObjectURL(blob);
+      setPdfBlobUrl(objectUrl);
+    } catch {
+      setPdfBlobUrl(null);
+    }
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [active?.id]);
+
   const isNotesTab = railIndex === 4;
 
   const files = allFilesWithGenerated; // All / Pricing / Drafts / Signed currently reuse the same document set
@@ -418,11 +442,17 @@ export function ProposalDoc() {
               {/* Scrollable body — the actual document pages, not just a thumbnail */}
               <div className="flex-1 overflow-y-auto bg-black/5 px-6 py-6">
                 {active.kind === 'generated' && active.pdfDataUrl ? (
-                  <iframe
-                    src={active.pdfDataUrl}
-                    title={active.title}
-                    className="h-[1400px] w-full rounded-[8px] border-0 bg-white shadow"
-                  />
+                  pdfBlobUrl ? (
+                    <iframe
+                      src={pdfBlobUrl}
+                      title={active.title}
+                      className="h-[1400px] w-full rounded-[8px] border-0 bg-white shadow"
+                    />
+                  ) : (
+                    <div className="flex h-[300px] w-full flex-col items-center justify-center gap-2 rounded-[8px] bg-white text-center text-[12.5px] text-black/50 shadow">
+                      <p>Preview unavailable — download the PDF to view it.</p>
+                    </div>
+                  )
                 ) : active.kind === 'multipage' && active.pageNums?.length ? (
                   <div className="mx-auto flex max-w-[720px] flex-col gap-4">
                     {active.pageNums.map((n) => (
