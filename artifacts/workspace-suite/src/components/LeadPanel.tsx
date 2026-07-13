@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   X, Menu, Play, ChevronUp, ChevronDown, Mail, Phone, FileText, ArrowLeft, Send,
   Search, CircleDollarSign, Anchor, GitBranch, Clock, Tag as TagIcon,
-  Video, Calendar, Linkedin,
+  Video, Calendar, Linkedin, ReceiptText,
 } from 'lucide-react';
 import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type LeadNote } from '@/lib/leadNotes';
 import { soundClick } from '@/lib/sounds';
 import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
+import { setQuoteLead } from '@/lib/quoteLeadStore';
 
 const NOTE_ICONS: Record<NoteTag, typeof Search> = {
   research: Search,
@@ -492,6 +494,7 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
 
 /* ─── Main export: centered overlay ─── */
 export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () => void }) {
+  const [, navigate] = useLocation();
   const [view, setView] = useState<'contact' | 'company' | 'note'>('contact');
 
   useEffect(() => {
@@ -499,6 +502,24 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
   }, [lead?.id]);
 
   const showCompany = view === 'company';
+
+  function handleBuildQuote() {
+    if (!lead) return;
+    setQuoteLead({
+      id: lead.id,
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      designation: lead.designation,
+      company: lead.company,
+      referenceNumber: lead.referenceNumber,
+      initials: lead.initials,
+      color: lead.color,
+    });
+    soundClick();
+    onClose();
+    navigate('/quote-builder');
+  }
 
   return (
     <AnimatePresence>
@@ -582,6 +603,18 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
                   Company
                 </button>
               </div>
+            )}
+
+            {/* Build a Quote — large, brand-colored, always available regardless of view */}
+            {view !== 'note' && (
+              <button
+                onClick={handleBuildQuote}
+                title={`Start a quote for ${lead.name}`}
+                className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-[#FF5A45] px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-[#FF5A45]/40 transition-transform hover:scale-105 hover:bg-[#e64d38]"
+              >
+                <ReceiptText className="h-4 w-4" />
+                Build a Quote
+              </button>
             )}
 
             {/* Close */}

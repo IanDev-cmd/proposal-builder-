@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound } from 'lucide-react';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES, getStoredPreview } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
+import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 
 const QUOTE_WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/QuoteBuilder';
 
@@ -215,6 +216,9 @@ export function Forms() {
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  // The lead this quote is being built for, if any — handed off from the
+  // Lead panel's "Build a Quote" button via sessionStorage.
+  const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
 
   const set = (key: keyof FormData, val: unknown) =>
     setData((prev) => ({ ...prev, [key]: val }));
@@ -247,6 +251,19 @@ export function Forms() {
         grandTotal: fin.grand,
         upgradeTotal: fin.upgradeTotal,
       },
+      // Tag the webhook payload with whichever lead this quote was built
+      // for, so the automation can match it back to the CRM record.
+      lead: quoteLead
+        ? {
+            id: quoteLead.id,
+            name: quoteLead.name,
+            email: quoteLead.email,
+            phone: quoteLead.phone,
+            designation: quoteLead.designation,
+            company: quoteLead.company,
+            referenceNumber: quoteLead.referenceNumber,
+          }
+        : null,
     };
 
     await new Promise((r) => setTimeout(r, 500));
@@ -311,6 +328,7 @@ export function Forms() {
         pdfDataUrl,
       });
 
+      clearQuoteLead();
       setStage('done');
       setTimeout(() => navigate('/proposal-doc'), 1200);
     } catch (err) {
@@ -337,7 +355,31 @@ export function Forms() {
           <span className="text-[15px] font-bold tracking-tight text-[#101a15]">Nexus</span>
         </div>
 
-        <h1 className="mb-7 text-[24px] font-bold tracking-tight text-[#101a15]">Quote Builder</h1>
+        <h1 className="mb-4 text-[24px] font-bold tracking-tight text-[#101a15]">Quote Builder</h1>
+
+        {/* Lead tag — shows who this quote is being built for, when the
+            wizard was opened via a lead's "Build a Quote" button. */}
+        {quoteLead && (
+          <div className="mb-6 flex items-center gap-2.5 rounded-[10px] border border-[#FF5A45]/25 bg-white px-3 py-2.5 shadow-sm">
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              style={{ backgroundColor: quoteLead.color || '#FF5A45' }}
+            >
+              {quoteLead.initials || <UserRound className="h-3.5 w-3.5" />}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[#FF5A45]">
+                Quote for
+              </p>
+              <p className="truncate text-[12.5px] font-semibold text-[#101a15]" title={quoteLead.name}>
+                {quoteLead.name}
+              </p>
+              <p className="truncate text-[10.5px] text-[#8fa89a]" title={quoteLead.company}>
+                {quoteLead.company}
+              </p>
+            </div>
+          </div>
+        )}
 
         <nav className="flex flex-col gap-1">
           {STEPS.map(({ n, label }) => {
