@@ -1,0 +1,54 @@
+const raw = $json.body || $json;   // <-- unwrap n8n's webhook envelope
+const lead = raw.lead || {};
+const fin = raw.financials || {};
+
+const upgradeIdMap = {
+  "Live DJ": "live_dj", "Saxophonist": "saxophonist", "Karaoke": "karaoke",
+  "Photo Booth": "photo_booth", "Close-up Magician": "close_up_magician",
+  "Close up Magician": "close_up_magician", "Branded Vessel Flag": "branded_vessel_flag",
+  "Acoustic Artist": "acoustic_artist", "Jazz and Sax Duo": "jazz_sax_duo",
+  "Additional Hour on Board": "extra_hour", "Casino Table with Croupier": "casino_table",
+  "Social Media Highlight Reel": "social_highlight_reel", "Mingling Tour Guide": "mingling_guide",
+  "Bespoke Logo Bunting": "logo_bunting", "Unlimited Drinks (4 hrs)": "unlimited_drinks",
+  "Drink Tokens": "drink_tokens", "Street Food Upgrade": "street_food_upgrade",
+};
+
+function addIfPresent(obj, key, value) {
+  if (value !== undefined && value !== null && String(value).trim() !== "") {
+    obj[key] = String(value);
+  }
+}
+
+const leadOut = {
+  proposal_ref: lead.referenceNumber || ("WE." + Math.floor(1000 + Math.random() * 9000)),
+  quote_date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) + " | Quotation valid for 28 days",
+};
+addIfPresent(leadOut, "client_name", lead.name);
+addIfPresent(leadOut, "organisation", lead.company);
+addIfPresent(leadOut, "telephone", lead.phone);
+addIfPresent(leadOut, "email", lead.email);
+addIfPresent(leadOut, "event_type", raw.eventType);
+addIfPresent(leadOut, "event_date", raw.eventDate);
+if (raw.embarkation || raw.disembarkation) {
+  leadOut.event_timings = `${raw.embarkation || ""} - ${raw.disembarkation || ""}`;
+}
+addIfPresent(leadOut, "guest_range", raw.guestCount);
+addIfPresent(leadOut, "guest_quote_n", raw.guestCount);
+leadOut.contact_name = "Katherine Bulaon";
+leadOut.contact_title = "Client Relationship Manager";
+leadOut.contact_phone = "020 8323 5827";
+leadOut.contact_email = "sales@westendonthethames.com";
+
+return [{
+  json: {
+    lead: leadOut,
+    calculations: {
+      guests: Number(raw.guestCount) || 0,
+      package_cost: Number(fin.subtotal) || 0,
+      vat: Number(fin.vat) || 0,
+      grand_total: Number(fin.grandTotal) || 0,
+    },
+    selectedUpgrades: (raw.selectedUpgrades || []).map(u => upgradeIdMap[u]).filter(Boolean),
+    packageWording: {},
+  }
+}];

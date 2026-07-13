@@ -605,12 +605,12 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
               </div>
             )}
 
-            {/* Build a Quote — large, brand-colored, always available regardless of view */}
+            {/* Build a Quote — large, blue, square, centered at the top of the panel, always available regardless of view */}
             {view !== 'note' && (
               <button
                 onClick={handleBuildQuote}
                 title={`Start a quote for ${lead.name}`}
-                className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-[#FF5A45] px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-[#FF5A45]/40 transition-transform hover:scale-105 hover:bg-[#e64d38]"
+                className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-2 bg-blue-600 px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-blue-600/40 transition-transform hover:scale-105 hover:bg-blue-700"
               >
                 <ReceiptText className="h-4 w-4" />
                 Build a Quote
