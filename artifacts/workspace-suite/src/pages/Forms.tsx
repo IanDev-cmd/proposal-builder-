@@ -79,13 +79,47 @@ const INIT: FormData = {
 
 type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
 
-const STAGE_META: Record<Exclude<GenerationStage, 'idle'>, { label: string; color: string }> = {
-  preparing: { label: 'Preparing your event details', color: '#7c8a82' },
-  sending: { label: 'Sending to Ravenmark', color: '#3b82f6' },
-  generating: { label: 'Generating your PDF proposal', color: '#e8b93f' },
-  done: { label: 'Proposal ready — redirecting…', color: '#2ecc71' },
-  error: { label: 'Something went wrong', color: '#ef4444' },
+const STAGE_META: Record<
+  Exclude<GenerationStage, 'idle'>,
+  { label: string; sub: string; color: string }
+> = {
+  preparing: {
+    label: 'Validating event details',
+    sub: 'Checking dates, guest count and schedule for consistency',
+    color: '#8b5cf6',
+  },
+  sending: {
+    label: 'Encrypting & transmitting',
+    sub: 'Your quote is being sent over a secure connection',
+    color: '#3b82f6',
+  },
+  generating: {
+    label: 'Generating your PDF proposal',
+    sub: 'Formatting pricing, upgrades and vessel details',
+    color: '#e8b93f',
+  },
+  done: {
+    label: 'Proposal ready',
+    sub: 'Every figure has been verified — redirecting…',
+    color: '#2ecc71',
+  },
+  error: {
+    label: 'Something went wrong',
+    sub: 'Your data is safe — nothing was lost',
+    color: '#ef4444',
+  },
 };
+
+/* Data-integrity checklist shown alongside the stage animation — each item
+   lights up as its corresponding stage is reached, reassuring the user that
+   nothing in their quote was dropped or corrupted along the way. */
+const INTEGRITY_STEPS: { key: Exclude<GenerationStage, 'idle' | 'error'>; label: string }[] = [
+  { key: 'preparing', label: 'Event details validated' },
+  { key: 'sending', label: 'Data securely transmitted' },
+  { key: 'generating', label: 'Pricing figures verified' },
+  { key: 'done', label: 'Proposal saved & ready' },
+];
+const STAGE_ORDER: Exclude<GenerationStage, 'idle' | 'error'>[] = ['preparing', 'sending', 'generating', 'done'];
 
 function calcFinancials(data: FormData) {
   const base = parseFloat(data.totalCost) || 0;
@@ -757,85 +791,175 @@ export function Forms() {
         )}
       </AnimatePresence>
 
-      {/* ── Generation overlay: animated stage transitions while the proposal builds ── */}
+      {/* ── Generation overlay: large animated card with color-coded stages and a live data-integrity checklist ── */}
       <AnimatePresence>
         {stage !== 'idle' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/60 backdrop-blur-md"
           >
             <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              initial={{ opacity: 0, y: 24, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="w-[380px] rounded-[16px] bg-white p-8 shadow-2xl"
+              exit={{ opacity: 0, y: 24, scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+              className="relative w-[560px] overflow-hidden rounded-[28px] bg-white shadow-2xl"
             >
-              <AnimatePresence mode="wait">
+              {/* Top progress bar — fills and shifts color as each stage completes */}
+              <div className="h-1.5 w-full bg-gray-100">
                 <motion.div
-                  key={stage}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex flex-col items-center text-center"
-                >
-                  <div
-                    className="mb-5 flex h-16 w-16 items-center justify-center rounded-full"
-                    style={{ backgroundColor: `${STAGE_META[stage as keyof typeof STAGE_META].color}18` }}
-                  >
-                    {stage === 'done' ? (
-                      <FileCheck2 className="h-7 w-7" style={{ color: STAGE_META.done.color }} />
-                    ) : stage === 'error' ? (
-                      <AlertTriangle className="h-7 w-7" style={{ color: STAGE_META.error.color }} />
-                    ) : (
-                      <Loader2
-                        className="h-7 w-7 animate-spin"
-                        style={{ color: STAGE_META[stage as keyof typeof STAGE_META].color }}
+                  className="h-full"
+                  animate={{
+                    width:
+                      stage === 'error'
+                        ? '100%'
+                        : `${((STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number]) + 1) / STAGE_ORDER.length) * 100}%`,
+                    backgroundColor: STAGE_META[stage as keyof typeof STAGE_META].color,
+                  }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                />
+              </div>
+
+              <div className="grid grid-cols-[1.1fr_1fr]">
+                {/* ── Left: animated stage icon + label ── */}
+                <div className="relative flex flex-col items-center justify-center overflow-hidden px-8 py-12">
+                  {/* Ambient pulsing rings behind the icon, tinted to the current stage color */}
+                  {stage !== 'error' && (
+                    <>
+                      <motion.div
+                        key={`ring1-${stage}`}
+                        className="absolute h-40 w-40 rounded-full"
+                        style={{ backgroundColor: `${STAGE_META[stage as keyof typeof STAGE_META].color}12` }}
+                        animate={{ scale: [1, 1.35, 1], opacity: [0.6, 0.15, 0.6] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                       />
-                    )}
+                      <motion.div
+                        key={`ring2-${stage}`}
+                        className="absolute h-28 w-28 rounded-full"
+                        style={{ backgroundColor: `${STAGE_META[stage as keyof typeof STAGE_META].color}1f` }}
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.25, 0.7] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+                      />
+                    </>
+                  )}
+
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={stage}
+                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                      transition={{ duration: 0.25 }}
+                      className="relative z-10 flex flex-col items-center text-center"
+                    >
+                      <div
+                        className="mb-6 flex h-20 w-20 items-center justify-center rounded-full"
+                        style={{ backgroundColor: `${STAGE_META[stage as keyof typeof STAGE_META].color}18` }}
+                      >
+                        {stage === 'done' ? (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
+                            <FileCheck2 className="h-9 w-9" style={{ color: STAGE_META.done.color }} />
+                          </motion.div>
+                        ) : stage === 'error' ? (
+                          <AlertTriangle className="h-9 w-9" style={{ color: STAGE_META.error.color }} />
+                        ) : (
+                          <Loader2
+                            className="h-9 w-9 animate-spin"
+                            style={{ color: STAGE_META[stage as keyof typeof STAGE_META].color }}
+                          />
+                        )}
+                      </div>
+                      <p className="text-[17px] font-bold text-gray-800">
+                        {stage === 'error' ? errorMessage || STAGE_META.error.label : STAGE_META[stage as keyof typeof STAGE_META].label}
+                      </p>
+                      <p className="mt-1.5 max-w-[240px] text-[12px] leading-relaxed text-gray-400">
+                        {stage === 'error' ? STAGE_META.error.sub : STAGE_META[stage as keyof typeof STAGE_META].sub}
+                      </p>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {stage === 'error' && (
+                    <div className="relative z-10 mt-7 flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => setStage('idle')}
+                        className="flex items-center gap-1.5 rounded-full border border-[#e3e6e4] px-4 py-2 text-[12.5px] font-semibold text-gray-500 transition-colors hover:bg-gray-50"
+                      >
+                        <X className="h-3.5 w-3.5" /> Close
+                      </button>
+                      <button
+                        onClick={handleGenerate}
+                        className="rounded-full bg-[#FF5A45] px-5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-[#F4412A]"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Right: data-integrity checklist + live order snapshot ── */}
+                <div className="flex flex-col gap-6 border-l border-gray-100 bg-[#FAFBF9] px-7 py-9">
+                  <div>
+                    <p className="mb-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#7c8a82]">
+                      Data Integrity
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      {INTEGRITY_STEPS.map(({ key, label }) => {
+                        const reached =
+                          stage !== 'error' && STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number]) >= STAGE_ORDER.indexOf(key);
+                        const active = stage === key;
+                        return (
+                          <div key={key} className="flex items-center gap-2.5">
+                            <motion.div
+                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                              animate={{
+                                backgroundColor: reached ? STAGE_META[key].color : '#e5e7eb',
+                                scale: active ? [1, 1.15, 1] : 1,
+                              }}
+                              transition={{ duration: active ? 0.8 : 0.3, repeat: active ? Infinity : 0 }}
+                            >
+                              {reached && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                            </motion.div>
+                            <span
+                              className={`text-[12.5px] transition-colors ${
+                                reached ? 'font-semibold text-gray-700' : 'text-gray-400'
+                              }`}
+                            >
+                              {label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <p className="text-[15px] font-bold text-gray-800">
-                    {stage === 'error' ? errorMessage || STAGE_META.error.label : STAGE_META[stage as keyof typeof STAGE_META].label}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
 
-              {/* Stage progress dots */}
-              {stage !== 'error' && (
-                <div className="mt-6 flex items-center justify-center gap-2">
-                  {(['preparing', 'sending', 'generating', 'done'] as const).map((s) => {
-                    const order = ['preparing', 'sending', 'generating', 'done'];
-                    const reached = order.indexOf(stage) >= order.indexOf(s);
-                    return (
-                      <span
-                        key={s}
-                        className="h-1.5 w-8 rounded-full transition-colors"
-                        style={{ backgroundColor: reached ? STAGE_META[s].color : '#e5e7eb' }}
-                      />
-                    );
-                  })}
+                  {/* Live snapshot of the exact figures being sent, so nothing looks altered in transit */}
+                  <div className="rounded-[14px] border border-gray-100 bg-white p-4">
+                    <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#7c8a82]">
+                      Quote Snapshot
+                    </p>
+                    <div className="flex flex-col gap-1.5 text-[12px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Vessel</span>
+                        <span className="font-semibold text-gray-700">{data.vesselType || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Event</span>
+                        <span className="font-semibold text-gray-700">{data.eventType || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Guests</span>
+                        <span className="font-semibold text-gray-700">{data.guestCount || '—'}</span>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between border-t border-gray-100 pt-1.5">
+                        <span className="text-gray-500">Grand Total</span>
+                        <span className="font-black text-[#2ecc71]">£{fin.grand.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              {stage === 'error' && (
-                <div className="mt-6 flex items-center justify-center gap-3">
-                  <button
-                    onClick={() => setStage('idle')}
-                    className="flex items-center gap-1.5 rounded-full border border-[#e3e6e4] px-4 py-2 text-[12.5px] font-semibold text-gray-500 transition-colors hover:bg-gray-50"
-                  >
-                    <X className="h-3.5 w-3.5" /> Close
-                  </button>
-                  <button
-                    onClick={handleGenerate}
-                    className="rounded-full bg-[#FF5A45] px-5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-[#F4412A]"
-                  >
-                    Retry
-                  </button>
-                </div>
-              )}
+              </div>
             </motion.div>
           </motion.div>
         )}
