@@ -18,6 +18,10 @@ export type QuoteLead = {
   referenceNumber: string;
   initials: string;
   color: string;
+  // Raw "Source" tag from the n8n lead fetch (e.g. "Repeat Client 1, 2",
+  // "Build your event form 1-3") — parsed in the Quote Builder to prefill
+  // the Source picker and the Repeat Client toggle.
+  source?: string;
 };
 
 export function setQuoteLead(lead: QuoteLead): void {

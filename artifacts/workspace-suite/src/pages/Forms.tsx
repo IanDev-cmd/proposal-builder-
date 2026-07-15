@@ -56,6 +56,24 @@ type FormData = {
   selectedUpgrades: string[];
 };
 
+/**
+ * The n8n lead fetch's "Source" column is a free-text tag like
+ * "Repeat Client 1, 2" or "Build your event form 1-3" — the trailing
+ * numbers are spreadsheet artifacts, not part of the tag. Match it against
+ * the known SOURCE_TYPES so the Quote Builder's Source picker can be
+ * prefilled, and separately flag "Repeat Client" so the toggle can be too.
+ */
+function matchSourceType(rawSource?: string): string {
+  if (!rawSource) return '';
+  const found = SOURCE_TYPES.find((type) => rawSource.toLowerCase().startsWith(type.toLowerCase()));
+  return found ?? '';
+}
+
+function isRepeatClientSource(rawSource?: string): boolean {
+  if (!rawSource) return false;
+  return rawSource.toLowerCase().includes('repeat client');
+}
+
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -245,7 +263,14 @@ const STEPS = [
 export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
-  const [data, setData] = useState<FormData>(INIT);
+  const [data, setData] = useState<FormData>(() => {
+    const lead = getQuoteLead();
+    return {
+      ...INIT,
+      source: matchSourceType(lead?.source),
+      repeatClient: isRepeatClientSource(lead?.source),
+    };
+  });
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');

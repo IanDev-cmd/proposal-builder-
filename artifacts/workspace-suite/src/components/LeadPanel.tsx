@@ -458,6 +458,7 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
       referenceNumber: lead.referenceNumber,
       initials: lead.initials,
       color: lead.color,
+      source: lead.source,
     });
     soundClick();
     onClose();
