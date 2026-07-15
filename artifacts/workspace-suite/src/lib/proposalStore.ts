@@ -18,6 +18,11 @@ export type GeneratedProposal = {
   guestCount: string;
   grandTotal: number;
   pdfDataUrl: string; // data:application/pdf;base64,...
+  // Whoever this quote was built for, if it was opened via a lead's "Build a
+  // Quote" button — lets the Proposal Doc page share the PDF straight to the
+  // exact lead's inbox instead of a blank compose window.
+  leadName?: string;
+  leadEmail?: string;
 };
 
 const DB_NAME = 'nexus-proposals';
@@ -123,4 +128,22 @@ export async function addProposal(proposal: GeneratedProposal): Promise<boolean>
 export function subscribeProposals(cb: () => void): () => void {
   window.addEventListener(PROPOSALS_EVENT, cb);
   return () => window.removeEventListener(PROPOSALS_EVENT, cb);
+}
+
+/** Removes a generated proposal permanently. Used by the Proposal Doc page's Delete action. */
+export async function deleteProposal(id: string): Promise<boolean> {
+  try {
+    const db = await openDb();
+    await ensureMigrated(db);
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('Failed to delete proposal'));
+    });
+    window.dispatchEvent(new Event(PROPOSALS_EVENT));
+    return true;
+  } catch {
+    return false;
+  }
 }

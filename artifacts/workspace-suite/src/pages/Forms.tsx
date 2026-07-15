@@ -360,6 +360,8 @@ export function Forms() {
         guestCount: data.guestCount,
         grandTotal: fin.grand,
         pdfDataUrl,
+        leadName: quoteLead?.name,
+        leadEmail: quoteLead?.email,
       });
 
       if (!saved) {
