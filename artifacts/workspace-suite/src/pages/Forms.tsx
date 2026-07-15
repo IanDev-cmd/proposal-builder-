@@ -86,7 +86,7 @@ function calcBaseCostBreakdown(data: FormData) {
   const fixedOps = FIXED_OPS_COST;
 
   let cateringInclusions = 0;
-  if (data.menuType === 'Summer Barbecue') cateringInclusions += FRUIT_SKEWER_PER_HEAD * guests;
+  if (data.menuType.includes('Summer Barbecue')) cateringInclusions += FRUIT_SKEWER_PER_HEAD * guests;
   if (data.eventType === 'Summer Event') cateringInclusions += PIMMS_PROSECCO_PER_HEAD * guests;
 
   const upgradesTotal = UPGRADES.filter((u) => data.selectedUpgrades.includes(u.label)).reduce(
@@ -99,7 +99,7 @@ function calcBaseCostBreakdown(data: FormData) {
 }
 
 type FormData = {
-  vesselType: string;
+  vesselType: string[];
   eventType: string;
   source: string;
   eventDate: string;
@@ -108,7 +108,7 @@ type FormData = {
   departure: string;
   returnTime: string;
   disembarkation: string;
-  menuType: string;
+  menuType: string[];
   repeatClient: boolean;
   totalCost: string;
   selectedUpgrades: string[];
@@ -138,7 +138,7 @@ function todayIso() {
 }
 
 const INIT: FormData = {
-  vesselType: '',
+  vesselType: [],
   eventType: '',
   source: '',
   eventDate: todayIso(),
@@ -147,7 +147,7 @@ const INIT: FormData = {
   departure: '12:00',
   returnTime: '17:00',
   disembarkation: '18:00',
-  menuType: '',
+  menuType: [],
   repeatClient: false,
   totalCost: '',
   selectedUpgrades: [],
@@ -177,7 +177,7 @@ const STAGE_META: Record<
   done: {
     label: 'Proposal ready',
     sub: 'Every figure has been verified — redirecting…',
-    color: '#2ecc71',
+    color: '#00e676',
   },
   error: {
     label: 'Something went wrong',
@@ -223,6 +223,108 @@ const inputCls =
   'w-full rounded-[10px] border border-[#e3e6e4] bg-white px-4 py-3.5 text-[13.5px] text-gray-800 placeholder-gray-400 outline-none focus:border-[#FF5A45] focus:ring-4 focus:ring-[#FF5A45]/12 transition-all appearance-none';
 const sectionLabelCls = 'mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#7c8a82]';
 const fieldLabelCls = 'mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-gray-700';
+
+/* ─── Custom Multi-Select (checkbox pill dropdown) ─── */
+function FormMultiSelect({
+  label,
+  field,
+  options,
+  value,
+  onChange,
+  onPreview,
+  helper,
+}: {
+  label: string;
+  field: string;
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  onPreview?: (field: string, option: string | null) => void;
+  helper?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  const toggle = (opt: string) =>
+    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative"
+      onMouseEnter={() => onPreview?.(field, value[0] || null)}
+      onMouseLeave={() => onPreview?.(field, null)}
+    >
+      <label className={fieldLabelCls}>
+        {label}
+        {helper && (
+          <span title={helper} className="text-[#7c8a82]">
+            <HelpCircle className="h-3.5 w-3.5" />
+          </span>
+        )}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`${inputCls} flex items-center justify-between`}
+      >
+        <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>
+          {value.length ? value.join(', ') : `Select ${label}`}
+        </span>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="h-4 w-4 text-gray-400" />
+        </motion.div>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[260px] overflow-y-auto rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
+          >
+            {options.map((opt) => {
+              const checked = value.includes(opt);
+              return (
+                <motion.li
+                  key={opt}
+                  whileHover={{ backgroundColor: '#f0fdf5' }}
+                  onMouseEnter={() => onPreview?.(field, opt)}
+                  onClick={() => toggle(opt)}
+                  className="flex cursor-pointer items-center justify-between px-4 py-3 text-[13px] text-gray-700 transition-colors"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-4 w-4 items-center justify-center rounded-[5px] border transition-colors ${
+                        checked ? 'border-[#FF5A45] bg-[#FF5A45]' : 'border-[#d0d0d0]'
+                      }`}
+                    >
+                      {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                    </span>
+                    {opt}
+                  </span>
+                </motion.li>
+              );
+            })}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 /* ─── Custom Select (DNB pill dropdown) ─── */
 function FormSelect({
@@ -469,8 +571,8 @@ export function Forms() {
         id: `proposal-${Date.now()}`,
         createdAt: new Date().toISOString(),
         eventDate: data.eventDate,
-        title: `${data.eventType || 'Event'} Proposal — ${data.vesselType || 'Vessel TBC'}`,
-        vesselType: data.vesselType,
+        title: `${data.eventType || 'Event'} Proposal — ${data.vesselType.join(', ') || 'Vessel TBC'}`,
+        vesselType: data.vesselType.join(', '),
         eventType: data.eventType,
         guestCount: data.guestCount,
         grandTotal: fin.grand,
@@ -600,7 +702,7 @@ export function Forms() {
 
                 <p className={sectionLabelCls}>Vessel &amp; Event Type</p>
                 <div className="mb-7 grid grid-cols-2 gap-5">
-                  <FormSelect
+                  <FormMultiSelect
                     label="Vessel Type"
                     field="vesselType"
                     options={VESSEL_TYPES}
@@ -695,7 +797,7 @@ export function Forms() {
               <motion.div key="step3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
                 <p className={sectionLabelCls}>Catering</p>
 
-                <FormSelect
+                <FormMultiSelect
                   label="Menu Type"
                   field="menuType"
                   options={MENU_TYPES}
@@ -704,7 +806,7 @@ export function Forms() {
                   onPreview={handlePreview}
                 />
 
-                {data.menuType && (
+                {data.menuType.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -772,7 +874,7 @@ export function Forms() {
                         </span>
                       )}
                     </span>
-                    <span className="font-semibold text-blue-600">£{baseCostBreakdown.vesselHire.toFixed(2)}</span>
+                    <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{baseCostBreakdown.vesselHire.toFixed(2)}</span>
                   </div>
                   {[
                     ['Menu Cost', baseCostBreakdown.menuCost],
@@ -786,12 +888,12 @@ export function Forms() {
                   ].map(([label, val]) => (
                     <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>{label}</span>
-                      <span className="font-semibold text-blue-600">£{(val as number).toFixed(2)}</span>
+                      <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{(val as number).toFixed(2)}</span>
                     </div>
                   ))}
                   <div className="flex items-center justify-between bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                     <span>Base Cost (formula total)</span>
-                    <span className="text-[14px] font-black text-green-600">£{baseCostBreakdown.total.toFixed(2)}</span>
+                    <span className="text-[14px] font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{baseCostBreakdown.total.toFixed(2)}</span>
                   </div>
                 </div>
                 <p className="mb-4 -mt-2 text-[11px] text-gray-400">
@@ -803,7 +905,7 @@ export function Forms() {
                   <div className="mb-1.5 flex items-center justify-between">
                     <label className={fieldLabelCls}>Base Cost (£)</label>
                     {baseCostAuto ? (
-                      <span className="rounded-full bg-[#f0fdf5] px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-green-600">
+                      <span className="rounded-full bg-[#f0fdf5] px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">
                         Auto-filled
                       </span>
                     ) : (
@@ -825,7 +927,7 @@ export function Forms() {
                       set('totalCost', e.target.value);
                     }}
                     placeholder="Enter base event cost"
-                    className={`${inputCls} font-semibold text-green-600`}
+                    className={`${inputCls} font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]`}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
                     Prefilled from the formula above — edit it directly to override.
@@ -836,7 +938,7 @@ export function Forms() {
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                       <span>Base Cost</span>
-                      <span className="font-black text-green-600">£{fin.baseCost.toFixed(2)}</span>
+                      <span className="font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.baseCost.toFixed(2)}</span>
                     </div>
                     {[
                       ['Contingency (2.25%)', fin.contingency],
@@ -844,20 +946,20 @@ export function Forms() {
                     ].map(([label, val]) => (
                       <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                         <span>{label}</span>
-                        <span className="font-semibold text-blue-600">£{(val as number).toFixed(2)}</span>
+                        <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{(val as number).toFixed(2)}</span>
                       </div>
                     ))}
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                       <span>Cost to Client</span>
-                      <span className="font-black text-green-600">£{fin.costToClient.toFixed(2)}</span>
+                      <span className="font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.costToClient.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>VAT (20%)</span>
-                      <span className="font-semibold text-blue-600">£{fin.vat.toFixed(2)}</span>
+                      <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.vat.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between bg-[#FF5A45] px-5 py-4 text-[14px] font-black text-white">
                       <span>Grand Total</span>
-                      <span>£{fin.grand.toFixed(2)}</span>
+                      <span className="text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.grand.toFixed(2)}</span>
                     </div>
                   </motion.div>
                 )}
@@ -906,7 +1008,7 @@ export function Forms() {
                             <span className="text-[10.5px] text-gray-400">(£{price}/guest)</span>
                           )}
                         </div>
-                        <span className={`text-[13px] font-bold ${selected ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <span className={`text-[13px] font-bold ${selected ? 'text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]' : 'text-gray-400'}`}>
                           £{lineTotal.toLocaleString()}
                         </span>
                       </motion.button>
@@ -923,7 +1025,7 @@ export function Forms() {
                     <span className="text-[12px] font-semibold text-[#E22A12]">
                       {data.selectedUpgrades.length} upgrade{data.selectedUpgrades.length > 1 ? 's' : ''} selected
                     </span>
-                    <span className="text-[14px] font-black text-green-600">
+                    <span className="text-[14px] font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">
                       +£{baseCostBreakdown.upgradesTotal.toLocaleString()}
                     </span>
                   </motion.div>
@@ -1134,7 +1236,7 @@ export function Forms() {
                     <div className="flex flex-col gap-1.5 text-[12px]">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Vessel</span>
-                        <span className="font-semibold text-gray-700">{data.vesselType || '—'}</span>
+                        <span className="font-semibold text-gray-700">{data.vesselType.join(', ') || '—'}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Event</span>
@@ -1146,11 +1248,11 @@ export function Forms() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Base Cost</span>
-                        <span className="font-semibold text-green-600">£{fin.baseCost.toFixed(2)}</span>
+                        <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.baseCost.toFixed(2)}</span>
                       </div>
                       <div className="mt-1.5 flex items-center justify-between border-t border-gray-100 pt-1.5">
                         <span className="text-gray-500">Grand Total</span>
-                        <span className="font-black text-[#2ecc71]">£{fin.grand.toFixed(2)}</span>
+                        <span className="font-black text-[#00e676]">£{fin.grand.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
