@@ -45,18 +45,6 @@ function proposalToFile(p: GeneratedProposal): ProposalFile {
   };
 }
 
-/* ─── Real content: the full 18-page proposal document, as a single "file" (one card = one proposal, not one card per page) ─── */
-const DEMO_DOC: ProposalFile = {
-  id: 'demo-doc',
-  title: 'Catering Services Proposal',
-  kind: 'multipage',
-  pageNums: Array.from({ length: 18 }, (_, i) => i + 1),
-  sizeLabel: '42 MB',
-  description: 'Full 18-page proposal document — cover, company info, vessel & catering details, pricing, and booking procedure.',
-};
-
-const ALL_FILES: ProposalFile[] = [DEMO_DOC];
-
 /* ─── Left icon rail (mirrors the previous top tabs) ─── */
 const RAIL_ITEMS = [
   { icon: Grid2x2,           label: 'All Files' },
@@ -183,7 +171,7 @@ export function ProposalDoc() {
   }, [generated]);
 
   const generatedFiles = generated.map(proposalToFile);
-  const allFilesWithGenerated: ProposalFile[] = [...generatedFiles, ...ALL_FILES];
+  const allFilesWithGenerated: ProposalFile[] = generatedFiles;
 
   // One card per PDF document (one proposal per lead) — never one card per page.
   const active = allFilesWithGenerated.find((f) => f.id === activeId) ?? null;
@@ -342,8 +330,12 @@ export function ProposalDoc() {
         {/* Top header */}
         <div className="flex items-center justify-between border-b border-black/8 px-8 py-3.5">
           <div>
-            <h1 className="text-[22px] font-bold text-black">Catering Services Proposal</h1>
-            <p className="mt-0.5 text-[11.5px] text-black/35">Proposals · Hospitality Sector · WE.9055</p>
+            <h1 className="text-[22px] font-bold text-black">Proposals</h1>
+            <p className="mt-0.5 text-[11.5px] text-black/35">
+              {generatedFiles.length
+                ? `${generatedFiles.length} generated proposal${generatedFiles.length === 1 ? '' : 's'}`
+                : 'Generated proposals appear here after Quote Builder'}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-black transition-colors">
