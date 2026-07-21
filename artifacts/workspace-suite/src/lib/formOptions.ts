@@ -36,7 +36,20 @@ export const EVENT_TYPES = [
   'Client & Prospects Networking Cruise',
 ];
 
-export const MENU_TYPES = ['Summer Barbecue', 'Street Food', 'Canapés', '2-Course Seated Dinner'];
+export const MENU_TYPES = [
+  'Summer Barbecue',
+  'Barbecue',
+  'Street Food',
+  'Canapés',
+  'Substantial Canapes',
+  'Bowl Food',
+  'Charcuterie Cups',
+  'Light Bites',
+  '2-Course Seated Dinner',
+  'Hot Fork Buffet',
+  'Burger Station',
+  'Traditional Pie Station',
+];
 
 /* ─── Photo storage keyed per individual option (e.g. "vesselType::WEOTT I (Rose)") ─── */
 export type PhotoMap = Record<string, string>;

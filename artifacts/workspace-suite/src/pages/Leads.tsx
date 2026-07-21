@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { soundClick, soundOpen, soundClose, soundTab, soundRefresh } from '@/lib/sounds';
 import { Search, Bell, ChevronDown, MoreVertical, Plus, X, RefreshCw, AlertCircle } from 'lucide-react';
@@ -6,22 +6,36 @@ import { LeadPanel, type Lead } from '@/components/LeadPanel';
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
 import { personAvatarUrl } from '@/lib/avatar';
+import {
+  getSheetsMode,
+  subscribeSheetsMode,
+  type SheetsMode,
+} from '@/lib/sheetsSync';
+import {
+  readLeadsCache,
+  writeLeadsCache,
+  LEADS_REFRESH_MS,
+} from '@/lib/leadCache';
 
-// ── Webhook ──────────────────────────────────────────────────────────────────
-const WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/LeadDataFetch';
+const WEBHOOK_URL = 'https://meeraworkflows.app.n8n.cloud/webhook/LeadDataFetch';
 
-interface RawLead {
-  row_number: number;
-  'Live/Dead/Blacklisted/Booked': string;
-  'Enquiry Date': string;
-  Name: string;
-  'Main Contact - Job Role': string;
-  'Company Name': string;
-  'Company Sector (If Applicable)': string;
-  'Main Contact - Email': string;
-  'Main Contact - Number': string;
-  'Client Reference Number': string;
-  Source: string;
+/** Accept both sheet-column RawLead and n8n aliased shapes. */
+type AnyLeadRow = Record<string, unknown>;
+
+function pick(row: AnyLeadRow, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = row[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
+  }
+  // prefix / fuzzy for long sheet headers
+  const lowerKeys = keys.map((k) => k.toLowerCase());
+  for (const [rk, rv] of Object.entries(row)) {
+    const n = rk.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (lowerKeys.some((k) => n === k || n.startsWith(k))) {
+      if (rv !== undefined && rv !== null && String(rv).trim() !== '') return String(rv);
+    }
+  }
+  return '';
 }
 
 function toInitials(name: string): string {
@@ -33,86 +47,160 @@ function toInitials(name: string): string {
     .join('');
 }
 
-function mapRaw(raw: RawLead, index: number): Lead {
+function mapRaw(raw: AnyLeadRow, index: number): Lead {
+  const name = pick(raw, 'name', 'Name') || '—';
+  const email = pick(raw, 'email', 'Main Contact - Email') || '—';
+  const ref = pick(raw, 'referenceNumber', 'Client Reference Number', 'code') || `#${index + 1}`;
+  const designation = pick(raw, 'jobRole', 'designation', 'Main Contact - Job Role') || '—';
+  const phone = pick(raw, 'phone', 'Main Contact - Number') || '—';
+  const joined = pick(raw, 'enquiryDate', 'Enquiry Date', 'joined') || '—';
+  const sector = pick(raw, 'companySector', 'sector', 'Company Sector') || '—';
+  const source = pick(raw, 'source', 'Source') || '—';
+  const company = pick(raw, 'companyName', 'company', 'Company Name') || '—';
+  const status = pick(raw, 'status', 'Live/Dead/Blacklisted/Booked', 'Live/Dead').toLowerCase().trim();
+  const idRaw = raw.id ?? raw.row_number ?? index + 1;
+  const id = typeof idRaw === 'number' ? idRaw : Number(idRaw) || index + 1;
+
   return {
-    id: raw.row_number ?? index + 1,
-    name: raw['Name'] ?? '—',
-    email: raw['Main Contact - Email'] ?? '—',
-    code: raw['Client Reference Number'] ?? `#${index + 1}`,
-    designation: raw['Main Contact - Job Role'] ?? '—',
-    phone: raw['Main Contact - Number'] ?? '—',
-    joined: raw['Enquiry Date'] ?? '—',
+    id,
+    name,
+    email,
+    code: ref,
+    designation,
+    phone,
+    joined,
     color: '#FF5A45',
-    initials: toInitials(raw['Name'] ?? '?'),
-    sector: raw['Company Sector (If Applicable)'] ?? '—',
-    referenceNumber: raw['Client Reference Number'] ?? '—',
-    source: raw['Source'] ?? '—',
-    company: raw['Company Name'] ?? '—',
-    status: (raw['Live/Dead/Blacklisted/Booked'] ?? '').toLowerCase().trim(),
+    initials: toInitials(name === '—' ? '?' : name),
+    sector,
+    referenceNumber: ref,
+    source,
+    company,
+    status,
   };
 }
 
-async function fetchLeads(): Promise<Lead[]> {
+async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
   const res = await fetch(WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ mode }),
   });
   if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
   const data = await res.json();
-  const rows: RawLead[] = Array.isArray(data?.leads) ? data.leads : [];
+  const rows: AnyLeadRow[] = Array.isArray(data?.leads) ? data.leads : [];
   return rows.map(mapRaw);
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 const TABS = ['Live', 'Booked', 'Dead', 'Blacklisted'] as const;
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export function Leads() {
   const { setActiveLead } = useActiveLead();
   const [activeTab, setActiveTab] = useState(0);
-  const [leads, setLeads]         = useState<Lead[]>([]);
-  const [status, setStatus]       = useState<'loading' | 'ok' | 'error'>('loading');
+  const [mode, setMode] = useState<SheetsMode>(() => getSheetsMode());
+  const [leads, setLeads] = useState<Lead[]>(() => readLeadsCache(getSheetsMode())?.leads ?? []);
+  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>(() =>
+    readLeadsCache(getSheetsMode())?.leads?.length ? 'ok' : 'loading',
+  );
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(
+    () => readLeadsCache(getSheetsMode())?.fetchedAt ?? null,
+  );
   const [panelLead, setPanelLead] = useState<Lead | null>(null);
-  const [query, setQuery]         = useState('');
-  const searchRef                 = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const inflight = useRef<AbortController | null>(null);
+  const hasRowsRef = useRef(leads.length > 0);
+  hasRowsRef.current = leads.length > 0;
 
-  const load = async () => {
-    setStatus('loading');
-    try {
-      const data = await fetchLeads();
-      setLeads(data);
+  const applyCacheForMode = useCallback((nextMode: SheetsMode) => {
+    const cached = readLeadsCache(nextMode);
+    if (cached?.leads?.length) {
+      setLeads(cached.leads);
+      setLastSyncedAt(cached.fetchedAt);
       setStatus('ok');
-    } catch {
-      setStatus('error');
+      return true;
     }
-  };
+    setLeads([]);
+    setLastSyncedAt(null);
+    setStatus('loading');
+    return false;
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  const refresh = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    const currentMode = getSheetsMode();
 
-  // ── Tab filtering — filter by status ──
+    inflight.current?.abort();
+    const ac = new AbortController();
+    inflight.current = ac;
+
+    if (!silent && !hasRowsRef.current) setStatus('loading');
+    else setSyncing(true);
+
+    try {
+      const data = await fetchLeadsFromWebhook(currentMode);
+      if (ac.signal.aborted) return;
+      setLeads(data);
+      writeLeadsCache(data, currentMode);
+      setLastSyncedAt(Date.now());
+      setStatus('ok');
+    } catch (err) {
+      if (ac.signal.aborted) return;
+      if (!hasRowsRef.current && !readLeadsCache(currentMode)?.leads?.length) {
+        setStatus('error');
+      }
+      console.warn('[leads] refresh failed', err);
+    } finally {
+      if (!ac.signal.aborted) setSyncing(false);
+    }
+  }, []);
+
+  // Initial: paint from cache, then network
+  useEffect(() => {
+    applyCacheForMode(getSheetsMode());
+    void refresh({ silent: Boolean(readLeadsCache(getSheetsMode())?.leads?.length) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Regular background fetch
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void refresh({ silent: true });
+    }, LEADS_REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [refresh]);
+
+  // Re-cache when Demo/Live flips
+  useEffect(() => {
+    return subscribeSheetsMode((next) => {
+      setMode(next);
+      applyCacheForMode(next);
+      void refresh({ silent: Boolean(readLeadsCache(next)?.leads?.length) });
+    });
+  }, [applyCacheForMode, refresh]);
+
   const tabKey = TABS[activeTab].toLowerCase();
   const tabFiltered: Lead[] = leads.filter((l) => {
     const s = (l.status ?? '').toLowerCase();
-    return s === tabKey;
+    return s === tabKey || s.startsWith(tabKey);
   });
 
-  // ── Search filtering ──
   const visible = query.trim()
     ? tabFiltered.filter((l) =>
-        [l.name, l.email, l.code, l.designation, l.company, l.sector, l.source]
-          .some((v) => v.toLowerCase().includes(query.toLowerCase())),
+        [l.name, l.email, l.code, l.designation, l.company, l.sector, l.source].some((v) =>
+          v.toLowerCase().includes(query.toLowerCase()),
+        ),
       )
     : tabFiltered;
+
+  const syncedLabel = lastSyncedAt
+    ? `Synced ${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : null;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-white">
       <div className="flex flex-1 flex-col overflow-hidden">
-
-        {/* ── Combined header bar ── */}
         <div className="flex items-center gap-3 border-b border-black/8 bg-white px-8 py-3 shrink-0">
-
-          {/* Search */}
           <div className="flex items-center gap-2 border border-black/12 px-3 py-2 w-[200px] shrink-0 focus-within:border-[#FF5A45] transition-colors">
             <Search className="h-[14px] w-[14px] shrink-0 text-black/30" />
             <input
@@ -123,13 +211,18 @@ export function Leads() {
               className="w-full bg-transparent text-[13px] text-black/70 placeholder-black/30 outline-none"
             />
             {query && (
-              <button onClick={() => { setQuery(''); soundClick(); }} className="text-black/25 hover:text-black/50 transition-colors">
+              <button
+                onClick={() => {
+                  setQuery('');
+                  soundClick();
+                }}
+                className="text-black/25 hover:text-black/50 transition-colors"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Title + count */}
           <h1 className="text-[19px] font-bold text-black tracking-tight whitespace-nowrap">
             Leads Database
             {status === 'ok' && leads.length > 0 && (
@@ -137,17 +230,25 @@ export function Leads() {
             )}
           </h1>
 
+          {(syncing || syncedLabel) && (
+            <span className="hidden text-[11px] text-black/30 sm:inline">
+              {syncing ? `Updating ${mode}…` : syncedLabel}
+            </span>
+          )}
+
           <div className="flex-1" />
 
-          {/* Right-side controls */}
           <div className="flex items-center gap-3 shrink-0">
             <button
-              onClick={() => { load(); soundRefresh(); }}
-              disabled={status === 'loading'}
+              onClick={() => {
+                void refresh({ silent: false });
+                soundRefresh();
+              }}
+              disabled={syncing && status === 'loading'}
               className="flex items-center justify-center h-8 w-8 border border-black/10 text-black/35 hover:border-[#FF5A45] hover:text-[#FF5A45] disabled:opacity-40 transition-colors"
-              title="Refresh"
+              title="Refresh from Sheets"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
             </button>
 
             <motion.button
@@ -180,23 +281,27 @@ export function Leads() {
           </div>
         </div>
 
-        {/* ── Tabs ── */}
         <div className="flex border-b border-black/8 bg-white px-8 shrink-0">
           {TABS.map((tab, i) => {
-            const count = leads.filter(l => (l.status ?? '').toLowerCase() === tab.toLowerCase()).length;
+            const count = leads.filter((l) => (l.status ?? '').toLowerCase().startsWith(tab.toLowerCase())).length;
             return (
               <button
                 key={tab}
-                onClick={() => { setActiveTab(i); soundTab(); }}
+                onClick={() => {
+                  setActiveTab(i);
+                  soundTab();
+                }}
                 className={`relative px-5 pb-2.5 pt-2 text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
                   activeTab === i ? 'text-black' : 'text-black/35 hover:text-black/60'
                 }`}
               >
                 {tab}
                 {status === 'ok' && count > 0 && (
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm ${
-                    activeTab === i ? 'bg-[#FF5A45]/15 text-[#E22A12]' : 'bg-black/6 text-black/30'
-                  }`}>
+                  <span
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm ${
+                      activeTab === i ? 'bg-[#FF5A45]/15 text-[#E22A12]' : 'bg-black/6 text-black/30'
+                    }`}
+                  >
                     {count}
                   </span>
                 )}
@@ -212,12 +317,9 @@ export function Leads() {
           })}
         </div>
 
-        {/* ── Body ── */}
         <div className="flex-1 overflow-auto bg-white">
-
-          {/* Loading skeleton */}
           <AnimatePresence>
-            {status === 'loading' && (
+            {status === 'loading' && leads.length === 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -244,14 +346,13 @@ export function Leads() {
             )}
           </AnimatePresence>
 
-          {/* Error state */}
-          {status === 'error' && (
+          {status === 'error' && leads.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
               <AlertCircle className="h-8 w-8 text-black/20" />
               <p className="text-[13px] font-medium text-black/50">Could not load leads</p>
               <p className="text-[12px] text-black/30">Check your connection and try again.</p>
               <button
-                onClick={load}
+                onClick={() => void refresh()}
                 className="mt-1 bg-[#FF5A45] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#F4412A] transition-colors"
               >
                 Retry
@@ -259,10 +360,8 @@ export function Leads() {
             </div>
           )}
 
-          {/* Table */}
-          {status === 'ok' && (
+          {(status === 'ok' || leads.length > 0) && (
             <>
-              {/* Column headers */}
               <div className="grid grid-cols-[28px_1fr_116px_1fr_128px_104px_40px] px-8 py-3 border-b border-black/8 sticky top-0 bg-white z-10">
                 <div />
                 <span className="text-[11.5px] font-medium text-black/35">Basic Info</span>
@@ -273,21 +372,23 @@ export function Leads() {
                 <div />
               </div>
 
-              {/* Empty state */}
               {visible.length === 0 && (
                 <div className="flex items-center justify-center py-16 text-[13px] text-black/30">
                   {query ? `No leads match "${query}"` : `No ${TABS[activeTab].toLowerCase()} leads`}
                 </div>
               )}
 
-              {/* Rows */}
               {visible.map((lead, idx) => (
                 <motion.div
-                  key={lead.id}
+                  key={`${lead.referenceNumber}-${lead.id}-${idx}`}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(idx * 0.025, 0.4), duration: 0.18 }}
-                  onClick={() => { setPanelLead(lead); setActiveLead(lead); soundOpen(); }}
+                  transition={{ delay: Math.min(idx * 0.015, 0.25), duration: 0.15 }}
+                  onClick={() => {
+                    setPanelLead(lead);
+                    setActiveLead(lead);
+                    soundOpen();
+                  }}
                   className={`grid grid-cols-[28px_1fr_116px_1fr_128px_104px_40px] px-8 py-[13px] border-b border-black/5 last:border-0 cursor-pointer transition-colors ${
                     panelLead?.id === lead.id ? 'bg-[#FF5A45]/6' : 'hover:bg-black/[0.02]'
                   }`}
@@ -308,7 +409,9 @@ export function Leads() {
                   </div>
 
                   <span className="text-[12px] text-black/45 self-center font-mono truncate">{lead.code}</span>
-                  <span className="text-[13px] font-medium text-black/70 self-center truncate pr-3 min-w-0">{lead.designation}</span>
+                  <span className="text-[13px] font-medium text-black/70 self-center truncate pr-3 min-w-0">
+                    {lead.designation}
+                  </span>
                   <span className="text-[13px] text-black/50 self-center truncate">{lead.phone}</span>
                   <span className="text-[13px] text-black/50 self-center">{lead.joined}</span>
 
@@ -325,7 +428,13 @@ export function Leads() {
         </div>
       </div>
 
-      <LeadPanel lead={panelLead} onClose={() => { setPanelLead(null); soundClose(); }} />
+      <LeadPanel
+        lead={panelLead}
+        onClose={() => {
+          setPanelLead(null);
+          soundClose();
+        }}
+      />
     </div>
   );
 }

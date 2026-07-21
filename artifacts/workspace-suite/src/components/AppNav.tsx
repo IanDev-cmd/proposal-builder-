@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'wouter';
+import { useEffect, useState } from 'react';
 import {
   Home,
   Users,
@@ -8,6 +9,13 @@ import {
   Settings,
   Grid2x2,
 } from 'lucide-react';
+import {
+  getSheetsMode,
+  setSheetsMode,
+  subscribeSheetsMode,
+  SHEETS,
+  type SheetsMode,
+} from '@/lib/sheetsSync';
 
 const NAV_ITEMS = [
   { href: '/',             label: 'Home',         icon: Home           },
@@ -20,11 +28,24 @@ const NAV_ITEMS = [
 
 export function AppNav() {
   const [location] = useLocation();
+  const [mode, setMode] = useState<SheetsMode>(() => getSheetsMode());
+
+  useEffect(() => subscribeSheetsMode(setMode), []);
+
+  const toggleMode = (next: SheetsMode) => {
+    if (next === 'live') {
+      const ok = window.confirm(
+        `Switch to LIVE?\n\nWrites will go to the production Google Sheet:\n${SHEETS.live.label}\n\nOnly use this when Meera has approved go-live testing.`,
+      );
+      if (!ok) return;
+    }
+    setSheetsMode(next);
+    setMode(next);
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-black/8 bg-white">
       <div className="relative flex h-16 items-center px-6">
-        {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <span className="flex h-8 w-8 items-center justify-center bg-[#FF5A45] text-sm font-bold text-white">
             N
@@ -32,7 +53,6 @@ export function AppNav() {
           <span className="text-[15px] font-semibold text-gray-900">Nexus</span>
         </div>
 
-        {/* Nav — centred */}
         <nav className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const isActive = location === href;
@@ -53,8 +73,34 @@ export function AppNav() {
           })}
         </nav>
 
-        {/* Settings gear — right side */}
-        <div className="ml-auto shrink-0">
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <div
+            className="flex items-center rounded-full border border-black/10 bg-black/[0.03] p-0.5"
+            title={mode === 'demo' ? SHEETS.demo.url : SHEETS.live.url}
+          >
+            <button
+              type="button"
+              onClick={() => toggleMode('demo')}
+              className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-wide transition-colors ${
+                mode === 'demo'
+                  ? 'bg-[#101a15] text-white'
+                  : 'text-black/45 hover:text-black'
+              }`}
+            >
+              Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleMode('live')}
+              className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-wide transition-colors ${
+                mode === 'live'
+                  ? 'bg-[#FF5A45] text-white'
+                  : 'text-black/45 hover:text-black'
+              }`}
+            >
+              Live
+            </button>
+          </div>
           <Link
             href="/settings"
             className={`flex h-8 w-8 items-center justify-center transition-colors ${

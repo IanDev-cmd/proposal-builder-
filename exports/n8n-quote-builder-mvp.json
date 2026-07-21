@@ -1,0 +1,496 @@
+{
+  "name": "WEOTT Nexus MVP — Quote + Sheets (Demo/Live)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "QuoteBuilder",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "fbde58d6-7428-48f2-9e02-d2768c2d695e",
+      "name": "GenerateProposal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-160, 160],
+      "webhookId": "33f82467-6af2-4f4c-904f-c43e748a0541"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * QuoteBuilder → stargtm /generate\n * Sync with artifacts/workspace-suite/src/lib/quoteFinance.ts (buildStargtmPayload).\n * Does NOT recalculate finance — UI Quote Sheet is SoT.\n */\nconst raw = $json.body || $json;\nconst lead = raw.nexusLead || raw.lead || {};\nconst fin = raw.financials || {};\nconst form = raw.form || raw;\n\nconst upgradeIdMap = {\n  'Live DJ': 'live_dj', Saxophonist: 'saxophonist', Karaoke: 'karaoke',\n  'Photo Booth': 'photo_booth', 'Close-up Magician': 'close_up_magician',\n  'Close up Magician': 'close_up_magician', 'Branded Vessel Flag': 'branded_vessel_flag',\n  'Acoustic Artist': 'acoustic_artist', 'Jazz and Sax Duo': 'jazz_sax_duo',\n  'Additional Hour on Board': 'extra_hour', 'Casino Table with Croupier': 'casino_table',\n  'Social Media Highlight Reel': 'social_highlight_reel', 'Mingling Tour Guide': 'mingling_guide',\n  'Bespoke Logo Bunting': 'logo_bunting', 'Unlimited Drinks (4 hrs)': 'unlimited_drinks',\n  'Unlimited Drinks': 'unlimited_drinks', 'Drink Tokens': 'drink_tokens',\n  'Street Food Upgrade': 'street_food_upgrade',\n};\n\nfunction addIfPresent(obj, key, value) {\n  if (value !== undefined && value !== null && String(value).trim() !== '') obj[key] = String(value);\n}\nfunction money(n) {\n  const v = Number(n);\n  if (!Number.isFinite(v)) return 0;\n  return Math.round((v + Number.EPSILON) * 100) / 100;\n}\nfunction mapUpgrades(selected) {\n  return (Array.isArray(selected) ? selected : [])\n    .map((u) => {\n      if (typeof u !== 'string') return null;\n      if (upgradeIdMap[u]) return upgradeIdMap[u];\n      if (u.includes('_')) return u;\n      return null;\n    })\n    .filter(Boolean);\n}\n\nconst prebuilt = raw.calculations || {};\nconst packageCost = money(prebuilt.package_cost ?? fin.costToClient ?? fin.package_cost ?? 0);\nconst vat = money(prebuilt.vat ?? fin.vat ?? 0);\nconst grandTotal = money(prebuilt.grand_total ?? fin.grandTotal ?? fin.grand ?? packageCost + vat);\nconst guests = Number(prebuilt.guests ?? form.guestCount ?? raw.guestCount) || 0;\nconst eventType = form.eventType || raw.eventType || raw.event_type || lead.event_type || '';\nconst selected = raw.selectedUpgradeLabels || form.selectedUpgrades || raw.selectedUpgrades || [];\nconst selectedInserts = Array.isArray(raw.selectedInserts) ? raw.selectedInserts\n  : (Array.isArray(form.selectedInserts) ? form.selectedInserts : []);\nconst templateId = raw.template_id || form.templateId || raw.templateId || '';\n\nconst leadOut = {\n  proposal_ref: lead.referenceNumber || lead.proposal_ref || raw.lead?.proposal_ref || ('WE.' + Math.floor(1000 + Math.random() * 9000)),\n  quote_date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) + ' | Quotation valid for 28 days',\n};\naddIfPresent(leadOut, 'client_name', lead.name || lead.client_name || raw.lead?.client_name);\naddIfPresent(leadOut, 'organisation', lead.company || lead.organisation || raw.lead?.organisation);\naddIfPresent(leadOut, 'telephone', lead.phone || lead.telephone || raw.lead?.telephone);\naddIfPresent(leadOut, 'email', lead.email || raw.lead?.email);\naddIfPresent(leadOut, 'event_type', eventType);\naddIfPresent(leadOut, 'event_date', form.eventDate || raw.eventDate);\nconst embark = form.embarkation || raw.embarkation;\nconst disembark = form.disembarkation || raw.disembarkation;\nif (embark || disembark) leadOut.event_timings = `${embark || ''} - ${disembark || ''}`;\naddIfPresent(leadOut, 'guest_range', form.guestCount || raw.guestCount);\naddIfPresent(leadOut, 'guest_quote_n', String(guests || form.guestCount || raw.guestCount || ''));\n\n// Staff insert overrides default Katherine contact (also applied as page-16 PDF insert).\nleadOut.contact_name = lead.contact_name || raw.lead?.contact_name || 'Katherine Bulaon';\nleadOut.contact_title = lead.contact_title || raw.lead?.contact_title || 'Client Relationship Manager';\nleadOut.contact_phone = lead.contact_phone || raw.lead?.contact_phone || '020 8323 5827';\nleadOut.contact_email = lead.contact_email || raw.lead?.contact_email || 'sales@westendonthethames.com';\naddIfPresent(leadOut, 'prepared_by', lead.prepared_by || leadOut.contact_name);\n\nconst lower = String(eventType).toLowerCase();\nconst category = raw.category || form.proposalCategory ||\n  (lower.includes('wedding') || lower.includes('engagement') ? 'wedding' : (eventType ? 'corporate' : undefined));\n\nconst mapped = mapUpgrades(selected);\nconst out = {\n  event_type: eventType,\n  ...(category ? { category } : {}),\n  ...(templateId ? { template_id: templateId, manual_template: true } : {}),\n  lead: leadOut,\n  calculations: { guests, package_cost: packageCost, vat, grand_total: grandTotal },\n  selectedUpgrades: mapped.length ? mapped : (Array.isArray(raw.selectedUpgrades) ? raw.selectedUpgrades.filter((u) => typeof u === 'string' && u.includes('_')) : []),\n  selectedInserts,\n  packageWording: raw.packageWording || {},\n  mode: raw.mode === 'live' ? 'live' : 'demo',\n};\nreturn [{ json: out }];\n"
+      },
+      "id": "b07ea332-a701-4838-b19e-fbfea5ea6299",
+      "name": "Transform QuoteBuilder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [80, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://stargtm.onrender.com/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "response": { "response": { "responseFormat": "file" } }
+        }
+      },
+      "id": "f92baf0e-9342-4765-bd5f-fe2c3889fa2e",
+      "name": "HTTP Request stargtm",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [320, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "application/pdf" }]
+          }
+        }
+      },
+      "id": "6445f0bf-5920-41e1-9327-4bca1ecffe2c",
+      "name": "Respond PDF",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [560, 160]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "LeadDataFetch",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "aa40dbcf-c015-47ae-8745-77107eb35d0f",
+      "name": "SearchForLeads",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-160, 400],
+      "webhookId": "08a7fd28-1914-495d-9553-51a873f195d8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst mode = body.mode === 'live' ? 'live' : 'demo';\nreturn [{ json: { mode, _fetch: true } }];"
+      },
+      "id": "lead-mode-norm",
+      "name": "Lead Fetch Mode",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [80, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "live-fetch",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "live",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lead-is-live",
+      "name": "Fetch Live?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [280, 400]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Enquiry - Lead Data (2026)",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "get-leads-live",
+      "name": "Get Leads LIVE",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [500, 320],
+      "notes": "Production Enquiry sheet"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Enquiry - Lead Data (2026)",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "get-leads-demo",
+      "name": "Get Leads DEMO",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [500, 480],
+      "notes": "TEST workbook — Demo mode only"
+    },
+    {
+      "parameters": {
+        "jsCode": "const wanted = [\n  [\"Enquiry Date\", \"enquiryDate\"], [\"Name\", \"name\"], [\"Main Contact - Job Role\", \"jobRole\"],\n  [\"Company Name\", \"companyName\"], [\"Company Sector\", \"companySector\"],\n  [\"Main Contact - Email\", \"email\"], [\"Main Contact - Number\", \"phone\"],\n  [\"Client Reference Number\", \"referenceNumber\"], [\"Source\", \"source\"],\n  [\"Best time to call\", \"bestTimeToCall\"], [\"Market\", \"market\"],\n  [\"Event Type\", \"eventType\"], [\"Full Event Date\", \"fullEventDate\"],\n  [\"Group Size\", \"groupSize\"], [\"Budget\", \"budget\"], [\"Live/Dead\", \"status\"],\n  [\"Progress Notes\", \"progressNotes\"],\n];\nfunction norm(s) { return String(s).replace(/\\s+/g, \" \").trim().toLowerCase(); }\nfunction pick(row, prefix) {\n  const target = norm(prefix);\n  for (const key of Object.keys(row)) {\n    if (norm(key).startsWith(target)) {\n      const v = row[key];\n      if (v !== undefined && v !== null && String(v).trim() !== \"\") return row[key];\n    }\n  }\n  return \"\";\n}\nconst leads = $input.all().map(item => {\n  const row = item.json;\n  const out = {};\n  for (const [prefix, alias] of wanted) {\n    if (out[alias]) continue;\n    const v = pick(row, prefix);\n    if (v !== \"\") out[alias] = v;\n  }\n  for (const [, alias] of wanted) if (out[alias] === undefined) out[alias] = \"\";\n  return out;\n}).reverse();\nreturn [{ json: { count: leads.length, leads } }];"
+      },
+      "id": "2a1b33c1-0141-4948-93c8-8497910a183d",
+      "name": "Structure all Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a0e267ea-29c2-4d23-9fa8-48f2a9453e40",
+      "name": "Respond Leads",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [940, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "NoteAppend",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "db14c45b-ab7e-4668-bcbd-0c1c35a220fb",
+      "name": "NoteAppend Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-160, 720],
+      "webhookId": "note-append-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  mode: body.mode === 'live' ? 'live' : 'demo',\n  referenceNumber: body.referenceNumber || '',\n  email: body.email || '',\n  leadName: body.leadName || '',\n  note: body.note || '',\n  tag: body.tag || '',\n  createdAt: new Date().toISOString(),\n}}];"
+      },
+      "id": "b322764b-8581-4905-b96f-f772c1e07e9f",
+      "name": "Normalize NoteAppend",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [80, 720]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "note-live",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "live",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "note-is-live",
+      "name": "Note Live?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [280, 720]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o/edit",
+          "mode": "url"
+        },
+        "sheetName": { "__rl": true, "value": "Nexus Ops Notes", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Created At": "={{ $json.createdAt }}",
+            "Mode": "={{ $json.mode }}",
+            "Reference": "={{ $json.referenceNumber }}",
+            "Email": "={{ $json.email }}",
+            "Lead Name": "={{ $json.leadName }}",
+            "Tag": "={{ $json.tag }}",
+            "Note": "={{ $json.note }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "note-live-append",
+      "name": "Append Note LIVE",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [500, 640],
+      "notes": "Create Nexus Ops Notes tab on production if missing"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs/edit",
+          "mode": "url"
+        },
+        "sheetName": { "__rl": true, "value": "Nexus Ops Notes", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Created At": "={{ $json.createdAt }}",
+            "Mode": "={{ $json.mode }}",
+            "Reference": "={{ $json.referenceNumber }}",
+            "Email": "={{ $json.email }}",
+            "Lead Name": "={{ $json.leadName }}",
+            "Tag": "={{ $json.tag }}",
+            "Note": "={{ $json.note }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "note-demo-append",
+      "name": "Append Note DEMO",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [500, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, mode: $json.mode || 'demo' } }}",
+        "options": {}
+      },
+      "id": "ffafa6a2-4568-4db6-af7e-f75142486529",
+      "name": "Respond NoteAppend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [720, 720]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "QuoteStatus",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "5237a626-a97e-4fdf-b9ae-203c40391e66",
+      "name": "QuoteStatus Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-160, 1040],
+      "webhookId": "quote-status-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst upgrades = Array.isArray(body.selectedUpgrades) ? body.selectedUpgrades.join(', ') : (body.selectedUpgrades || '');\nconst inserts = Array.isArray(body.selectedInserts) ? body.selectedInserts.join(', ') : (body.selectedInserts || '');\nreturn [{ json: {\n  mode: body.mode === 'live' ? 'live' : 'demo',\n  referenceNumber: body.referenceNumber || '',\n  email: body.email || '',\n  leadName: body.leadName || '',\n  quoteId: body.quoteId || '',\n  status: body.status || '',\n  version: body.version || '',\n  title: body.title || '',\n  eventType: body.eventType || '',\n  eventDate: body.eventDate || '',\n  guestCount: body.guestCount || body.guests || '',\n  repeatClient: body.repeatClient === true ? 'YES' : (body.repeatClient === false ? 'NO' : ''),\n  selectedUpgrades: upgrades,\n  templateId: body.templateId || body.template_id || '',\n  selectedInserts: inserts,\n  staffContact: body.staffContact || '',\n  baseCost: body.baseCost ?? '',\n  contingency: body.contingency ?? '',\n  margin: body.margin ?? '',\n  marginAmount: body.marginAmount ?? '',\n  costToClient: body.costToClient ?? body.packageCost ?? '',\n  packageCost: body.packageCost ?? body.costToClient ?? '',\n  vat: body.vat ?? '',\n  upgradeTotal: body.upgradeTotal ?? '',\n  grandTotal: body.grandTotal ?? '',\n  updatedAt: new Date().toISOString(),\n}}];"
+      },
+      "id": "835713ff-126c-4114-b397-084d7e009d49",
+      "name": "Normalize QuoteStatus",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [80, 1040]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "quote-live",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "live",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "quote-is-live",
+      "name": "Quote Live?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [280, 1040]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o/edit",
+          "mode": "url"
+        },
+        "sheetName": { "__rl": true, "value": "Nexus Ops Quotes", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Updated At": "={{ $json.updatedAt }}",
+            "Mode": "={{ $json.mode }}",
+            "Reference": "={{ $json.referenceNumber }}",
+            "Email": "={{ $json.email }}",
+            "Lead Name": "={{ $json.leadName }}",
+            "Quote Id": "={{ $json.quoteId }}",
+            "Status": "={{ $json.status }}",
+            "Version": "={{ $json.version }}",
+            "Title": "={{ $json.title }}",
+            "Event Type": "={{ $json.eventType }}",
+            "Event Date": "={{ $json.eventDate }}",
+            "Guests": "={{ $json.guestCount }}",
+            "Repeat Client": "={{ $json.repeatClient }}",
+            "Selected Upgrades": "={{ $json.selectedUpgrades }}",
+            "Template Id": "={{ $json.templateId }}",
+            "Selected Inserts": "={{ $json.selectedInserts }}",
+            "Staff Contact": "={{ $json.staffContact }}",
+            "Base Cost": "={{ $json.baseCost }}",
+            "Contingency": "={{ $json.contingency }}",
+            "Margin": "={{ $json.margin }}",
+            "Margin Amount": "={{ $json.marginAmount }}",
+            "Cost To Client": "={{ $json.costToClient }}",
+            "Package Cost": "={{ $json.packageCost }}",
+            "VAT": "={{ $json.vat }}",
+            "Upgrade Total": "={{ $json.upgradeTotal }}",
+            "Grand Total": "={{ $json.grandTotal }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "quote-live-append",
+      "name": "Append Quote LIVE",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [500, 960],
+      "notes": "Create Nexus Ops Quotes on production if missing"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs/edit",
+          "mode": "url"
+        },
+        "sheetName": { "__rl": true, "value": "Nexus Ops Quotes", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Updated At": "={{ $json.updatedAt }}",
+            "Mode": "={{ $json.mode }}",
+            "Reference": "={{ $json.referenceNumber }}",
+            "Email": "={{ $json.email }}",
+            "Lead Name": "={{ $json.leadName }}",
+            "Quote Id": "={{ $json.quoteId }}",
+            "Status": "={{ $json.status }}",
+            "Version": "={{ $json.version }}",
+            "Title": "={{ $json.title }}",
+            "Event Type": "={{ $json.eventType }}",
+            "Event Date": "={{ $json.eventDate }}",
+            "Guests": "={{ $json.guestCount }}",
+            "Repeat Client": "={{ $json.repeatClient }}",
+            "Selected Upgrades": "={{ $json.selectedUpgrades }}",
+            "Template Id": "={{ $json.templateId }}",
+            "Selected Inserts": "={{ $json.selectedInserts }}",
+            "Staff Contact": "={{ $json.staffContact }}",
+            "Base Cost": "={{ $json.baseCost }}",
+            "Contingency": "={{ $json.contingency }}",
+            "Margin": "={{ $json.margin }}",
+            "Margin Amount": "={{ $json.marginAmount }}",
+            "Cost To Client": "={{ $json.costToClient }}",
+            "Package Cost": "={{ $json.packageCost }}",
+            "VAT": "={{ $json.vat }}",
+            "Upgrade Total": "={{ $json.upgradeTotal }}",
+            "Grand Total": "={{ $json.grandTotal }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "quote-demo-append",
+      "name": "Append Quote DEMO",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [500, 1120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, mode: $json.mode || 'demo' } }}",
+        "options": {}
+      },
+      "id": "c7731f6d-e36d-4e94-81c2-40d669a6aeaa",
+      "name": "Respond QuoteStatus",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [720, 1040]
+    }
+  ],
+  "connections": {
+    "GenerateProposal": { "main": [[{ "node": "Transform QuoteBuilder", "type": "main", "index": 0 }]] },
+    "Transform QuoteBuilder": { "main": [[{ "node": "HTTP Request stargtm", "type": "main", "index": 0 }]] },
+    "HTTP Request stargtm": { "main": [[{ "node": "Respond PDF", "type": "main", "index": 0 }]] },
+    "SearchForLeads": { "main": [[{ "node": "Lead Fetch Mode", "type": "main", "index": 0 }]] },
+    "Lead Fetch Mode": { "main": [[{ "node": "Fetch Live?", "type": "main", "index": 0 }]] },
+    "Fetch Live?": {
+      "main": [
+        [{ "node": "Get Leads LIVE", "type": "main", "index": 0 }],
+        [{ "node": "Get Leads DEMO", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Leads LIVE": { "main": [[{ "node": "Structure all Leads", "type": "main", "index": 0 }]] },
+    "Get Leads DEMO": { "main": [[{ "node": "Structure all Leads", "type": "main", "index": 0 }]] },
+    "Structure all Leads": { "main": [[{ "node": "Respond Leads", "type": "main", "index": 0 }]] },
+    "NoteAppend Webhook": { "main": [[{ "node": "Normalize NoteAppend", "type": "main", "index": 0 }]] },
+    "Normalize NoteAppend": { "main": [[{ "node": "Note Live?", "type": "main", "index": 0 }]] },
+    "Note Live?": {
+      "main": [
+        [{ "node": "Append Note LIVE", "type": "main", "index": 0 }],
+        [{ "node": "Append Note DEMO", "type": "main", "index": 0 }]
+      ]
+    },
+    "Append Note LIVE": { "main": [[{ "node": "Respond NoteAppend", "type": "main", "index": 0 }]] },
+    "Append Note DEMO": { "main": [[{ "node": "Respond NoteAppend", "type": "main", "index": 0 }]] },
+    "QuoteStatus Webhook": { "main": [[{ "node": "Normalize QuoteStatus", "type": "main", "index": 0 }]] },
+    "Normalize QuoteStatus": { "main": [[{ "node": "Quote Live?", "type": "main", "index": 0 }]] },
+    "Quote Live?": {
+      "main": [
+        [{ "node": "Append Quote LIVE", "type": "main", "index": 0 }],
+        [{ "node": "Append Quote DEMO", "type": "main", "index": 0 }]
+      ]
+    },
+    "Append Quote LIVE": { "main": [[{ "node": "Respond QuoteStatus", "type": "main", "index": 0 }]] },
+    "Append Quote DEMO": { "main": [[{ "node": "Respond QuoteStatus", "type": "main", "index": 0 }]] }
+  },
+  "settings": {},
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [{ "name": "mvp" }, { "name": "demo-live" }],
+  "_sheetIds": {
+    "demo": "https://docs.google.com/spreadsheets/d/1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs/edit",
+    "live": "https://docs.google.com/spreadsheets/d/1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o/edit"
+  },
+  "_setup": [
+    "1. Ensure DEMO sheet has tabs: Enquiry - Lead Data (2026), Nexus Ops Notes, Nexus Ops Quotes (from WEOTT-Nexus-TEST-Sheets.xlsx).",
+    "2. On LIVE sheet, create Nexus Ops Notes + Nexus Ops Quotes tabs if missing (same headers as test).",
+    "3. Import this workflow → reconnect Google Sheets OAuth on every Sheets node.",
+    "4. UI Demo/Live toggle sends mode on every webhook — demo writes only to TEST sheet."
+  ]
+}

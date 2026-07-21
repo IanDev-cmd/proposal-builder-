@@ -1,0 +1,87 @@
+{
+  "category": "wedding",
+  "event_type": "Wedding Reception",
+  "lead": {
+    "proposal_ref": "WE.9201",
+    "prepared_by": "Katherine Bulaon",
+    "quote_date": "14 July 2026",
+    "client_name": "Alex & Sam Rivera",
+    "organisation": "Private",
+    "telephone": "07700 900123",
+    "email": "alex.sam@example.com",
+    "event_type": "Wedding Reception",
+    "event_date": "2026-09-12",
+    "event_timings": "13:00 - 17:00 (TBC)",
+    "guest_range": "60-80",
+    "guest_quote_n": "70",
+    "contact_name": "Katherine Bulaon",
+    "contact_title": "Client Relationship Manager",
+    "contact_phone": "020 8323 5827",
+    "contact_email": "sales@westendonthethames.com"
+  },
+  "vessel": "london_rose",
+  "calculations": {
+    "guests": 70,
+    "package_cost": 6200,
+    "vat": 1240,
+    "grand_total": 7440
+  },
+  "selectedUpgrades": ["live_dj", "photo_booth", "saxophonist"],
+  "menuLinks": {
+    "food_menu": "https://westendonthethames.com/menus/wedding-2026"
+  },
+  "packageWording": {
+    "venue_and_management": [
+      {
+        "heading": "4 hours private venue hire – timings can be amended upon request - current itinerary is as follows;",
+        "items": [
+          "Embark will begin at 12:45hrs",
+          "Boat departs at 13:00hrs",
+          "Returns to pier for 16:45hrs",
+          "Disembark completes at 17:00hrs",
+          "Complimentary pier stop can be added at any point during your cruise"
+        ]
+      },
+      {
+        "heading": "Full event management – before, during and after;",
+        "items": ["Assigned event planner", "Event coordinators", "Pier coordinator"]
+      }
+    ],
+    "entertainment_and_decor": [
+      {
+        "heading": "Entertainment;",
+        "items": [
+          "Professional photographer with all digital images included",
+          "Personalised playlist",
+          "Live DJ for the reception"
+        ]
+      },
+      {
+        "heading": "Decorative items;",
+        "items": [
+          "Fresh linen and floral centrepieces",
+          "Votive lanterns and fairy lights",
+          "Seasonal potted plants"
+        ]
+      }
+    ],
+    "stationery_and_catering": [
+      {
+        "heading": "Stationery;",
+        "items": [
+          "Personalised digital invitation",
+          "A1 branded welcome aboard notice displayed on easel",
+          "River information cards"
+        ]
+      },
+      {
+        "heading": "Food and beverages;",
+        "items": [
+          "Prosecco reception - 1 x glass per guest upon arrival",
+          "Wedding grazing table",
+          "Cash/card bar thereafter"
+        ]
+      }
+    ]
+  }
+}

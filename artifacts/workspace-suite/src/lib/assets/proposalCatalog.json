@@ -1,0 +1,849 @@
+{
+  "templates": [
+    {
+      "id": "corporate/award_ceremony/daytime",
+      "category": "corporate",
+      "event_type": "Award Ceremony",
+      "event_slug": "award_ceremony",
+      "slot": "daytime",
+      "aliases": [
+        "Award Ceremony",
+        "award ceremony",
+        "award_ceremony"
+      ]
+    },
+    {
+      "id": "corporate/award_ceremony/evening",
+      "category": "corporate",
+      "event_type": "Award Ceremony",
+      "event_slug": "award_ceremony",
+      "slot": "evening",
+      "aliases": [
+        "Award Ceremony",
+        "award ceremony",
+        "award_ceremony"
+      ]
+    },
+    {
+      "id": "corporate/christmas_event/daytime",
+      "category": "corporate",
+      "event_type": "Christmas Event",
+      "event_slug": "christmas_event",
+      "slot": "daytime",
+      "aliases": [
+        "Christmas Event",
+        "christmas",
+        "christmas event",
+        "christmas_event"
+      ]
+    },
+    {
+      "id": "corporate/christmas_event/evening",
+      "category": "corporate",
+      "event_type": "Christmas Event",
+      "event_slug": "christmas_event",
+      "slot": "evening",
+      "aliases": [
+        "Christmas Event",
+        "christmas",
+        "christmas event",
+        "christmas_event"
+      ]
+    },
+    {
+      "id": "corporate/client_event/daytime",
+      "category": "corporate",
+      "event_type": "Client Event",
+      "event_slug": "client_event",
+      "slot": "daytime",
+      "aliases": [
+        "Client Event",
+        "client",
+        "client event",
+        "client_event"
+      ]
+    },
+    {
+      "id": "corporate/client_event/evening",
+      "category": "corporate",
+      "event_type": "Client Event",
+      "event_slug": "client_event",
+      "slot": "evening",
+      "aliases": [
+        "Client Event",
+        "client",
+        "client event",
+        "client_event"
+      ]
+    },
+    {
+      "id": "corporate/company_anniversary/daytime",
+      "category": "corporate",
+      "event_type": "Company Anniversary",
+      "event_slug": "company_anniversary",
+      "slot": "daytime",
+      "aliases": [
+        "Company Anniversary",
+        "company anniversary",
+        "company_anniversary"
+      ]
+    },
+    {
+      "id": "corporate/company_anniversary/evening",
+      "category": "corporate",
+      "event_type": "Company Anniversary",
+      "event_slug": "company_anniversary",
+      "slot": "evening",
+      "aliases": [
+        "Company Anniversary",
+        "company anniversary",
+        "company_anniversary"
+      ]
+    },
+    {
+      "id": "corporate/conference_or_workshop/daytime",
+      "category": "corporate",
+      "event_type": "Conference or Workshop",
+      "event_slug": "conference_or_workshop",
+      "slot": "daytime",
+      "aliases": [
+        "Conference or Workshop",
+        "conference or workshop",
+        "conference workshop",
+        "conference_or_workshop",
+        "conference_workshop"
+      ]
+    },
+    {
+      "id": "corporate/conference_or_workshop/evening",
+      "category": "corporate",
+      "event_type": "Conference or Workshop",
+      "event_slug": "conference_or_workshop",
+      "slot": "evening",
+      "aliases": [
+        "Conference or Workshop",
+        "conference or workshop",
+        "conference workshop",
+        "conference_or_workshop",
+        "conference_workshop"
+      ]
+    },
+    {
+      "id": "corporate/meeting/default",
+      "category": "corporate",
+      "event_type": "Meeting",
+      "event_slug": "meeting",
+      "slot": "default",
+      "aliases": [
+        "Meeting",
+        "meeting"
+      ]
+    },
+    {
+      "id": "corporate/networking_event/daytime",
+      "category": "corporate",
+      "event_type": "Networking Event",
+      "event_slug": "networking_event",
+      "slot": "daytime",
+      "aliases": [
+        "Corporate Networking",
+        "Networking",
+        "Networking Event",
+        "networking",
+        "networking event",
+        "networking_event"
+      ]
+    },
+    {
+      "id": "corporate/networking_event/evening",
+      "category": "corporate",
+      "event_type": "Networking Event",
+      "event_slug": "networking_event",
+      "slot": "evening",
+      "aliases": [
+        "Corporate Networking",
+        "Networking",
+        "Networking Event",
+        "networking",
+        "networking event",
+        "networking_event"
+      ]
+    },
+    {
+      "id": "corporate/social_gathering/daytime",
+      "category": "corporate",
+      "event_type": "Social Gathering",
+      "event_slug": "social_gathering",
+      "slot": "daytime",
+      "aliases": [
+        "Social Gathering",
+        "social gathering",
+        "social_gathering"
+      ]
+    },
+    {
+      "id": "corporate/social_gathering/evening",
+      "category": "corporate",
+      "event_type": "Social Gathering",
+      "event_slug": "social_gathering",
+      "slot": "evening",
+      "aliases": [
+        "Social Gathering",
+        "social gathering",
+        "social_gathering"
+      ]
+    },
+    {
+      "id": "corporate/summer_event/any",
+      "category": "corporate",
+      "event_type": "Summer Event",
+      "event_slug": "summer_event",
+      "slot": "any",
+      "aliases": [
+        "Summer Event",
+        "summer",
+        "summer event",
+        "summer_event"
+      ]
+    },
+    {
+      "id": "corporate/team_building/daytime",
+      "category": "corporate",
+      "event_type": "Team Building",
+      "event_slug": "team_building",
+      "slot": "daytime",
+      "aliases": [
+        "Team Building",
+        "team building",
+        "team_building"
+      ]
+    },
+    {
+      "id": "corporate/team_building/evening",
+      "category": "corporate",
+      "event_type": "Team Building",
+      "event_slug": "team_building",
+      "slot": "evening",
+      "aliases": [
+        "Team Building",
+        "team building",
+        "team_building"
+      ]
+    },
+    {
+      "id": "corporate/transfer/above_12",
+      "category": "corporate",
+      "event_type": "Transfer",
+      "event_slug": "transfer",
+      "slot": "above_12",
+      "aliases": [
+        "Transfer",
+        "transfer"
+      ]
+    },
+    {
+      "id": "corporate/transfer/below_12",
+      "category": "corporate",
+      "event_type": "Transfer",
+      "event_slug": "transfer",
+      "slot": "below_12",
+      "aliases": [
+        "Transfer",
+        "transfer"
+      ]
+    },
+    {
+      "id": "wedding/engagement_celebration/default",
+      "category": "wedding",
+      "event_type": "Engagement Celebration",
+      "event_slug": "engagement_celebration",
+      "slot": "default",
+      "aliases": [
+        "Engagement Celebration",
+        "engagement celebration",
+        "engagement_celebration"
+      ]
+    },
+    {
+      "id": "wedding/wedding_anniversary_or_pre_wedding_party/any",
+      "category": "wedding",
+      "event_type": "Wedding Anniversary or Pre-Wedding Party",
+      "event_slug": "wedding_anniversary_or_pre_wedding_party",
+      "slot": "any",
+      "aliases": [
+        "Wedding Anniversary or Pre-Wedding Party",
+        "wedding anniversary or pre wedding party",
+        "wedding anniversary or pre-wedding party",
+        "wedding anniversary pre wedding party",
+        "wedding_anniversary_or_pre_wedding_party",
+        "wedding_anniversary_pre_wedding_party"
+      ]
+    },
+    {
+      "id": "wedding/wedding_reception/any",
+      "category": "wedding",
+      "event_type": "Wedding Reception",
+      "event_slug": "wedding_reception",
+      "slot": "any",
+      "aliases": [
+        "Wedding",
+        "Wedding Reception",
+        "wedding",
+        "wedding reception",
+        "wedding_reception"
+      ]
+    },
+    {
+      "id": "wedding/wedding_transfer/any",
+      "category": "wedding",
+      "event_type": "Wedding Transfer",
+      "event_slug": "wedding_transfer",
+      "slot": "any",
+      "aliases": [
+        "Wedding Transfer",
+        "wedding transfer",
+        "wedding_transfer"
+      ]
+    }
+  ],
+  "inserts": {
+    "version": 1,
+    "placement_rules": {
+      "vessel": "Replace template page index 8 (Vessel Details / page 9).",
+      "staff": "Replace template page index 15 (Contact / page 16).",
+      "map": "Insert after vessel page (default index 9). Multiple maps append in selection order.",
+      "multiple_vessel": "If multiple vessel inserts selected, last selected wins for the vessel page.",
+      "multiple_staff": "If multiple staff inserts selected, last selected wins for page 16."
+    },
+    "inserts": [
+      {
+        "id": "weott_iii_autumn_winter_daytime",
+        "label": "WEOTT III - Autumn-Winter (Daytime)",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "proposal_sapphire_insert_evening_page_16",
+        "label": "Proposal - Sapphire Insert (Evening) - PAGE 16",
+        "kind": "staff",
+        "season": "any",
+        "slot": "evening",
+        "category": "any",
+        "vessel": "",
+        "staff": "Sapphire Adams",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_autumn_winter_version_evening",
+        "label": "WEOTT II - Autumn-Winter Version (Evening)",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_autumn_winter_insert_daytime",
+        "label": "WEOTT I - Autumn-Winter Insert (Daytime)",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_yacht_all_seasons_insert",
+        "label": "WEOTT Yacht - All Seasons Insert",
+        "kind": "vessel",
+        "season": "all_seasons",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT Yacht",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "elizabeth_hillier_staff_profile_page_16_daytime_version",
+        "label": "Elizabeth Hillier - Staff Profile (Page 16) Daytime VERSION",
+        "kind": "staff",
+        "season": "any",
+        "slot": "daytime",
+        "category": "any",
+        "vessel": "",
+        "staff": "Elizabeth Hillier",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_christmas_insert_daytime",
+        "label": "WEOTT I - Christmas Insert (Daytime)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_wedding_anniversary_or_pre_wedding_party_insert",
+        "label": "WEOTT II - Wedding Anniversary or Pre-Wedding Party Insert",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_vii_any_season_except_christmas_daytime_or_evening",
+        "label": "WEOTT VII - Any Season except Christmas (Daytime or Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT V",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_autumn_winter_insert_evening",
+        "label": "WEOTT I - Autumn-Winter Insert (Evening)",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "ellie_kirotar_staff_profile_page_16",
+        "label": "Ellie Kirotar - Staff Profile (Page 16)",
+        "kind": "staff",
+        "season": "any",
+        "slot": "daytime",
+        "category": "any",
+        "vessel": "",
+        "staff": "Ellie Kirotar",
+        "dancefloor": false
+      },
+      {
+        "id": "katherine_bulaon_staff_profile_page_16_daytime",
+        "label": "Katherine Bulaon - Staff Profile (Page 16) Daytime",
+        "kind": "staff",
+        "season": "any",
+        "slot": "daytime",
+        "category": "any",
+        "vessel": "",
+        "staff": "Katherine Bulaon",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_v_any_season_except_christmas_daytime_or_evening",
+        "label": "WEOTT V - Any Season except Christmas (Daytime or Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT V",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "proposal_katherine_insert_evening_page_16",
+        "label": "Proposal - Katherine Insert (Evening) - PAGE 16",
+        "kind": "staff",
+        "season": "any",
+        "slot": "evening",
+        "category": "any",
+        "vessel": "",
+        "staff": "Katherine Bulaon",
+        "dancefloor": false
+      },
+      {
+        "id": "proposal_lily_may_cameron_insert_daytime_page_16",
+        "label": "Proposal - Lily-May Cameron Insert (Daytime) - PAGE 16",
+        "kind": "staff",
+        "season": "any",
+        "slot": "daytime",
+        "category": "any",
+        "vessel": "",
+        "staff": "Lily-May Cameron",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iv_autumn_winter",
+        "label": "WEOTT IV - Autumn-Winter",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_spring_summer_insert_dancefloor_version",
+        "label": "WEOTT II - Spring-Summer Insert (DANCEFLOOR VERSION)",
+        "kind": "vessel",
+        "season": "spring_summer",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": true
+      },
+      {
+        "id": "weott_ii_wedding_reception_insert_any_season",
+        "label": "WEOTT II - Wedding Reception Insert (Any Season)",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "proposal_elizabeth_insert_evening_page_16",
+        "label": "Proposal - Elizabeth Insert (Evening) - PAGE 16",
+        "kind": "staff",
+        "season": "any",
+        "slot": "evening",
+        "category": "any",
+        "vessel": "",
+        "staff": "Elizabeth Hillier",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_christmas_evening_dancefloor",
+        "label": "WEOTT II - Christmas (Evening) DANCEFLOOR",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": true
+      },
+      {
+        "id": "weott_ii_christmas_evening",
+        "label": "WEOTT II - Christmas (Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iii_wedding_transfer_insert",
+        "label": "WEOTT III - Wedding Transfer Insert",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "2024_weott_proposal_river_map",
+        "label": "2024 WEOTT_Proposal RIVER MAP",
+        "kind": "map",
+        "season": "any",
+        "slot": "any",
+        "category": "any",
+        "vessel": "",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iii_christmas_daytime",
+        "label": "WEOTT III - Christmas (Daytime)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_wedding_transfer_insert",
+        "label": "WEOTT II - Wedding Transfer Insert",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_spring_summer_insert",
+        "label": "WEOTT I - Spring-Summer Insert",
+        "kind": "vessel",
+        "season": "spring_summer",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "sapphire_adams_staff_profile_page_16",
+        "label": "Sapphire Adams - Staff Profile (Page 16)",
+        "kind": "staff",
+        "season": "any",
+        "slot": "daytime",
+        "category": "any",
+        "vessel": "",
+        "staff": "Sapphire Adams",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_christmas_daytime_dancefloor",
+        "label": "WEOTT II - Christmas (Daytime) DANCEFLOOR",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": true
+      },
+      {
+        "id": "weott_iii_christmas_evening",
+        "label": "WEOTT III - Christmas (Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iv_christmas",
+        "label": "WEOTT IV - Christmas",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "natasha_minter_staff_profile_page_16_daytime_version",
+        "label": "Natasha Minter - Staff Profile (Page 16) Daytime VERSION",
+        "kind": "staff",
+        "season": "any",
+        "slot": "daytime_or_evening",
+        "category": "any",
+        "vessel": "",
+        "staff": "Natasha Minter",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iii_spring_summer_insert",
+        "label": "WEOTT III - Spring-Summer Insert",
+        "kind": "vessel",
+        "season": "spring_summer",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_wedding_transfer_version",
+        "label": "WEOTT I - Wedding Transfer Version",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iii_wedding_anniversary_or_pre_wedding_party_insert",
+        "label": "WEOTT III - Wedding Anniversary or Pre-Wedding Party Insert",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "proposal_ellie_insert_evening_event_page_16",
+        "label": "Proposal - Ellie Insert (Evening Event) - PAGE 16",
+        "kind": "staff",
+        "season": "any",
+        "slot": "evening",
+        "category": "any",
+        "vessel": "",
+        "staff": "Ellie Kirotar",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_vi_christmas_daytime_or_evening",
+        "label": "WEOTT VI - Christmas (Daytime or Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT V",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_christmas_daytime",
+        "label": "WEOTT II - Christmas (Daytime)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iii_autumn_winter_evening",
+        "label": "WEOTT III - Autumn-Winter (Evening)",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_vi_any_season_except_christmas_daytime_or_evening",
+        "label": "WEOTT VI - Any Season except Christmas (Daytime or Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT V",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_v_christmas_daytime_or_evening",
+        "label": "WEOTT V - Christmas (Daytime or Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT V",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_limo_all_seasons_insert",
+        "label": "WEOTT Limo - All Seasons Insert",
+        "kind": "vessel",
+        "season": "all_seasons",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT Limo",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iv_spring_summer_insert",
+        "label": "WEOTT IV - Spring-Summer Insert",
+        "kind": "vessel",
+        "season": "spring_summer",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_wedding_anniversary_or_pre_wedding_party_insert",
+        "label": "WEOTT I - Wedding Anniversary or Pre-Wedding Party Insert",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_iii_wedding_insert",
+        "label": "WEOTT III - Wedding Insert",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_christmas_insert_evening",
+        "label": "WEOTT I - Christmas Insert (Evening)",
+        "kind": "vessel",
+        "season": "christmas",
+        "slot": "evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_autumn_winter_version_daytime",
+        "label": "WEOTT II - Autumn-Winter Version (Daytime)",
+        "kind": "vessel",
+        "season": "autumn_winter",
+        "slot": "daytime",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_i_wedding_version",
+        "label": "WEOTT I - Wedding Version",
+        "kind": "vessel",
+        "season": "any_season",
+        "slot": "daytime_or_evening",
+        "category": "wedding",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      },
+      {
+        "id": "weott_ii_spring_summer_insert",
+        "label": "WEOTT II - Spring-Summer Insert",
+        "kind": "vessel",
+        "season": "spring_summer",
+        "slot": "daytime_or_evening",
+        "category": "corporate",
+        "vessel": "WEOTT I",
+        "staff": "",
+        "dancefloor": false
+      }
+    ]
+  }
+}

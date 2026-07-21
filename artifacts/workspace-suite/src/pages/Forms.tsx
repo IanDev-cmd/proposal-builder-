@@ -1,13 +1,29 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers } from 'lucide-react';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES, getStoredPreview } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
+import {
+  UPGRADES,
+  calcBaseCostBreakdown,
+  calcFinancials,
+  buildStargtmPayload,
+  CONTINGENCY_RATE,
+} from '@/lib/quoteFinance';
+import {
+  templatesForCategory,
+  templateLabel,
+  filterInserts,
+  INSERT_PLACEMENT_RULES,
+  PROPOSAL_INSERTS,
+} from '@/lib/proposalAssets';
+import { appendProgressNote, writeQuoteStatus, getSheetsMode } from '@/lib/sheetsSync';
+import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 
-const QUOTE_WEBHOOK_URL = 'https://ravenmark.app.n8n.cloud/webhook/QuoteBuilder';
+const QUOTE_WEBHOOK_URL = 'https://meeraworkflows.app.n8n.cloud/webhook/QuoteBuilder';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -32,72 +48,6 @@ const SOURCE_TYPES = [
   'Wedding Planner/Agent',
 ];
 
-// Upgrade matrix: 'flat' items are a single fixed cost; 'perGuest' items are
-// multiplied by guestCount before being added to the Base Cost.
-const UPGRADES: { label: string; price: number; type: 'flat' | 'perGuest' }[] = [
-  { label: 'Live DJ', price: 500, type: 'flat' },
-  { label: 'Saxophonist', price: 550, type: 'flat' },
-  { label: 'Photo Booth', price: 650, type: 'flat' },
-  { label: 'Close-up Magician', price: 700, type: 'flat' },
-  { label: 'Branded Vessel Flag', price: 150, type: 'flat' },
-  { label: 'Unlimited Drinks', price: 35, type: 'perGuest' },
-  { label: 'Drink Tokens', price: 15, type: 'perGuest' },
-];
-
-// ── Base Cost inputs, mirroring the n8n "Process Financials" node ──────────
-// Internal Costs = Base Vessel Hire + (Menu Cost Per Head * Guests) + Fixed
-// Operational Costs + Upgrades Total.
-const VESSEL_HIRE_RATE = 1500; // flat fallback for baseVesselHire; also used
-// as the "most expensive period" figure when the event date is TBC, per the
-// vessel selection protocol (margin protection during negotiation).
-const MENU_COST_PER_HEAD = 45;
-const FIXED_OPS_COST = 250;
-const FRUIT_SKEWER_PER_HEAD = 8; // mandatory inclusion for BBQ menus
-const PIMMS_PROSECCO_PER_HEAD = 12; // mandatory inclusion for Summer Events
-const CONTINGENCY_RATE = 0.0225;
-const VAT_RATE = 0.2;
-const PEAK_UPLIFT_RATE = 0.2; // Friday–Sunday bookings cost 20% more than the base rate
-
-/** True when the event date hasn't been confirmed — triggers the vessel
- *  selection protocol (most expensive period used for Base Vessel Hire). */
-function isEventDateTbc(eventDate: string): boolean {
-  return !eventDate.trim() || /tbc/i.test(eventDate);
-}
-
-/** True on Friday/Saturday/Sunday, or when the date is TBC (vessel selection
- *  protocol: an unconfirmed date must resolve to the most expensive period,
- *  so margins are never quoted below the worst case). */
-function isPeakPeriod(eventDate: string): boolean {
-  if (isEventDateTbc(eventDate)) return true;
-  const parsed = new Date(eventDate);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const day = parsed.getDay(); // 0 = Sunday, 5 = Friday, 6 = Saturday
-  return day === 0 || day === 5 || day === 6;
-}
-
-/** Sums every input that feeds the Base Cost, per the fundamental formula. */
-function calcBaseCostBreakdown(data: FormData) {
-  const guests = parseFloat(data.guestCount) || 0;
-  const peak = isPeakPeriod(data.eventDate);
-  // No per-vessel rate table is on file yet, so every vessel shares the same
-  // flat rate — with the confirmed Friday–Sunday (or TBC) peak uplift on top.
-  const vesselHire = peak ? VESSEL_HIRE_RATE * (1 + PEAK_UPLIFT_RATE) : VESSEL_HIRE_RATE;
-  const menuCost = MENU_COST_PER_HEAD * guests;
-  const fixedOps = FIXED_OPS_COST;
-
-  let cateringInclusions = 0;
-  if (data.menuType.includes('Summer Barbecue')) cateringInclusions += FRUIT_SKEWER_PER_HEAD * guests;
-  if (data.eventType === 'Summer Event') cateringInclusions += PIMMS_PROSECCO_PER_HEAD * guests;
-
-  const upgradesTotal = UPGRADES.filter((u) => data.selectedUpgrades.includes(u.label)).reduce(
-    (s, u) => s + (u.type === 'perGuest' ? u.price * guests : u.price),
-    0,
-  );
-
-  const total = vesselHire + menuCost + fixedOps + cateringInclusions + upgradesTotal;
-  return { vesselHire, menuCost, fixedOps, cateringInclusions, upgradesTotal, total, peak };
-}
-
 type FormData = {
   vesselType: string[];
   eventType: string;
@@ -110,8 +60,16 @@ type FormData = {
   disembarkation: string;
   menuType: string[];
   repeatClient: boolean;
+  agentReferral: boolean;
   totalCost: string;
   selectedUpgrades: string[];
+  /** corporate | wedding — drives template list only (manual pick). */
+  proposalCategory: 'corporate' | 'wedding';
+  /** Explicit stargtm template id — salesperson selects; no auto-pick. */
+  templateId: string;
+  requiresInserts: boolean;
+  selectedInserts: string[];
+  progressNotes: string;
 };
 
 /**
@@ -149,8 +107,14 @@ const INIT: FormData = {
   disembarkation: '18:00',
   menuType: [],
   repeatClient: false,
+  agentReferral: false,
   totalCost: '',
   selectedUpgrades: [],
+  proposalCategory: 'corporate',
+  templateId: '',
+  requiresInserts: false,
+  selectedInserts: [],
+  progressNotes: '',
 };
 
 type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
@@ -198,25 +162,11 @@ const INTEGRITY_STEPS: { key: Exclude<GenerationStage, 'idle' | 'error'>; label:
 const STAGE_ORDER: Exclude<GenerationStage, 'idle' | 'error'>[] = ['preparing', 'sending', 'generating', 'done'];
 
 /**
- * Base Cost (the totalCost field, auto-prefilled from calcBaseCostBreakdown
- * but user-overridable) then flows through: + 2.25% Contingency, then the
- * Margin (15% repeat / 25% new) to reach the "Cost to Client", then VAT.
+ * Base Cost (Quote Sheet SoT via quoteFinance.ts) then flows through:
+ * + Contingency (2.25%), then Margin (repeat 15% / new 25% or event minimum),
+ * then VAT (20%). See lib/quoteFinance.ts.
  */
-function calcFinancials(data: FormData) {
-  const baseCost = parseFloat(data.totalCost) || 0;
-  const upgradeTotal = UPGRADES.filter((u) => data.selectedUpgrades.includes(u.label)).reduce(
-    (s, u) => s + (u.type === 'perGuest' ? u.price * (parseFloat(data.guestCount) || 0) : u.price),
-    0,
-  );
-  const contingency = baseCost * CONTINGENCY_RATE;
-  const afterContingency = baseCost + contingency;
-  const margin = data.repeatClient ? 0.15 : 0.25;
-  const marginAmount = afterContingency * margin;
-  const costToClient = afterContingency + marginAmount;
-  const vat = costToClient * VAT_RATE;
-  const grand = costToClient + vat;
-  return { baseCost, contingency, marginAmount, costToClient, vat, grand, upgradeTotal, margin };
-}
+/* financial helpers imported from @/lib/quoteFinance */
 
 /* DNB-style pill input: rounded, soft border, teal focus ring */
 const inputCls =
@@ -425,6 +375,7 @@ const STEPS = [
   { n: 4, label: 'Catering' },
   { n: 5, label: 'Financials' },
   { n: 6, label: 'Upgrades' },
+  { n: 7, label: 'Proposal Pack' },
 ];
 
 export function Forms() {
@@ -464,6 +415,23 @@ export function Forms() {
   const fin = calcFinancials(data);
   const baseCostBreakdown = calcBaseCostBreakdown(data);
 
+  const availableTemplates = useMemo(
+    () => templatesForCategory(data.proposalCategory),
+    [data.proposalCategory],
+  );
+
+  const availableInserts = useMemo(
+    () =>
+      filterInserts({
+        category: data.proposalCategory,
+        vesselHint: data.vesselType[0],
+      }),
+    [data.proposalCategory, data.vesselType],
+  );
+
+  const [insertPanelOpen, setInsertPanelOpen] = useState(false);
+  const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff' | 'map'>('all');
+
   // Keep Base Cost synced to the formula while it's in "auto" mode. Guarded
   // to only run once the relevant inputs actually change, so typing a
   // manual override (which flips baseCostAuto off) never gets clobbered.
@@ -478,6 +446,8 @@ export function Forms() {
     data.menuType,
     data.guestCount,
     data.eventDate,
+    data.embarkation,
+    data.disembarkation,
     data.selectedUpgrades,
   ]);
 
@@ -487,44 +457,102 @@ export function Forms() {
   };
   const previewImg = getStoredPreview(previewField, previewOption);
 
+  const toggleInsert = (id: string) =>
+    set(
+      'selectedInserts',
+      data.selectedInserts.includes(id)
+        ? data.selectedInserts.filter((x) => x !== id)
+        : [...data.selectedInserts, id],
+    );
+
   const handleGenerate = async () => {
     setErrorMessage('');
     setStage('preparing');
 
-    const payload = {
-      ...data,
-      financials: {
-        baseCost: fin.baseCost,
-        contingency: fin.contingency,
-        marginAmount: fin.marginAmount,
-        costToClient: fin.costToClient,
-        vat: fin.vat,
-        grandTotal: fin.grand,
-        upgradeTotal: fin.upgradeTotal,
-      },
-      // Tag the webhook payload with whichever lead this quote was built
-      // for, so the automation can match it back to the CRM record.
+    if (!data.templateId) {
+      setErrorMessage('Select a proposal template in Proposal Pack before generating.');
+      setStage('error');
+      setStep(7);
+      return;
+    }
+
+    const staffContact = resolveStaffContactFromInsertIds(
+      data.requiresInserts ? data.selectedInserts : [],
+      PROPOSAL_INSERTS,
+    );
+
+    const payload = buildStargtmPayload({
+      form: data,
+      financials: fin,
       lead: quoteLead
         ? {
-            id: quoteLead.id,
             name: quoteLead.name,
             email: quoteLead.email,
             phone: quoteLead.phone,
-            designation: quoteLead.designation,
             company: quoteLead.company,
             referenceNumber: quoteLead.referenceNumber,
+            designation: quoteLead.designation,
           }
         : null,
-    };
+      templateId: data.templateId,
+      category: data.proposalCategory,
+      selectedInserts: data.requiresInserts ? data.selectedInserts : [],
+      progressNotes: data.progressNotes,
+      staffContact,
+    });
+
+    // Attach sheets mode so n8n routes demo→test sheet / live→production.
+    const sheetsMode = getSheetsMode();
+    const outbound = { ...payload, mode: sheetsMode };
 
     await new Promise((r) => setTimeout(r, 500));
     setStage('sending');
 
     try {
+      // Write progress notes + quote financials back to Sheets (SoT) before/alongside PDF.
+      if (data.progressNotes.trim()) {
+        await appendProgressNote({
+          referenceNumber: quoteLead?.referenceNumber,
+          email: quoteLead?.email,
+          leadName: quoteLead?.name,
+          note: data.progressNotes.trim(),
+          tag: 'pipeline',
+          mode: sheetsMode,
+        }).catch(() => undefined);
+      }
+      await writeQuoteStatus({
+        referenceNumber: quoteLead?.referenceNumber,
+        email: quoteLead?.email,
+        leadName: quoteLead?.name,
+        status: 'generating',
+        title: `${data.eventType || 'Event'} Proposal`,
+        eventType: data.eventType,
+        eventDate: data.eventDate,
+        guestCount: data.guestCount,
+        guests: parseFloat(data.guestCount) || 0,
+        repeatClient: data.repeatClient,
+        selectedUpgrades: data.selectedUpgrades,
+        templateId: data.templateId,
+        selectedInserts: data.requiresInserts ? data.selectedInserts : [],
+        staffContact: staffContact.name,
+        baseCost: fin.baseCost,
+        contingency: fin.contingency,
+        contingencyRate: fin.contingencyRate,
+        margin: fin.margin,
+        marginAmount: fin.marginAmount,
+        costToClient: fin.costToClient,
+        packageCost: fin.costToClient,
+        vat: fin.vat,
+        vatRate: fin.vatRate,
+        upgradeTotal: fin.upgradeTotal,
+        grandTotal: fin.grand,
+        mode: sheetsMode,
+      }).catch(() => undefined);
+
       const res = await fetch(QUOTE_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(outbound),
       });
 
       if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
@@ -549,7 +577,6 @@ export function Forms() {
         if (base64OrUrl?.startsWith('data:')) {
           pdfDataUrl = base64OrUrl;
         } else if (base64OrUrl) {
-          // Assume a bare base64 string, or a fetchable URL.
           if (/^[A-Za-z0-9+/=]+$/.test(base64OrUrl) && base64OrUrl.length > 100) {
             pdfDataUrl = `data:application/pdf;base64,${base64OrUrl}`;
           } else {
@@ -586,6 +613,20 @@ export function Forms() {
           'The PDF was generated but is too large to store in this browser — clear some space (e.g. delete older proposals) and try again.',
         );
       }
+
+      await writeQuoteStatus({
+        referenceNumber: quoteLead?.referenceNumber,
+        email: quoteLead?.email,
+        leadName: quoteLead?.name,
+        status: 'ready',
+        eventType: data.eventType,
+        eventDate: data.eventDate,
+        guestCount: data.guestCount,
+        grandTotal: fin.grand,
+        costToClient: fin.costToClient,
+        vat: fin.vat,
+        templateId: data.templateId,
+      }).catch(() => undefined);
 
       clearQuoteLead();
       setStage('done');
@@ -721,7 +762,7 @@ export function Forms() {
                 </div>
 
                 <p className={sectionLabelCls}>Event Date</p>
-                <div>
+                <div className="mb-7">
                   <label className={fieldLabelCls}>
                     Date of Event
                     <span title="The calendar day this event takes place">
@@ -734,6 +775,26 @@ export function Forms() {
                     onChange={(e) => set('eventDate', e.target.value)}
                     className={inputCls}
                   />
+                </div>
+
+                <p className={sectionLabelCls}>Progress Notes</p>
+                <div>
+                  <label className={fieldLabelCls}>
+                    Call / progress notes
+                    <span title="Written back to Google Sheets (Nexus Ops Notes)">
+                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
+                    </span>
+                  </label>
+                  <textarea
+                    value={data.progressNotes}
+                    onChange={(e) => set('progressNotes', e.target.value)}
+                    rows={4}
+                    placeholder="Event details, proposal info, next actions…"
+                    className={`${inputCls} min-h-[96px] resize-y`}
+                  />
+                  <p className="mt-1.5 text-[11.5px] text-gray-400">
+                    Replaces typing notes directly into the Enquiry sheet — synced on generate.
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -860,28 +921,45 @@ export function Forms() {
                   </button>
                 </div>
 
-                <p className={sectionLabelCls}>Cost Inputs</p>
+                <div className="mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-gray-800">Agent Referral</p>
+                    <p className="text-[12px] text-gray-400">Adds +10% agent fee on cost to client (Quote Sheet)</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set('agentReferral', !data.agentReferral)}
+                    className={`relative h-7 w-14 rounded-full transition-colors ${data.agentReferral ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
+                  >
+                    <motion.div
+                      animate={{ x: data.agentReferral ? 28 : 2 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm"
+                    />
+                  </button>
+                </div>
 
-                {/* Base Cost formula breakdown — Vessel Hire + Menu Cost + Fixed Ops +
-                    catering inclusions + Upgrades, mirroring the n8n Process Financials node. */}
+                <p className={sectionLabelCls}>Cost Inputs</p>
+                <p className="mb-3 text-[11.5px] text-gray-400">
+                  Rates from Quote Sheet · Price Comparison (cost to WEOTT). Contingency {(CONTINGENCY_RATE * 100).toFixed(2)}% then margin, then VAT.
+                </p>
+
+                {/* Base Cost formula — Quote Sheet SoT via quoteFinance.ts */}
                 <div className="mb-4 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                   <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                     <span className="flex items-center gap-2">
-                      Vessel Hire
+                      Vessel Hire ({baseCostBreakdown.hours}h)
                       {baseCostBreakdown.peak && (
                         <span className="rounded-full bg-[#FFF1F0] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[#E22A12]">
-                          Peak +20%
+                          Peak period
                         </span>
                       )}
                     </span>
                     <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{baseCostBreakdown.vesselHire.toFixed(2)}</span>
                   </div>
                   {[
-                    ['Menu Cost', baseCostBreakdown.menuCost],
+                    ['Catering (× guests)', baseCostBreakdown.menuCost],
                     ['Fixed Operational Costs', baseCostBreakdown.fixedOps],
-                    ...(baseCostBreakdown.cateringInclusions > 0
-                      ? ([['Catering Inclusions', baseCostBreakdown.cateringInclusions]] as const)
-                      : []),
                     ...(baseCostBreakdown.upgradesTotal > 0
                       ? ([['Upgrades Total', baseCostBreakdown.upgradesTotal]] as const)
                       : []),
@@ -896,10 +974,13 @@ export function Forms() {
                     <span className="text-[14px] font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{baseCostBreakdown.total.toFixed(2)}</span>
                   </div>
                 </div>
-                <p className="mb-4 -mt-2 text-[11px] text-gray-400">
-                  Vessel hire is £{VESSEL_HIRE_RATE} flat (no per-vessel rate table on file), +20% on Friday–Sunday
-                  bookings or whenever the date is TBC.
-                </p>
+                {baseCostBreakdown.notes.length > 0 && (
+                  <ul className="mb-4 -mt-2 list-disc space-y-0.5 pl-4 text-[11px] text-gray-400">
+                    {baseCostBreakdown.notes.map((n) => (
+                      <li key={n}>{n}</li>
+                    ))}
+                  </ul>
+                )}
 
                 <div className="mb-7">
                   <div className="mb-1.5 flex items-center justify-between">
@@ -930,7 +1011,7 @@ export function Forms() {
                     className={`${inputCls} font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]`}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Prefilled from the formula above — edit it directly to override.
+                    Prefilled from Quote Sheet rates — edit to override.
                   </p>
                 </div>
 
@@ -1032,6 +1113,148 @@ export function Forms() {
                 )}
               </motion.div>
             )}
+
+            {/* STEP 7 — Proposal Pack (templates + inserts) — Meera Priority 1 */}
+            {step === 7 && (
+              <motion.div
+                key="step7-pack"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={{ duration: 0.25 }}
+              >
+                <p className={sectionLabelCls}>Proposal Type</p>
+                <div className="mb-7 flex gap-3">
+                  {(['corporate', 'wedding'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        set('proposalCategory', cat);
+                        set('templateId', '');
+                      }}
+                      className={`flex-1 rounded-[10px] border px-4 py-3.5 text-[13px] font-semibold capitalize transition-colors ${
+                        data.proposalCategory === cat
+                          ? 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
+                          : 'border-[#e3e6e4] text-gray-600 hover:border-[#FF5A45]/40'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                <p className={sectionLabelCls}>Proposal Template</p>
+                <div className="mb-7">
+                  <label className={fieldLabelCls}>
+                    Select template
+                    <span title="Team picks the template — no automatic selection">
+                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
+                    </span>
+                  </label>
+                  <select
+                    value={data.templateId}
+                    onChange={(e) => set('templateId', e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Select a proposal template…</option>
+                    {availableTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {templateLabel(t)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-[11.5px] text-gray-400">
+                    {availableTemplates.length} templates in {data.proposalCategory} catalog · manual pick only
+                  </p>
+                </div>
+
+                <p className={sectionLabelCls}>Inserts</p>
+                <div className="mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-gray-800">Does this proposal require inserts?</p>
+                    <p className="text-[12px] text-gray-400">Vessel profile, staff page, river map…</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {([true, false] as const).map((yes) => (
+                      <button
+                        key={String(yes)}
+                        type="button"
+                        onClick={() => {
+                          set('requiresInserts', yes);
+                          if (!yes) set('selectedInserts', []);
+                        }}
+                        className={`rounded-full px-4 py-2 text-[12px] font-bold transition-colors ${
+                          data.requiresInserts === yes
+                            ? 'bg-[#FF5A45] text-white'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {yes ? 'Yes' : 'No'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {data.requiresInserts && (
+                  <div className="mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setInsertPanelOpen(true)}
+                      className="flex w-full items-center justify-between rounded-[10px] border border-[#FF5A45]/35 bg-[#FFF1F0] px-4 py-3.5 text-left transition-colors hover:bg-[#FFE4E0]"
+                    >
+                      <span className="flex items-center gap-2 text-[13px] font-semibold text-[#E22A12]">
+                        <Layers className="h-4 w-4" />
+                        {data.selectedInserts.length
+                          ? `${data.selectedInserts.length} insert${data.selectedInserts.length > 1 ? 's' : ''} selected`
+                          : 'Choose inserts…'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-[#E22A12]" />
+                    </button>
+                    {data.selectedInserts.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {data.selectedInserts.map((id) => {
+                          const item = availableInserts.find((i) => i.id === id);
+                          return (
+                            <li
+                              key={id}
+                              className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-[12px] text-gray-700"
+                            >
+                              <span className="truncate">{item?.label || id}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleInsert(id)}
+                                className="text-gray-400 hover:text-[#E22A12]"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      {(INSERT_PLACEMENT_RULES as Record<string, string>).vessel ||
+                        'Vessel inserts replace page 9; staff replace page 16; maps insert after vessel.'}
+                    </p>
+                    {(() => {
+                      const sc = resolveStaffContactFromInsertIds(data.selectedInserts, PROPOSAL_INSERTS);
+                      const hasStaff = data.selectedInserts.some(
+                        (id) => PROPOSAL_INSERTS.find((i) => i.id === id)?.kind === 'staff',
+                      );
+                      if (!hasStaff) return null;
+                      return (
+                        <div className="mt-3 rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 text-[12px] text-[#E22A12]">
+                          <span className="font-bold">Staff contact on proposal: </span>
+                          {sc.name} · {sc.title}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </motion.div>
+            )}
           </AnimatePresence>
 
           {/* ── Navigation (DNB: single pill "Next" button, bottom right) ── */}
@@ -1046,9 +1269,9 @@ export function Forms() {
             ) : (
               <span />
             )}
-            {step < 6 ? (
+            {step < 7 ? (
               <button
-                onClick={() => setStep((s) => Math.min(6, s + 1))}
+                onClick={() => setStep((s) => Math.min(7, s + 1))}
                 className="flex items-center gap-2 rounded-full bg-[#FF5A45] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#F4412A]"
               >
                 Next
@@ -1257,6 +1480,100 @@ export function Forms() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Insert picker overlay card */}
+      <AnimatePresence>
+        {insertPanelOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0b0f0d]/55 backdrop-blur-sm"
+            onClick={() => setInsertPanelOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              className="relative flex max-h-[80vh] w-[520px] flex-col overflow-hidden rounded-[20px] bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-4">
+                <div>
+                  <p className="text-[15px] font-bold text-[#101a15]">Available inserts</p>
+                  <p className="text-[11.5px] text-gray-400">Select one or more — placement follows catalog rules</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInsertPanelOpen(false)}
+                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex gap-2 border-b border-[#f0f0f0] px-5 py-3">
+                {(['all', 'vessel', 'staff', 'map'] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setInsertKindFilter(k)}
+                    className={`rounded-full px-3 py-1.5 text-[11px] font-bold capitalize ${
+                      insertKindFilter === k ? 'bg-[#FF5A45] text-white' : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+              <ul className="flex-1 overflow-y-auto px-3 py-2">
+                {availableInserts
+                  .filter((i) => insertKindFilter === 'all' || i.kind === insertKindFilter)
+                  .map((ins) => {
+                    const on = data.selectedInserts.includes(ins.id);
+                    return (
+                      <li key={ins.id}>
+                        <button
+                          type="button"
+                          onClick={() => toggleInsert(ins.id)}
+                          className={`mb-1 flex w-full items-start gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                            on ? 'bg-[#FFF1F0]' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <span
+                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                              on ? 'border-[#FF5A45] bg-[#FF5A45] text-white' : 'border-gray-300'
+                            }`}
+                          >
+                            {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[12.5px] font-semibold text-gray-800">{ins.label}</span>
+                            <span className="mt-0.5 block text-[10.5px] text-gray-400">
+                              {ins.kind}
+                              {ins.season ? ` · ${ins.season}` : ''}
+                              {ins.slot ? ` · ${ins.slot}` : ''}
+                              {ins.dancefloor ? ' · dancefloor' : ''}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+              </ul>
+              <div className="border-t border-[#f0f0f0] px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() => setInsertPanelOpen(false)}
+                  className="w-full rounded-full bg-[#FF5A45] py-2.5 text-[13px] font-bold text-white"
+                >
+                  Done · {data.selectedInserts.length} selected
+                </button>
               </div>
             </motion.div>
           </motion.div>

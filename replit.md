@@ -40,7 +40,18 @@ A business/workspace management suite (Dashboard, Calendar, Employee Dashboard, 
 
 ## Product
 
-Internal business-operations suite: a Home page for picking a section, dashboard overview, calendar/scheduling, employee dashboard, a process timeline view, and a guided setup wizard (business info, operations, account config, data import/export, category mapping).
+MVP focus (per Meera): cut proposal creation from ~40 min to ~10–15 min while keeping Google Sheets as the operational source of truth.
+
+Priorities:
+1. Manual proposal template + optional inserts (UI → `artifacts/pdf-engine`)
+2. Costing decision engine from Quote Sheet rates (`quoteFinance.ts`)
+3. Progress notes / quote financials write back to Sheets via n8n
+
+See `exports/MEERA-MVP-SETUP.md` and `exports/n8n-quote-builder-mvp.json`.
+
+## PDF engine
+
+Vendored from ProximaOpal/stargtm into `artifacts/pdf-engine` (includes insert catalog + `/inserts` API).
 
 ## User preferences
 
@@ -49,8 +60,11 @@ _Populate as you build — explicit user instructions worth remembering across s
 ## Gotchas
 
 - Dependencies are installed and the `artifacts/workspace-suite: web` workflow is running (verified via `curl localhost:23392` returning 200 and Vite serving the app with no console errors).
-- The `api-server` and DB packages are still just scaffolding — no workflow, no `DATABASE_URL` configured. Only set those up if/when the user asks to wire up the backend.
+- The `api-server` and DB packages are still just scaffolding — Sheets is SoT for MVP; do not stand up Postgres as a second DB.
+- Test Sheet twin: `exports/WEOTT-Nexus-TEST-Sheets.xlsx` — upload to Drive before pointing n8n at it. Never write to production sheet until go-live.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Finance SoT: `artifacts/workspace-suite/src/lib/quoteFinance.ts`
+- Insert placement: `artifacts/pdf-engine/inserts.py`
