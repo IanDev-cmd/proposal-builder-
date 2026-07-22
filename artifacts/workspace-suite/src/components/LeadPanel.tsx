@@ -10,6 +10,7 @@ import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type Lead
 import { soundClick } from '@/lib/sounds';
 import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
+import type { N8nSapphireLead } from '@/lib/sapphireLead';
 
 const NOTE_ICONS: Record<NoteTag, typeof Search> = {
   research: Search,
@@ -68,6 +69,8 @@ export type Lead = {
   bestTimeToCall?: string;
   yearOfEvent?: string;
   progressNotes?: string;
+  /** Full n8n Structure all Leads1 alias bag — SoT for QuoteBuilder nexusLead. */
+  sapphire?: N8nSapphireLead;
 };
 
 /* ─── helpers ───
@@ -123,6 +126,66 @@ function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
           <p className="mt-3 max-w-[200px] text-[11px] leading-relaxed text-[#1a1a1a]/50">
             {lead.designation} — {lead.sector}.{lead.source ? ` Sourced via ${lead.source}.` : ''}
           </p>
+          {/* Sapphire aliases from n8n LeadDataFetch (Sheets SoT) */}
+          <dl className="mt-4 max-w-[240px] space-y-1.5 text-[10.5px] text-[#1a1a1a]/55">
+            {lead.preparedBy && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">REP</dt>
+                <dd>{lead.preparedBy}</dd>
+              </div>
+            )}
+            {(lead.eventDateDisplay || lead.fullEventDate) && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Date</dt>
+                <dd>{lead.eventDateDisplay || lead.fullEventDate}</dd>
+              </div>
+            )}
+            {lead.requestedEventTimes && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Times</dt>
+                <dd>{lead.requestedEventTimes}</dd>
+              </div>
+            )}
+            {(lead.groupSize || lead.groupSizeQuote) && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Guests</dt>
+                <dd>
+                  {lead.groupSize}
+                  {lead.groupSizeQuote != null ? ` → quote ${lead.groupSizeQuote}` : ''}
+                </dd>
+              </div>
+            )}
+            {lead.vessels && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Vessel</dt>
+                <dd>{lead.vessels}</dd>
+              </div>
+            )}
+            {lead.budget && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Budget</dt>
+                <dd>{lead.budget}</dd>
+              </div>
+            )}
+            {lead.market && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Market</dt>
+                <dd>{lead.market}</dd>
+              </div>
+            )}
+            {lead.yearOfEvent && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Year</dt>
+                <dd>{lead.yearOfEvent}</dd>
+              </div>
+            )}
+            {lead.bestTimeToCall && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 font-semibold text-[#1a1a1a]/40">Call</dt>
+                <dd>{lead.bestTimeToCall}</dd>
+              </div>
+            )}
+          </dl>
           {/* Quick-connect row — each brand keeps its own color coding */}
           <div className="mt-5 flex items-center gap-3">
             <a
@@ -499,6 +562,7 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
       bestTimeToCall: lead.bestTimeToCall,
       yearOfEvent: lead.yearOfEvent,
       progressNotes: lead.progressNotes,
+      sapphire: lead.sapphire,
     });
     soundClick();
     onClose();

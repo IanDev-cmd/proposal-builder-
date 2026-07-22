@@ -42,6 +42,8 @@ export type QuoteLead = {
   yearOfEvent?: string;
   /** Concatenated Progress 1…N */
   progressNotes?: string;
+  /** Full n8n alias bag — pass through as nexusLead without re-mapping. */
+  sapphire?: import('@/lib/sapphireLead').N8nSapphireLead;
 };
 
 export function setQuoteLead(lead: QuoteLead): void {

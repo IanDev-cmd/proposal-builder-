@@ -17,27 +17,12 @@ import {
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
 import { N8N_BASE } from '@/lib/backendUrls';
+import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
 
 const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
 
-/** Accept both sheet-column RawLead and n8n aliased shapes. */
+/** n8n aliased leads preferred; raw sheet rows accepted as legacy fallback. */
 type AnyLeadRow = Record<string, unknown>;
-
-function pick(row: AnyLeadRow, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = row[k];
-    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
-  }
-  // prefix / fuzzy for long sheet headers
-  const lowerKeys = keys.map((k) => k.toLowerCase());
-  for (const [rk, rv] of Object.entries(row)) {
-    const n = rk.replace(/\s+/g, ' ').trim().toLowerCase();
-    if (lowerKeys.some((k) => n === k || n.startsWith(k))) {
-      if (rv !== undefined && rv !== null && String(rv).trim() !== '') return String(rv);
-    }
-  }
-  return '';
-}
 
 function toInitials(name: string): string {
   return name
@@ -48,30 +33,39 @@ function toInitials(name: string): string {
     .join('');
 }
 
+/**
+ * Map n8n Structure all Leads1 → UI Lead.
+ * Sapphire aliases are SoT; sheet headers only if aliases missing.
+ */
 function mapRaw(raw: AnyLeadRow, index: number): Lead {
-  const name = pick(raw, 'name', 'Name') || '—';
-  const email = pick(raw, 'email', 'Main Contact - Email') || '—';
-  const ref = pick(raw, 'referenceNumber', 'Client Reference Number', 'code') || `#${index + 1}`;
-  const designation = pick(raw, 'jobRole', 'designation', 'Main Contact - Job Role') || '—';
-  const phone = pick(raw, 'phone', 'Main Contact - Number') || '—';
-  const joined = pick(raw, 'enquiryDate', 'Enquiry Date', 'joined') || '—';
-  const sector = pick(raw, 'companySector', 'sector', 'Company Sector') || '—';
-  const source = pick(raw, 'source', 'Source') || '—';
-  const company = pick(raw, 'companyName', 'company', 'Company Name') || '—';
-  const statusRaw = pick(raw, 'status', 'Status');
-  const liveDead = pick(raw, 'liveDead', 'Live/Dead', 'Live/Dead/ Blacklisted/Booked');
+  const name = aliasFirst(raw, 'name', 'Name') || '—';
+  const email = aliasFirst(raw, 'email', 'Main Contact - Email') || '—';
+  const ref = aliasFirst(raw, 'referenceNumber', 'Client Reference Number', 'code') || `#${index + 1}`;
+  const designation = aliasFirst(raw, 'jobRole', 'designation', 'Main Contact - Job Role') || '—';
+  const phone = aliasFirst(raw, 'phone', 'Main Contact - Number') || '—';
+  const joined = aliasFirst(raw, 'enquiryDate', 'Enquiry Date', 'joined') || '—';
+  const sector = aliasFirst(raw, 'companySector', 'sector', 'Company Sector') || '—';
+  const source = aliasFirst(raw, 'source', 'Source') || '—';
+  const company = aliasFirst(raw, 'companyName', 'company', 'Company Name') || '—';
+  const statusRaw = aliasFirst(raw, 'status', 'Status');
+  const liveDead = aliasFirst(raw, 'liveDead', 'Live/Dead', 'Live/Dead/ Blacklisted/Booked');
   const status = (statusRaw || liveDead).toLowerCase().trim();
-  const preparedBy = pick(raw, 'preparedBy', 'assignedRep', 'Client Relationship Representative');
-  const groupSize = pick(raw, 'groupSize', 'Group Size');
+  const preparedBy = aliasFirst(raw, 'preparedBy', 'Client Relationship Representative');
+  const assignedRep = aliasFirst(raw, 'assignedRep') || preparedBy;
+  const groupSize = aliasFirst(raw, 'groupSize', 'Group Size');
   const gsq = raw.groupSizeQuote;
   const groupSizeQuote =
-    typeof gsq === 'number' || typeof gsq === 'string'
+    typeof gsq === 'number' || (typeof gsq === 'string' && String(gsq).trim() !== '')
       ? gsq
       : groupSize.match(/\d+/)?.[0] || '';
-  const flexRaw = pick(raw, 'eventDateFlexible', 'Event Date - Flexible');
+  const flexRaw = aliasFirst(raw, 'eventDateFlexible', 'Event Date - Flexible');
   const flexBool =
     raw.eventDateFlexibleBool === true ||
+    raw.eventDateFlexibleBool === 'true' ||
     /yes|tbc|flex/i.test(flexRaw);
+  const eventDateDisplay =
+    aliasFirst(raw, 'eventDateDisplay') ||
+    (flexBool ? 'Date TBC' : aliasFirst(raw, 'fullEventDate', 'Full Event Date'));
   const idRaw = raw.id ?? raw.row_number ?? index + 1;
   const id = typeof idRaw === 'number' ? idRaw : Number(idRaw) || index + 1;
 
@@ -90,27 +84,25 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
     source,
     company,
     status,
-    budget: pick(raw, 'budget', 'Budget') || undefined,
-    repeatClient: pick(raw, 'repeatClient', 'Repeat Client') || undefined,
+    budget: aliasFirst(raw, 'budget', 'Budget') || undefined,
+    repeatClient: aliasFirst(raw, 'repeatClient', 'Repeat Client') || undefined,
     preparedBy: preparedBy || undefined,
-    assignedRep: preparedBy || undefined,
+    assignedRep: assignedRep || undefined,
     liveDead: liveDead || undefined,
-    eventType: pick(raw, 'eventType', 'Event Type') || undefined,
-    fullEventDate: pick(raw, 'fullEventDate', 'Full Event Date') || undefined,
+    eventType: aliasFirst(raw, 'eventType', 'Event Type') || undefined,
+    fullEventDate: aliasFirst(raw, 'fullEventDate', 'Full Event Date') || undefined,
     eventDateFlexible: flexRaw || undefined,
     eventDateFlexibleBool: flexBool || undefined,
-    eventDateDisplay:
-      pick(raw, 'eventDateDisplay') ||
-      (flexBool ? 'Date TBC' : pick(raw, 'fullEventDate', 'Full Event Date')) ||
-      undefined,
-    requestedEventTimes: pick(raw, 'requestedEventTimes', 'Requested Event Times') || undefined,
+    eventDateDisplay: eventDateDisplay || undefined,
+    requestedEventTimes: aliasFirst(raw, 'requestedEventTimes', 'Requested Event Times') || undefined,
     groupSize: groupSize || undefined,
     groupSizeQuote: groupSizeQuote || undefined,
-    vessels: pick(raw, 'vessels', 'What vessel') || undefined,
-    market: pick(raw, 'market', 'Market') || undefined,
-    bestTimeToCall: pick(raw, 'bestTimeToCall', 'Best time to call') || undefined,
-    yearOfEvent: pick(raw, 'yearOfEvent', 'Year of Event') || undefined,
-    progressNotes: pick(raw, 'progressNotes') || undefined,
+    vessels: aliasFirst(raw, 'vessels', 'What vessel') || undefined,
+    market: aliasFirst(raw, 'market', 'Market') || undefined,
+    bestTimeToCall: aliasFirst(raw, 'bestTimeToCall', 'Best time to call') || undefined,
+    yearOfEvent: aliasFirst(raw, 'yearOfEvent', 'Year of Event') || undefined,
+    progressNotes: aliasFirst(raw, 'progressNotes') || undefined,
+    sapphire: toNexusLeadPayload(raw),
   };
 }
 

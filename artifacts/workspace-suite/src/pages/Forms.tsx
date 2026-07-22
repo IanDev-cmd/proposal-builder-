@@ -138,10 +138,14 @@ const INIT: FormData = {
 
 function formFromLead(lead: QuoteLead | null): FormData {
   if (!lead) return { ...INIT };
-  const flex = isFlexibleDate(lead.eventDateFlexible, lead.eventDateFlexibleBool);
+  // Prefer n8n-derived fields (eventDateDisplay / eventDateFlexibleBool / groupSizeQuote)
+  const flex =
+    lead.eventDateFlexibleBool === true ||
+    lead.eventDateDisplay === 'Date TBC' ||
+    isFlexibleDate(lead.eventDateFlexible, lead.eventDateFlexibleBool);
   const times = parseRequestedTimes(lead.requestedEventTimes);
   const vessels = matchVessels(lead.vessels);
-  const eventType = matchEventType(lead.eventType);
+  const eventType = matchEventType(lead.eventType) || lead.eventType || '';
   const guest =
     lead.groupSizeQuote != null && String(lead.groupSizeQuote).trim() !== ''
       ? String(lead.groupSizeQuote)
@@ -154,7 +158,9 @@ function formFromLead(lead: QuoteLead | null): FormData {
     vesselType: vessels,
     eventType: eventType || INIT.eventType,
     dateFlexible: flex,
-    eventDate: flex ? '' : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate,
+    eventDate: flex
+      ? ''
+      : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate,
     guestCount: guest,
     embarkation: times.embarkation || INIT.embarkation,
     disembarkation: times.disembarkation || INIT.disembarkation,
@@ -590,6 +596,8 @@ export function Forms() {
         : null,
       nexusLead: quoteLead
         ? {
+            ...(quoteLead.sapphire || {}),
+            // Form edits overlay n8n SoT for fields the REP changed in the wizard
             referenceNumber: quoteLead.referenceNumber,
             name: quoteLead.name,
             companyName: quoteLead.company,
@@ -597,27 +605,28 @@ export function Forms() {
             email: quoteLead.email,
             phone: quoteLead.phone,
             jobRole: quoteLead.designation,
-            budget: quoteLead.budget || data.budget,
+            budget: data.budget || quoteLead.budget,
             repeatClient: data.repeatClient ? 'YES' : 'NO',
             preparedBy: quoteLead.preparedBy,
             assignedRep: quoteLead.assignedRep || quoteLead.preparedBy,
             status: quoteLead.status,
             liveDead: quoteLead.liveDead,
-            source: quoteLead.source || data.source,
+            source: data.source || quoteLead.source,
             enquiryDate: quoteLead.enquiryDate,
-            eventType: data.eventType,
+            eventType: data.eventType || quoteLead.eventType,
             fullEventDate: quoteLead.fullEventDate,
-            eventDateFlexible: data.dateFlexible ? 'YES' : 'NO',
+            eventDateFlexible: data.dateFlexible ? 'YES' : quoteLead.eventDateFlexible || 'NO',
             eventDateFlexibleBool: data.dateFlexible,
-            eventDateDisplay: data.dateFlexible ? 'Date TBC' : data.eventDate,
-            requestedEventTimes: `${data.embarkation} - ${data.disembarkation}`,
+            eventDateDisplay: data.dateFlexible ? 'Date TBC' : data.eventDate || quoteLead.eventDateDisplay,
+            requestedEventTimes:
+              `${data.embarkation} - ${data.disembarkation}` || quoteLead.requestedEventTimes,
             groupSize: data.guestCount || quoteLead.groupSize,
             groupSizeQuote: parseFloat(data.guestCount) || quoteLead.groupSizeQuote,
             vessels: data.vesselType.join(', ') || quoteLead.vessels,
             market: quoteLead.market,
             bestTimeToCall: quoteLead.bestTimeToCall,
             yearOfEvent: quoteLead.yearOfEvent,
-            progressNotes: data.progressNotes,
+            progressNotes: data.progressNotes || quoteLead.progressNotes,
             agent: data.agentReferral ? 'YES' : '',
           }
         : null,
@@ -805,6 +814,13 @@ export function Forms() {
               <p className="truncate text-[10.5px] text-[#8fa89a]" title={quoteLead.company}>
                 {quoteLead.company}
               </p>
+              {(quoteLead.preparedBy || quoteLead.eventDateDisplay) && (
+                <p className="truncate text-[10px] text-[#8fa89a]">
+                  {[quoteLead.preparedBy && `REP ${quoteLead.preparedBy}`, quoteLead.eventDateDisplay]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -932,10 +948,53 @@ export function Forms() {
 
                 {data.budget ? (
                   <div className="mb-7">
-                    <p className={sectionLabelCls}>Budget (from Enquiry)</p>
+                    <p className={sectionLabelCls}>Budget (from Enquiry / n8n)</p>
                     <p className="rounded-[10px] border border-[#e3e6e4] bg-[#FFF1F0] px-4 py-3 text-[13px] font-semibold text-gray-800">
                       {data.budget}
                     </p>
+                  </div>
+                ) : null}
+
+                {quoteLead && (quoteLead.preparedBy || quoteLead.market || quoteLead.yearOfEvent || quoteLead.bestTimeToCall) ? (
+                  <div className="mb-7 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
+                    <p className="border-b border-[#f0f0f0] bg-[#fafafa] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#7c8a82]">
+                      Sheets SoT (n8n aliases)
+                    </p>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 text-[12px] text-gray-700">
+                      {quoteLead.preparedBy && (
+                        <>
+                          <dt className="text-gray-400">Prepared by (REP)</dt>
+                          <dd className="font-semibold">{quoteLead.preparedBy}</dd>
+                        </>
+                      )}
+                      {quoteLead.market && (
+                        <>
+                          <dt className="text-gray-400">Market</dt>
+                          <dd className="font-semibold">{quoteLead.market}</dd>
+                        </>
+                      )}
+                      {quoteLead.yearOfEvent && (
+                        <>
+                          <dt className="text-gray-400">Year of event</dt>
+                          <dd className="font-semibold">{quoteLead.yearOfEvent}</dd>
+                        </>
+                      )}
+                      {quoteLead.bestTimeToCall && (
+                        <>
+                          <dt className="text-gray-400">Best time to call</dt>
+                          <dd className="font-semibold">{quoteLead.bestTimeToCall}</dd>
+                        </>
+                      )}
+                      {quoteLead.groupSize && (
+                        <>
+                          <dt className="text-gray-400">Group size (sheet)</dt>
+                          <dd className="font-semibold">
+                            {quoteLead.groupSize}
+                            {quoteLead.groupSizeQuote != null ? ` → quote ${quoteLead.groupSizeQuote}` : ''}
+                          </dd>
+                        </>
+                      )}
+                    </dl>
                   </div>
                 ) : null}
 
