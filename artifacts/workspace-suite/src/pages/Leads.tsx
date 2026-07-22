@@ -36,6 +36,10 @@ function toInitials(name: string): string {
 /**
  * Map n8n Structure all Leads1 → UI Lead.
  * Sapphire aliases are SoT; sheet headers only if aliases missing.
+ *
+ * Tab buckets (Live / Booked / Dead / Blacklisted) use liveDead
+ * ("Live/Dead/ Blacklisted/Booked"), NOT the CRM Status column
+ * (e.g. "Ongoing (No Decision made yet)").
  */
 function mapRaw(raw: AnyLeadRow, index: number): Lead {
   const name = aliasFirst(raw, 'name', 'Name') || '—';
@@ -47,9 +51,10 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
   const sector = aliasFirst(raw, 'companySector', 'sector', 'Company Sector') || '—';
   const source = aliasFirst(raw, 'source', 'Source') || '—';
   const company = aliasFirst(raw, 'companyName', 'company', 'Company Name') || '—';
-  const statusRaw = aliasFirst(raw, 'status', 'Status');
+  const crmStatus = aliasFirst(raw, 'status', 'Status');
   const liveDead = aliasFirst(raw, 'liveDead', 'Live/Dead', 'Live/Dead/ Blacklisted/Booked');
-  const status = (statusRaw || liveDead).toLowerCase().trim();
+  // Tab key from Live/Dead column (LIVE / BOOKED / DEAD / Blacklisted)
+  const status = tabStatusFromLiveDead(liveDead, crmStatus);
   const preparedBy = aliasFirst(raw, 'preparedBy', 'Client Relationship Representative');
   const assignedRep = aliasFirst(raw, 'assignedRep') || preparedBy;
   const groupSize = aliasFirst(raw, 'groupSize', 'Group Size');
@@ -84,6 +89,7 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
     source,
     company,
     status,
+    crmStatus: crmStatus || undefined,
     budget: aliasFirst(raw, 'budget', 'Budget') || undefined,
     repeatClient: aliasFirst(raw, 'repeatClient', 'Repeat Client') || undefined,
     preparedBy: preparedBy || undefined,
@@ -104,6 +110,22 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
     progressNotes: aliasFirst(raw, 'progressNotes') || undefined,
     sapphire: toNexusLeadPayload(raw),
   };
+}
+
+/** Normalize Live/Dead sheet values → live | booked | dead | blacklisted */
+function tabStatusFromLiveDead(liveDead: string, crmStatus: string): string {
+  const ld = liveDead.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (ld.startsWith('live')) return 'live';
+  if (ld.startsWith('book')) return 'booked';
+  if (ld.startsWith('dead')) return 'dead';
+  if (ld.includes('blacklist')) return 'blacklisted';
+  // Fallback: CRM Status only if Live/Dead blank
+  const s = crmStatus.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (s.startsWith('book')) return 'booked';
+  if (s.startsWith('dead')) return 'dead';
+  if (s.includes('blacklist')) return 'blacklisted';
+  if (s.includes('ongoing') || s.includes('no decision') || s === 'live') return 'live';
+  return ld || s || 'live';
 }
 
 async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {

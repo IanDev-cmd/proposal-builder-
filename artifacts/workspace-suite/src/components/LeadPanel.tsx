@@ -50,6 +50,8 @@ export type Lead = {
   companyLogo?: string;
   photoUrl?: string;
   status?: string;
+  /** Raw Enquiry "Status" column (pipeline stage) — not used for Live/Booked tabs. */
+  crmStatus?: string;
   /** Sapphire aliases from n8n Structure all Leads1 */
   budget?: string;
   repeatClient?: string;
