@@ -16,8 +16,9 @@ import {
   writeLeadsCache,
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
+import { N8N_BASE } from '@/lib/backendUrls';
 
-const WEBHOOK_URL = 'https://meeraworkflows.app.n8n.cloud/webhook/LeadDataFetch';
+const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
 
 /** Accept both sheet-column RawLead and n8n aliased shapes. */
 type AnyLeadRow = Record<string, unknown>;

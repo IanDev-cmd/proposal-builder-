@@ -23,6 +23,9 @@ Nav bar **Demo | Live** toggle (Live asks for confirm). Mode is sent on LeadData
 ## n8n
 Import `exports/n8n-quote-builder-mvp.json` into meeraworkflows and reconnect Google Sheets OAuth on every Sheets node.
 
-## stargtm
-Branch pushed: `feature/mvp-inserts-manual-template`
-PR: https://github.com/ProximaOpal/stargtm/pull/new/feature/mvp-inserts-manual-template
+**Proposal engine (production):** `https://stargtm-kkzz.onrender.com/generate`
+
+## stargtm / ProductionENV
+- Upstream: https://github.com/ProximaOpal/stargtm  
+- Production package: https://github.com/ProximaOpal/ProductionENV-Proposal_engine-  
+- Live Render URL: https://stargtm-kkzz.onrender.com

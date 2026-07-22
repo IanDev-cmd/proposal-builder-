@@ -6,7 +6,8 @@
  * Live → production workbook 1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o
  */
 
-const N8N_BASE = 'https://meeraworkflows.app.n8n.cloud/webhook';
+import { N8N_BASE } from '@/lib/backendUrls';
+
 const STORAGE_KEY = 'nexus.sheetsMode';
 
 export type SheetsMode = 'demo' | 'live';

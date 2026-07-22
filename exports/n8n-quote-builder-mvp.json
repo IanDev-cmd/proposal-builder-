@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://stargtm.onrender.com/generate",
+        "url": "https://stargtm-kkzz.onrender.com/generate",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",

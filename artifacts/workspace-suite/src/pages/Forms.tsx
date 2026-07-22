@@ -22,8 +22,7 @@ import {
 } from '@/lib/proposalAssets';
 import { appendProgressNote, writeQuoteStatus, getSheetsMode } from '@/lib/sheetsSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
-
-const QUOTE_WEBHOOK_URL = 'https://meeraworkflows.app.n8n.cloud/webhook/QuoteBuilder';
+import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
 
 const SOURCE_TYPES = [
   'Build your event form',
