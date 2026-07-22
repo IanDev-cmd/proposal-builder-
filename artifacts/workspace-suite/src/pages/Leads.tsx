@@ -58,7 +58,20 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
   const sector = pick(raw, 'companySector', 'sector', 'Company Sector') || '—';
   const source = pick(raw, 'source', 'Source') || '—';
   const company = pick(raw, 'companyName', 'company', 'Company Name') || '—';
-  const status = pick(raw, 'status', 'Live/Dead/Blacklisted/Booked', 'Live/Dead').toLowerCase().trim();
+  const statusRaw = pick(raw, 'status', 'Status');
+  const liveDead = pick(raw, 'liveDead', 'Live/Dead', 'Live/Dead/ Blacklisted/Booked');
+  const status = (statusRaw || liveDead).toLowerCase().trim();
+  const preparedBy = pick(raw, 'preparedBy', 'assignedRep', 'Client Relationship Representative');
+  const groupSize = pick(raw, 'groupSize', 'Group Size');
+  const gsq = raw.groupSizeQuote;
+  const groupSizeQuote =
+    typeof gsq === 'number' || typeof gsq === 'string'
+      ? gsq
+      : groupSize.match(/\d+/)?.[0] || '';
+  const flexRaw = pick(raw, 'eventDateFlexible', 'Event Date - Flexible');
+  const flexBool =
+    raw.eventDateFlexibleBool === true ||
+    /yes|tbc|flex/i.test(flexRaw);
   const idRaw = raw.id ?? raw.row_number ?? index + 1;
   const id = typeof idRaw === 'number' ? idRaw : Number(idRaw) || index + 1;
 
@@ -77,6 +90,27 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
     source,
     company,
     status,
+    budget: pick(raw, 'budget', 'Budget') || undefined,
+    repeatClient: pick(raw, 'repeatClient', 'Repeat Client') || undefined,
+    preparedBy: preparedBy || undefined,
+    assignedRep: preparedBy || undefined,
+    liveDead: liveDead || undefined,
+    eventType: pick(raw, 'eventType', 'Event Type') || undefined,
+    fullEventDate: pick(raw, 'fullEventDate', 'Full Event Date') || undefined,
+    eventDateFlexible: flexRaw || undefined,
+    eventDateFlexibleBool: flexBool || undefined,
+    eventDateDisplay:
+      pick(raw, 'eventDateDisplay') ||
+      (flexBool ? 'Date TBC' : pick(raw, 'fullEventDate', 'Full Event Date')) ||
+      undefined,
+    requestedEventTimes: pick(raw, 'requestedEventTimes', 'Requested Event Times') || undefined,
+    groupSize: groupSize || undefined,
+    groupSizeQuote: groupSizeQuote || undefined,
+    vessels: pick(raw, 'vessels', 'What vessel') || undefined,
+    market: pick(raw, 'market', 'Market') || undefined,
+    bestTimeToCall: pick(raw, 'bestTimeToCall', 'Best time to call') || undefined,
+    yearOfEvent: pick(raw, 'yearOfEvent', 'Year of Event') || undefined,
+    progressNotes: pick(raw, 'progressNotes') || undefined,
   };
 }
 
@@ -375,7 +409,11 @@ export function Leads() {
 
               {visible.length === 0 && (
                 <div className="flex items-center justify-center py-16 text-[13px] text-black/30">
-                  {query ? `No leads match "${query}"` : `No ${TABS[activeTab].toLowerCase()} leads`}
+                  {query
+                    ? `No leads match "${query}"`
+                    : mode === 'demo'
+                      ? 'Demo has no leads by design — switch to Live to load Enquiry 2026, or use Quote Builder without a lead. Write-backs still go to the Demo Nexus Ops tabs.'
+                      : `No ${TABS[activeTab].toLowerCase()} leads`}
                 </div>
               )}
 

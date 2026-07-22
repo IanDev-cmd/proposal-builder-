@@ -84,3 +84,21 @@ export async function writeQuoteStatus(payload: Record<string, unknown>): Promis
 export async function writeLeadUpdate(payload: Record<string, unknown>): Promise<{ ok: boolean }> {
   return postWebhook('LeadUpdate', payload);
 }
+
+/** Cost Mother / Price Comparison / ratios — always from LIVE rate tabs (raw rows). */
+export type CostRatesPayload = {
+  ok?: boolean;
+  source?: string;
+  note?: string;
+  vesselRates?: Record<string, unknown>[];
+  cateringRates?: Record<string, unknown>[];
+  quoteBuilder2026?: Record<string, unknown>[];
+  margins?: Record<string, unknown>[];
+  staffRatios?: Record<string, unknown>[];
+  cutleryRatios?: Record<string, unknown>[];
+  counts?: Record<string, number>;
+};
+
+export async function fetchCostRates(mode?: SheetsMode): Promise<CostRatesPayload> {
+  return postWebhook('CostRatesFetch', { mode: mode || getSheetsMode() });
+}

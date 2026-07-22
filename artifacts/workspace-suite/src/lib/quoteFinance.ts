@@ -123,14 +123,18 @@ export type QuoteFormInput = {
   totalCost: string;
   selectedUpgrades: string[];
   agentReferral?: boolean;
+  /** When set, overrides repeat/new/event default margin (0–1). Meera: REP commercial judgment. */
+  marginOverride?: number | null;
+  dateFlexible?: boolean;
 };
 
-export function isEventDateTbc(eventDate: string): boolean {
+export function isEventDateTbc(eventDate: string, dateFlexible?: boolean): boolean {
+  if (dateFlexible) return true;
   return !eventDate.trim() || /tbc/i.test(eventDate);
 }
 
-export function isWeekendOrPeak(eventDate: string): boolean {
-  if (isEventDateTbc(eventDate)) return true;
+export function isWeekendOrPeak(eventDate: string, dateFlexible?: boolean): boolean {
+  if (isEventDateTbc(eventDate, dateFlexible)) return true;
   const parsed = new Date(eventDate);
   if (Number.isNaN(parsed.getTime())) return false;
   const day = parsed.getDay();
@@ -168,8 +172,8 @@ function resolveVesselRate(vesselLabel: string): VesselRate | null {
 export function calcVesselHire(data: QuoteFormInput): { amount: number; hours: number; notes: string[] } {
   const notes: string[] = [];
   const hours = eventHours(data);
-  const peak = isWeekendOrPeak(data.eventDate);
-  if (isEventDateTbc(data.eventDate)) {
+  const peak = isWeekendOrPeak(data.eventDate, data.dateFlexible);
+  if (isEventDateTbc(data.eventDate, data.dateFlexible)) {
     notes.push('Event date TBC — using peak (Fri–Sun) vessel rate to protect margin');
   }
   let total = 0;
@@ -245,12 +249,15 @@ export function calcBaseCostBreakdown(data: QuoteFormInput) {
     fixedOps,
     upgradesTotal,
     total,
-    peak: isWeekendOrPeak(data.eventDate),
+    peak: isWeekendOrPeak(data.eventDate, data.dateFlexible),
     notes: [...vessel.notes, ...catering.notes],
   };
 }
 
 export function marginRateFor(data: QuoteFormInput): number {
+  if (data.marginOverride != null && Number.isFinite(data.marginOverride)) {
+    return Math.min(1, Math.max(0, data.marginOverride));
+  }
   if (data.repeatClient) return REPEAT_CLIENT_MARGIN;
   // Minimum target margin sheet — simplified defaults by event family
   const et = (data.eventType || '').toLowerCase();
@@ -302,12 +309,29 @@ export function buildStargtmPayload(opts: {
     company?: string;
     referenceNumber?: string;
     designation?: string;
+    preparedBy?: string;
+    assignedRep?: string;
+    budget?: string;
+    vessels?: string;
+    market?: string;
+    source?: string;
+    yearOfEvent?: string;
+    repeatClient?: string | boolean;
+    eventDateDisplay?: string;
+    eventDateFlexibleBool?: boolean;
+    requestedEventTimes?: string;
+    groupSize?: string;
+    groupSizeQuote?: number | string;
+    progressNotes?: string;
   } | null;
+  /** Full Sapphire lead object for n8n Transform (nexusLead). */
+  nexusLead?: Record<string, unknown> | null;
   templateId?: string;
   category?: 'corporate' | 'wedding';
   selectedInserts?: string[];
   progressNotes?: string;
   packageWording?: Record<string, string[]>;
+  menuLinks?: Record<string, string>;
   /** From selected staff insert — overrides default Katherine contact. */
   staffContact?: {
     name: string;
@@ -316,8 +340,18 @@ export function buildStargtmPayload(opts: {
     email: string;
   };
 }) {
-  const { form, financials: fin, lead, templateId, category, selectedInserts, packageWording, staffContact } =
-    opts;
+  const {
+    form,
+    financials: fin,
+    lead,
+    nexusLead,
+    templateId,
+    category,
+    selectedInserts,
+    packageWording,
+    menuLinks,
+    staffContact,
+  } = opts;
   const guests = parseFloat(form.guestCount) || 0;
   const lower = (form.eventType || '').toLowerCase();
   const resolvedCategory =
@@ -330,6 +364,13 @@ export function buildStargtmPayload(opts: {
     email: 'sales@westendonthethames.com',
   };
 
+  const preparedBy =
+    lead?.preparedBy || lead?.assignedRep || contact.name;
+  const eventDate =
+    form.dateFlexible || isEventDateTbc(form.eventDate, form.dateFlexible)
+      ? 'Date TBC'
+      : form.eventDate || lead?.eventDateDisplay || '';
+
   return {
     event_type: form.eventType,
     category: resolvedCategory,
@@ -337,6 +378,9 @@ export function buildStargtmPayload(opts: {
     manual_template: Boolean(templateId),
     selectedInserts: selectedInserts || [],
     vessel: form.vesselType[0] || undefined,
+    vessels: form.vesselType.join(', ') || lead?.vessels || undefined,
+    budget: lead?.budget || undefined,
+    nexusLead: nexusLead || lead || undefined,
     lead: {
       proposal_ref: lead?.referenceNumber || undefined,
       client_name: lead?.name,
@@ -344,15 +388,21 @@ export function buildStargtmPayload(opts: {
       telephone: lead?.phone,
       email: lead?.email,
       event_type: form.eventType,
-      event_date: form.eventDate,
+      event_date: eventDate,
       event_timings: `${form.embarkation || ''} - ${form.disembarkation || ''}`,
-      guest_range: form.guestCount,
-      guest_quote_n: String(guests),
-      prepared_by: contact.name,
+      guest_range: form.guestCount || lead?.groupSize,
+      guest_quote_n: String(guests || lead?.groupSizeQuote || ''),
+      prepared_by: preparedBy,
       contact_name: contact.name,
       contact_title: contact.title,
       contact_phone: contact.phone,
       contact_email: contact.email,
+      budget: lead?.budget,
+      vessels: form.vesselType.join(', ') || lead?.vessels,
+      market: lead?.market,
+      source: lead?.source,
+      year_of_event: lead?.yearOfEvent,
+      repeat_client: form.repeatClient ? 'YES' : 'NO',
     },
     calculations: {
       guests,
@@ -363,6 +413,7 @@ export function buildStargtmPayload(opts: {
     selectedUpgrades: UPGRADES.filter((u) => form.selectedUpgrades.includes(u.label)).map((u) => u.id),
     selectedUpgradeLabels: form.selectedUpgrades,
     packageWording: packageWording || {},
+    menuLinks: menuLinks || {},
     financials: {
       baseCost: fin.baseCost,
       contingency: fin.contingency,
@@ -376,6 +427,6 @@ export function buildStargtmPayload(opts: {
       grandTotal: fin.grand,
     },
     form,
-    progressNotes: opts.progressNotes || '',
+    progressNotes: opts.progressNotes || lead?.progressNotes || '',
   };
 }

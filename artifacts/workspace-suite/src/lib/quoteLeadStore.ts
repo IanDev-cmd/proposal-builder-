@@ -1,9 +1,6 @@
 /**
- * Carries "who this quote is for" from the Lead panel over to the Quote
- * Builder page. Session-scoped (survives the page navigation, clears when
- * the tab closes) so the Quote Builder can tag the lead on-screen and stamp
- * their details onto the webhook payload without threading props through
- * the router.
+ * QuoteLead — handed from Lead panel → Quote Builder.
+ * Fields mirror n8n Structure all Leads1 Sapphire aliases.
  */
 
 const STORAGE_KEY = 'nexus.quoteLead';
@@ -18,18 +15,40 @@ export type QuoteLead = {
   referenceNumber: string;
   initials: string;
   color: string;
-  // Raw "Source" tag from the n8n lead fetch (e.g. "Repeat Client 1, 2",
-  // "Build your event form 1-3") — parsed in the Quote Builder to prefill
-  // the Source picker and the Repeat Client toggle.
+  /** Raw Source tag from Enquiry */
   source?: string;
+  companySector?: string;
+  budget?: string;
+  /** YES/NO/blank from "Repeat Client: … booked with us?" */
+  repeatClient?: string | boolean;
+  preparedBy?: string;
+  assignedRep?: string;
+  status?: string;
+  liveDead?: string;
+  enquiryDate?: string;
+  eventType?: string;
+  fullEventDate?: string;
+  eventDateFlexible?: string;
+  eventDateFlexibleBool?: boolean;
+  /** "Date TBC" when flexible, else fullEventDate */
+  eventDateDisplay?: string;
+  requestedEventTimes?: string;
+  groupSize?: string;
+  /** Lower bound of group size range */
+  groupSizeQuote?: number | string;
+  vessels?: string;
+  market?: string;
+  bestTimeToCall?: string;
+  yearOfEvent?: string;
+  /** Concatenated Progress 1…N */
+  progressNotes?: string;
 };
 
 export function setQuoteLead(lead: QuoteLead): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lead));
   } catch {
-    // Ignore storage failures (e.g. private browsing) — the quote can
-    // still be built, it just won't be tagged to a lead.
+    /* ignore */
   }
 }
 
@@ -46,6 +65,6 @@ export function clearQuoteLead(): void {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
-    // no-op
+    /* no-op */
   }
 }

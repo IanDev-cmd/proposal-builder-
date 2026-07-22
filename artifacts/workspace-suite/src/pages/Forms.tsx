@@ -20,9 +20,17 @@ import {
   INSERT_PLACEMENT_RULES,
   PROPOSAL_INSERTS,
 } from '@/lib/proposalAssets';
-import { appendProgressNote, writeQuoteStatus, getSheetsMode } from '@/lib/sheetsSync';
+import { appendProgressNote, writeQuoteStatus, getSheetsMode, fetchCostRates } from '@/lib/sheetsSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
+import {
+  matchVessels,
+  matchEventType,
+  parseRequestedTimes,
+  isFlexibleDate,
+  isRepeatYes,
+  parseEventDateForInput,
+} from '@/lib/leadPrefill';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -52,6 +60,7 @@ type FormData = {
   eventType: string;
   source: string;
   eventDate: string;
+  dateFlexible: boolean;
   guestCount: string;
   embarkation: string;
   departure: string;
@@ -61,6 +70,8 @@ type FormData = {
   repeatClient: boolean;
   agentReferral: boolean;
   totalCost: string;
+  /** Margin % override (e.g. 25). Empty = use repeat/new default. */
+  marginPercent: string;
   selectedUpgrades: string[];
   /** corporate | wedding — drives template list only (manual pick). */
   proposalCategory: 'corporate' | 'wedding';
@@ -69,6 +80,10 @@ type FormData = {
   requiresInserts: boolean;
   selectedInserts: string[];
   progressNotes: string;
+  budget: string;
+  packageWordingNotes: string;
+  /** Meera: cost cross-check before generate */
+  costApproved: boolean;
 };
 
 /**
@@ -99,6 +114,7 @@ const INIT: FormData = {
   eventType: '',
   source: '',
   eventDate: todayIso(),
+  dateFlexible: false,
   guestCount: '',
   embarkation: '10:00',
   departure: '12:00',
@@ -108,13 +124,45 @@ const INIT: FormData = {
   repeatClient: false,
   agentReferral: false,
   totalCost: '',
+  marginPercent: '',
   selectedUpgrades: [],
   proposalCategory: 'corporate',
   templateId: '',
   requiresInserts: false,
   selectedInserts: [],
   progressNotes: '',
+  budget: '',
+  packageWordingNotes: '',
+  costApproved: false,
 };
+
+function formFromLead(lead: QuoteLead | null): FormData {
+  if (!lead) return { ...INIT };
+  const flex = isFlexibleDate(lead.eventDateFlexible, lead.eventDateFlexibleBool);
+  const times = parseRequestedTimes(lead.requestedEventTimes);
+  const vessels = matchVessels(lead.vessels);
+  const eventType = matchEventType(lead.eventType);
+  const guest =
+    lead.groupSizeQuote != null && String(lead.groupSizeQuote).trim() !== ''
+      ? String(lead.groupSizeQuote)
+      : (String(lead.groupSize || '').match(/\d+/)?.[0] ?? '');
+  const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
+  return {
+    ...INIT,
+    source: matchSourceType(lead.source) || INIT.source,
+    repeatClient: isRepeatYes(lead.repeatClient) || isRepeatClientSource(lead.source),
+    vesselType: vessels,
+    eventType: eventType || INIT.eventType,
+    dateFlexible: flex,
+    eventDate: flex ? '' : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate,
+    guestCount: guest,
+    embarkation: times.embarkation || INIT.embarkation,
+    disembarkation: times.disembarkation || INIT.disembarkation,
+    progressNotes: lead.progressNotes || '',
+    budget: lead.budget || '',
+    proposalCategory: wedding ? 'wedding' : 'corporate',
+  };
+}
 
 type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
 
@@ -380,25 +428,17 @@ const STEPS = [
 export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
-  const [data, setData] = useState<FormData>(() => {
-    const lead = getQuoteLead();
-    return {
-      ...INIT,
-      source: matchSourceType(lead?.source),
-      repeatClient: isRepeatClientSource(lead?.source),
-    };
-  });
+  const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
+  const [data, setData] = useState<FormData>(() => formFromLead(getQuoteLead()));
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  // The lead this quote is being built for, if any — handed off from the
-  // Lead panel's "Build a Quote" button via sessionStorage.
-  const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
   // Base Cost stays auto-prefilled from the vessel/menu/guests/upgrades
   // formula until the user types their own figure into the field — then it
   // stops overwriting them until they explicitly ask to resync.
   const [baseCostAuto, setBaseCostAuto] = useState(true);
+  const [ratesNote, setRatesNote] = useState<string>('');
 
   const set = (key: keyof FormData, val: unknown) =>
     setData((prev) => ({ ...prev, [key]: val }));
@@ -411,7 +451,13 @@ export function Forms() {
         : [...data.selectedUpgrades, label],
     );
 
-  const fin = calcFinancials(data);
+  const marginOverride =
+    data.marginPercent.trim() !== '' && Number.isFinite(Number(data.marginPercent))
+      ? Number(data.marginPercent) / 100
+      : null;
+
+  const financeInput = { ...data, marginOverride };
+  const fin = calcFinancials(financeInput);
   const baseCostBreakdown = calcBaseCostBreakdown(data);
 
   const availableTemplates = useMemo(
@@ -431,6 +477,29 @@ export function Forms() {
   const [insertPanelOpen, setInsertPanelOpen] = useState(false);
   const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff' | 'map'>('all');
 
+  // Soft-fetch Cost Mother / Price Comparison rates (raw) for awareness — rates still
+  // apply via quoteFinance defaults until UI maps raw rows defensively.
+  useEffect(() => {
+    let cancelled = false;
+    fetchCostRates()
+      .then((r) => {
+        if (cancelled) return;
+        const n = r.counts?.cateringRates ?? r.cateringRates?.length ?? 0;
+        const v = r.counts?.vesselRates ?? r.vesselRates?.length ?? 0;
+        setRatesNote(
+          n || v
+            ? `Cost rates linked (${v} vessel · ${n} catering rows from Sheets). Base costs still use Quote Sheet defaults until mapped.`
+            : '',
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setRatesNote('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Keep Base Cost synced to the formula while it's in "auto" mode. Guarded
   // to only run once the relevant inputs actually change, so typing a
   // manual override (which flips baseCostAuto off) never gets clobbered.
@@ -445,6 +514,7 @@ export function Forms() {
     data.menuType,
     data.guestCount,
     data.eventDate,
+    data.dateFlexible,
     data.embarkation,
     data.disembarkation,
     data.selectedUpgrades,
@@ -475,13 +545,24 @@ export function Forms() {
       return;
     }
 
+    if (!data.costApproved) {
+      setErrorMessage('Confirm cost cross-check approval on Financials before generating.');
+      setStage('error');
+      setStep(5);
+      return;
+    }
+
     const staffContact = resolveStaffContactFromInsertIds(
       data.requiresInserts ? data.selectedInserts : [],
       PROPOSAL_INSERTS,
     );
 
+    const packageWording = data.packageWordingNotes.trim()
+      ? { notes: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean) }
+      : {};
+
     const payload = buildStargtmPayload({
-      form: data,
+      form: financeInput,
       financials: fin,
       lead: quoteLead
         ? {
@@ -491,12 +572,60 @@ export function Forms() {
             company: quoteLead.company,
             referenceNumber: quoteLead.referenceNumber,
             designation: quoteLead.designation,
+            preparedBy: quoteLead.preparedBy,
+            assignedRep: quoteLead.assignedRep,
+            budget: quoteLead.budget || data.budget,
+            vessels: quoteLead.vessels,
+            market: quoteLead.market,
+            source: quoteLead.source || data.source,
+            yearOfEvent: quoteLead.yearOfEvent,
+            repeatClient: data.repeatClient,
+            eventDateDisplay: data.dateFlexible ? 'Date TBC' : data.eventDate,
+            eventDateFlexibleBool: data.dateFlexible,
+            requestedEventTimes: quoteLead.requestedEventTimes,
+            groupSize: quoteLead.groupSize,
+            groupSizeQuote: quoteLead.groupSizeQuote,
+            progressNotes: data.progressNotes,
+          }
+        : null,
+      nexusLead: quoteLead
+        ? {
+            referenceNumber: quoteLead.referenceNumber,
+            name: quoteLead.name,
+            companyName: quoteLead.company,
+            companySector: quoteLead.companySector,
+            email: quoteLead.email,
+            phone: quoteLead.phone,
+            jobRole: quoteLead.designation,
+            budget: quoteLead.budget || data.budget,
+            repeatClient: data.repeatClient ? 'YES' : 'NO',
+            preparedBy: quoteLead.preparedBy,
+            assignedRep: quoteLead.assignedRep || quoteLead.preparedBy,
+            status: quoteLead.status,
+            liveDead: quoteLead.liveDead,
+            source: quoteLead.source || data.source,
+            enquiryDate: quoteLead.enquiryDate,
+            eventType: data.eventType,
+            fullEventDate: quoteLead.fullEventDate,
+            eventDateFlexible: data.dateFlexible ? 'YES' : 'NO',
+            eventDateFlexibleBool: data.dateFlexible,
+            eventDateDisplay: data.dateFlexible ? 'Date TBC' : data.eventDate,
+            requestedEventTimes: `${data.embarkation} - ${data.disembarkation}`,
+            groupSize: data.guestCount || quoteLead.groupSize,
+            groupSizeQuote: parseFloat(data.guestCount) || quoteLead.groupSizeQuote,
+            vessels: data.vesselType.join(', ') || quoteLead.vessels,
+            market: quoteLead.market,
+            bestTimeToCall: quoteLead.bestTimeToCall,
+            yearOfEvent: quoteLead.yearOfEvent,
+            progressNotes: data.progressNotes,
+            agent: data.agentReferral ? 'YES' : '',
           }
         : null,
       templateId: data.templateId,
       category: data.proposalCategory,
       selectedInserts: data.requiresInserts ? data.selectedInserts : [],
       progressNotes: data.progressNotes,
+      packageWording,
       staffContact,
     });
 
@@ -761,6 +890,27 @@ export function Forms() {
                 </div>
 
                 <p className={sectionLabelCls}>Event Date</p>
+                <div className="mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-gray-800">Date flexible → Date TBC</p>
+                    <p className="text-[12px] text-gray-400">From Enquiry “Event Date - Flexible?”</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !data.dateFlexible;
+                      set('dateFlexible', next);
+                      if (next) set('eventDate', '');
+                    }}
+                    className={`relative h-7 w-14 rounded-full transition-colors ${data.dateFlexible ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
+                  >
+                    <motion.div
+                      animate={{ x: data.dateFlexible ? 28 : 2 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm"
+                    />
+                  </button>
+                </div>
                 <div className="mb-7">
                   <label className={fieldLabelCls}>
                     Date of Event
@@ -768,13 +918,26 @@ export function Forms() {
                       <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
                     </span>
                   </label>
-                  <input
-                    type="date"
-                    value={data.eventDate}
-                    onChange={(e) => set('eventDate', e.target.value)}
-                    className={inputCls}
-                  />
+                  {data.dateFlexible ? (
+                    <div className={`${inputCls} font-semibold text-[#E22A12]`}>Date TBC</div>
+                  ) : (
+                    <input
+                      type="date"
+                      value={data.eventDate}
+                      onChange={(e) => set('eventDate', e.target.value)}
+                      className={inputCls}
+                    />
+                  )}
                 </div>
+
+                {data.budget ? (
+                  <div className="mb-7">
+                    <p className={sectionLabelCls}>Budget (from Enquiry)</p>
+                    <p className="rounded-[10px] border border-[#e3e6e4] bg-[#FFF1F0] px-4 py-3 text-[13px] font-semibold text-gray-800">
+                      {data.budget}
+                    </p>
+                  </div>
+                ) : null}
 
                 <p className={sectionLabelCls}>Progress Notes</p>
                 <div>
@@ -941,7 +1104,25 @@ export function Forms() {
                 <p className={sectionLabelCls}>Cost Inputs</p>
                 <p className="mb-3 text-[11.5px] text-gray-400">
                   Rates from Quote Sheet · Price Comparison (cost to WEOTT). Contingency {(CONTINGENCY_RATE * 100).toFixed(2)}% then margin, then VAT.
+                  {ratesNote ? ` ${ratesNote}` : ''}
                 </p>
+
+                <div className="mb-7">
+                  <label className={fieldLabelCls}>Margin % (editable)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={data.marginPercent}
+                    onChange={(e) => set('marginPercent', e.target.value)}
+                    placeholder={data.repeatClient ? '15 (repeat default)' : '25 (new default)'}
+                    className={inputCls}
+                  />
+                  <p className="mt-1.5 text-[11.5px] text-gray-400">
+                    Leave blank for default (repeat 15% / new 25%). REP commercial judgment — Meera.
+                  </p>
+                </div>
 
                 {/* Base Cost formula — Quote Sheet SoT via quoteFinance.ts */}
                 <div className="mb-4 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
@@ -1043,6 +1224,35 @@ export function Forms() {
                     </div>
                   </motion.div>
                 )}
+
+                <div className="mt-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-gray-800">Cost cross-check approved</p>
+                    <p className="text-[12px] text-gray-400">Required before PDF generate (Meera accuracy gate)</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set('costApproved', !data.costApproved)}
+                    className={`relative h-7 w-14 rounded-full transition-colors ${data.costApproved ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
+                  >
+                    <motion.div
+                      animate={{ x: data.costApproved ? 28 : 2 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm"
+                    />
+                  </button>
+                </div>
+
+                <div className="mt-7">
+                  <p className={sectionLabelCls}>Package wording (optional)</p>
+                  <textarea
+                    value={data.packageWordingNotes}
+                    onChange={(e) => set('packageWordingNotes', e.target.value)}
+                    rows={3}
+                    placeholder="One note per line — passed through to the proposal pack (REP wording)."
+                    className={`${inputCls} min-h-[80px] resize-y`}
+                  />
+                </div>
               </motion.div>
             )}
 

@@ -49,6 +49,25 @@ export type Lead = {
   companyLogo?: string;
   photoUrl?: string;
   status?: string;
+  /** Sapphire aliases from n8n Structure all Leads1 */
+  budget?: string;
+  repeatClient?: string;
+  preparedBy?: string;
+  assignedRep?: string;
+  liveDead?: string;
+  eventType?: string;
+  fullEventDate?: string;
+  eventDateFlexible?: string;
+  eventDateFlexibleBool?: boolean;
+  eventDateDisplay?: string;
+  requestedEventTimes?: string;
+  groupSize?: string;
+  groupSizeQuote?: number | string;
+  vessels?: string;
+  market?: string;
+  bestTimeToCall?: string;
+  yearOfEvent?: string;
+  progressNotes?: string;
 };
 
 /* ─── helpers ───
@@ -459,6 +478,27 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
       initials: lead.initials,
       color: lead.color,
       source: lead.source,
+      companySector: lead.sector,
+      budget: lead.budget,
+      repeatClient: lead.repeatClient,
+      preparedBy: lead.preparedBy,
+      assignedRep: lead.assignedRep || lead.preparedBy,
+      status: lead.status,
+      liveDead: lead.liveDead,
+      enquiryDate: lead.joined,
+      eventType: lead.eventType,
+      fullEventDate: lead.fullEventDate,
+      eventDateFlexible: lead.eventDateFlexible,
+      eventDateFlexibleBool: lead.eventDateFlexibleBool,
+      eventDateDisplay: lead.eventDateDisplay,
+      requestedEventTimes: lead.requestedEventTimes,
+      groupSize: lead.groupSize,
+      groupSizeQuote: lead.groupSizeQuote,
+      vessels: lead.vessels,
+      market: lead.market,
+      bestTimeToCall: lead.bestTimeToCall,
+      yearOfEvent: lead.yearOfEvent,
+      progressNotes: lead.progressNotes,
     });
     soundClick();
     onClose();
