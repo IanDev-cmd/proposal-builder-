@@ -1,0 +1,1894 @@
+{
+  "templates": 24,
+  "inserts": 48,
+  "missing_templates": [],
+  "missing_inserts": [],
+  "runs": 140,
+  "passed": 140,
+  "failed": 0,
+  "fail_labels": [],
+  "issue_counts": {},
+  "results": [
+    {
+      "label": "template/corporate/award_ceremony/daytime",
+      "ok": true,
+      "ms": 1301,
+      "pages": 18,
+      "template_id": "corporate/award_ceremony/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/award_ceremony/evening",
+      "ok": true,
+      "ms": 1088,
+      "pages": 18,
+      "template_id": "corporate/award_ceremony/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/christmas_event/daytime",
+      "ok": true,
+      "ms": 956,
+      "pages": 18,
+      "template_id": "corporate/christmas_event/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/christmas_event/evening",
+      "ok": true,
+      "ms": 1454,
+      "pages": 18,
+      "template_id": "corporate/christmas_event/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/client_event/daytime",
+      "ok": true,
+      "ms": 1225,
+      "pages": 18,
+      "template_id": "corporate/client_event/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/client_event/evening",
+      "ok": true,
+      "ms": 981,
+      "pages": 18,
+      "template_id": "corporate/client_event/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/company_anniversary/daytime",
+      "ok": true,
+      "ms": 1339,
+      "pages": 18,
+      "template_id": "corporate/company_anniversary/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/company_anniversary/evening",
+      "ok": true,
+      "ms": 950,
+      "pages": 18,
+      "template_id": "corporate/company_anniversary/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/conference_or_workshop/daytime",
+      "ok": true,
+      "ms": 819,
+      "pages": 18,
+      "template_id": "corporate/conference_or_workshop/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review.",
+        "[event_type] 'Conference or Workshop' had to shrink from 4.63pt to 2.5pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/conference_or_workshop/evening",
+      "ok": true,
+      "ms": 1180,
+      "pages": 18,
+      "template_id": "corporate/conference_or_workshop/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review.",
+        "[event_type] 'Conference or Workshop' had to shrink from 4.63pt to 2.4pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/meeting/default",
+      "ok": true,
+      "ms": 948,
+      "pages": 18,
+      "template_id": "corporate/meeting/default",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/networking_event/daytime",
+      "ok": true,
+      "ms": 793,
+      "pages": 18,
+      "template_id": "corporate/networking_event/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/networking_event/evening",
+      "ok": true,
+      "ms": 889,
+      "pages": 18,
+      "template_id": "corporate/networking_event/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/social_gathering/daytime",
+      "ok": true,
+      "ms": 1471,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/social_gathering/evening",
+      "ok": true,
+      "ms": 764,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/summer_event/any",
+      "ok": true,
+      "ms": 1065,
+      "pages": 18,
+      "template_id": "corporate/summer_event/any",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/team_building/daytime",
+      "ok": true,
+      "ms": 1057,
+      "pages": 18,
+      "template_id": "corporate/team_building/daytime",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/team_building/evening",
+      "ok": true,
+      "ms": 988,
+      "pages": 18,
+      "template_id": "corporate/team_building/evening",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/transfer/above_12",
+      "ok": true,
+      "ms": 783,
+      "pages": 18,
+      "template_id": "corporate/transfer/above_12",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/corporate/transfer/below_12",
+      "ok": true,
+      "ms": 1139,
+      "pages": 18,
+      "template_id": "corporate/transfer/below_12",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/wedding/engagement_celebration/default",
+      "ok": true,
+      "ms": 799,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.4pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/wedding/wedding_anniversary_or_pre_wedding_party/any",
+      "ok": true,
+      "ms": 848,
+      "pages": 17,
+      "template_id": "wedding/wedding_anniversary_or_pre_wedding_party/any",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review.",
+        "[event_type] 'Wedding Anniversary or Pre-Wedding Party' had to shrink from 4.63pt to 2.4pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/wedding/wedding_reception/any",
+      "ok": true,
+      "ms": 802,
+      "pages": 17,
+      "template_id": "wedding/wedding_reception/any",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "template/wedding/wedding_transfer/any",
+      "ok": true,
+      "ms": 918,
+      "pages": 17,
+      "template_id": "wedding/wedding_transfer/any",
+      "warnings": [
+        "[client_name] 'Matrix Smoke Client' had to shrink from 4.63pt to 3.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_autumn_winter_daytime",
+      "ok": true,
+      "ms": 588,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/proposal_sapphire_insert_evening_page_16",
+      "ok": true,
+      "ms": 543,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_autumn_winter_version_evening",
+      "ok": true,
+      "ms": 500,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_autumn_winter_insert_daytime",
+      "ok": true,
+      "ms": 789,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_yacht_all_seasons_insert",
+      "ok": true,
+      "ms": 967,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/elizabeth_hillier_staff_profile_page_16_daytime_version",
+      "ok": true,
+      "ms": 529,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_christmas_insert_daytime",
+      "ok": true,
+      "ms": 929,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_wedding_anniversary_or_pre_wedding_party_insert",
+      "ok": true,
+      "ms": 1044,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_vii_any_season_except_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 513,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_autumn_winter_insert_evening",
+      "ok": true,
+      "ms": 559,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/ellie_kirotar_staff_profile_page_16",
+      "ok": true,
+      "ms": 1124,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/katherine_bulaon_staff_profile_page_16_daytime",
+      "ok": true,
+      "ms": 495,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_v_any_season_except_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 716,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/proposal_katherine_insert_evening_page_16",
+      "ok": true,
+      "ms": 692,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/proposal_lily_may_cameron_insert_daytime_page_16",
+      "ok": true,
+      "ms": 591,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iv_autumn_winter",
+      "ok": true,
+      "ms": 7002,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_spring_summer_insert_dancefloor_version",
+      "ok": true,
+      "ms": 731,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_wedding_reception_insert_any_season",
+      "ok": true,
+      "ms": 474,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/proposal_elizabeth_insert_evening_page_16",
+      "ok": true,
+      "ms": 2973,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_christmas_evening_dancefloor",
+      "ok": true,
+      "ms": 553,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_christmas_evening",
+      "ok": true,
+      "ms": 490,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_wedding_transfer_insert",
+      "ok": true,
+      "ms": 578,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/2024_weott_proposal_river_map",
+      "ok": true,
+      "ms": 474,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_christmas_daytime",
+      "ok": true,
+      "ms": 496,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_wedding_transfer_insert",
+      "ok": true,
+      "ms": 8195,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_spring_summer_insert",
+      "ok": true,
+      "ms": 2322,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/sapphire_adams_staff_profile_page_16",
+      "ok": true,
+      "ms": 480,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_christmas_daytime_dancefloor",
+      "ok": true,
+      "ms": 10848,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_christmas_evening",
+      "ok": true,
+      "ms": 4999,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iv_christmas",
+      "ok": true,
+      "ms": 763,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/natasha_minter_staff_profile_page_16_daytime_version",
+      "ok": true,
+      "ms": 728,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_spring_summer_insert",
+      "ok": true,
+      "ms": 804,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_wedding_transfer_version",
+      "ok": true,
+      "ms": 609,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_wedding_anniversary_or_pre_wedding_party_insert",
+      "ok": true,
+      "ms": 565,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/proposal_ellie_insert_evening_event_page_16",
+      "ok": true,
+      "ms": 502,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_vi_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 533,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_christmas_daytime",
+      "ok": true,
+      "ms": 697,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_autumn_winter_evening",
+      "ok": true,
+      "ms": 478,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_vi_any_season_except_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 849,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_v_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 582,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_limo_all_seasons_insert",
+      "ok": true,
+      "ms": 468,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iv_spring_summer_insert",
+      "ok": true,
+      "ms": 1331,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_wedding_anniversary_or_pre_wedding_party_insert",
+      "ok": true,
+      "ms": 618,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_iii_wedding_insert",
+      "ok": true,
+      "ms": 489,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_christmas_insert_evening",
+      "ok": true,
+      "ms": 479,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_autumn_winter_version_daytime",
+      "ok": true,
+      "ms": 810,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_i_wedding_version",
+      "ok": true,
+      "ms": 1138,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/corporate/social_gathering/evening/weott_ii_spring_summer_insert",
+      "ok": true,
+      "ms": 822,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_autumn_winter_daytime",
+      "ok": true,
+      "ms": 975,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/proposal_sapphire_insert_evening_page_16",
+      "ok": true,
+      "ms": 742,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_autumn_winter_version_evening",
+      "ok": true,
+      "ms": 846,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_autumn_winter_insert_daytime",
+      "ok": true,
+      "ms": 852,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_yacht_all_seasons_insert",
+      "ok": true,
+      "ms": 863,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/elizabeth_hillier_staff_profile_page_16_daytime_version",
+      "ok": true,
+      "ms": 989,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_christmas_insert_daytime",
+      "ok": true,
+      "ms": 635,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_wedding_anniversary_or_pre_wedding_party_insert",
+      "ok": true,
+      "ms": 1347,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_vii_any_season_except_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 539,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_autumn_winter_insert_evening",
+      "ok": true,
+      "ms": 2009,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/ellie_kirotar_staff_profile_page_16",
+      "ok": true,
+      "ms": 546,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/katherine_bulaon_staff_profile_page_16_daytime",
+      "ok": true,
+      "ms": 553,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_v_any_season_except_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 793,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/proposal_katherine_insert_evening_page_16",
+      "ok": true,
+      "ms": 645,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/proposal_lily_may_cameron_insert_daytime_page_16",
+      "ok": true,
+      "ms": 578,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iv_autumn_winter",
+      "ok": true,
+      "ms": 800,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_spring_summer_insert_dancefloor_version",
+      "ok": true,
+      "ms": 599,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_wedding_reception_insert_any_season",
+      "ok": true,
+      "ms": 533,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/proposal_elizabeth_insert_evening_page_16",
+      "ok": true,
+      "ms": 557,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_christmas_evening_dancefloor",
+      "ok": true,
+      "ms": 612,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_christmas_evening",
+      "ok": true,
+      "ms": 559,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_wedding_transfer_insert",
+      "ok": true,
+      "ms": 1035,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/2024_weott_proposal_river_map",
+      "ok": true,
+      "ms": 1153,
+      "pages": 18,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_christmas_daytime",
+      "ok": true,
+      "ms": 668,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_wedding_transfer_insert",
+      "ok": true,
+      "ms": 547,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_spring_summer_insert",
+      "ok": true,
+      "ms": 1157,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/sapphire_adams_staff_profile_page_16",
+      "ok": true,
+      "ms": 995,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_christmas_daytime_dancefloor",
+      "ok": true,
+      "ms": 541,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_christmas_evening",
+      "ok": true,
+      "ms": 622,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iv_christmas",
+      "ok": true,
+      "ms": 539,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/natasha_minter_staff_profile_page_16_daytime_version",
+      "ok": true,
+      "ms": 830,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_spring_summer_insert",
+      "ok": true,
+      "ms": 904,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_wedding_transfer_version",
+      "ok": true,
+      "ms": 535,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_wedding_anniversary_or_pre_wedding_party_insert",
+      "ok": true,
+      "ms": 1136,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/proposal_ellie_insert_evening_event_page_16",
+      "ok": true,
+      "ms": 888,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_vi_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 533,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_christmas_daytime",
+      "ok": true,
+      "ms": 824,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_autumn_winter_evening",
+      "ok": true,
+      "ms": 834,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_vi_any_season_except_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 552,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_v_christmas_daytime_or_evening",
+      "ok": true,
+      "ms": 570,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_limo_all_seasons_insert",
+      "ok": true,
+      "ms": 539,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iv_spring_summer_insert",
+      "ok": true,
+      "ms": 1241,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_wedding_anniversary_or_pre_wedding_party_insert",
+      "ok": true,
+      "ms": 777,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_iii_wedding_insert",
+      "ok": true,
+      "ms": 671,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_christmas_insert_evening",
+      "ok": true,
+      "ms": 673,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_autumn_winter_version_daytime",
+      "ok": true,
+      "ms": 1143,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_i_wedding_version",
+      "ok": true,
+      "ms": 999,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "insert/wedding/engagement_celebration/default/weott_ii_spring_summer_insert",
+      "ok": true,
+      "ms": 926,
+      "pages": 17,
+      "template_id": "wedding/engagement_celebration/default",
+      "warnings": [
+        "[client_name] 'Insert Smoke Client' had to shrink from 4.63pt to 3.6pt to fit its box -- flagging for manual review.",
+        "[telephone] '020 4577 1190' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[email] 'jordan@nairobifintech.co.ke' had to shrink from 4.63pt to 2.8pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null
+    },
+    {
+      "label": "subset/vessel_only",
+      "ok": true,
+      "ms": 958,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime"
+      ]
+    },
+    {
+      "label": "subset/staff_only",
+      "ok": true,
+      "ms": 541,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "proposal_sapphire_insert_evening_page_16"
+      ]
+    },
+    {
+      "label": "subset/map_only",
+      "ok": true,
+      "ms": 512,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/vessel_staff",
+      "ok": true,
+      "ms": 680,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "proposal_sapphire_insert_evening_page_16"
+      ]
+    },
+    {
+      "label": "subset/vessel_map",
+      "ok": true,
+      "ms": 1464,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/vessel_staff_map",
+      "ok": true,
+      "ms": 512,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "proposal_sapphire_insert_evening_page_16",
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/two_vessels_last_wins",
+      "ok": true,
+      "ms": 611,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[insert] Multiple vessel inserts selected; used last: weott_ii_autumn_winter_version_evening"
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "weott_ii_autumn_winter_version_evening"
+      ]
+    },
+    {
+      "label": "subset/two_staff_last_wins",
+      "ok": true,
+      "ms": 543,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review.",
+        "[insert] Multiple staff inserts selected; used last: elizabeth_hillier_staff_profile_page_16_daytime_version"
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "proposal_sapphire_insert_evening_page_16",
+        "elizabeth_hillier_staff_profile_page_16_daytime_version"
+      ]
+    },
+    {
+      "label": "subset/random_0",
+      "ok": true,
+      "ms": 488,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime"
+      ]
+    },
+    {
+      "label": "subset/random_1",
+      "ok": true,
+      "ms": 1074,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_ii_autumn_winter_version_evening"
+      ]
+    },
+    {
+      "label": "subset/random_2",
+      "ok": true,
+      "ms": 622,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_i_christmas_insert_daytime"
+      ]
+    },
+    {
+      "label": "subset/random_3",
+      "ok": true,
+      "ms": 613,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime"
+      ]
+    },
+    {
+      "label": "subset/random_4",
+      "ok": true,
+      "ms": 613,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_i_christmas_insert_daytime"
+      ]
+    },
+    {
+      "label": "subset/random_5",
+      "ok": true,
+      "ms": 531,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_i_christmas_insert_daytime",
+        "katherine_bulaon_staff_profile_page_16_daytime",
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/random_6",
+      "ok": true,
+      "ms": 570,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_ii_autumn_winter_version_evening",
+        "ellie_kirotar_staff_profile_page_16"
+      ]
+    },
+    {
+      "label": "subset/random_7",
+      "ok": true,
+      "ms": 1079,
+      "pages": 18,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_ii_autumn_winter_version_evening",
+        "ellie_kirotar_staff_profile_page_16"
+      ]
+    },
+    {
+      "label": "subset/random_8",
+      "ok": true,
+      "ms": 501,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_yacht_all_seasons_insert",
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/random_9",
+      "ok": true,
+      "ms": 541,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "proposal_sapphire_insert_evening_page_16",
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/random_10",
+      "ok": true,
+      "ms": 652,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "ellie_kirotar_staff_profile_page_16",
+        "2024_weott_proposal_river_map"
+      ]
+    },
+    {
+      "label": "subset/random_11",
+      "ok": true,
+      "ms": 845,
+      "pages": 19,
+      "template_id": "corporate/social_gathering/evening",
+      "warnings": [
+        "[client_name] 'Subset Smoke Client' had to shrink from 4.63pt to 3.8pt to fit its box -- flagging for manual review.",
+        "[quote_date] '13 July 2026' had to shrink from 4.63pt to 1.9pt to fit its box -- flagging for manual review."
+      ],
+      "issues": [],
+      "error": null,
+      "selectedInserts": [
+        "weott_iii_autumn_winter_daytime",
+        "ellie_kirotar_staff_profile_page_16",
+        "2024_weott_proposal_river_map"
+      ]
+    }
+  ]
+}

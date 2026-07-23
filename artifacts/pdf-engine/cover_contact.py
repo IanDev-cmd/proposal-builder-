@@ -25,8 +25,11 @@ def format_event_date(value: str) -> str:
     if value is None:
         return ""
     raw = str(value).strip()
-    if not raw or raw.upper() == "TBC":
-        return "TBC"
+    if not raw:
+        return ""
+    # Flexible / TBC dates from Enquiry → show Date TBC on the proposal
+    if re.search(r"\b(tbc|flexible|date\s*tbc)\b", raw, re.I) or raw.upper() == "TBC":
+        return "Date TBC"
     months = "January February March April May June July August September October November December"
     if any(m in raw for m in months.split()) and re.search(r"\d", raw):
         return raw
@@ -42,7 +45,7 @@ def format_event_date(value: str) -> str:
 def format_event_date_compact(value: str) -> str:
     """Shorter house style when the full weekday date won't fit the panel."""
     raw = format_event_date(value)
-    if raw in ("", "TBC"):
+    if raw in ("", "TBC", "Date TBC"):
         return raw
     # Try parse back from house style or ISO
     for fmt in ("%Y-%m-%d", "%d/%m/%Y"):

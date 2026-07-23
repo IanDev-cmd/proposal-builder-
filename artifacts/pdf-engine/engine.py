@@ -60,6 +60,24 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
             payload["lead"] = lead
         if prefer_manual and payload.get("template_id"):
             resolved["matched_by"] = f"manual_template_id:{resolved.get('matched_by')}"
+        # Guardrail: warn when salesperson-selected template family disagrees with lead event type
+        lead_et = str(lead.get("event_type") or payload.get("event_type") or "").strip().lower()
+        res_et = str(resolved.get("event_type") or "").strip().lower()
+        if lead_et and res_et and lead_et not in res_et and res_et not in lead_et:
+            warnings.append(
+                type(
+                    "ValidationWarning",
+                    (),
+                    {
+                        "field": "template",
+                        "message": (
+                            f"Template event_type '{resolved.get('event_type')}' does not match "
+                            f"lead event_type '{lead.get('event_type') or payload.get('event_type')}'. "
+                            "Cover hero copy may look wrong (e.g. Engagement Celebration vs Social Gathering)."
+                        ),
+                    },
+                )()
+            )
     else:
         resolved = {
             "id": "explicit",

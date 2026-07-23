@@ -191,6 +191,33 @@ def _value_after_label(spans, label_substr, *, value_same_line=True, panel_right
         if nxt is not None:
             nxt2 = _next_same_line(spans, i + 1)
             return _span_field(nxt, next_sp=nxt2, max_x1=panel_right)
+
+    # Case E: fragmented label across same-line spans
+    # e.g. "Proposal/Quotation " + "R" + "ef |" + " WE.9055"
+    label_compact = re.sub(r"\s+", "", label_substr_l)
+    for i, sp in enumerate(spans):
+        joined = sp["text"]
+        end = i
+        while end - i <= 8:
+            compact = re.sub(r"\s+", "", joined.lower())
+            if label_compact in compact and "|" in joined:
+                pipe_at = end
+                for k in range(i, end + 1):
+                    if "|" in spans[k]["text"]:
+                        pipe_at = k
+                        break
+                nxt = _next_same_line(spans, pipe_at)
+                if nxt is not None and re.search(r"WE\.\d+|\S", nxt["text"] or ""):
+                    nxt2 = _next_same_line(spans, pipe_at + 1)
+                    return _span_field(nxt, next_sp=nxt2, max_x1=panel_right)
+                break
+            if end + 1 >= len(spans):
+                break
+            nxt = spans[end + 1]
+            if abs(nxt["bbox"][1] - sp["bbox"][1]) >= 4:
+                break
+            end += 1
+            joined += nxt["text"]
     return None
 
 
@@ -260,6 +287,17 @@ def measure_cover(page) -> dict:
             found = _value_after_label(spans, label, panel_right=panel)
             if found:
                 fields[key] = found
+                break
+
+    # Fallback: WE.#### in the left cover panel when Proposal/Quotation Ref is glyph-split
+    if "proposal_ref" not in fields:
+        for i, sp in enumerate(spans):
+            if not re.search(r"WE\.\d{3,5}", sp.get("text") or ""):
+                continue
+            x0, y0 = sp["bbox"][0], sp["bbox"][1]
+            if 220 < x0 < 340 and y0 < 55:
+                nxt = _next_same_line(spans, i)
+                fields["proposal_ref"] = _span_field(sp, next_sp=nxt, max_x1=LEFT_PANEL)
                 break
 
     # Prepared by — handle both split and combined spans; don't collide with quote_date

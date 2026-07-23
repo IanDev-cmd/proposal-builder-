@@ -1644,6 +1644,20 @@ export function Forms() {
                       </option>
                     ))}
                   </select>
+                  {(() => {
+                    const selected = availableTemplates.find((t) => t.id === data.templateId);
+                    if (!selected || !data.eventType) return null;
+                    const et = data.eventType.toLowerCase();
+                    const tet = (selected.event_type || '').toLowerCase();
+                    const mismatch = et && tet && !et.includes(tet) && !tet.includes(et);
+                    if (!mismatch) return null;
+                    return (
+                      <p className="mt-2 rounded-[8px] border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                        Template “{selected.event_type}” does not match event type “{data.eventType}”.
+                        Cover hero copy may look wrong (e.g. Engagement Celebration vs Social Gathering).
+                      </p>
+                    );
+                  })()}
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
                     {availableTemplates.length} templates in {data.proposalCategory} catalog · manual pick only
                   </p>
