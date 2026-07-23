@@ -1,5 +1,5 @@
 /**
- * Proposal templates + inserts catalog (Meera Priority 1).
+ * Proposal templates + inserts catalog.
  * Source: artifacts/pdf-engine catalog + inserts manifest.
  * Salespeople pick manually — no auto-selection in the UI.
  */

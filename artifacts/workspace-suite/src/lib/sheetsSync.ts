@@ -1,6 +1,6 @@
 /**
  * Thin client for n8n Sheets write-back webhooks.
- * Google Sheets remains the source of truth (Meera Priority 3).
+ * Google Sheets remains the source of truth.
  *
  * Demo → test workbook 1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs
  * Live → production workbook 1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o

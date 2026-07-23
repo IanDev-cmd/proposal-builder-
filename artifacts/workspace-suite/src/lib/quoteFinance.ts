@@ -123,7 +123,7 @@ export type QuoteFormInput = {
   totalCost: string;
   selectedUpgrades: string[];
   agentReferral?: boolean;
-  /** When set, overrides repeat/new/event default margin (0–1). Meera: REP commercial judgment. */
+  /** When set, overrides repeat/new/event default margin (0–1). REP commercial judgment. */
   marginOverride?: number | null;
   dateFlexible?: boolean;
 };

@@ -82,7 +82,7 @@ type FormData = {
   progressNotes: string;
   budget: string;
   packageWordingNotes: string;
-  /** Meera: cost cross-check before generate */
+  /** Cost cross-check before generate */
   costApproved: boolean;
 };
 
@@ -1179,7 +1179,7 @@ export function Forms() {
                     className={inputCls}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Leave blank for default (repeat 15% / new 25%). REP commercial judgment — Meera.
+                    Leave blank for default (repeat 15% / new 25%). REP commercial judgment.
                   </p>
                 </div>
 
@@ -1287,7 +1287,7 @@ export function Forms() {
                 <div className="mt-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Cost cross-check approved</p>
-                    <p className="text-[12px] text-gray-400">Required before PDF generate (Meera accuracy gate)</p>
+                    <p className="text-[12px] text-gray-400">Required before PDF generate</p>
                   </div>
                   <button
                     type="button"
@@ -1382,7 +1382,7 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 7 — Proposal Pack (templates + inserts) — Meera Priority 1 */}
+            {/* STEP 7 — Proposal Pack (templates + inserts) */}
             {step === 7 && (
               <motion.div
                 key="step7-pack"

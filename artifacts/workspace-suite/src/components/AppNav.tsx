@@ -35,7 +35,7 @@ export function AppNav() {
   const toggleMode = (next: SheetsMode) => {
     if (next === 'live') {
       const ok = window.confirm(
-        `Switch to LIVE?\n\nWrites will go to the production Google Sheet:\n${SHEETS.live.label}\n\nOnly use this when Meera has approved go-live testing.`,
+        `Switch to LIVE?\n\nWrites will go to the production Google Sheet:\n${SHEETS.live.label}\n\nOnly use this for approved go-live testing.`,
       );
       if (!ok) return;
     }
