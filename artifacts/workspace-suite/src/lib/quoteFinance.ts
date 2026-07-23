@@ -68,26 +68,51 @@ export const VESSEL_COST_TO_WEOTT: Record<string, VesselRate> = {
 /** Cost-to-WEOTT catering £ per guest (Price Comparison, WP standard). */
 export const MENU_COST_TO_WEOTT_PP: Record<string, number> = {
   'Charcuterie Cups': 11.5,
+  'Charcuterie Cups (All Seasons)': 11.5,
   Canapés: 13.5,
   Canapes: 13.5,
+  'Canapes (All Seasons)': 13.5,
   'Street Food': 16.0,
+  'Street Food Station': 16.0,
+  'Street Food Station (All Seasons)': 16.0,
   'Substantial Canapes': 19.6,
+  'Substantial Canapes (All Seasons)': 19.6,
   'Bowl Food': 24.0,
+  'Bowl Food (All Seasons)': 24.0,
   'Dipping Mezze': 5.8,
   'Continental Breakfast': 9.5,
   'Charcuterie Station': 15.0,
+  'Charcuterie Station (All Seasons)': 15.0,
   'Salad Bar': 16.5,
   Brunch: 18.2,
+  'Brunch / English Breakfast': 18.2,
+  'Afternoon Tea': 16.0,
   'Burger Station': 16.5,
   'Light Bites': 16.9,
+  'Light Bites (All Seasons)': 16.9,
   Barbecue: 21.8,
   'Summer Barbecue': 21.8,
   'Traditional Pie Station': 20.7,
-  'Hot Fork Buffet': 24.0, // approximate — confirm on Cost Mother Sheet
-  '2-Course Seated Dinner': 35.35, // derived from Quote Builder 2026 V2 (£1767.5 / 50)
+  'Hot Fork Buffet': 24.0,
+  'Hot Fork Buffet (All Seasons)': 24.0,
+  '2-Course Seated Dinner': 35.35,
   'Two Course Seated Dinner': 35.35,
-  'Three Course Seated Dinner': 42.0, // placeholder until Cost Mother Sheet confirmed
+  'Two Course Seated Dinner - Main & Dessert (All Seasons)': 35.35,
+  'Two Course Seated Dinner - Starter & Main (All Seasons)': 35.35,
+  'Three Course Seated Dinner': 42.0,
+  'Three Course Seated Dinner (All Seasons)': 42.0,
+  'Fine Dining': 55.0,
 };
+
+function resolveMenuCostPp(menuLabel: string): number | null {
+  if (MENU_COST_TO_WEOTT_PP[menuLabel] != null) return MENU_COST_TO_WEOTT_PP[menuLabel];
+  const lower = menuLabel.toLowerCase().replace(/\(all seasons?\)/gi, '').trim();
+  for (const [k, v] of Object.entries(MENU_COST_TO_WEOTT_PP)) {
+    const kk = k.toLowerCase().replace(/\(all seasons?\)/gi, '').trim();
+    if (lower === kk || lower.includes(kk) || kk.includes(lower)) return v;
+  }
+  return null;
+}
 
 /** Upgrade catalogue — flat or per-guest; ids align with stargtm UPGRADE_CATALOGUE. */
 export const UPGRADES: { label: string; price: number; type: 'flat' | 'perGuest'; id: string }[] = [
@@ -208,7 +233,7 @@ export function calcCatering(data: QuoteFormInput): { amount: number; notes: str
   const guests = parseFloat(data.guestCount) || 0;
   let amount = 0;
   for (const menu of data.menuType) {
-    const pp = MENU_COST_TO_WEOTT_PP[menu];
+    const pp = resolveMenuCostPp(menu);
     if (pp == null) {
       notes.push(`No Quote Sheet catering rate for "${menu}" — skipped`);
       continue;

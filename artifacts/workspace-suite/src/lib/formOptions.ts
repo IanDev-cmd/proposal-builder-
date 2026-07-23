@@ -36,20 +36,86 @@ export const EVENT_TYPES = [
   'Client & Prospects Networking Cruise',
 ];
 
-export const MENU_TYPES = [
-  'Summer Barbecue',
-  'Barbecue',
-  'Street Food',
-  'Canapés',
-  'Substantial Canapes',
-  'Bowl Food',
-  'Charcuterie Cups',
-  'Light Bites',
-  '2-Course Seated Dinner',
-  'Hot Fork Buffet',
-  'Burger Station',
-  'Traditional Pie Station',
+/**
+ * Menu Type groups — Quote Builder 2026 + Menu Cheat Sheet.
+ * Nested so the UI can show short lists per service style, with search across all.
+ */
+export type MenuOption = {
+  label: string;
+  /** Service style from Menu Cheat Sheet (shown as hint). */
+  style?: string;
+};
+
+export type MenuGroup = {
+  id: string;
+  label: string;
+  description?: string;
+  options: MenuOption[];
+};
+
+export const MENU_GROUPS: MenuGroup[] = [
+  {
+    id: 'tray',
+    label: 'Tray Service',
+    description: 'Passed / tray service',
+    options: [
+      { label: 'Charcuterie Cups (All Seasons)', style: 'Tray service' },
+      { label: 'Canapes (All Seasons)', style: 'Tray service' },
+      { label: 'Street Food', style: 'Tray service' },
+      { label: 'Substantial Canapes (All Seasons)', style: 'Tray service' },
+      { label: 'Bowl Food (All Seasons)', style: 'Tray service' },
+    ],
+  },
+  {
+    id: 'stations',
+    label: 'Stations',
+    description: 'Chef-led / assisted / grazing stations',
+    options: [
+      { label: 'Charcuterie Station (All Seasons)', style: 'Self service / Stylized Grazing Station' },
+      { label: 'Burger Station', style: 'Chef-Led Station with assisted service' },
+      { label: 'Traditional Pie Station', style: 'Station' },
+      { label: 'Street Food Station (All Seasons)', style: 'Station' },
+      { label: 'Barbecue', style: 'Assisted station' },
+    ],
+  },
+  {
+    id: 'buffet',
+    label: 'Buffets & Grazing',
+    description: 'Self-serve buffets',
+    options: [
+      { label: 'Light Bites (All Seasons)', style: 'Grazing Buffet' },
+      { label: 'Hot Fork Buffet (All Seasons)', style: 'Buffet' },
+    ],
+  },
+  {
+    id: 'seated',
+    label: 'Seated Dining',
+    description: 'Plated courses',
+    options: [
+      { label: 'Two Course Seated Dinner - Main & Dessert (All Seasons)', style: 'Main and Dessert' },
+      { label: 'Two Course Seated Dinner - Starter & Main (All Seasons)', style: 'Starter and Main' },
+      { label: 'Three Course Seated Dinner (All Seasons)', style: '3 course Seated Dinner' },
+      { label: 'Fine Dining', style: 'Fine Dining' },
+    ],
+  },
+  {
+    id: 'daytime',
+    label: 'Daytime & Breakfast',
+    description: 'Morning / afternoon menus',
+    options: [
+      { label: 'Continental Breakfast', style: 'Breakfast' },
+      { label: 'Brunch / English Breakfast', style: 'Brunch' },
+      { label: 'Afternoon Tea', style: 'Afternoon' },
+    ],
+  },
 ];
+
+/** Flat list of all menu labels (Settings photos, finance lookups, legacy). */
+export const MENU_TYPES: string[] = MENU_GROUPS.flatMap((g) => g.options.map((o) => o.label));
+
+export function findMenuGroupId(optionLabel: string): string | undefined {
+  return MENU_GROUPS.find((g) => g.options.some((o) => o.label === optionLabel))?.id;
+}
 
 /* ─── Photo storage keyed per individual option (e.g. "vesselType::WEOTT I (Rose)") ─── */
 export type PhotoMap = Record<string, string>;

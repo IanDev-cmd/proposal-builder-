@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search } from 'lucide-react';
 import { addProposal } from '@/lib/proposalStore';
-import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES, getStoredPreview } from '@/lib/formOptions';
+import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import {
@@ -323,6 +323,216 @@ function FormMultiSelect({
               );
             })}
           </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Nested Menu Type picker — groups by service style (Quote Builder 2026 + Cheat Sheet),
+ * with search across all levels so REPs avoid scrolling one long list.
+ */
+function FormGroupedMenuSelect({
+  label,
+  field,
+  groups,
+  value,
+  onChange,
+  onPreview,
+  helper,
+}: {
+  label: string;
+  field: string;
+  groups: MenuGroup[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  onPreview?: (field: string, option: string | null) => void;
+  helper?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(groups[0]?.id ?? null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => searchRef.current?.focus(), 40);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const filteredGroups = useMemo(() => {
+    if (!q) return groups;
+    return groups
+      .map((g) => ({
+        ...g,
+        options: g.options.filter(
+          (o) =>
+            o.label.toLowerCase().includes(q) ||
+            (o.style || '').toLowerCase().includes(q) ||
+            g.label.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((g) => g.options.length > 0);
+  }, [groups, q]);
+
+  const toggle = (opt: string) =>
+    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+
+  const summary =
+    value.length === 0
+      ? `Select ${label}`
+      : value.length <= 2
+        ? value.join(', ')
+        : `${value.slice(0, 2).join(', ')} +${value.length - 2}`;
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative"
+      onMouseEnter={() => onPreview?.(field, value[0] || null)}
+      onMouseLeave={() => onPreview?.(field, null)}
+    >
+      <label className={fieldLabelCls}>
+        {label}
+        {helper && (
+          <span title={helper} className="text-[#7c8a82]">
+            <HelpCircle className="h-3.5 w-3.5" />
+          </span>
+        )}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`${inputCls} flex items-center justify-between`}
+      >
+        <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>{summary}</span>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="h-4 w-4 text-gray-400" />
+        </motion.div>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
+          >
+            <div className="flex items-center gap-2 border-b border-[#e3e6e4] px-3 py-2.5">
+              <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search menus, stations, seated…"
+                className="w-full bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-[320px] overflow-y-auto">
+              {filteredGroups.length === 0 && (
+                <p className="px-4 py-6 text-center text-[12.5px] text-gray-400">No menus match “{query}”</p>
+              )}
+              {filteredGroups.map((group) => {
+                const isOpen = q ? true : expanded === group.id;
+                const selectedInGroup = group.options.filter((o) => value.includes(o.label)).length;
+                return (
+                  <div key={group.id} className="border-b border-[#f0f0f0] last:border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((prev) => (prev === group.id ? null : group.id))}
+                      className="flex w-full items-center justify-between bg-[#fafafa] px-4 py-2.5 text-left hover:bg-[#f5f5f5]"
+                    >
+                      <span>
+                        <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-gray-700">
+                          {group.label}
+                        </span>
+                        {group.description && (
+                          <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-gray-400">
+                            {group.description}
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {selectedInGroup > 0 && (
+                          <span className="rounded-full bg-[#FFF1F0] px-2 py-0.5 text-[10px] font-bold text-[#E22A12]">
+                            {selectedInGroup}
+                          </span>
+                        )}
+                        {!q && (
+                          <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.15 }}>
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                          </motion.span>
+                        )}
+                      </span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.ul
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="overflow-hidden"
+                        >
+                          {group.options.map((opt) => {
+                            const checked = value.includes(opt.label);
+                            return (
+                              <li
+                                key={opt.label}
+                                onMouseEnter={() => onPreview?.(field, opt.label)}
+                                onClick={() => toggle(opt.label)}
+                                className="flex cursor-pointer items-start justify-between gap-3 px-4 py-2.5 text-[13px] text-gray-700 hover:bg-[#f0fdf5]"
+                              >
+                                <span className="flex items-start gap-2.5">
+                                  <span
+                                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
+                                      checked ? 'border-[#FF5A45] bg-[#FF5A45]' : 'border-[#d0d0d0]'
+                                    }`}
+                                  >
+                                    {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                                  </span>
+                                  <span>
+                                    <span className="block leading-snug">{opt.label}</span>
+                                    {opt.style && (
+                                      <span className="mt-0.5 block text-[11px] text-gray-400">{opt.style}</span>
+                                    )}
+                                  </span>
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </motion.ul>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -1079,13 +1289,14 @@ export function Forms() {
               <motion.div key="step3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
                 <p className={sectionLabelCls}>Catering</p>
 
-                <FormMultiSelect
+                <FormGroupedMenuSelect
                   label="Menu Type"
                   field="menuType"
-                  options={MENU_TYPES}
+                  groups={MENU_GROUPS}
                   value={data.menuType}
                   onChange={(v) => set('menuType', v)}
                   onPreview={handlePreview}
+                  helper="Grouped by service style (Quote Builder 2026 + Menu Cheat Sheet). Search to jump."
                 />
 
                 {data.menuType.length > 0 && (
