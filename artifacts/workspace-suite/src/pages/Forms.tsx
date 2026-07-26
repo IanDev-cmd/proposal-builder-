@@ -7,12 +7,31 @@ import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGrou
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import {
-  UPGRADES,
   calcBaseCostBreakdown,
   calcFinancials,
   buildStargtmPayload,
   CONTINGENCY_RATE,
+  resolveSelectedLineIds,
+  type BespokeLine,
 } from '@/lib/quoteFinance';
+import {
+  WEEKLY_PERIODS,
+  DAY_PERIODS,
+  GROUP_BRACKETS,
+  QUOTE_VERSIONS,
+  defaultSelectedLineIds,
+} from '@/lib/quoteBuilderCatalog';
+import {
+  buildRateParts,
+  inferDayPeriod,
+  inferGroupBracket,
+  inferWeeklyPeriod,
+  parseCostMotherRows,
+  setLiveCostMotherRates,
+  getCostMotherMeta,
+} from '@/lib/costMotherLookup';
+import { resolveCostMotherVessel } from '@/lib/quoteBuilderCatalog';
+import { QuoteCostLines } from '@/components/QuoteCostLines';
 import {
   templatesForCategory,
   templateLabel,
@@ -62,6 +81,7 @@ type FormData = {
   eventDate: string;
   dateFlexible: boolean;
   guestCount: string;
+  guestCountHigh: string;
   embarkation: string;
   departure: string;
   returnTime: string;
@@ -70,9 +90,20 @@ type FormData = {
   repeatClient: boolean;
   agentReferral: boolean;
   totalCost: string;
-  /** Margin % override (e.g. 25). Empty = use repeat/new default. */
+  /** Margin % override (e.g. 25). Empty = matrix / repeat / new default. */
   marginPercent: string;
+  discountPercent: string;
+  commissionPercent: string;
+  /** Legacy upgrade labels — still merged into Cost Mother lines. */
   selectedUpgrades: string[];
+  selectedLineIds: string[];
+  bespokeLines: BespokeLine[];
+  weeklyPeriod: string;
+  dayPeriod: string;
+  groupBracket: string;
+  noOfTables: string;
+  keyItems: string;
+  quoteVersion: string;
   /** corporate | wedding — drives template list only (manual pick). */
   proposalCategory: 'corporate' | 'wedding';
   /** Explicit stargtm template id — salesperson selects; no auto-pick. */
@@ -85,6 +116,13 @@ type FormData = {
   /** Cost cross-check before generate */
   costApproved: boolean;
 };
+
+const EMPTY_BESPOKE: BespokeLine[] = [1, 2, 3, 4].map((n) => ({
+  id: `bespoke_${n}`,
+  label: `Bespoke (${n})`,
+  amount: 0,
+  enabled: false,
+}));
 
 /**
  * The n8n lead fetch's "Source" column is a free-text tag like
@@ -109,6 +147,10 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function moneySum(...vals: Array<number | undefined>): number {
+  return Math.round(vals.reduce((s, v) => s + (v || 0), 0) * 100) / 100;
+}
+
 const INIT: FormData = {
   vesselType: [],
   eventType: '',
@@ -116,6 +158,7 @@ const INIT: FormData = {
   eventDate: todayIso(),
   dateFlexible: false,
   guestCount: '',
+  guestCountHigh: '',
   embarkation: '10:00',
   departure: '12:00',
   returnTime: '17:00',
@@ -125,7 +168,17 @@ const INIT: FormData = {
   agentReferral: false,
   totalCost: '',
   marginPercent: '',
+  discountPercent: '',
+  commissionPercent: '',
   selectedUpgrades: [],
+  selectedLineIds: defaultSelectedLineIds([]),
+  bespokeLines: EMPTY_BESPOKE,
+  weeklyPeriod: '',
+  dayPeriod: '',
+  groupBracket: '',
+  noOfTables: '',
+  keyItems: '',
+  quoteVersion: 'V1',
   proposalCategory: 'corporate',
   templateId: '',
   requiresInserts: false,
@@ -151,6 +204,12 @@ function formFromLead(lead: QuoteLead | null): FormData {
       ? String(lead.groupSizeQuote)
       : (String(lead.groupSize || '').match(/\d+/)?.[0] ?? '');
   const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
+  const eventDate = flex
+    ? ''
+    : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate;
+  const embarkation = times.embarkation || INIT.embarkation;
+  const cmVessel = vessels[0] ? resolveCostMotherVessel(vessels[0]) : null;
+  const guestsN = parseFloat(guest) || 0;
   return {
     ...INIT,
     source: matchSourceType(lead.source) || INIT.source,
@@ -158,15 +217,17 @@ function formFromLead(lead: QuoteLead | null): FormData {
     vesselType: vessels,
     eventType: eventType || INIT.eventType,
     dateFlexible: flex,
-    eventDate: flex
-      ? ''
-      : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate,
+    eventDate,
     guestCount: guest,
-    embarkation: times.embarkation || INIT.embarkation,
+    embarkation,
     disembarkation: times.disembarkation || INIT.disembarkation,
     progressNotes: lead.progressNotes || '',
     budget: lead.budget || '',
     proposalCategory: wedding ? 'wedding' : 'corporate',
+    weeklyPeriod: inferWeeklyPeriod(eventDate, flex, cmVessel),
+    dayPeriod: inferDayPeriod(embarkation),
+    groupBracket: inferGroupBracket(guestsN, cmVessel),
+    keyItems: '',
   };
 }
 
@@ -637,7 +698,7 @@ const STEPS = [
   { n: 3, label: 'Schedule Timings' },
   { n: 4, label: 'Catering' },
   { n: 5, label: 'Financials' },
-  { n: 6, label: 'Upgrades' },
+  { n: 6, label: 'Cost Lines' },
   { n: 7, label: 'Proposal Pack' },
 ];
 
@@ -659,12 +720,12 @@ export function Forms() {
   const set = (key: keyof FormData, val: unknown) =>
     setData((prev) => ({ ...prev, [key]: val }));
 
-  const toggleUpgrade = (label: string) =>
+  const toggleLine = (id: string) =>
     set(
-      'selectedUpgrades',
-      data.selectedUpgrades.includes(label)
-        ? data.selectedUpgrades.filter((u) => u !== label)
-        : [...data.selectedUpgrades, label],
+      'selectedLineIds',
+      data.selectedLineIds.includes(id)
+        ? data.selectedLineIds.filter((x) => x !== id)
+        : [...data.selectedLineIds, id],
     );
 
   const marginOverride =
@@ -693,32 +754,96 @@ export function Forms() {
   const [insertPanelOpen, setInsertPanelOpen] = useState(false);
   const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff' | 'map'>('all');
 
-  // Soft-fetch Cost Mother / Price Comparison rates (raw) for awareness — rates still
-  // apply via quoteFinance defaults until UI maps raw rows defensively.
+  // Fetch Cost Mother / margins from live Sheets; overlay when Assemble Rates is structured.
   useEffect(() => {
     let cancelled = false;
     fetchCostRates()
       .then((r) => {
         if (cancelled) return;
-        const n = r.counts?.cateringRates ?? r.cateringRates?.length ?? 0;
+        const structured =
+          (r as { costMother?: Parameters<typeof setLiveCostMotherRates>[0] }).costMother ||
+          parseCostMotherRows(
+            ((r as { costMotherItems?: Record<string, unknown>[] }).costMotherItems ||
+              r.cateringRates ||
+              []) as Record<string, unknown>[],
+          );
+        if (structured?.items?.length) {
+          setLiveCostMotherRates(structured);
+        }
+        const meta = getCostMotherMeta();
+        const n = r.counts?.cateringRates ?? r.cateringRates?.length ?? meta.itemCount;
         const v = r.counts?.vesselRates ?? r.vesselRates?.length ?? 0;
         setRatesNote(
-          n || v
-            ? `Cost rates linked (${v} vessel · ${n} catering rows from Sheets). Base costs still use Quote Sheet defaults until mapped.`
-            : '',
+          meta.live
+            ? `Live Cost Mother linked (${meta.itemCount} lines · ${v} vessel comparison rows).`
+            : n || v
+              ? `Sheets rates reachable (${v} vessel · ${n} rows). Using bundled Cost Mother snapshot until Assemble Rates returns structured items.`
+              : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
         );
       })
       .catch(() => {
-        if (!cancelled) setRatesNote('');
+        if (!cancelled) {
+          const meta = getCostMotherMeta();
+          setRatesNote(`Using bundled Cost Mother snapshot (${meta.itemCount} lines).`);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Keep Base Cost synced to the formula while it's in "auto" mode. Guarded
-  // to only run once the relevant inputs actually change, so typing a
-  // manual override (which flips baseCostAuto off) never gets clobbered.
+  // Infer Cost Mother period keys when vessel / date / guests / embark change (unless REP locked a value).
+  useEffect(() => {
+    const vessel = data.vesselType[0];
+    if (!vessel) return;
+    const cm = resolveCostMotherVessel(vessel);
+    const guests = parseFloat(data.guestCount) || 0;
+    const parts = buildRateParts({
+      vesselUi: vessel,
+      weeklyPeriod: data.weeklyPeriod || undefined,
+      dayPeriod: data.dayPeriod || undefined,
+      groupBracket: data.groupBracket || undefined,
+      eventDate: data.eventDate,
+      dateFlexible: data.dateFlexible,
+      embarkation: data.embarkation,
+      guests,
+    });
+    setData((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      if (!prev.weeklyPeriod) {
+        next.weeklyPeriod = inferWeeklyPeriod(prev.eventDate, prev.dateFlexible, cm);
+        changed = true;
+      }
+      if (!prev.dayPeriod) {
+        next.dayPeriod = inferDayPeriod(prev.embarkation);
+        changed = true;
+      }
+      if (!prev.groupBracket) {
+        next.groupBracket = inferGroupBracket(guests, cm);
+        changed = true;
+      }
+      // Keep inferred values aligned when still matching previous auto keys
+      if (prev.weeklyPeriod && prev.weeklyPeriod !== parts.weeklyPeriod && !prev.weeklyPeriod) {
+        /* no-op */
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.vesselType, data.eventDate, data.dateFlexible, data.embarkation, data.guestCount]);
+
+  // Sync menu selections → Cost Mother catering YES lines
+  useEffect(() => {
+    setData((prev) => {
+      const merged = resolveSelectedLineIds(prev);
+      const same =
+        merged.length === prev.selectedLineIds.length &&
+        merged.every((id) => prev.selectedLineIds.includes(id));
+      return same ? prev : { ...prev, selectedLineIds: merged };
+    });
+  }, [data.menuType]);
+
+  // Keep Base Cost synced to the formula while it's in "auto" mode.
   useEffect(() => {
     if (!baseCostAuto) return;
     setData((prev) => ({ ...prev, totalCost: calcBaseCostBreakdown(prev).total.toFixed(2) }));
@@ -734,6 +859,12 @@ export function Forms() {
     data.embarkation,
     data.disembarkation,
     data.selectedUpgrades,
+    data.selectedLineIds,
+    data.bespokeLines,
+    data.weeklyPeriod,
+    data.dayPeriod,
+    data.groupBracket,
+    data.noOfTables,
   ]);
 
   const handlePreview = (field: string, option: string | null) => {
@@ -872,27 +1003,46 @@ export function Forms() {
         email: quoteLead?.email,
         leadName: quoteLead?.name,
         status: 'generating',
+        version: data.quoteVersion,
         title: `${data.eventType || 'Event'} Proposal`,
         eventType: data.eventType,
         eventDate: data.eventDate,
         guestCount: data.guestCount,
+        guestCountHigh: data.guestCountHigh,
         guests: parseFloat(data.guestCount) || 0,
         repeatClient: data.repeatClient,
+        agentReferral: data.agentReferral,
         selectedUpgrades: data.selectedUpgrades,
+        selectedLineLabels: (fin.lines || []).map((l) => l.label),
+        selectedLineIds: data.selectedLineIds,
+        keyItems: data.keyItems,
+        weeklyPeriod: data.weeklyPeriod || fin.rateParts?.weeklyPeriod,
+        dayPeriod: data.dayPeriod || fin.rateParts?.dayPeriod,
+        groupBracket: data.groupBracket || fin.rateParts?.groupBracket,
+        noOfTables: data.noOfTables,
         templateId: data.templateId,
         selectedInserts: data.requiresInserts ? data.selectedInserts : [],
         staffContact: staffContact.name,
         baseCost: fin.baseCost,
+        subtotalBeforeContingency: fin.subtotalBeforeContingency,
         contingency: fin.contingency,
         contingencyRate: fin.contingencyRate,
         margin: fin.margin,
         marginAmount: fin.marginAmount,
+        discountPercent: fin.discountPercent,
+        discountAmount: fin.discountAmount,
+        commissionPercent: fin.commissionPercent,
+        commissionAmount: fin.commissionAmount,
+        updatedProfit: fin.updatedProfit,
+        costPerGuestExc: fin.costPerGuestExc,
+        costPerGuestInc: fin.costPerGuestInc,
         costToClient: fin.costToClient,
         packageCost: fin.costToClient,
         vat: fin.vat,
         vatRate: fin.vatRate,
         upgradeTotal: fin.upgradeTotal,
         grandTotal: fin.grand,
+        sectionTotals: fin.sectionTotals,
         mode: sheetsMode,
       }).catch(() => undefined);
 
@@ -966,13 +1116,18 @@ export function Forms() {
         email: quoteLead?.email,
         leadName: quoteLead?.name,
         status: 'ready',
+        version: data.quoteVersion,
         eventType: data.eventType,
         eventDate: data.eventDate,
         guestCount: data.guestCount,
+        guestCountHigh: data.guestCountHigh,
         grandTotal: fin.grand,
         costToClient: fin.costToClient,
         vat: fin.vat,
+        updatedProfit: fin.updatedProfit,
+        costPerGuestInc: fin.costPerGuestInc,
         templateId: data.templateId,
+        selectedLineLabels: (fin.lines || []).map((l) => l.label),
       }).catch(() => undefined);
 
       clearQuoteLead();
@@ -1102,7 +1257,15 @@ export function Forms() {
                     field="vesselType"
                     options={VESSEL_TYPES}
                     value={data.vesselType}
-                    onChange={(v) => set('vesselType', v)}
+                    onChange={(v) => {
+                      const cm = v[0] ? resolveCostMotherVessel(v[0]) : null;
+                      setData((prev) => ({
+                        ...prev,
+                        vesselType: v,
+                        weeklyPeriod: inferWeeklyPeriod(prev.eventDate, prev.dateFlexible, cm),
+                        groupBracket: inferGroupBracket(parseFloat(prev.guestCount) || 0, cm),
+                      }));
+                    }}
                     onPreview={handlePreview}
                   />
                   <FormSelect
@@ -1112,6 +1275,79 @@ export function Forms() {
                     value={data.eventType}
                     onChange={(v) => set('eventType', v)}
                     onPreview={handlePreview}
+                  />
+                </div>
+
+                <p className={sectionLabelCls}>Quote Builder inputs</p>
+                <div className="mb-7 grid grid-cols-2 gap-5">
+                  <div>
+                    <label className={fieldLabelCls}>Quote version</label>
+                    <select
+                      value={data.quoteVersion}
+                      onChange={(e) => set('quoteVersion', e.target.value)}
+                      className={inputCls}
+                    >
+                      {QUOTE_VERSIONS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={fieldLabelCls}>Weekly period</label>
+                    <select
+                      value={data.weeklyPeriod}
+                      onChange={(e) => set('weeklyPeriod', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Auto from date</option>
+                      {WEEKLY_PERIODS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={fieldLabelCls}>Day period</label>
+                    <select
+                      value={data.dayPeriod}
+                      onChange={(e) => set('dayPeriod', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Auto from embark</option>
+                      {DAY_PERIODS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={fieldLabelCls}>Group bracket</label>
+                    <select
+                      value={data.groupBracket}
+                      onChange={(e) => set('groupBracket', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Auto from guests / vessel</option>
+                      {GROUP_BRACKETS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="mb-7">
+                  <label className={fieldLabelCls}>Key Items</label>
+                  <input
+                    type="text"
+                    value={data.keyItems}
+                    onChange={(e) => set('keyItems', e.target.value)}
+                    placeholder="e.g. Canapés, drink tokens, DJ — short headline for the pack"
+                    className={inputCls}
                   />
                 </div>
 
@@ -1234,17 +1470,43 @@ export function Forms() {
             {step === 2 && (
               <motion.div key="step2" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
                 <p className={sectionLabelCls}>Guest Count</p>
+                <div className="mb-5 grid grid-cols-2 gap-5">
+                  <div>
+                    <label className={fieldLabelCls}>Guests (quote / lower)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={data.guestCount}
+                      onChange={(e) => set('guestCount', e.target.value)}
+                      placeholder="e.g. 80"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={fieldLabelCls}>Guests high (proposal range)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={data.guestCountHigh}
+                      onChange={(e) => set('guestCountHigh', e.target.value)}
+                      placeholder="Optional upper bound"
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
                 <div className="mb-7">
-                  <label className={fieldLabelCls}>Number of Guests</label>
+                  <label className={fieldLabelCls}>No. of tables</label>
                   <input
                     type="number"
-                    min={1}
-                    value={data.guestCount}
-                    onChange={(e) => set('guestCount', e.target.value)}
-                    placeholder="e.g. 120"
+                    min={0}
+                    value={data.noOfTables}
+                    onChange={(e) => set('noOfTables', e.target.value)}
+                    placeholder="For Section 9 decor × tables"
                     className={inputCls}
                   />
-                  <p className="mt-1.5 text-[11.5px] text-gray-400">Used to calculate staffing across the event.</p>
+                  <p className="mt-1.5 text-[11.5px] text-gray-400">
+                    Used for table linen / centrepieces / event decor multipliers.
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -1356,7 +1618,7 @@ export function Forms() {
                 <div className="mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Agent Referral</p>
-                    <p className="text-[12px] text-gray-400">Adds +10% agent fee on cost to client (Quote Sheet)</p>
+                    <p className="text-[12px] text-gray-400">Defaults 10% commission (value lost from profit) unless you set %</p>
                   </div>
                   <button
                     type="button"
@@ -1373,28 +1635,56 @@ export function Forms() {
 
                 <p className={sectionLabelCls}>Cost Inputs</p>
                 <p className="mb-3 text-[11.5px] text-gray-400">
-                  Rates from Quote Sheet · Price Comparison (cost to WEOTT). Contingency {(CONTINGENCY_RATE * 100).toFixed(2)}% then margin, then VAT.
+                  Cost Mother rates · Sections 1–13 → contingency {(CONTINGENCY_RATE * 100).toFixed(2)}% → margin → discount → VAT.
                   {ratesNote ? ` ${ratesNote}` : ''}
                 </p>
 
-                <div className="mb-7">
-                  <label className={fieldLabelCls}>Margin % (editable)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={data.marginPercent}
-                    onChange={(e) => set('marginPercent', e.target.value)}
-                    placeholder={data.repeatClient ? '15 (repeat default)' : '25 (new default)'}
-                    className={inputCls}
-                  />
-                  <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Leave blank for default (repeat 15% / new 25%). REP commercial judgment.
-                  </p>
+                <div className="mb-5 grid grid-cols-3 gap-4">
+                  <div>
+                    <label className={fieldLabelCls}>Margin %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={data.marginPercent}
+                      onChange={(e) => set('marginPercent', e.target.value)}
+                      placeholder={data.repeatClient ? '15' : '25'}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={fieldLabelCls}>Discount %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={data.discountPercent}
+                      onChange={(e) => set('discountPercent', e.target.value)}
+                      placeholder="0"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={fieldLabelCls}>Commission %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={data.commissionPercent}
+                      onChange={(e) => set('commissionPercent', e.target.value)}
+                      placeholder={data.agentReferral ? '10' : '0'}
+                      className={inputCls}
+                    />
+                  </div>
                 </div>
+                <p className="mb-7 text-[11.5px] text-gray-400">
+                  Blank margin uses Minimum target margin matrix (event × month), then repeat 15% / new 25%.
+                </p>
 
-                {/* Base Cost formula — Quote Sheet SoT via quoteFinance.ts */}
+                {/* Section roll-up — Quote Builder 2026 */}
                 <div className="mb-4 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                   <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                     <span className="flex items-center gap-2">
@@ -1405,23 +1695,30 @@ export function Forms() {
                         </span>
                       )}
                     </span>
-                    <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{baseCostBreakdown.vesselHire.toFixed(2)}</span>
+                    <span className="font-semibold text-[#00e676]">£{baseCostBreakdown.vesselHire.toFixed(2)}</span>
                   </div>
-                  {[
-                    ['Catering (× guests)', baseCostBreakdown.menuCost],
-                    ['Fixed Operational Costs', baseCostBreakdown.fixedOps],
-                    ...(baseCostBreakdown.upgradesTotal > 0
-                      ? ([['Upgrades Total', baseCostBreakdown.upgradesTotal]] as const)
-                      : []),
-                  ].map(([label, val]) => (
-                    <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
-                      <span>{label}</span>
-                      <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{(val as number).toFixed(2)}</span>
-                    </div>
-                  ))}
+                  {(
+                    [
+                      ['Catering', baseCostBreakdown.sectionTotals.catering || 0],
+                      ['Catering equipment / surcharge', moneySum(baseCostBreakdown.sectionTotals.catering_equipment, baseCostBreakdown.sectionTotals.catering_surcharge)],
+                      ['Beverages', baseCostBreakdown.sectionTotals.beverages || 0],
+                      ['Entertainment', baseCostBreakdown.sectionTotals.entertainment || 0],
+                      ['Decor (hours + tables)', moneySum(baseCostBreakdown.sectionTotals.decor, baseCostBreakdown.sectionTotals.decor_table)],
+                      ['Staff + in-house + other', moneySum(baseCostBreakdown.sectionTotals.staff, baseCostBreakdown.sectionTotals.in_house, baseCostBreakdown.sectionTotals.other, baseCostBreakdown.sectionTotals.financial)],
+                      ['Bespoke', baseCostBreakdown.sectionTotals.bespoke || 0],
+                      [`Contingency (${(CONTINGENCY_RATE * 100).toFixed(2)}%)`, baseCostBreakdown.contingency],
+                    ] as [string, number][]
+                  )
+                    .filter(([, val]) => val > 0)
+                    .map(([label, val]) => (
+                      <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
+                        <span>{label}</span>
+                        <span className="font-semibold text-[#00e676]">£{val.toFixed(2)}</span>
+                      </div>
+                    ))}
                   <div className="flex items-center justify-between bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
-                    <span>Base Cost (formula total)</span>
-                    <span className="text-[14px] font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{baseCostBreakdown.total.toFixed(2)}</span>
+                    <span>Total Cost to WEOTT</span>
+                    <span className="text-[14px] font-black text-[#00e676]">£{baseCostBreakdown.total.toFixed(2)}</span>
                   </div>
                 </div>
                 {baseCostBreakdown.notes.length > 0 && (
@@ -1461,36 +1758,50 @@ export function Forms() {
                     className={`${inputCls} font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]`}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Prefilled from Quote Sheet rates — edit to override.
+                    Prefilled from Cost Mother (Sections 1–14) — edit to override.
                   </p>
                 </div>
 
-                {(parseFloat(data.totalCost) > 0 || data.selectedUpgrades.length > 0) && (
+                {(parseFloat(data.totalCost) > 0 || (fin.lines || []).length > 0) && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
-                      <span>Base Cost</span>
-                      <span className="font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.baseCost.toFixed(2)}</span>
+                      <span>Total Cost to WEOTT</span>
+                      <span className="font-black text-[#00e676]">£{fin.baseCost.toFixed(2)}</span>
                     </div>
-                    {[
-                      ['Contingency (2.25%)', fin.contingency],
-                      [`Margin (${(fin.margin * 100).toFixed(0)}%)`, fin.marginAmount],
-                    ].map(([label, val]) => (
+                    {(
+                      [
+                        [`Margin (${(fin.margin * 100).toFixed(1)}%)`, fin.marginAmount],
+                        ...(fin.discountAmount > 0
+                          ? ([[`Discount (${(fin.discountPercent * 100).toFixed(1)}%)`, -fin.discountAmount]] as [string, number][])
+                          : []),
+                        ...(fin.commissionAmount > 0
+                          ? ([[`Commission (${(fin.commissionPercent * 100).toFixed(1)}%)`, fin.commissionAmount]] as [string, number][])
+                          : []),
+                        ['Updated profit', fin.updatedProfit],
+                      ] as [string, number][]
+                    ).map(([label, val]) => (
                       <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                         <span>{label}</span>
-                        <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{(val as number).toFixed(2)}</span>
+                        <span className="font-semibold text-[#00e676]">£{val.toFixed(2)}</span>
                       </div>
                     ))}
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
-                      <span>Cost to Client</span>
-                      <span className="font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.costToClient.toFixed(2)}</span>
+                      <span>Cost to Client (exc VAT)</span>
+                      <span className="font-black text-[#00e676]">£{fin.costToClient.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>VAT (20%)</span>
-                      <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.vat.toFixed(2)}</span>
+                      <span className="font-semibold text-[#00e676]">£{fin.vat.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
+                      <span>£ / guest (exc / inc VAT)</span>
+                      <span className="font-semibold text-[#00e676]">
+                        £{fin.costPerGuestExc.toFixed(2)} / £{fin.costPerGuestInc.toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between bg-[#FF5A45] px-5 py-4 text-[14px] font-black text-white">
                       <span>Grand Total</span>
-                      <span className="text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.grand.toFixed(2)}</span>
+                      <span className="text-[#00e676]">£{fin.grand.toFixed(2)}</span>
                     </div>
                   </motion.div>
                 )}
@@ -1526,70 +1837,24 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 6 — Upgrades */}
+            {/* STEP 6 — Cost Lines (Quote Builder Sections 1–13) */}
             {step === 6 && (
               <motion.div
-                key="step6-upgrades"
+                key="step6-cost-lines"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
-                <p className={sectionLabelCls}>Optional Add-Ons</p>
-
-                <div className="flex flex-col gap-3">
-                  {UPGRADES.map(({ label, price, type }) => {
-                    const selected = data.selectedUpgrades.includes(label);
-                    const guests = parseFloat(data.guestCount) || 0;
-                    const lineTotal = type === 'perGuest' ? price * guests : price;
-                    return (
-                      <motion.button
-                        key={label}
-                        type="button"
-                        whileHover={{ x: 4 }}
-                        onClick={() => toggleUpgrade(label)}
-                        className={`flex items-center justify-between rounded-[10px] border px-5 py-4 text-left transition-colors ${
-                          selected
-                            ? 'border-[#FF5A45] bg-[#FFF1F0]'
-                            : 'border-[#e3e6e4] bg-white hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-5 w-5 items-center justify-center rounded-[6px] transition-colors ${
-                              selected ? 'bg-[#FF5A45]' : 'border border-[#d0d0d0]'
-                            }`}
-                          >
-                            {selected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-                          </div>
-                          <span className="text-[13px] font-semibold text-gray-800">{label}</span>
-                          {type === 'perGuest' && (
-                            <span className="text-[10.5px] text-gray-400">(£{price}/guest)</span>
-                          )}
-                        </div>
-                        <span className={`text-[13px] font-bold ${selected ? 'text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]' : 'text-gray-400'}`}>
-                          £{lineTotal.toLocaleString()}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-
-                {data.selectedUpgrades.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-6 flex items-center justify-between rounded-[10px] border border-[#FF5A45] bg-[#FFF1F0] px-5 py-4"
-                  >
-                    <span className="text-[12px] font-semibold text-[#E22A12]">
-                      {data.selectedUpgrades.length} upgrade{data.selectedUpgrades.length > 1 ? 's' : ''} selected
-                    </span>
-                    <span className="text-[14px] font-black text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">
-                      +£{baseCostBreakdown.upgradesTotal.toLocaleString()}
-                    </span>
-                  </motion.div>
-                )}
+                <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
+                <QuoteCostLines
+                  data={financeInput}
+                  selectedLineIds={data.selectedLineIds}
+                  bespokeLines={data.bespokeLines}
+                  onToggleLine={toggleLine}
+                  onBespokeChange={(lines) => set('bespokeLines', lines)}
+                />
               </motion.div>
             )}
 

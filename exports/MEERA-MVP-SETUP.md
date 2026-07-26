@@ -22,7 +22,9 @@ Import / copy from `exports/WEOTT-Nexus-TEST-Sheets.xlsx`:
 `Created At | Mode | Reference | Email | Lead Name | Tag | Note`
 
 ### Nexus Ops Quotes headers
-`Updated At | Mode | Reference | Email | Lead Name | Quote Id | Status | Version | Title | Event Type | Event Date | Guests | Repeat Client | Selected Upgrades | Template Id | Selected Inserts | Staff Contact | Base Cost | Contingency | Margin | Margin Amount | Cost To Client | Package Cost | VAT | Upgrade Total | Grand Total`
+`Updated At | Mode | Reference | Email | Lead Name | Quote Id | Status | Version | Title | Event Type | Event Date | Guests | Guests High | Repeat Client | Agent Referral | Key Items | Weekly Period | Day Period | Group Bracket | No Of Tables | Selected Upgrades | Selected Cost Lines | Template Id | Selected Inserts | Staff Contact | Subtotal Pre Contingency | Base Cost | Contingency | Margin | Margin Amount | Discount % | Discount Amount | Commission % | Commission Amount | Updated Profit | Cost Per Guest Exc | Cost Per Guest Inc | Cost To Client | Package Cost | VAT | Upgrade Total | Grand Total | Section Totals`
+
+Financials UI mirrors Quote Builder 2026 Sections 1–14 (Cost Mother rates, contingency 2.25%, margin, discount, commission, £/guest).
 
 ## Required LIVE tabs (create if missing)
 - `Nexus Ops Notes` + `Nexus Ops Quotes` (same headers) — append-only write-back
@@ -34,7 +36,7 @@ Nav **Demo | Live** toggle. Mode sent on LeadDataFetch, NoteAppend, QuoteStatus,
 
 Lead → Quote Builder prefills: vessels, event type, Date TBC / flexible, requested times, guest lower bound, budget, progress notes, repeat client, Prepared By (REP).
 
-Financials: editable margin %, cost cross-check approval gate, package wording notes.
+Financials: Cost Mother Sections 1–14, editable margin/discount/commission %, cost cross-check approval gate, package wording notes, Cost Lines step for YES toggles + bespoke.
 
 ## n8n
 Import `exports/n8n-quote-builder-mvp.json` into meeraworkflows and reconnect Google Sheets OAuth (`8aF9CpidfdOSoB9E`) on every Sheets node.

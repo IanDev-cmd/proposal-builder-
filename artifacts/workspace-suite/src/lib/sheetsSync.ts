@@ -85,13 +85,20 @@ export async function writeLeadUpdate(payload: Record<string, unknown>): Promise
   return postWebhook('LeadUpdate', payload);
 }
 
-/** Cost Mother / Price Comparison / ratios — always from LIVE rate tabs (raw rows). */
+/** Cost Mother / Price Comparison / ratios — always from LIVE rate tabs. */
 export type CostRatesPayload = {
   ok?: boolean;
   source?: string;
   note?: string;
   vesselRates?: Record<string, unknown>[];
   cateringRates?: Record<string, unknown>[];
+  /** Structured Cost Mother (preferred) from Assemble Rates. */
+  costMother?: {
+    source?: string;
+    items: { row?: number; label: string; rates: Record<string, number> }[];
+    margins?: { eventService: string; market: string; months: Record<string, number> }[];
+  };
+  costMotherItems?: Record<string, unknown>[];
   quoteBuilder2026?: Record<string, unknown>[];
   margins?: Record<string, unknown>[];
   staffRatios?: Record<string, unknown>[];
