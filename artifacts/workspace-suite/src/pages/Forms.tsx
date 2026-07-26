@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye } from 'lucide-react';
+import { SECTION_META } from '@/lib/quoteBuilderCatalog';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
@@ -699,8 +700,11 @@ const STEPS = [
   { n: 4, label: 'Catering' },
   { n: 5, label: 'Financials' },
   { n: 6, label: 'Cost Lines' },
-  { n: 7, label: 'Proposal Pack' },
+  { n: 7, label: 'Cost Approval' },
+  { n: 8, label: 'Proposal Pack' },
 ];
+
+const LAST_CONTENT_STEP = 8;
 
 export function Forms() {
   const [, navigate] = useLocation();
@@ -716,6 +720,7 @@ export function Forms() {
   // stops overwriting them until they explicitly ask to resync.
   const [baseCostAuto, setBaseCostAuto] = useState(true);
   const [ratesNote, setRatesNote] = useState<string>('');
+  const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
 
   const set = (key: keyof FormData, val: unknown) =>
     setData((prev) => ({ ...prev, [key]: val }));
@@ -885,17 +890,17 @@ export function Forms() {
     setErrorMessage('');
     setStage('preparing');
 
-    if (!data.templateId) {
-      setErrorMessage('Select a proposal template in Proposal Pack before generating.');
+    if (!data.costApproved) {
+      setErrorMessage('Confirm cost cross-check approval before Proposal Pack / generate.');
       setStage('error');
       setStep(7);
       return;
     }
 
-    if (!data.costApproved) {
-      setErrorMessage('Confirm cost cross-check approval on Financials before generating.');
+    if (!data.templateId) {
+      setErrorMessage('Select a proposal template in Proposal Pack before generating.');
       setStage('error');
-      setStep(5);
+      setStep(8);
       return;
     }
 
@@ -1806,24 +1811,6 @@ export function Forms() {
                   </motion.div>
                 )}
 
-                <div className="mt-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
-                  <div>
-                    <p className="text-[13px] font-semibold text-gray-800">Cost cross-check approved</p>
-                    <p className="text-[12px] text-gray-400">Required before PDF generate</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => set('costApproved', !data.costApproved)}
-                    className={`relative h-7 w-14 rounded-full transition-colors ${data.costApproved ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
-                  >
-                    <motion.div
-                      animate={{ x: data.costApproved ? 28 : 2 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                      className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm"
-                    />
-                  </button>
-                </div>
-
                 <div className="mt-7">
                   <p className={sectionLabelCls}>Package wording (optional)</p>
                   <textarea
@@ -1858,10 +1845,106 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 7 — Proposal Pack (templates + inserts) */}
+            {/* STEP 7 — Cost Approval (after all quote inputs, before Proposal Pack) */}
             {step === 7 && (
               <motion.div
-                key="step7-pack"
+                key="step7-cost-approval"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={{ duration: 0.25 }}
+              >
+                <p className={sectionLabelCls}>Cost Cross-Check</p>
+                <p className="mb-6 text-[13px] leading-relaxed text-gray-500">
+                  Review the full quote, then approve before choosing a proposal pack. Approval is required to generate.
+                </p>
+
+                <div className="mb-6 overflow-hidden rounded-[12px] border border-[#e3e6e4]">
+                  <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-3">
+                    <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">
+                      Snapshot
+                    </span>
+                    <span className="text-[12px] text-gray-400">
+                      {data.quoteVersion || 'V1'}
+                      {fin.rateParts
+                        ? ` · ${fin.rateParts.vessel} · ${fin.rateParts.weeklyPeriod} · ${fin.rateParts.dayPeriod}`
+                        : ''}
+                    </span>
+                  </div>
+                  {(
+                    [
+                      ['Total to WEOTT', fin.baseCost],
+                      [`Margin (${(fin.margin * 100).toFixed(1)}%)`, fin.marginAmount],
+                      ['Cost to client (exc VAT)', fin.costToClient],
+                      ['VAT (20%)', fin.vat],
+                      ['Grand total', fin.grand],
+                    ] as [string, number][]
+                  ).map(([label, val]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600 last:border-b-0"
+                    >
+                      <span>{label}</span>
+                      <span className="font-semibold text-[#00e676]">£{val.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setQuoteDetailsOpen(true)}
+                  className="mb-6 flex w-full items-center justify-between rounded-[12px] border border-[#e3e6e4] bg-white px-5 py-4 text-left transition-colors hover:border-[#FF5A45]/50 hover:bg-[#FFF1F0]/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#f0fdf5]">
+                      <Eye className="h-4.5 w-4.5 text-[#00e676]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold text-gray-800">View quote details</p>
+                      <p className="text-[12px] text-gray-400">
+                        {(fin.lines || []).length} cost lines · section roll-up · £/guest
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-gray-300" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => set('costApproved', !data.costApproved)}
+                  className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors ${
+                    data.costApproved
+                      ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)]'
+                      : 'border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40'
+                  }`}
+                >
+                  {data.costApproved ? (
+                    <>
+                      <Check className="h-4.5 w-4.5" strokeWidth={3} />
+                      Cost cross-check approved
+                    </>
+                  ) : (
+                    'Approve cost cross-check'
+                  )}
+                </button>
+                <p className="mt-2 text-center text-[11.5px] text-gray-400">
+                  {data.costApproved
+                    ? 'Approved — continue to Proposal Pack'
+                    : 'Tap to approve after reviewing quote details'}
+                </p>
+                {errorMessage && step === 7 && !data.costApproved ? (
+                  <p className="mt-3 rounded-[10px] border border-[#FFE0DC] bg-[#FFF1F0] px-4 py-2.5 text-center text-[12px] font-semibold text-[#E22A12]">
+                    {errorMessage}
+                  </p>
+                ) : null}
+              </motion.div>
+            )}
+
+            {/* STEP 8 — Proposal Pack (templates + inserts) */}
+            {step === 8 && (
+              <motion.div
+                key="step8-pack"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -2027,12 +2110,24 @@ export function Forms() {
             ) : (
               <span />
             )}
-            {step < 7 ? (
+            {step < LAST_CONTENT_STEP ? (
               <button
-                onClick={() => setStep((s) => Math.min(7, s + 1))}
-                className="flex items-center gap-2 rounded-full bg-[#FF5A45] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#F4412A]"
+                onClick={() => {
+                  if (step === 7 && !data.costApproved) {
+                    setErrorMessage('Approve the cost cross-check before continuing to Proposal Pack.');
+                    setQuoteDetailsOpen(true);
+                    return;
+                  }
+                  setErrorMessage('');
+                  setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+                }}
+                className={`flex items-center gap-2 rounded-full px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors ${
+                  step === 7 && data.costApproved
+                    ? 'bg-[#00e676] text-[#0b1f14] hover:bg-[#00d66c]'
+                    : 'bg-[#FF5A45] hover:bg-[#F4412A]'
+                }`}
               >
-                Next
+                {step === 7 ? (data.costApproved ? 'Continue to Proposal Pack' : 'Approve to continue') : 'Next'}
               </button>
             ) : (
               <button
@@ -2046,6 +2141,171 @@ export function Forms() {
           </div>
         </div>
       </main>
+
+      {/* ── Quote details overlay (Cost Approval step) ── */}
+      <AnimatePresence>
+        {quoteDetailsOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm"
+            onClick={() => setQuoteDetailsOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              className="relative max-h-[85vh] w-full max-w-[560px] overflow-hidden rounded-[20px] bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-4">
+                <div>
+                  <p className="text-[15px] font-bold text-gray-800">Quote details</p>
+                  <p className="text-[12px] text-gray-400">
+                    {data.eventType || 'Event'} · {data.vesselType[0] || 'Vessel TBC'} ·{' '}
+                    {data.guestCount || '—'} guests
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuoteDetailsOpen(false)}
+                  className="rounded-full border border-[#e3e6e4] p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="max-h-[calc(85vh-140px)] overflow-y-auto px-5 py-4">
+                <div className="mb-4 grid grid-cols-2 gap-2 text-[12px] text-gray-600">
+                  <div className="rounded-[10px] bg-[#fafafa] px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Version</p>
+                    <p className="font-semibold text-gray-800">{data.quoteVersion || 'V1'}</p>
+                  </div>
+                  <div className="rounded-[10px] bg-[#fafafa] px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Period</p>
+                    <p className="font-semibold text-gray-800">
+                      {(data.weeklyPeriod || fin.rateParts?.weeklyPeriod || '—') +
+                        ' · ' +
+                        (data.dayPeriod || fin.rateParts?.dayPeriod || '—')}
+                    </p>
+                  </div>
+                  {data.keyItems ? (
+                    <div className="col-span-2 rounded-[10px] bg-[#fafafa] px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Key items</p>
+                      <p className="font-semibold text-gray-800">{data.keyItems}</p>
+                    </div>
+                  ) : null}
+                </div>
+
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7c8a82]">
+                  Section totals
+                </p>
+                <div className="mb-5 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
+                  {SECTION_META.filter((s) => s.id !== 'contingency')
+                    .map((s) => ({
+                      label: s.title.replace(/^Section \d+ — /, ''),
+                      val: fin.sectionTotals?.[s.id] || 0,
+                    }))
+                    .filter((r) => r.val > 0)
+                    .map((r) => (
+                      <div
+                        key={r.label}
+                        className="flex items-center justify-between border-b border-[#f0f0f0] px-4 py-2.5 text-[12.5px] text-gray-600 last:border-b-0"
+                      >
+                        <span>{r.label}</span>
+                        <span className="font-semibold text-[#00e676]">£{r.val.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  <div className="flex items-center justify-between bg-[#f0fdf5] px-4 py-2.5 text-[12.5px] font-bold text-gray-700">
+                    <span>Contingency (2.25%)</span>
+                    <span className="text-[#00e676]">£{fin.contingency.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7c8a82]">
+                  Active cost lines
+                </p>
+                <div className="mb-5 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
+                  {(fin.lines || []).length === 0 ? (
+                    <p className="px-4 py-3 text-[12px] text-gray-400">No cost lines selected.</p>
+                  ) : (
+                    (fin.lines || []).map((l) => (
+                      <div
+                        key={l.id}
+                        className="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0"
+                      >
+                        <span className="min-w-0 flex-1 text-gray-700">{l.label}</span>
+                        <span className="shrink-0 font-semibold text-[#00e676]">£{l.amount.toFixed(2)}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
+                  {(
+                    [
+                      ['Total to WEOTT', fin.baseCost],
+                      [`Margin (${(fin.margin * 100).toFixed(1)}%)`, fin.marginAmount],
+                      ...(fin.discountAmount > 0
+                        ? ([[`Discount`, -fin.discountAmount]] as [string, number][])
+                        : []),
+                      ...(fin.commissionAmount > 0
+                        ? ([[`Commission`, fin.commissionAmount]] as [string, number][])
+                        : []),
+                      ['Updated profit', fin.updatedProfit],
+                      ['Cost to client (exc VAT)', fin.costToClient],
+                      ['VAT', fin.vat],
+                      ['£ / guest (exc / inc)', null as unknown as number],
+                    ] as [string, number | null][]
+                  ).map(([label, val]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between border-b border-[#f0f0f0] px-4 py-2.5 text-[12.5px] text-gray-600 last:border-b-0"
+                    >
+                      <span>{label}</span>
+                      <span className="font-semibold text-[#00e676]">
+                        {val == null
+                          ? `£${fin.costPerGuestExc.toFixed(2)} / £${fin.costPerGuestInc.toFixed(2)}`
+                          : `£${val.toFixed(2)}`}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between bg-[#FF5A45] px-4 py-3 text-[13px] font-black text-white">
+                    <span>Grand total</span>
+                    <span className="text-[#00e676]">£{fin.grand.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-[#f0f0f0] px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    set('costApproved', true);
+                    setQuoteDetailsOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors ${
+                    data.costApproved
+                      ? 'bg-[#00e676] text-[#0b1f14]'
+                      : 'bg-[#FF5A45] text-white hover:bg-[#F4412A]'
+                  }`}
+                >
+                  {data.costApproved ? (
+                    <>
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                      Approved
+                    </>
+                  ) : (
+                    'Approve cost cross-check'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Right-edge hover image preview (from settings, per selected/hovered option) ── */}
       <AnimatePresence>
