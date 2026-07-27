@@ -29,8 +29,8 @@ export const CONTINGENCY_RATE = 0.0225;
 export const VAT_RATE = 0.2;
 export const REPEAT_CLIENT_MARGIN = 0.15;
 export const NEW_CLIENT_MARGIN = 0.25;
-/** Staff billable hours = event hours + 4 (Quote Builder formulas). */
-export const STAFF_HOURS_BUFFER = 4;
+/** Staff billable hours = event hours + 3 (Quote Builder Section 11). */
+export const STAFF_HOURS_BUFFER = 3;
 
 /** @deprecated Prefer Cost Mother line catalogue — kept for PDF upgrade ids. */
 export const UPGRADES: { label: string; price: number; type: 'flat' | 'perGuest'; id: string }[] = [

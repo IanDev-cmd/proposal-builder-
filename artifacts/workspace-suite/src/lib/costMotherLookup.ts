@@ -179,16 +179,12 @@ export function lookupUnitRate(
     }
   }
 
-  // Last resort: first rate for this vessel
-  for (const [k, v] of map.entries()) {
-    if (k.startsWith(`${parts.vessel}|`)) {
-      return { rate: v, keyUsed: k, note: `Closest vessel rate ${k}` };
-    }
-  }
-
-  const first = map.entries().next().value as [string, number] | undefined;
-  if (first) return { rate: first[1], keyUsed: first[0], note: `Generic fallback ${first[0]}` };
-  return { rate: null, keyUsed: null };
+  // Do not invent a rate from an unrelated vessel/period — surface the miss.
+  return {
+    rate: null,
+    keyUsed: null,
+    note: `No Cost Mother rate for ${label} @ ${exact}`,
+  };
 }
 
 export function buildRateParts(opts: {

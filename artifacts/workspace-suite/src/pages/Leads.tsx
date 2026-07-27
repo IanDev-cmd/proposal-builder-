@@ -18,6 +18,8 @@ import {
 } from '@/lib/leadCache';
 import { N8N_BASE } from '@/lib/backendUrls';
 import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
+import { parseGuestCount } from '@/lib/parseGuestCount';
+import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
 
 const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
 
@@ -58,11 +60,10 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
   const preparedBy = aliasFirst(raw, 'preparedBy', 'Client Relationship Representative');
   const assignedRep = aliasFirst(raw, 'assignedRep') || preparedBy;
   const groupSize = aliasFirst(raw, 'groupSize', 'Group Size');
-  const gsq = raw.groupSizeQuote;
-  const groupSizeQuote =
-    typeof gsq === 'number' || (typeof gsq === 'string' && String(gsq).trim() !== '')
-      ? gsq
-      : groupSize.match(/\d+/)?.[0] || '';
+  const groupSizeQuote = parseGuestCount({
+    groupSizeQuote: raw.groupSizeQuote as number | string | null | undefined,
+    groupSize,
+  });
   const flexRaw = aliasFirst(raw, 'eventDateFlexible', 'Event Date - Flexible');
   const flexBool =
     raw.eventDateFlexibleBool === true ||
@@ -137,7 +138,10 @@ async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
   if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
   const data = await res.json();
   const rows: AnyLeadRow[] = Array.isArray(data?.leads) ? data.leads : [];
-  return rows.map(mapRaw);
+  if (rows.length) return rows.map(mapRaw);
+  // Demo workbook has no Enquiry rows — ship gold scenarios so Quote Builder is usable.
+  if (mode === 'demo') return DEMO_LEAD_ROWS.map(mapRaw);
+  return [];
 }
 
 const TABS = ['Live', 'Booked', 'Dead', 'Blacklisted'] as const;
@@ -195,7 +199,13 @@ export function Leads() {
       setStatus('ok');
     } catch (err) {
       if (ac.signal.aborted) return;
-      if (!hasRowsRef.current && !readLeadsCache(currentMode)?.leads?.length) {
+      if (currentMode === 'demo' && !hasRowsRef.current) {
+        const demo = DEMO_LEAD_ROWS.map(mapRaw);
+        setLeads(demo);
+        writeLeadsCache(demo, currentMode);
+        setLastSyncedAt(Date.now());
+        setStatus('ok');
+      } else if (!hasRowsRef.current && !readLeadsCache(currentMode)?.leads?.length) {
         setStatus('error');
       }
       console.warn('[leads] refresh failed', err);
@@ -426,7 +436,7 @@ export function Leads() {
                   {query
                     ? `No leads match "${query}"`
                     : mode === 'demo'
-                      ? 'Demo has no leads by design — switch to Live to load Enquiry 2026, or use Quote Builder without a lead. Write-backs still go to the Demo Nexus Ops tabs.'
+                      ? 'No demo leads loaded — refresh, or open Quote Builder without a lead.'
                       : `No ${TABS[activeTab].toLowerCase()} leads`}
                 </div>
               )}

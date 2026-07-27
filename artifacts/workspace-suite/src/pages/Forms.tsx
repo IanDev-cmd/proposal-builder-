@@ -7,6 +7,7 @@ import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
+import { parseGuestCount } from '@/lib/parseGuestCount';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
@@ -23,15 +24,10 @@ import {
   defaultSelectedLineIds,
 } from '@/lib/quoteBuilderCatalog';
 import {
-  buildRateParts,
-  inferDayPeriod,
-  inferGroupBracket,
-  inferWeeklyPeriod,
   parseCostMotherRows,
   setLiveCostMotherRates,
   getCostMotherMeta,
 } from '@/lib/costMotherLookup';
-import { resolveCostMotherVessel } from '@/lib/quoteBuilderCatalog';
 import { QuoteCostLines } from '@/components/QuoteCostLines';
 import {
   templatesForCategory,
@@ -200,17 +196,16 @@ function formFromLead(lead: QuoteLead | null): FormData {
   const times = parseRequestedTimes(lead.requestedEventTimes);
   const vessels = matchVessels(lead.vessels);
   const eventType = matchEventType(lead.eventType) || lead.eventType || '';
-  const guest =
-    lead.groupSizeQuote != null && String(lead.groupSizeQuote).trim() !== ''
-      ? String(lead.groupSizeQuote)
-      : (String(lead.groupSize || '').match(/\d+/)?.[0] ?? '');
+  const guest = parseGuestCount({
+    groupSizeQuote: lead.groupSizeQuote,
+    groupSize: lead.groupSize,
+    quoteVersion: INIT.quoteVersion,
+  });
   const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
   const eventDate = flex
     ? ''
     : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate;
   const embarkation = times.embarkation || INIT.embarkation;
-  const cmVessel = vessels[0] ? resolveCostMotherVessel(vessels[0]) : null;
-  const guestsN = parseFloat(guest) || 0;
   return {
     ...INIT,
     source: matchSourceType(lead.source) || INIT.source,
@@ -225,9 +220,11 @@ function formFromLead(lead: QuoteLead | null): FormData {
     progressNotes: lead.progressNotes || '',
     budget: lead.budget || '',
     proposalCategory: wedding ? 'wedding' : 'corporate',
-    weeklyPeriod: inferWeeklyPeriod(eventDate, flex, cmVessel),
-    dayPeriod: inferDayPeriod(embarkation),
-    groupBracket: inferGroupBracket(guestsN, cmVessel),
+    // Leave Cost Mother period keys empty so they stay "Auto" and re-infer
+    // when date / embark / guests / vessel change (buildRateParts fills them).
+    weeklyPeriod: '',
+    dayPeriod: '',
+    groupBracket: '',
     keyItems: '',
   };
 }
@@ -722,16 +719,54 @@ export function Forms() {
   const [ratesNote, setRatesNote] = useState<string>('');
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
 
+  useEffect(() => {
+    if (!quoteDetailsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setQuoteDetailsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [quoteDetailsOpen]);
+
   const set = (key: keyof FormData, val: unknown) =>
-    setData((prev) => ({ ...prev, [key]: val }));
+    setData((prev) => {
+      const next = { ...prev, [key]: val } as FormData;
+      // Re-require Cost Approval when money-affecting fields change after approve
+      if (
+        prev.costApproved &&
+        [
+          'guestCount',
+          'vesselType',
+          'embarkation',
+          'disembarkation',
+          'menuType',
+          'selectedLineIds',
+          'bespokeLines',
+          'marginPercent',
+          'discountPercent',
+          'commissionPercent',
+          'repeatClient',
+          'weeklyPeriod',
+          'dayPeriod',
+          'groupBracket',
+          'noOfTables',
+          'totalCost',
+          'eventDate',
+          'dateFlexible',
+        ].includes(key)
+      ) {
+        next.costApproved = false;
+      }
+      return next;
+    });
 
   const toggleLine = (id: string) =>
-    set(
-      'selectedLineIds',
-      data.selectedLineIds.includes(id)
-        ? data.selectedLineIds.filter((x) => x !== id)
-        : [...data.selectedLineIds, id],
-    );
+    setData((prev) => {
+      const selectedLineIds = prev.selectedLineIds.includes(id)
+        ? prev.selectedLineIds.filter((x) => x !== id)
+        : [...prev.selectedLineIds, id];
+      return { ...prev, selectedLineIds, costApproved: false };
+    });
 
   const marginOverride =
     data.marginPercent.trim() !== '' && Number.isFinite(Number(data.marginPercent))
@@ -796,46 +831,6 @@ export function Forms() {
       cancelled = true;
     };
   }, []);
-
-  // Infer Cost Mother period keys when vessel / date / guests / embark change (unless REP locked a value).
-  useEffect(() => {
-    const vessel = data.vesselType[0];
-    if (!vessel) return;
-    const cm = resolveCostMotherVessel(vessel);
-    const guests = parseFloat(data.guestCount) || 0;
-    const parts = buildRateParts({
-      vesselUi: vessel,
-      weeklyPeriod: data.weeklyPeriod || undefined,
-      dayPeriod: data.dayPeriod || undefined,
-      groupBracket: data.groupBracket || undefined,
-      eventDate: data.eventDate,
-      dateFlexible: data.dateFlexible,
-      embarkation: data.embarkation,
-      guests,
-    });
-    setData((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      if (!prev.weeklyPeriod) {
-        next.weeklyPeriod = inferWeeklyPeriod(prev.eventDate, prev.dateFlexible, cm);
-        changed = true;
-      }
-      if (!prev.dayPeriod) {
-        next.dayPeriod = inferDayPeriod(prev.embarkation);
-        changed = true;
-      }
-      if (!prev.groupBracket) {
-        next.groupBracket = inferGroupBracket(guests, cm);
-        changed = true;
-      }
-      // Keep inferred values aligned when still matching previous auto keys
-      if (prev.weeklyPeriod && prev.weeklyPeriod !== parts.weeklyPeriod && !prev.weeklyPeriod) {
-        /* no-op */
-      }
-      return changed ? next : prev;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.vesselType, data.eventDate, data.dateFlexible, data.embarkation, data.guestCount]);
 
   // Sync menu selections → Cost Mother catering YES lines
   useEffect(() => {
@@ -1203,6 +1198,7 @@ export function Forms() {
               <button
                 key={n}
                 onClick={() => setStep(n)}
+                data-testid={`step-tab-${n}`}
                 className="flex items-center gap-3 rounded-[10px] px-2 py-2.5 text-left transition-colors hover:bg-white/60"
               >
                 <span
@@ -1263,12 +1259,13 @@ export function Forms() {
                     options={VESSEL_TYPES}
                     value={data.vesselType}
                     onChange={(v) => {
-                      const cm = v[0] ? resolveCostMotherVessel(v[0]) : null;
+                      // Clear Auto period overrides so Cost Mother keys re-infer for new vessel.
                       setData((prev) => ({
                         ...prev,
                         vesselType: v,
-                        weeklyPeriod: inferWeeklyPeriod(prev.eventDate, prev.dateFlexible, cm),
-                        groupBracket: inferGroupBracket(parseFloat(prev.guestCount) || 0, cm),
+                        weeklyPeriod: '',
+                        dayPeriod: '',
+                        groupBracket: '',
                       }));
                     }}
                     onPreview={handlePreview}
@@ -1289,7 +1286,22 @@ export function Forms() {
                     <label className={fieldLabelCls}>Quote version</label>
                     <select
                       value={data.quoteVersion}
-                      onChange={(e) => set('quoteVersion', e.target.value)}
+                      onChange={(e) => {
+                        const quoteVersion = e.target.value;
+                        const guestCount = quoteLead
+                          ? parseGuestCount({
+                              groupSizeQuote: quoteLead.groupSizeQuote,
+                              groupSize: quoteLead.groupSize,
+                              quoteVersion,
+                            }) || data.guestCount
+                          : data.guestCount;
+                        setData((prev) => ({
+                          ...prev,
+                          quoteVersion,
+                          guestCount,
+                          costApproved: false,
+                        }));
+                      }}
                       className={inputCls}
                     >
                       {QUOTE_VERSIONS.map((v) => (
@@ -1913,6 +1925,7 @@ export function Forms() {
                 <button
                   type="button"
                   onClick={() => set('costApproved', !data.costApproved)}
+                  data-testid="btn-approve-cost"
                   className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors ${
                     data.costApproved
                       ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)]'
@@ -1931,7 +1944,7 @@ export function Forms() {
                 <p className="mt-2 text-center text-[11.5px] text-gray-400">
                   {data.costApproved
                     ? 'Approved — continue to Proposal Pack'
-                    : 'Tap to approve after reviewing quote details'}
+                    : 'Review quote details, then approve to unlock Proposal Pack'}
                 </p>
                 {errorMessage && step === 7 && !data.costApproved ? (
                   <p className="mt-3 rounded-[10px] border border-[#FFE0DC] bg-[#FFF1F0] px-4 py-2.5 text-center text-[12px] font-semibold text-[#E22A12]">
@@ -2114,8 +2127,11 @@ export function Forms() {
               <button
                 onClick={() => {
                   if (step === 7 && !data.costApproved) {
-                    setErrorMessage('Approve the cost cross-check before continuing to Proposal Pack.');
-                    setQuoteDetailsOpen(true);
+                    // One-click approve + advance (no trapped overlay gate)
+                    set('costApproved', true);
+                    setQuoteDetailsOpen(false);
+                    setErrorMessage('');
+                    setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
                     return;
                   }
                   setErrorMessage('');
@@ -2126,12 +2142,18 @@ export function Forms() {
                     ? 'bg-[#00e676] text-[#0b1f14] hover:bg-[#00d66c]'
                     : 'bg-[#FF5A45] hover:bg-[#F4412A]'
                 }`}
+                data-testid="btn-next"
               >
-                {step === 7 ? (data.costApproved ? 'Continue to Proposal Pack' : 'Approve to continue') : 'Next'}
+                {step === 7
+                  ? data.costApproved
+                    ? 'Continue to Proposal Pack'
+                    : 'Approve & continue'
+                  : 'Next'}
               </button>
             ) : (
               <button
                 onClick={handleGenerate}
+                data-testid="btn-generate"
                 className="flex items-center gap-2 rounded-full bg-[#FF5A45] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#F4412A]"
               >
                 Generate Proposal
@@ -2149,8 +2171,11 @@ export function Forms() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm"
             onClick={() => setQuoteDetailsOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Quote details"
           >
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.96 }}
@@ -2172,6 +2197,7 @@ export function Forms() {
                   type="button"
                   onClick={() => setQuoteDetailsOpen(false)}
                   className="rounded-full border border-[#e3e6e4] p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                  aria-label="Close quote details"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -2282,24 +2308,17 @@ export function Forms() {
               <div className="border-t border-[#f0f0f0] px-5 py-4">
                 <button
                   type="button"
+                  data-testid="btn-approve-cost-overlay"
                   onClick={() => {
                     set('costApproved', true);
                     setQuoteDetailsOpen(false);
+                    setErrorMessage('');
+                    setStep(8);
                   }}
-                  className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors ${
-                    data.costApproved
-                      ? 'bg-[#00e676] text-[#0b1f14]'
-                      : 'bg-[#FF5A45] text-white hover:bg-[#F4412A]'
-                  }`}
+                  className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#FF5A45] px-5 py-3.5 text-[13px] font-bold text-white transition-colors hover:bg-[#F4412A]"
                 >
-                  {data.costApproved ? (
-                    <>
-                      <Check className="h-4 w-4" strokeWidth={3} />
-                      Approved
-                    </>
-                  ) : (
-                    'Approve cost cross-check'
-                  )}
+                  <Check className="h-4 w-4" strokeWidth={3} />
+                  Approve &amp; continue to Proposal Pack
                 </button>
               </div>
             </motion.div>

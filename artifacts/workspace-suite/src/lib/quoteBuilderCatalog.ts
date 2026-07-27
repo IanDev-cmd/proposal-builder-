@@ -7,7 +7,7 @@ export type LineMultiplier =
   | 'vessel_hours' // × event hours (Section 1)
   | 'guests' // × guests
   | 'hours' // × event hours
-  | 'staff_hours' // × (event hours + 4)
+  | 'staff_hours' // × (event hours + 3)
   | 'tables' // × no. of tables
   | 'set'; // fixed set value
 
@@ -60,7 +60,7 @@ export const SECTION_META: { id: QuoteSectionId; title: string; hint?: string }[
   { id: 'decor', title: 'Section 8 — Decor', hint: '× event hours' },
   { id: 'decor_table', title: 'Section 9 — Decor by the Table', hint: '× tables' },
   { id: 'in_house', title: 'Section 10 — In House Costs', hint: 'Set value' },
-  { id: 'staff', title: 'Section 11 — Event Staff', hint: '× (hours + 4)' },
+  { id: 'staff', title: 'Section 11 — Event Staff', hint: '× (hours + 3)' },
   { id: 'other', title: 'Section 12 — Other', hint: 'Set value' },
   { id: 'financial', title: 'Section 13 — Financial Admin', hint: 'Set value' },
   { id: 'contingency', title: 'Section 14 — Contingency', hint: '2.25% of sections 1–13' },
