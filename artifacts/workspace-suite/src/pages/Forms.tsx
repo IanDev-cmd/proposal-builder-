@@ -48,7 +48,7 @@ import {
   PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
 import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
-import { financialParityReport, costApprovalBlocked } from '@/lib/financialParity';
+import { financialParityReport, costApprovalBlocked, clientTotalsFromWeott } from '@/lib/financialParity';
 import {
   resolveSheetFinancialTargets,
   rateEventDateFromLead,
@@ -963,9 +963,17 @@ export function Forms() {
       ? Number(data.marginPercent) / 100
       : null;
 
-  const financeInput = { ...data, marginOverride };
+  const financeInput = useMemo(
+    () => ({
+      ...data,
+      marginOverride,
+      // Auto mode: always roll up from cost lines + bespoke (ignore stale manual WEOTT).
+      totalCost: baseCostAuto ? '' : data.totalCost,
+    }),
+    [data, marginOverride, baseCostAuto],
+  );
   const fin = calcFinancials(financeInput);
-  const baseCostBreakdown = calcBaseCostBreakdown(data);
+  const baseCostBreakdown = calcBaseCostBreakdown(financeInput);
 
   const sheetTargets = useMemo(() => {
     if (!quoteLead) return null;
@@ -985,6 +993,7 @@ export function Forms() {
         ? {
             weottCost: gold.goldQuoteWeottCost,
             marginPercent: gold.marginPercent,
+            packageCost: clientTotalsFromWeott(gold.goldQuoteWeottCost, gold.marginPercent).packageCost,
             weeklyPeriod: String(gold.form.weeklyPeriod || ''),
             dayPeriod: String(gold.form.dayPeriod || ''),
             groupBracket: String(gold.form.groupBracket || ''),

@@ -140,10 +140,10 @@ export const DEMO_LEAD_ROWS: Record<string, unknown>[] = [
     eventDateFlexibleBool: true,
     eventDateDisplay: 'Date TBC',
     progressNotes:
-      'DEMO gold scenario WE.18931 Team Building V2 — Rose evening or Elizabethan daytime.',
+      'DEMO gold scenario WE.18931 Team Building V2 — Elizabethan Thur–Sun daytime.',
     quoteWeottCost: 18982.51,
     quoteMarginPercent: 25,
-    quoteWeeklyPeriod: 'Mon to Thur',
+    quoteWeeklyPeriod: 'Thur to Sun',
     quoteDayPeriod: 'Daytime',
     quoteGroupBracket: 'Standard',
   },

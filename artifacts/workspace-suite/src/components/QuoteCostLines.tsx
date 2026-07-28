@@ -6,7 +6,7 @@ import {
   type QuoteSectionId,
 } from '@/lib/quoteBuilderCatalog';
 import type { BespokeLine, QuoteFormInput } from '@/lib/quoteFinance';
-import { calcBaseCostBreakdown } from '@/lib/quoteFinance';
+import { calcBaseCostBreakdown, CONTINGENCY_RATE, money } from '@/lib/quoteFinance';
 
 import { PREFILL_INPUT_CLS } from '@/lib/leadPrefill';
 
@@ -33,7 +33,11 @@ export function QuoteCostLines({
     Object.fromEntries(SECTION_META.map((s) => [s.id, s.id === 'catering' || s.id === 'entertainment'])),
   );
   const selected = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
-  const breakdown = useMemo(() => calcBaseCostBreakdown(data), [data]);
+  const calcData = useMemo(
+    () => ({ ...data, selectedLineIds, bespokeLines }),
+    [data, selectedLineIds, bespokeLines],
+  );
+  const breakdown = useMemo(() => calcBaseCostBreakdown(calcData), [calcData]);
   const amountById = useMemo(() => {
     const m = new Map<string, number>();
     for (const l of breakdown.lines) m.set(l.id, l.amount);
@@ -181,13 +185,37 @@ export function QuoteCostLines({
         );
       })}
 
-      <div className="flex items-center justify-between rounded-[10px] border border-[#FF5A45] bg-[#FFF1F0] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[#E22A12]">
-          Sections 1–13 subtotal
-        </span>
-        <span className="text-[14px] font-black text-[#00e676]">
-          £{breakdown.subtotalBeforeContingency.toFixed(2)}
-        </span>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between rounded-[10px] border border-[#e3e6e4] bg-[#fafafa] px-4 py-3">
+          <span className="text-[12px] font-semibold text-gray-700">Cost lines (Sections 1–6, 8–13)</span>
+          <span className="text-[13px] font-bold text-[#00e676]">
+            £{money(breakdown.subtotalBeforeContingency - (breakdown.sectionTotals.bespoke || 0)).toFixed(2)}
+          </span>
+        </div>
+        {(breakdown.sectionTotals.bespoke || 0) > 0 && (
+          <div className="flex items-center justify-between rounded-[10px] border border-[#e3e6e4] bg-[#fafafa] px-4 py-3">
+            <span className="text-[12px] font-semibold text-gray-700">Section 7 — Bespoke</span>
+            <span className="text-[13px] font-bold text-[#00e676]">
+              £{(breakdown.sectionTotals.bespoke || 0).toFixed(2)}
+            </span>
+          </div>
+        )}
+        <div className="flex items-center justify-between rounded-[10px] border border-[#e3e6e4] px-4 py-3">
+          <span className="text-[12px] font-semibold text-gray-700">Subtotal before contingency</span>
+          <span className="text-[13px] font-bold text-gray-800">
+            £{breakdown.subtotalBeforeContingency.toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-[10px] border border-[#e3e6e4] px-4 py-3">
+          <span className="text-[12px] font-semibold text-gray-700">
+            Contingency ({(CONTINGENCY_RATE * 100).toFixed(2)}%)
+          </span>
+          <span className="text-[13px] font-bold text-gray-800">£{breakdown.contingency.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between rounded-[10px] border border-[#FF5A45] bg-[#FFF1F0] px-4 py-3">
+          <span className="text-[12px] font-semibold text-[#E22A12]">Total to WEOTT (Sections 1–14)</span>
+          <span className="text-[14px] font-black text-[#00e676]">£{breakdown.total.toFixed(2)}</span>
+        </div>
       </div>
     </div>
   );

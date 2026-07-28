@@ -80,25 +80,25 @@
       ],
       "bespokeLines": [
         {
-          "id": "b1",
+          "id": "bespoke_1",
           "label": "Bar tab",
           "amount": 1500,
           "enabled": true
         },
         {
-          "id": "b2",
+          "id": "bespoke_2",
           "label": "Bespoke (2)",
           "amount": 0,
           "enabled": false
         },
         {
-          "id": "b3",
+          "id": "bespoke_3",
           "label": "Bespoke (3)",
           "amount": 0,
           "enabled": false
         },
         {
-          "id": "b4",
+          "id": "bespoke_4",
           "label": "Bespoke (4)",
           "amount": 0,
           "enabled": false
@@ -243,7 +243,8 @@
         "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
         "Flowers - Wedding",
         "Table Linen & Runner",
-        "Drink tokens - x 4"
+        "Drink tokens - x 4",
+        "Saxophonist"
       ],
       "source": "Wedding Planner/Agent"
     }
@@ -318,25 +319,25 @@
       ],
       "bespokeLines": [
         {
-          "id": "b1",
+          "id": "bespoke_1",
           "label": "Bespoke (1)",
           "amount": 650,
           "enabled": true
         },
         {
-          "id": "b2",
+          "id": "bespoke_2",
           "label": "Bespoke (2)",
           "amount": 450,
           "enabled": true
         },
         {
-          "id": "b3",
+          "id": "bespoke_3",
           "label": "Bespoke (3)",
           "amount": 2520,
           "enabled": true
         },
         {
-          "id": "b4",
+          "id": "bespoke_4",
           "label": "Bespoke (4)",
           "amount": 400,
           "enabled": true

@@ -3,6 +3,7 @@
  */
 import type { GoldScenarioEntry } from '@/lib/financialParity';
 import { goldScenarioForRef, lineIdsFromLabels } from '@/lib/financialParity';
+import { normalizeBespokeLines } from '@/lib/bespokeLines';
 import { QUOTE_LINES } from '@/lib/quoteBuilderCatalog';
 
 export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
@@ -62,20 +63,19 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
     | { id: string; label: string; amount: number; enabled: boolean }[]
     | undefined;
   const bespokeAmount = f.bespokeAmount as number | undefined;
-  if (bespokeFromForm?.length) {
-    set('bespokeLines', bespokeFromForm);
-  } else if (bespokeAmount) {
-    const bespokeLines = [...((next.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
-    if (bespokeLines[0]) {
-      bespokeLines[0] = {
-        ...bespokeLines[0],
-        label: String(f.bespokeLabel || 'Bar tab'),
+  const bespokeLabel = f.bespokeLabel as string | undefined;
+  if (bespokeFromForm?.length || bespokeAmount) {
+    set(
+      'bespokeLines',
+      normalizeBespokeLines(bespokeFromForm, {
+        label: String(bespokeLabel || 'Bar tab'),
         amount: bespokeAmount,
-        enabled: true,
-      };
-      set('bespokeLines', bespokeLines);
-    }
+      }),
+    );
   }
+
+  // Force formula WEOTT — drop stale manual override when gold playbook applies.
+  set('totalCost', '', false);
 
   return next as T;
 }

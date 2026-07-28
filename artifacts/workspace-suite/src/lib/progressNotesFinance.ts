@@ -337,7 +337,9 @@ export function resolveSheetFinancialTargets(
     merged.weottCost = notes.weottCost;
     merged.source = 'progress_notes';
   }
-  if (notes.packageCost != null && !merged.packageCost) merged.packageCost = notes.packageCost;
+  if (notes.packageCost != null && !merged.packageCost && merged.source !== 'gold_scenario') {
+    merged.packageCost = notes.packageCost;
+  }
   if (notes.marginPercent != null && merged.marginPercent == null) merged.marginPercent = notes.marginPercent;
   if (notes.discountPercent != null) merged.discountPercent = notes.discountPercent;
   if (notes.weeklyPeriod && !merged.weeklyPeriod) merged.weeklyPeriod = notes.weeklyPeriod;
@@ -350,6 +352,16 @@ export function resolveSheetFinancialTargets(
     merged.weeklyPeriod ||
     merged.dayPeriod ||
     merged.groupBracket;
+
+  if (
+    merged.source === 'gold_scenario' &&
+    merged.weottCost != null &&
+    merged.marginPercent != null
+  ) {
+    const m = merged.marginPercent / 100;
+    merged.packageCost = Math.round((merged.weottCost * (1 + m) + Number.EPSILON) * 100) / 100;
+  }
+
   return hasAny ? merged : null;
 }
 

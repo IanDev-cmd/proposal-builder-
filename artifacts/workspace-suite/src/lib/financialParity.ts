@@ -10,6 +10,7 @@ import {
   type QuoteFormInput,
 } from '@/lib/quoteFinance';
 import type { SheetFinancialColumns } from '@/lib/progressNotesFinance';
+import { normalizeBespokeLines } from '@/lib/bespokeLines';
 
 export const FINANCIAL_TOLERANCE = 0.02;
 
@@ -101,24 +102,25 @@ export function financialParityReport(
     });
   };
 
-  push('WEOTT total cost', targets?.weottCost, fin.baseCost, targets?.source);
-  push(
-    'Cost to client (exc VAT)',
-    targets?.packageCost,
-    fin.costToClient,
-    targets?.packageCost != null ? targets.source : undefined,
-  );
+  const derived =
+    targets?.weottCost != null && targets.marginPercent != null
+      ? clientTotalsFromWeott(targets.weottCost, targets.marginPercent)
+      : null;
 
-  if (targets?.weottCost != null && targets.marginPercent != null) {
-    const derived = clientTotalsFromWeott(targets.weottCost, targets.marginPercent);
+  push('WEOTT total cost', targets?.weottCost, fin.baseCost, targets?.source);
+
+  if (derived) {
     push('Package (sheet WEOTT × margin)', derived.packageCost, fin.costToClient, 'derived');
     push('VAT (20%)', derived.vat, fin.vat, 'derived');
     push('Grand total', derived.grand, fin.grand, 'derived');
-  } else if (targets?.weottCost != null) {
-    const marginPct = fin.margin * 100;
-    const derived = clientTotalsFromWeott(targets.weottCost, marginPct);
-    push('VAT (20%)', derived.vat, fin.vat, 'derived');
-    push('Grand total', derived.grand, fin.grand, 'derived');
+  } else {
+    push('Cost to client (exc VAT)', targets?.packageCost, fin.costToClient, targets?.source);
+    if (targets?.weottCost != null) {
+      const marginPct = fin.margin * 100;
+      const fallback = clientTotalsFromWeott(targets.weottCost, marginPct);
+      push('VAT (20%)', fallback.vat, fin.vat, 'derived');
+      push('Grand total', fallback.grand, fin.grand, 'derived');
+    }
   }
 
   const weottRow = rows.find((r) => r.label === 'WEOTT total cost');
@@ -148,26 +150,11 @@ export function quoteFormFromGoldScenario(ref: string): QuoteFormInput | null {
   const bespokeFromForm = f.bespokeLines as
     | { id: string; label: string; amount: number; enabled: boolean }[]
     | undefined;
-  const defaultBespoke = [
-    { id: 'bespoke_1', label: 'Bespoke (1)', amount: 0, enabled: false },
-    { id: 'bespoke_2', label: 'Bespoke (2)', amount: 0, enabled: false },
-    { id: 'bespoke_3', label: 'Bespoke (3)', amount: 0, enabled: false },
-    { id: 'bespoke_4', label: 'Bespoke (4)', amount: 0, enabled: false },
-  ];
-  const bespokeLines =
-    bespokeFromForm?.length
-      ? bespokeFromForm
-      : bespokeAmount
-        ? [
-            {
-              id: 'bespoke_1',
-              label: String(f.bespokeLabel || 'Bespoke'),
-              amount: bespokeAmount,
-              enabled: true,
-            },
-            ...defaultBespoke.slice(1),
-          ]
-        : defaultBespoke;
+  const bespokeAmount = f.bespokeAmount as number | undefined;
+  const bespokeLines = normalizeBespokeLines(bespokeFromForm, {
+    label: String(f.bespokeLabel || 'Bar tab'),
+    amount: bespokeAmount,
+  });
   return {
     vesselType: (f.vesselType as string[]) || [],
     eventType: String(f.eventType || ''),
