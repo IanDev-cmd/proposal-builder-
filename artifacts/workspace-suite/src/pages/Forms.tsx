@@ -43,7 +43,9 @@ import {
   prefillForQuoteVersion,
   PREFILL_INPUT_CLS,
   PREFILL_TOGGLE_CLS,
+  PREFILL_CONFIRMED_CLS,
 } from '@/lib/leadPrefill';
+import { indexProposalTemplates, indexProposalInserts } from '@/lib/proposalPrefill';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -241,6 +243,10 @@ function FormMultiSelect({
   onPreview,
   helper,
   prefilled,
+  confirmed,
+  onConfirm,
+  collapsedOptions,
+  onExpandOptions,
 }: {
   label: string;
   field: string;
@@ -250,6 +256,10 @@ function FormMultiSelect({
   onPreview?: (field: string, option: string | null) => void;
   helper?: string;
   prefilled?: boolean;
+  confirmed?: boolean;
+  onConfirm?: () => void;
+  collapsedOptions?: boolean;
+  onExpandOptions?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -265,8 +275,23 @@ function FormMultiSelect({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [open]);
 
-  const toggle = (opt: string) =>
-    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+  const toggle = (opt: string) => {
+    const next = value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt];
+    onChange(next);
+    if (prefilled && next.includes(opt)) onConfirm?.();
+  };
+
+  const visibleOptions =
+    collapsedOptions && value.length ? options.filter((o) => value.includes(o)) : options;
+
+  const triggerCls = [
+    inputCls,
+    'flex items-center justify-between',
+    prefilled && !confirmed ? PREFILL_INPUT_CLS : '',
+    confirmed ? PREFILL_CONFIRMED_CLS : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
@@ -285,8 +310,11 @@ function FormMultiSelect({
       </label>
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
-        className={`${inputCls} flex items-center justify-between ${prefilled ? PREFILL_INPUT_CLS : ''}`}
+        onClick={() => {
+          setOpen((p) => !p);
+          if (prefilled && value.length) onConfirm?.();
+        }}
+        className={triggerCls}
       >
         <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>
           {value.length ? value.join(', ') : `Select ${label}`}
@@ -305,7 +333,7 @@ function FormMultiSelect({
             transition={{ duration: 0.18 }}
             className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[260px] overflow-y-auto rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
           >
-            {options.map((opt) => {
+            {visibleOptions.map((opt) => {
               const checked = value.includes(opt);
               return (
                 <motion.li
@@ -328,6 +356,20 @@ function FormMultiSelect({
                 </motion.li>
               );
             })}
+            {collapsedOptions && options.length > visibleOptions.length ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExpandOptions?.();
+                  }}
+                  className="w-full border-t border-[#f0f0f0] px-4 py-3 text-left text-[12px] font-semibold text-blue-700 hover:bg-blue-50"
+                >
+                  Show all {options.length} options…
+                </button>
+              </li>
+            ) : null}
           </motion.ul>
         )}
       </AnimatePresence>
@@ -348,6 +390,10 @@ function FormGroupedMenuSelect({
   onPreview,
   helper,
   prefilled,
+  confirmed,
+  onConfirm,
+  collapsedOptions,
+  onExpandOptions,
 }: {
   label: string;
   field: string;
@@ -357,6 +403,10 @@ function FormGroupedMenuSelect({
   onPreview?: (field: string, option: string | null) => void;
   helper?: string;
   prefilled?: boolean;
+  confirmed?: boolean;
+  onConfirm?: () => void;
+  collapsedOptions?: boolean;
+  onExpandOptions?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -384,9 +434,16 @@ function FormGroupedMenuSelect({
   }, [open]);
 
   const q = query.trim().toLowerCase();
-  const filteredGroups = useMemo(() => {
-    if (!q) return groups;
+  const baseGroups = useMemo(() => {
+    if (!collapsedOptions || !value.length) return groups;
     return groups
+      .map((g) => ({ ...g, options: g.options.filter((o) => value.includes(o.label)) }))
+      .filter((g) => g.options.length > 0);
+  }, [groups, collapsedOptions, value]);
+
+  const filteredGroups = useMemo(() => {
+    if (!q) return baseGroups;
+    return baseGroups
       .map((g) => ({
         ...g,
         options: g.options.filter(
@@ -397,10 +454,22 @@ function FormGroupedMenuSelect({
         ),
       }))
       .filter((g) => g.options.length > 0);
-  }, [groups, q]);
+  }, [baseGroups, q]);
 
-  const toggle = (opt: string) =>
-    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+  const toggle = (opt: string) => {
+    const next = value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt];
+    onChange(next);
+    if (prefilled && next.includes(opt)) onConfirm?.();
+  };
+
+  const triggerCls = [
+    inputCls,
+    'flex items-center justify-between',
+    prefilled && !confirmed ? PREFILL_INPUT_CLS : '',
+    confirmed ? PREFILL_CONFIRMED_CLS : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const summary =
     value.length === 0
@@ -426,8 +495,11 @@ function FormGroupedMenuSelect({
       </label>
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
-        className={`${inputCls} flex items-center justify-between ${prefilled ? PREFILL_INPUT_CLS : ''}`}
+        onClick={() => {
+          setOpen((p) => !p);
+          if (prefilled && value.length) onConfirm?.();
+        }}
+        className={triggerCls}
       >
         <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>{summary}</span>
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -444,6 +516,7 @@ function FormGroupedMenuSelect({
             transition={{ duration: 0.18 }}
             className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
           >
+            {!collapsedOptions ? (
             <div className="flex items-center gap-2 border-b border-[#e3e6e4] px-3 py-2.5">
               <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
               <input
@@ -459,6 +532,11 @@ function FormGroupedMenuSelect({
                 </button>
               )}
             </div>
+            ) : (
+              <p className="border-b border-[#e3e6e4] px-4 py-2 text-[11px] font-semibold text-blue-700">
+                Auto-selected from Sheets — click to confirm or expand full menu catalog
+              </p>
+            )}
 
             <div className="max-h-[320px] overflow-y-auto">
               {filteredGroups.length === 0 && (
@@ -540,6 +618,15 @@ function FormGroupedMenuSelect({
                 );
               })}
             </div>
+            {collapsedOptions ? (
+              <button
+                type="button"
+                onClick={() => onExpandOptions?.()}
+                className="w-full border-t border-[#f0f0f0] px-4 py-3 text-left text-[12px] font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                Show full menu catalog…
+              </button>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
@@ -557,6 +644,10 @@ function FormSelect({
   onPreview,
   helper,
   prefilled,
+  confirmed,
+  onConfirm,
+  collapsedOptions,
+  onExpandOptions,
 }: {
   label: string;
   field: string;
@@ -566,6 +657,10 @@ function FormSelect({
   onPreview?: (field: string, option: string | null) => void;
   helper?: string;
   prefilled?: boolean;
+  confirmed?: boolean;
+  onConfirm?: () => void;
+  collapsedOptions?: boolean;
+  onExpandOptions?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -580,6 +675,18 @@ function FormSelect({
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [open]);
+
+  const visibleOptions =
+    collapsedOptions && value ? options.filter((o) => o === value) : options;
+
+  const triggerCls = [
+    inputCls,
+    'flex items-center justify-between',
+    prefilled && !confirmed ? PREFILL_INPUT_CLS : '',
+    confirmed ? PREFILL_CONFIRMED_CLS : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
@@ -598,8 +705,11 @@ function FormSelect({
       </label>
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
-        className={`${inputCls} flex items-center justify-between ${prefilled ? PREFILL_INPUT_CLS : ''}`}
+        onClick={() => {
+          setOpen((p) => !p);
+          if (prefilled && value) onConfirm?.();
+        }}
+        className={triggerCls}
       >
         <span className={value ? 'text-gray-800' : 'text-gray-400'}>
           {value || `Select ${label}`}
@@ -618,13 +728,14 @@ function FormSelect({
             transition={{ duration: 0.18 }}
             className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[260px] overflow-y-auto rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
           >
-            {options.map((opt) => (
+            {visibleOptions.map((opt) => (
               <motion.li
                 key={opt}
                 whileHover={{ backgroundColor: '#f0fdf5' }}
                 onMouseEnter={() => onPreview?.(field, opt)}
                 onClick={() => {
                   onChange(opt);
+                  if (prefilled && opt === value) onConfirm?.();
                   setOpen(false);
                 }}
                 className="flex cursor-pointer items-center justify-between px-4 py-3 text-[13px] text-gray-700 transition-colors"
@@ -633,6 +744,20 @@ function FormSelect({
                 {value === opt && <Check className="h-3.5 w-3.5 text-[#FF5A45]" />}
               </motion.li>
             ))}
+            {collapsedOptions && options.length > visibleOptions.length ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExpandOptions?.();
+                  }}
+                  className="w-full border-t border-[#f0f0f0] px-4 py-3 text-left text-[12px] font-semibold text-blue-700 hover:bg-blue-50"
+                >
+                  Show all {options.length} options…
+                </button>
+              </li>
+            ) : null}
           </motion.ul>
         )}
       </AnimatePresence>
@@ -666,6 +791,10 @@ export function Forms() {
   const [prefilledLineIds, setPrefilledLineIds] = useState<Set<string>>(
     () => new Set(leadInit.prefilledLineIds),
   );
+  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(() => new Set());
+  const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(() => new Set());
+  const [showAllTemplates, setShowAllTemplates] = useState(false);
+  const [showAllInsertsPanel, setShowAllInsertsPanel] = useState(false);
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
@@ -686,16 +815,49 @@ export function Forms() {
     return () => window.removeEventListener('keydown', onKey);
   }, [quoteDetailsOpen]);
 
-  const fieldCls = (key: keyof FormData | string) =>
-    prefilledKeys.has(String(key)) ? `${inputCls} ${PREFILL_INPUT_CLS}` : inputCls;
+  const fieldCls = (key: keyof FormData | string) => {
+    const k = String(key);
+    if (confirmedKeys.has(k)) return `${inputCls} ${PREFILL_CONFIRMED_CLS}`;
+    return prefilledKeys.has(k) ? `${inputCls} ${PREFILL_INPUT_CLS}` : inputCls;
+  };
 
-  const clearPrefill = (key: string) =>
+  const confirmKey = (key: string) =>
+    setConfirmedKeys((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+
+  const expandDropdown = (key: string) =>
+    setExpandedDropdowns((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+
+  const dropdownProps = (key: string) => ({
+    prefilled: prefilledKeys.has(key),
+    confirmed: confirmedKeys.has(key),
+    onConfirm: () => confirmKey(key),
+    collapsedOptions: prefilledKeys.has(key) && !expandedDropdowns.has(key),
+    onExpandOptions: () => expandDropdown(key),
+  });
+
+  const clearPrefill = (key: string) => {
     setPrefilledKeys((prev) => {
       if (!prev.has(key)) return prev;
       const next = new Set(prev);
       next.delete(key);
       return next;
     });
+    setConfirmedKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
 
   const set = (key: keyof FormData, val: unknown) => {
     clearPrefill(String(key));
@@ -770,6 +932,23 @@ export function Forms() {
       }),
     [data.proposalCategory, data.vesselType],
   );
+
+  const templateCatalog = useMemo(
+    () => indexProposalTemplates(data.proposalCategory),
+    [data.proposalCategory],
+  );
+  const insertCatalog = useMemo(
+    () => indexProposalInserts({ category: data.proposalCategory }),
+    [data.proposalCategory],
+  );
+
+  const suggestedTemplate = availableTemplates.find((t) => t.id === data.templateId);
+  const templatesVisible =
+    showAllTemplates || !prefilledKeys.has('templateId')
+      ? availableTemplates
+      : suggestedTemplate
+        ? [suggestedTemplate]
+        : availableTemplates;
 
   const [insertPanelOpen, setInsertPanelOpen] = useState(false);
   const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff' | 'map'>('all');
@@ -853,13 +1032,21 @@ export function Forms() {
   };
   const previewImg = getStoredPreview(previewField, previewOption);
 
-  const toggleInsert = (id: string) =>
+  const toggleInsert = (id: string) => {
+    setConfirmedKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(`insert:${id}`);
+      return next;
+    });
     set(
       'selectedInserts',
       data.selectedInserts.includes(id)
         ? data.selectedInserts.filter((x) => x !== id)
         : [...data.selectedInserts, id],
     );
+  };
+
+  const confirmInsert = (id: string) => confirmKey(`insert:${id}`);
 
   const handleGenerate = async () => {
     setErrorMessage('');
@@ -874,6 +1061,31 @@ export function Forms() {
 
     if (!data.templateId) {
       setErrorMessage('Select a proposal template in Proposal Pack before generating.');
+      setStage('error');
+      setStep(8);
+      return;
+    }
+
+    if (prefilledKeys.has('templateId') && !confirmedKeys.has('templateId')) {
+      setErrorMessage('Click the suggested template to confirm (glow outline) before generating.');
+      setStage('error');
+      setStep(8);
+      return;
+    }
+
+    if (
+      data.requiresInserts &&
+      prefilledKeys.has('selectedInserts') &&
+      data.selectedInserts.some((id) => !confirmedKeys.has(`insert:${id}`))
+    ) {
+      setErrorMessage('Click each suggested insert to confirm before generating.');
+      setStage('error');
+      setStep(8);
+      return;
+    }
+
+    if (prefilledKeys.has('requiresInserts') && data.requiresInserts && !confirmedKeys.has('requiresInserts')) {
+      setErrorMessage('Click Yes on inserts to confirm the auto-selection before generating.');
       setStage('error');
       setStep(8);
       return;
@@ -1220,7 +1432,7 @@ export function Forms() {
                 <p className={sectionLabelCls}>Your Event Details</p>
                 {hasSheetPrefill ? (
                   <p className="mb-4 rounded-[10px] border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-[12px] text-blue-900">
-                    <span className="font-semibold">Blue fields</span> were auto-filled from Enquiry / Sheets — edit any time.
+                    <span className="font-semibold">Blue fields</span> were auto-filled from Enquiry / Sheets — click to confirm (glow outline), or edit any time.
                   </p>
                 ) : null}
 
@@ -1232,7 +1444,7 @@ export function Forms() {
                     value={data.source}
                     onChange={(v) => set('source', v)}
                     helper="Where this enquiry originated from"
-                    prefilled={prefilledKeys.has('source')}
+                    {...dropdownProps('source')}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">This should match how the lead first reached us.</p>
                 </div>
@@ -1244,7 +1456,7 @@ export function Forms() {
                     field="vesselType"
                     options={VESSEL_TYPES}
                     value={data.vesselType}
-                    prefilled={prefilledKeys.has('vesselType')}
+                    {...dropdownProps('vesselType')}
                     onChange={(v) => {
                       clearPrefill('vesselType');
                       setData((prev) => ({
@@ -1265,7 +1477,7 @@ export function Forms() {
                     value={data.eventType}
                     onChange={(v) => set('eventType', v)}
                     onPreview={handlePreview}
-                    prefilled={prefilledKeys.has('eventType')}
+                    {...dropdownProps('eventType')}
                   />
                 </div>
 
@@ -1566,7 +1778,7 @@ export function Forms() {
                   onChange={(v) => set('menuType', v)}
                   onPreview={handlePreview}
                   helper="Grouped by service style (Quote Builder 2026 + Menu Cheat Sheet). Search to jump."
-                  prefilled={prefilledKeys.has('menuType')}
+                  {...dropdownProps('menuType')}
                 />
 
                 {data.menuType.length > 0 && (
@@ -1985,24 +2197,55 @@ export function Forms() {
 
                 <p className={sectionLabelCls}>Proposal Template</p>
                 <div className="mb-7">
-                  <label className={fieldLabelCls}>
-                    Select template
-                    <span title="Team picks the template — no automatic selection">
-                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
-                    </span>
-                  </label>
-                  <select
-                    value={data.templateId}
-                    onChange={(e) => set('templateId', e.target.value)}
-                    className={inputCls}
-                  >
-                    <option value="">Select a proposal template…</option>
-                    {availableTemplates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {templateLabel(t)}
-                      </option>
-                    ))}
-                  </select>
+                  <p className="mb-3 text-[11.5px] text-gray-400">
+                    {templateCatalog.count} templates indexed for {data.proposalCategory} — blue = auto-selected from Sheets; click to confirm (glow).
+                  </p>
+                  <div className="space-y-2">
+                    {templatesVisible.map((t) => {
+                      const selected = data.templateId === t.id;
+                      const prefilled = prefilledKeys.has('templateId') && selected;
+                      const confirmed = confirmedKeys.has('templateId') && selected;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            if (selected) {
+                              confirmKey('templateId');
+                            } else {
+                              clearPrefill('templateId');
+                              setData((prev) => ({ ...prev, templateId: t.id, costApproved: false }));
+                            }
+                          }}
+                          className={`flex w-full items-center justify-between rounded-[10px] border px-4 py-3.5 text-left text-[13px] transition-all ${
+                            selected
+                              ? confirmed
+                                ? `border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12] ${PREFILL_CONFIRMED_CLS}`
+                                : prefilled
+                                  ? `border-blue-400 bg-blue-50/80 font-semibold text-blue-900 ${PREFILL_INPUT_CLS}`
+                                  : 'border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12]'
+                              : 'border-[#e3e6e4] text-gray-600 hover:border-[#FF5A45]/40'
+                          }`}
+                        >
+                          <span>{templateLabel(t)}</span>
+                          {selected && confirmed ? (
+                            <Check className="h-4 w-4 shrink-0 text-[#FF5A45]" strokeWidth={3} />
+                          ) : prefilled ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Confirm</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {prefilledKeys.has('templateId') && !showAllTemplates && availableTemplates.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTemplates(true)}
+                      className="mt-2 text-[12px] font-semibold text-blue-700 hover:underline"
+                    >
+                      Show all {availableTemplates.length} templates…
+                    </button>
+                  ) : null}
                   {(() => {
                     const selected = availableTemplates.find((t) => t.id === data.templateId);
                     if (!selected || !data.eventType) return null;
@@ -2017,13 +2260,22 @@ export function Forms() {
                       </p>
                     );
                   })()}
-                  <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    {availableTemplates.length} templates in {data.proposalCategory} catalog · manual pick only
-                  </p>
                 </div>
 
                 <p className={sectionLabelCls}>Inserts</p>
-                <div className="mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                <p className="mb-3 text-[11.5px] text-gray-400">
+                  {insertCatalog.count} inserts indexed — vessel, staff, map ({insertCatalog.byKind.get('vessel')?.length || 0} vessel ·{' '}
+                  {insertCatalog.byKind.get('staff')?.length || 0} staff · {insertCatalog.byKind.get('map')?.length || 0} map).
+                </p>
+                <div
+                  className={`mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${
+                    prefilledKeys.has('requiresInserts') && data.requiresInserts
+                      ? confirmedKeys.has('requiresInserts')
+                        ? PREFILL_CONFIRMED_CLS
+                        : PREFILL_INPUT_CLS
+                      : ''
+                  }`}
+                >
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Does this proposal require inserts?</p>
                     <p className="text-[12px] text-gray-400">Vessel profile, staff page, river map…</p>
@@ -2034,12 +2286,18 @@ export function Forms() {
                         key={String(yes)}
                         type="button"
                         onClick={() => {
+                          if (data.requiresInserts === yes) {
+                            if (yes && prefilledKeys.has('requiresInserts')) confirmKey('requiresInserts');
+                            return;
+                          }
                           set('requiresInserts', yes);
                           if (!yes) set('selectedInserts', []);
                         }}
                         className={`rounded-full px-4 py-2 text-[12px] font-bold transition-colors ${
                           data.requiresInserts === yes
-                            ? 'bg-[#FF5A45] text-white'
+                            ? prefilledKeys.has('requiresInserts') && yes && !confirmedKeys.has('requiresInserts')
+                              ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                              : 'bg-[#FF5A45] text-white'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}
                       >
@@ -2048,6 +2306,37 @@ export function Forms() {
                     ))}
                   </div>
                 </div>
+
+                {data.requiresInserts && prefilledKeys.has('selectedInserts') && data.selectedInserts.length > 0 ? (
+                  <div className="mb-4 space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700">
+                      Suggested inserts — click each to confirm
+                    </p>
+                    {data.selectedInserts.map((id) => {
+                      const item = PROPOSAL_INSERTS.find((i) => i.id === id);
+                      const confirmed = confirmedKeys.has(`insert:${id}`);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => confirmInsert(id)}
+                          className={`flex w-full items-center justify-between rounded-[10px] border px-4 py-3 text-left text-[12.5px] transition-all ${
+                            confirmed
+                              ? `border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12] ${PREFILL_CONFIRMED_CLS}`
+                              : `border-blue-400 bg-blue-50/80 text-blue-900 ${PREFILL_INPUT_CLS}`
+                          }`}
+                        >
+                          <span className="truncate">{item?.label || id}</span>
+                          {confirmed ? (
+                            <Check className="h-4 w-4 shrink-0" strokeWidth={3} />
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase text-blue-600">Confirm</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
 
                 {data.requiresInserts && (
                   <div className="mb-4">
@@ -2105,6 +2394,11 @@ export function Forms() {
                     })()}
                   </div>
                 )}
+                {errorMessage && step === 8 ? (
+                  <p className="mt-3 rounded-[10px] border border-[#FFE0DC] bg-[#FFF1F0] px-4 py-2.5 text-center text-[12px] font-semibold text-[#E22A12]">
+                    {errorMessage}
+                  </p>
+                ) : null}
               </motion.div>
             )}
           </AnimatePresence>
@@ -2567,39 +2861,74 @@ export function Forms() {
                 ))}
               </div>
               <ul className="flex-1 overflow-y-auto px-3 py-2">
-                {availableInserts
-                  .filter((i) => insertKindFilter === 'all' || i.kind === insertKindFilter)
-                  .map((ins) => {
-                    const on = data.selectedInserts.includes(ins.id);
-                    return (
-                      <li key={ins.id}>
-                        <button
-                          type="button"
-                          onClick={() => toggleInsert(ins.id)}
-                          className={`mb-1 flex w-full items-start gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
-                            on ? 'bg-[#FFF1F0]' : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <span
-                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                              on ? 'border-[#FF5A45] bg-[#FF5A45] text-white' : 'border-gray-300'
-                            }`}
+                {(() => {
+                  const filtered = availableInserts.filter(
+                    (i) => insertKindFilter === 'all' || i.kind === insertKindFilter,
+                  );
+                  const suggestedSet = new Set(data.selectedInserts);
+                  const visible =
+                    showAllInsertsPanel || !prefilledKeys.has('selectedInserts')
+                      ? filtered
+                      : filtered.filter((i) => suggestedSet.has(i.id));
+                  return (
+                    <>
+                      {!showAllInsertsPanel && prefilledKeys.has('selectedInserts') && filtered.length > visible.length ? (
+                        <li className="mb-2 px-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowAllInsertsPanel(true)}
+                            className="w-full rounded-[8px] border border-blue-200 bg-blue-50 px-3 py-2 text-left text-[12px] font-semibold text-blue-800"
                           >
-                            {on && <Check className="h-3 w-3" strokeWidth={3} />}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-[12.5px] font-semibold text-gray-800">{ins.label}</span>
-                            <span className="mt-0.5 block text-[10.5px] text-gray-400">
-                              {ins.kind}
-                              {ins.season ? ` · ${ins.season}` : ''}
-                              {ins.slot ? ` · ${ins.slot}` : ''}
-                              {ins.dancefloor ? ' · dancefloor' : ''}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                            Show all {filtered.length} inserts in catalog…
+                          </button>
+                        </li>
+                      ) : null}
+                      {visible.map((ins) => {
+                        const on = data.selectedInserts.includes(ins.id);
+                        const suggested = prefilledKeys.has('selectedInserts') && suggestedSet.has(ins.id);
+                        const confirmed = confirmedKeys.has(`insert:${ins.id}`);
+                        return (
+                          <li key={ins.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (on && suggested && !confirmed) confirmInsert(ins.id);
+                                else toggleInsert(ins.id);
+                              }}
+                              className={`mb-1 flex w-full items-start gap-3 rounded-[10px] px-3 py-2.5 text-left transition-all ${
+                                on
+                                  ? confirmed
+                                    ? `bg-[#FFF1F0] ${PREFILL_CONFIRMED_CLS}`
+                                    : suggested
+                                      ? `bg-blue-50/80 ${PREFILL_INPUT_CLS}`
+                                      : 'bg-[#FFF1F0]'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <span
+                                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                  on ? 'border-[#FF5A45] bg-[#FF5A45] text-white' : 'border-gray-300'
+                                }`}
+                              >
+                                {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-[12.5px] font-semibold text-gray-800">{ins.label}</span>
+                                <span className="mt-0.5 block text-[10.5px] text-gray-400">
+                                  {ins.kind}
+                                  {ins.season ? ` · ${ins.season}` : ''}
+                                  {ins.slot ? ` · ${ins.slot}` : ''}
+                                  {ins.dancefloor ? ' · dancefloor' : ''}
+                                  {suggested && !confirmed ? ' · click to confirm' : ''}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
               </ul>
               <div className="border-t border-[#f0f0f0] px-5 py-3">
                 <button

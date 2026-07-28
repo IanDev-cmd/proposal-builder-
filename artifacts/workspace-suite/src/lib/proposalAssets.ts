@@ -1,7 +1,7 @@
 /**
  * Proposal templates + inserts catalog.
  * Source: artifacts/pdf-engine catalog + inserts manifest.
- * Salespeople pick manually — no auto-selection in the UI.
+ * Auto-selection via proposalPrefill.ts; REP confirms in UI (blue → glow).
  */
 
 import catalog from './assets/proposalCatalog.json';

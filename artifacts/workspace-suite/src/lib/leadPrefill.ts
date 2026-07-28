@@ -8,10 +8,14 @@ import { lookupMinMargin } from '@/lib/costMotherLookup';
 import { REPEAT_CLIENT_MARGIN, NEW_CLIENT_MARGIN } from '@/lib/quoteFinance';
 import type { QuoteLead } from '@/lib/quoteLeadStore';
 import { parseGuestCount } from '@/lib/parseGuestCount';
+import { resolveProposalPack } from '@/lib/proposalPrefill';
 
 export const PREFILL_INPUT_CLS =
   'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
 export const PREFILL_TOGGLE_CLS = 'ring-2 ring-blue-400 ring-offset-2';
+/** Applied when the REP clicks to confirm a blue auto-selection. */
+export const PREFILL_CONFIRMED_CLS =
+  'ring-2 ring-[#FF5A45] ring-offset-2 shadow-[0_0_14px_rgba(255,90,69,0.45)] border-[#FF5A45]';
 
 export type LeadPrefillResult<T> = {
   data: T;
@@ -355,6 +359,18 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     bespokeLines[0] = { ...bespokeLines[0], label: bespoke.label, amount: bespoke.amount, enabled: true };
   }
 
+  const proposalCategory = wedding ? 'wedding' : 'corporate';
+  const pack = resolveProposalPack({
+    category: proposalCategory as 'corporate' | 'wedding',
+    eventType: eventType || lead.eventType || '',
+    guestCount,
+    vesselHint: vesselType[0] || lead.vessels,
+    eventDate,
+    embarkation,
+    disembarkation,
+    repName: lead.assignedRep || lead.preparedBy || '',
+  });
+
   const data = {
     ...init,
     source: source || init.source,
@@ -380,11 +396,14 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     keyItems,
     progressNotes: notes,
     budget: lead.budget || '',
-    proposalCategory: wedding ? 'wedding' : 'corporate',
+    proposalCategory,
     noOfTables: inferTables(guestCount),
     weeklyPeriod: '',
     dayPeriod: '',
     groupBracket: '',
+    templateId: pack.templateId || String(init.templateId || ''),
+    requiresInserts: pack.requiresInserts,
+    selectedInserts: pack.selectedInserts.length ? pack.selectedInserts : (init.selectedInserts as string[]) || [],
   } as T;
 
   if (source) prefilledKeys.add('source');
@@ -412,6 +431,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (lead.budget) prefilledKeys.add('budget');
   if (inferTables(guestCount)) prefilledKeys.add('noOfTables');
   prefilledKeys.add('proposalCategory');
+  if (pack.templateId) prefilledKeys.add('templateId');
+  if (pack.requiresInserts) prefilledKeys.add('requiresInserts');
+  if (pack.selectedInserts.length) prefilledKeys.add('selectedInserts');
 
   for (const id of inferredIds) prefilledLineIds.add(id);
   if (bespoke) prefilledKeys.add('bespokeLines');
