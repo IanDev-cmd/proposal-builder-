@@ -24,6 +24,7 @@ import {
   lookupUnitRate,
   type RateKeyParts,
 } from '@/lib/costMotherLookup';
+import { formatProposalRef } from '@/lib/goldScenarioCover';
 
 export const CONTINGENCY_RATE = 0.0225;
 export const VAT_RATE = 0.2;
@@ -453,9 +454,11 @@ export function buildStargtmPayload(opts: {
 
   const preparedBy = lead?.preparedBy || lead?.assignedRep || contact.name;
   const eventDate =
-    form.dateFlexible || isEventDateTbc(form.eventDate, form.dateFlexible)
-      ? 'Date TBC'
-      : form.eventDate || lead?.eventDateDisplay || '';
+    lead?.eventDateDisplay && !/^date tbc$/i.test(String(lead.eventDateDisplay).trim())
+      ? String(lead.eventDateDisplay)
+      : form.dateFlexible || isEventDateTbc(form.eventDate, form.dateFlexible)
+        ? 'Date TBC'
+        : form.eventDate || lead?.eventDateDisplay || '';
 
   const guestRange =
     guestHigh > guests
@@ -475,7 +478,7 @@ export function buildStargtmPayload(opts: {
     budget: lead?.budget || undefined,
     nexusLead: nexusLead || lead || undefined,
     lead: {
-      proposal_ref: lead?.referenceNumber || undefined,
+      proposal_ref: formatProposalRef(lead?.referenceNumber, form.quoteVersion),
       client_name: lead?.name,
       organisation: lead?.company,
       telephone: lead?.phone,

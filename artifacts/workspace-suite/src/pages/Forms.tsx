@@ -55,6 +55,7 @@ import {
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { goldPackageWordingForRef } from '@/lib/goldPackageWording';
+import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import { collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
@@ -783,8 +784,8 @@ const STEPS = [
   { n: 2, label: 'Guest Count' },
   { n: 3, label: 'Schedule Timings' },
   { n: 4, label: 'Catering' },
-  { n: 5, label: 'Financials' },
-  { n: 6, label: 'Cost Lines' },
+  { n: 5, label: 'Cost Lines' },
+  { n: 6, label: 'Financials' },
   { n: 7, label: 'Cost Approval' },
   { n: 8, label: 'Proposal Pack' },
 ];
@@ -1268,7 +1269,12 @@ export function Forms() {
             source: quoteLead.source || data.source,
             yearOfEvent: quoteLead.yearOfEvent,
             repeatClient: data.repeatClient,
-            eventDateDisplay: data.dateFlexible ? 'Date TBC' : data.eventDate,
+            eventDateDisplay: formatEventDateForProposal({
+              eventDate: data.eventDate,
+              dateFlexible: data.dateFlexible,
+              fullEventDate: quoteLead.fullEventDate,
+              eventDateDisplay: quoteLead.eventDateDisplay,
+            }),
             eventDateFlexibleBool: data.dateFlexible,
             requestedEventTimes: quoteLead.requestedEventTimes,
             groupSize: quoteLead.groupSize,
@@ -1299,7 +1305,12 @@ export function Forms() {
             fullEventDate: quoteLead.fullEventDate,
             eventDateFlexible: data.dateFlexible ? 'YES' : quoteLead.eventDateFlexible || 'NO',
             eventDateFlexibleBool: data.dateFlexible,
-            eventDateDisplay: data.dateFlexible ? 'Date TBC' : data.eventDate || quoteLead.eventDateDisplay,
+            eventDateDisplay: formatEventDateForProposal({
+              eventDate: data.eventDate,
+              dateFlexible: data.dateFlexible,
+              fullEventDate: quoteLead.fullEventDate,
+              eventDateDisplay: quoteLead.eventDateDisplay,
+            }),
             requestedEventTimes:
               `${data.embarkation} - ${data.disembarkation}` || quoteLead.requestedEventTimes,
             groupSize: data.guestCount || quoteLead.groupSize,
@@ -1974,10 +1985,39 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 5 — Financials */}
+            {/* STEP 5 — Cost Lines (Quote Builder Sections 1–13) — before totals, same order as Quote Sheet */}
             {step === 5 && (
               <motion.div
-                key="step5-financials"
+                key="step5-cost-lines"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={{ duration: 0.25 }}
+              >
+                <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
+                <p className="mb-4 text-[12px] text-gray-500">
+                  Select YES lines for Sections 1–13 (vessel, catering, staff, add-ons) — same order as the Quote Sheet. Grand total is on the next step.
+                </p>
+                <QuoteCostLines
+                  data={financeInput}
+                  selectedLineIds={data.selectedLineIds}
+                  bespokeLines={data.bespokeLines}
+                  prefilledLineIds={prefilledLineIds}
+                  prefilledBespoke={prefilledKeys.has('bespokeLines')}
+                  onToggleLine={toggleLine}
+                  onBespokeChange={(lines) => {
+                    clearPrefill('bespokeLines');
+                    set('bespokeLines', lines);
+                  }}
+                />
+              </motion.div>
+            )}
+
+            {/* STEP 6 — Financials (margin + grand total after all cost lines) */}
+            {step === 6 && (
+              <motion.div
+                key="step6-financials"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -2021,9 +2061,9 @@ export function Forms() {
                   </button>
                 </div>
 
-                <p className={sectionLabelCls}>Cost Inputs</p>
+                <p className={sectionLabelCls}>Totals &amp; margin</p>
                 <p className="mb-3 text-[11.5px] text-gray-400">
-                  Cost Mother rates · Sections 1–13 → contingency {(CONTINGENCY_RATE * 100).toFixed(2)}% → margin → discount → VAT.
+                  After Sections 1–13 (previous step): Cost Mother rates → contingency {(CONTINGENCY_RATE * 100).toFixed(2)}% → margin → discount → VAT.
                   {ratesNote ? ` ${ratesNote}` : ''}
                 </p>
 
@@ -2072,7 +2112,6 @@ export function Forms() {
                   Blank margin uses Minimum target margin matrix (event × month), then repeat 15% / new 25%.
                 </p>
 
-                {/* Section roll-up — Quote Builder 2026 */}
                 <div className="mb-4 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                   <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                     <span className="flex items-center gap-2">
@@ -2146,7 +2185,7 @@ export function Forms() {
                     className={`${inputCls} font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]`}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Prefilled from Cost Mother (Sections 1–14) — edit to override.
+                    Rolled up from cost lines (Sections 1–14) — edit to override.
                   </p>
                 </div>
 
@@ -2204,32 +2243,6 @@ export function Forms() {
                     className={`${inputCls} min-h-[80px] resize-y`}
                   />
                 </div>
-              </motion.div>
-            )}
-
-            {/* STEP 6 — Cost Lines (Quote Builder Sections 1–13) */}
-            {step === 6 && (
-              <motion.div
-                key="step6-cost-lines"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.25 }}
-              >
-                <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
-                <QuoteCostLines
-                  data={financeInput}
-                  selectedLineIds={data.selectedLineIds}
-                  bespokeLines={data.bespokeLines}
-                  prefilledLineIds={prefilledLineIds}
-                  prefilledBespoke={prefilledKeys.has('bespokeLines')}
-                  onToggleLine={toggleLine}
-                  onBespokeChange={(lines) => {
-                    clearPrefill('bespokeLines');
-                    set('bespokeLines', lines);
-                  }}
-                />
               </motion.div>
             )}
 

@@ -66,6 +66,15 @@
     },
     {
       "n": 5,
+      "id": "cost-lines",
+      "label": "Cost Lines",
+      "fields": [
+        { "key": "selectedLineIds", "kind": "cost-line-toggles", "label": "YES lines" },
+        { "key": "bespokeLines", "kind": "bespoke", "label": "Bespoke 1-4" }
+      ]
+    },
+    {
+      "n": 6,
       "id": "financials",
       "label": "Financials",
       "fields": [
@@ -76,15 +85,6 @@
         { "key": "commissionPercent", "kind": "number", "label": "Commission %" },
         { "key": "totalCost", "kind": "number", "label": "Base Cost" },
         { "key": "packageWordingNotes", "kind": "textarea", "label": "Package wording" }
-      ]
-    },
-    {
-      "n": 6,
-      "id": "cost-lines",
-      "label": "Cost Lines",
-      "fields": [
-        { "key": "selectedLineIds", "kind": "cost-line-toggles", "label": "YES lines" },
-        { "key": "bespokeLines", "kind": "bespoke", "label": "Bespoke 1-4" }
       ]
     },
     {

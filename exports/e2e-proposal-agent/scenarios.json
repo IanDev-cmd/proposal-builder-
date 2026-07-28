@@ -1,14 +1,15 @@
 [
   {
     "id": "WE.18900",
-    "label": "José Rubio / Hannah Charles — Space Made — Christmas V4",
+    "label": "Jos\u00e9 Rubio / Hannah Charles \u2014 Space Made \u2014 Christmas V4",
     "goldQuoteVersion": "V4",
     "goldQuoteWeottCost": 12278.64,
     "marginPercent": 25,
     "leadFixture": "../proposal-testing-scenario/fixtures/WE.18900.lead.json",
     "form": {
-      "source": "Build your event form",
-      "vesselType": ["WEOTT II (Avontuur)"],
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
       "eventType": "Christmas Event",
       "quoteVersion": "V4",
       "proposalCategory": "corporate",
@@ -19,11 +20,12 @@
         "natasha_minter_staff_profile_page_16_daytime_version",
         "2024_weott_proposal_river_map"
       ],
-      "keyItems": "HFB, £1500 bar tab, 2x casino, photobooth, BG music, TV/mic awards",
+      "keyItems": "HFB, \u00c2\u00a31500 bar tab, 2x casino, photobooth, BG music, TV/mic awards",
       "weeklyPeriod": "Mon to Thur",
       "dayPeriod": "Evening",
       "groupBracket": "Standard",
       "guestCount": "50",
+      "guestCountHigh": "65",
       "noOfTables": "8",
       "embarkation": "18:00",
       "disembarkation": "22:00",
@@ -31,13 +33,13 @@
       "returnTime": "21:30",
       "eventDate": "2026-12-02",
       "dateFlexible": true,
-      "menuType": ["Hot Fork Buffet (All Seasons)"],
+      "menuType": [
+        "Hot Fork Buffet (All Seasons)"
+      ],
       "repeatClient": false,
-      "agentReferral": false,
       "marginPercent": "25",
       "bespokeAmount": 1500,
       "bespokeLabel": "Bar tab",
-      "bespoke": [{ "label": "Bar tab", "amount": 1500 }],
       "costLineLabels": [
         "Hot Fork Buffet (All Seasons)",
         "Catering Delivery Charge (In every quote)",
@@ -47,20 +49,39 @@
         "TV - 55\"",
         "Cocktail Reception (1 x glass per guest)",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
+      ],
+      "source": "Build your event form",
+      "agentReferral": false,
+      "bespoke": [
+        {
+          "label": "Bar tab",
+          "amount": 1500
+        }
       ]
     }
   },
   {
     "id": "WE.18759",
-    "label": "Mankaasha Umba — The Outnet — Summer V2",
+    "label": "Mankaasha Umba \u2014 The Outnet \u2014 Summer V2",
     "goldQuoteVersion": "V2",
     "goldQuoteWeottCost": 8900.1,
     "marginPercent": 25,
     "leadFixture": "../proposal-testing-scenario/fixtures/WE.18759.lead.json",
     "form": {
-      "source": "Build your event form",
-      "vesselType": ["WEOTT II (Avontuur)"],
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
       "eventType": "Summer Event",
       "quoteVersion": "V2",
       "proposalCategory": "corporate",
@@ -70,7 +91,7 @@
         "weott_ii_spring_summer_insert_dancefloor_version",
         "2024_weott_proposal_river_map"
       ],
-      "keyItems": "Summer event — Outnet",
+      "keyItems": "Summer event \u00e2\u20ac\u201d Outnet",
       "weeklyPeriod": "Mon to Thur",
       "dayPeriod": "Daytime",
       "groupBracket": "Standard",
@@ -82,7 +103,9 @@
       "returnTime": "16:30",
       "eventDate": "2026-07-23",
       "dateFlexible": false,
-      "menuType": ["Canapes (All Seasons)"],
+      "menuType": [
+        "Canapes (All Seasons)"
+      ],
       "repeatClient": false,
       "marginPercent": "25",
       "costLineLabels": [
@@ -91,20 +114,32 @@
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
-      ]
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
+      ],
+      "source": "Build your event form"
     }
   },
   {
     "id": "WE.18937",
-    "label": "Loretta Greeley-Ward — Caribou — Wedding Transfer V2",
+    "label": "Loretta Greeley-Ward \u2014 Caribou \u2014 Wedding Transfer V2",
     "goldQuoteVersion": "V2",
     "goldQuoteWeottCost": 10462.17,
     "marginPercent": 20,
     "leadFixture": "../proposal-testing-scenario/fixtures/WE.18937.lead.json",
     "form": {
-      "source": "Wedding Planner/Agent",
-      "vesselType": ["WEOTT II (Avontuur)"],
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
       "eventType": "Wedding Transfer",
       "quoteVersion": "V2",
       "proposalCategory": "wedding",
@@ -136,20 +171,32 @@
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
-      ]
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Wedding",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
+      ],
+      "source": "Wedding Planner/Agent"
     }
   },
   {
     "id": "WE.18931",
-    "label": "Mia Cruickshank — Databarracks — Team Building V2",
+    "label": "Mia Cruickshank \u2014 Databarracks \u2014 Team Building V2",
     "goldQuoteVersion": "V2",
     "goldQuoteWeottCost": 18982.51,
     "marginPercent": 25,
     "leadFixture": "../proposal-testing-scenario/fixtures/WE.18931.lead.json",
     "form": {
-      "source": "Build your event form",
-      "vesselType": ["WEOTT I (Rose)"],
+      "vesselType": [
+        "WEOTT I (Rose)"
+      ],
       "eventType": "Team Building",
       "quoteVersion": "V2",
       "proposalCategory": "corporate",
@@ -171,7 +218,9 @@
       "returnTime": "16:30",
       "eventDate": "2026-09-17",
       "dateFlexible": true,
-      "menuType": ["Street Food Station (All Seasons)"],
+      "menuType": [
+        "Street Food Station (All Seasons)"
+      ],
       "repeatClient": false,
       "marginPercent": "25",
       "costLineLabels": [
@@ -183,8 +232,19 @@
         "Team building activities with performance coach",
         "TV - 55\"",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
-      ]
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
+      ],
+      "source": "Build your event form"
     }
   }
 ]

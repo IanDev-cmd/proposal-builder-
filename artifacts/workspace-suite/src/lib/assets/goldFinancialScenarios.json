@@ -20,6 +20,7 @@
       "dayPeriod": "Evening",
       "groupBracket": "Standard",
       "guestCount": "50",
+      "guestCountHigh": "65",
       "noOfTables": "8",
       "embarkation": "18:00",
       "disembarkation": "22:00",
@@ -41,7 +42,17 @@
         "TV - 55\"",
         "Cocktail Reception (1 x glass per guest)",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
       ]
     }
   },
@@ -81,7 +92,17 @@
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
       ]
     }
   },
@@ -122,7 +143,17 @@
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Wedding",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
       ]
     }
   },
@@ -165,7 +196,17 @@
         "Team building activities with performance coach",
         "TV - 55\"",
         "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)"
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Pier Coordinator",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 2",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF"
       ]
     }
   }
