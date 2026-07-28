@@ -55,6 +55,7 @@ import {
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { goldPackageWordingForRef } from '@/lib/goldPackageWording';
+import { collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
 
@@ -857,6 +858,25 @@ export function Forms() {
       return next;
     });
 
+  const pendingPrefillConfirms = useMemo(
+    () =>
+      collectPrefillConfirmKeys({
+        prefilledKeys,
+        confirmedKeys,
+        requiresInserts: data.requiresInserts,
+        selectedInserts: data.selectedInserts,
+      }),
+    [prefilledKeys, confirmedKeys, data.requiresInserts, data.selectedInserts],
+  );
+
+  const confirmAllPrefilledSuggestions = useCallback(() => {
+    setConfirmedKeys((prev) => {
+      const next = new Set(prev);
+      for (const key of pendingPrefillConfirms) next.add(key);
+      return next;
+    });
+  }, [pendingPrefillConfirms]);
+
   const expandDropdown = (key: string) =>
     setExpandedDropdowns((prev) => {
       const next = new Set(prev);
@@ -1203,26 +1223,15 @@ export function Forms() {
       return;
     }
 
-    if (prefilledKeys.has('templateId') && !confirmedKeys.has('templateId')) {
-      setErrorMessage('Click the suggested template to confirm (glow outline) before generating.');
-      setStage('error');
-      setStep(8);
-      return;
-    }
-
     if (
-      data.requiresInserts &&
-      prefilledKeys.has('selectedInserts') &&
-      data.selectedInserts.some((id) => !confirmedKeys.has(`insert:${id}`))
+      hasPendingPrefillConfirms({
+        prefilledKeys,
+        confirmedKeys,
+        requiresInserts: data.requiresInserts,
+        selectedInserts: data.selectedInserts,
+      })
     ) {
-      setErrorMessage('Click each suggested insert to confirm before generating.');
-      setStage('error');
-      setStep(8);
-      return;
-    }
-
-    if (prefilledKeys.has('requiresInserts') && data.requiresInserts && !confirmedKeys.has('requiresInserts')) {
-      setErrorMessage('Click Yes on inserts to confirm the auto-selection before generating.');
+      setErrorMessage('Confirm all blue suggestions (template + inserts) before generating.');
       setStage('error');
       setStep(8);
       return;
@@ -2374,6 +2383,27 @@ export function Forms() {
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
+                {pendingPrefillConfirms.length > 0 ? (
+                  <div className="mb-6 flex flex-col gap-3 rounded-[12px] border border-blue-200 bg-blue-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[13px] font-semibold text-blue-900">
+                        {pendingPrefillConfirms.length} auto-suggestion
+                        {pendingPrefillConfirms.length === 1 ? '' : 's'} awaiting confirm
+                      </p>
+                      <p className="mt-0.5 text-[11.5px] text-blue-700/90">
+                        Click each blue item or confirm all to match the gold proposal pack.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="btn-confirm-all-prefill"
+                      onClick={confirmAllPrefilledSuggestions}
+                      className="shrink-0 rounded-full bg-blue-600 px-5 py-2.5 text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
+                    >
+                      Confirm all ({pendingPrefillConfirms.length})
+                    </button>
+                  </div>
+                ) : null}
                 <p className={sectionLabelCls}>Proposal Type</p>
                 <div className="mb-7 flex gap-3">
                   {(['corporate', 'wedding'] as const).map((cat) => (

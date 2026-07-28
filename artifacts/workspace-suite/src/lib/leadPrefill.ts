@@ -365,8 +365,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const bespoke = parseBespokeFromNotes(notes);
 
   const goldEarly = goldTargetsFromRef(lead.referenceNumber);
-  const goldLabels = (goldEarly?.form?.costLineLabels as string[]) || [];
-  const lineLabels = parseCostLineLabelsFromNotes(notes, quoteVersion);
+  const goldForm = goldEarly?.form;
+  const goldLabels = (goldForm?.costLineLabels as string[]) || [];
+  const lineLabels = goldLabels.length
+    ? goldLabels
+    : parseCostLineLabelsFromNotes(notes, quoteVersion);
   const inferredIds = lineIdsFromLabels(lineLabels);
   const selectedLineIds = goldLabels.length
     ? lineIdsFromLabels(goldLabels)
@@ -513,9 +516,14 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (pack.selectedInserts.length) prefilledKeys.add('selectedInserts');
 
   for (const id of inferredIds) prefilledLineIds.add(id);
-  if (bespoke) prefilledKeys.add('bespokeLines');
+  if (bespoke || goldForm?.bespokeAmount) prefilledKeys.add('bespokeLines');
 
   const withGold = applyGoldScenarioPlaybook(lead.referenceNumber, data, prefilledKeys);
+
+  if (goldLabels.length) {
+    prefilledLineIds.clear();
+    for (const id of lineIdsFromLabels(goldLabels)) prefilledLineIds.add(id);
+  }
 
   return { data: withGold, prefilledKeys, prefilledLineIds };
 }
