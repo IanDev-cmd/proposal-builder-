@@ -237,23 +237,23 @@ async function confirmAllPrefill(page) {
 
 async function clickThroughPrefillSteps(page, dir, report) {
   await page.screenshot({ path: path.join(dir, '01-event-core.png'), fullPage: true });
-  for (let s = 1; s <= 4; s++) {
+  for (let s = 1; s <= 3; s++) {
     await clickNext(page);
     await page.waitForTimeout(350);
     report.steps.push({ ok: true, at: `prefill-step${s}-next` });
   }
-  await page.screenshot({ path: path.join(dir, '05-cost-lines.png'), fullPage: true });
+  await page.screenshot({ path: path.join(dir, '04-cost-lines.png'), fullPage: true });
+  await clickNext(page);
+  await page.waitForTimeout(350);
+  report.steps.push({ ok: true, at: 'prefill-step4-next' });
+  await page.screenshot({ path: path.join(dir, '05-financials.png'), fullPage: true });
   await clickNext(page);
   await page.waitForTimeout(350);
   report.steps.push({ ok: true, at: 'prefill-step5-next' });
-  await page.screenshot({ path: path.join(dir, '06-financials.png'), fullPage: true });
-  await clickNext(page);
-  await page.waitForTimeout(350);
-  report.steps.push({ ok: true, at: 'prefill-step6-next' });
-  // Step 7 — btn-next auto-approves when parity passes
+  // Step 6 — btn-next auto-approves when parity passes
   await clickNext(page);
   await page.waitForTimeout(400);
-  report.steps.push({ ok: true, at: 'step7-approved-next' });
+  report.steps.push({ ok: true, at: 'step6-approved-next' });
   await page.screenshot({ path: path.join(dir, '07-proposal-pack-entry.png'), fullPage: true });
 }
 
@@ -299,23 +299,19 @@ async function fillScenarioManually(page, scenario, lead, dir, report) {
   await clickNext(page);
   report.steps.push({ ok: true, at: 'step3-next' });
 
-  for (const m of f.menuType || []) await selectMenu(page, m);
+  await toggleCostLines(page, f.costLineLabels || []);
+  if (f.bespoke?.length) await setBespoke(page, f.bespoke);
+  await page.screenshot({ path: path.join(dir, '04-cost-lines.png'), fullPage: true });
   await clickNext(page);
   report.steps.push({ ok: true, at: 'step4-next' });
 
-  await toggleCostLines(page, f.costLineLabels || []);
-  if (f.bespoke?.length) await setBespoke(page, f.bespoke);
-  await page.screenshot({ path: path.join(dir, '05-cost-lines.png'), fullPage: true });
+  if (f.marginPercent) await fillByLabel(page, 'Margin %', f.marginPercent).catch(() => undefined);
+  await page.screenshot({ path: path.join(dir, '05-financials.png'), fullPage: true });
   await clickNext(page);
   report.steps.push({ ok: true, at: 'step5-next' });
 
-  if (f.marginPercent) await fillByLabel(page, 'Margin %', f.marginPercent).catch(() => undefined);
-  await page.screenshot({ path: path.join(dir, '06-financials.png'), fullPage: true });
   await clickNext(page);
-  report.steps.push({ ok: true, at: 'step6-next' });
-
-  await clickNext(page);
-  report.steps.push({ ok: true, at: 'step7-approved-next' });
+  report.steps.push({ ok: true, at: 'step6-approved-next' });
 }
 
 async function pickTemplate(page, templateId, category) {

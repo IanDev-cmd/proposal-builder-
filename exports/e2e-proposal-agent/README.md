@@ -14,9 +14,9 @@ Earlier runs were misleading because they:
 
 1. Gate locally: `cd artifacts/workspace-suite && npm run verify:gold:scenarios`
 2. Inject lead fixture → Quote Builder (prefill fills form)
-3. **Next × 6** — cost lines (step 5) then financials / grand total (step 6); do not manually override blue fields
-4. Step 7 — parity must show gold WEOTT → **Approve & continue**
-5. Step 8 — **Confirm all** blue suggestions → **Generate**
+3. **Next × 5** — cost lines (step 4, incl. Section 2 catering) then financials / grand total (step 5); do not manually override blue fields
+4. Step 6 — parity must show gold WEOTT → **Approve & continue**
+5. Step 7 — **Confirm all** blue suggestions → **Generate**
 6. `npm run diagnose` — money + package wording vs gold PDFs
 
 `PREFILL_MODE=0` disables prefill click-through (legacy manual fill).
@@ -47,7 +47,7 @@ npm run diagnose   # PDF vs gold proposal-testing-scenario fixtures
 
 | File | Purpose |
 |------|---------|
-| `artifacts/workspace-suite/src/lib/assets/goldFinancialScenarios.json` | Step 5 cost lines, rates, WEOTT targets |
+| `artifacts/workspace-suite/src/lib/assets/goldFinancialScenarios.json` | Step 4 cost lines (Section 2 catering), rates, WEOTT targets |
 | `artifacts/workspace-suite/src/lib/assets/goldPackageWording.json` | Bespoke page columns (looks) |
 | `exports/proposal-testing-scenario/fixtures/*.lead.json` | Lead injection for e2e |
 | `exports/proposal-testing-scenario/_flat/*Proposal*.pdf` | Visual/financial gold PDFs |

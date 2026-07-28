@@ -58,14 +58,6 @@
     },
     {
       "n": 4,
-      "id": "catering",
-      "label": "Catering",
-      "fields": [
-        { "key": "menuType", "kind": "menu-grouped", "label": "Menu Type" }
-      ]
-    },
-    {
-      "n": 5,
       "id": "cost-lines",
       "label": "Cost Lines",
       "fields": [
@@ -74,7 +66,7 @@
       ]
     },
     {
-      "n": 6,
+      "n": 5,
       "id": "financials",
       "label": "Financials",
       "fields": [
@@ -88,7 +80,7 @@
       ]
     },
     {
-      "n": 7,
+      "n": 6,
       "id": "cost-approval",
       "label": "Cost Approval",
       "fields": [
@@ -97,7 +89,7 @@
       ]
     },
     {
-      "n": 8,
+      "n": 7,
       "id": "proposal-pack",
       "label": "Proposal Pack",
       "fields": [

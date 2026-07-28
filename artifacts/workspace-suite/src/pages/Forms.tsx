@@ -783,14 +783,13 @@ const STEPS = [
   { n: 1, label: 'Event Core' },
   { n: 2, label: 'Guest Count' },
   { n: 3, label: 'Schedule Timings' },
-  { n: 4, label: 'Catering' },
-  { n: 5, label: 'Cost Lines' },
-  { n: 6, label: 'Financials' },
-  { n: 7, label: 'Cost Approval' },
-  { n: 8, label: 'Proposal Pack' },
+  { n: 4, label: 'Cost Lines' },
+  { n: 5, label: 'Financials' },
+  { n: 6, label: 'Cost Approval' },
+  { n: 7, label: 'Proposal Pack' },
 ];
 
-const LAST_CONTENT_STEP = 8;
+const LAST_CONTENT_STEP = 7;
 
 /** Run a Sheets write-back; toast on failure but do not throw (PDF may still succeed). */
 async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<boolean> {
@@ -1057,7 +1056,7 @@ export function Forms() {
   }, [templateResolution]);
 
   useEffect(() => {
-    if (step === 8) syncAutoTemplate();
+    if (step === 7) syncAutoTemplate();
   }, [step, syncAutoTemplate, templateResolution.templateId]);
 
   useEffect(() => {
@@ -1203,7 +1202,7 @@ export function Forms() {
     if (!data.costApproved) {
       setErrorMessage('Confirm cost cross-check approval before Proposal Pack / generate.');
       setStage('error');
-      setStep(7);
+      setStep(6);
       return;
     }
 
@@ -1213,14 +1212,14 @@ export function Forms() {
           'Financial cross-check failed — align WEOTT cost with Quote Sheet before generating.',
       );
       setStage('error');
-      setStep(7);
+      setStep(6);
       return;
     }
 
     if (!data.templateId) {
       setErrorMessage('Select a proposal template in Proposal Pack before generating.');
       setStage('error');
-      setStep(8);
+      setStep(7);
       return;
     }
 
@@ -1234,7 +1233,7 @@ export function Forms() {
     ) {
       setErrorMessage('Confirm all blue suggestions (template + inserts) before generating.');
       setStage('error');
-      setStep(8);
+      setStep(7);
       return;
     }
 
@@ -1944,51 +1943,10 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 4 — Catering */}
+            {/* STEP 4 — Cost Lines (Quote Builder Sections 1–13) — catering is Section 2 */}
             {step === 4 && (
-              <motion.div key="step3" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
-                <p className={sectionLabelCls}>Catering</p>
-
-                <FormGroupedMenuSelect
-                  label="Menu Type"
-                  field="menuType"
-                  groups={MENU_GROUPS}
-                  value={data.menuType}
-                  onChange={(v) => set('menuType', v)}
-                  onPreview={handlePreview}
-                  helper="Grouped by service style (Quote Builder 2026 + Menu Cheat Sheet). Search to jump."
-                  {...dropdownProps('menuType')}
-                />
-
-                {data.menuType.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-7 grid grid-cols-2 gap-4"
-                  >
-                    <div className="rounded-[10px] border border-[#e3e6e4] bg-[#FFF1F0] p-5">
-                      <p className={sectionLabelCls}>Catering Assistants</p>
-                      <p className="text-[28px] font-black text-[#E22A12]">
-                        {Math.ceil((parseInt(data.guestCount) || 50) / 20)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-gray-400">1 per 20 guests</p>
-                    </div>
-                    <div className="rounded-[10px] border border-[#e3e6e4] bg-[#FFF1F0] p-5">
-                      <p className={sectionLabelCls}>Event Staff</p>
-                      <p className="text-[28px] font-black text-[#E22A12]">
-                        {Math.ceil((parseInt(data.guestCount) || 50) / 25)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-gray-400">1 per 25 guests</p>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-
-            {/* STEP 5 — Cost Lines (Quote Builder Sections 1–13) — before totals, same order as Quote Sheet */}
-            {step === 5 && (
               <motion.div
-                key="step5-cost-lines"
+                key="step4-cost-lines"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -1997,7 +1955,7 @@ export function Forms() {
               >
                 <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
                 <p className="mb-4 text-[12px] text-gray-500">
-                  Select YES lines for Sections 1–13 (vessel, catering, staff, add-ons) — same order as the Quote Sheet. Grand total is on the next step.
+                  Select YES lines for Sections 1–13 — catering menus are under Section 2, same as the Quote Sheet. Grand total is on the next step.
                 </p>
                 <QuoteCostLines
                   data={financeInput}
@@ -2014,10 +1972,10 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 6 — Financials (margin + grand total after all cost lines) */}
-            {step === 6 && (
+            {/* STEP 5 — Financials (margin + grand total after all cost lines) */}
+            {step === 5 && (
               <motion.div
-                key="step6-financials"
+                key="step5-financials"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -2246,10 +2204,10 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 7 — Cost Approval (after all quote inputs, before Proposal Pack) */}
-            {step === 7 && (
+            {/* STEP 6 — Cost Approval (after all quote inputs, before Proposal Pack) */}
+            {step === 6 && (
               <motion.div
-                key="step7-cost-approval"
+                key="step6-cost-approval"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -2378,7 +2336,7 @@ export function Forms() {
                     ? 'Approved — continue to Proposal Pack'
                     : 'Review quote details, then approve to unlock Proposal Pack'}
                 </p>
-                {errorMessage && step === 7 && !data.costApproved ? (
+                {errorMessage && step === 6 && !data.costApproved ? (
                   <p className="mt-3 rounded-[10px] border border-[#FFE0DC] bg-[#FFF1F0] px-4 py-2.5 text-center text-[12px] font-semibold text-[#E22A12]">
                     {errorMessage}
                   </p>
@@ -2386,10 +2344,10 @@ export function Forms() {
               </motion.div>
             )}
 
-            {/* STEP 8 — Proposal Pack (templates + inserts) */}
-            {step === 8 && (
+            {/* STEP 7 — Proposal Pack (templates + inserts) */}
+            {step === 7 && (
               <motion.div
-                key="step8-pack"
+                key="step7-pack"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -2658,7 +2616,7 @@ export function Forms() {
                     })()}
                   </div>
                 )}
-                {errorMessage && step === 8 ? (
+                {errorMessage && step === 7 ? (
                   <p className="mt-3 rounded-[10px] border border-[#FFE0DC] bg-[#FFF1F0] px-4 py-2.5 text-center text-[12px] font-semibold text-[#E22A12]">
                     {errorMessage}
                   </p>
@@ -2682,7 +2640,7 @@ export function Forms() {
             {step < LAST_CONTENT_STEP ? (
               <button
                 onClick={() => {
-                  if (step === 7 && !data.costApproved) {
+                  if (step === 6 && !data.costApproved) {
                     if (costApprovalBlocked(parity, sheetTargets)) {
                       setErrorMessage(
                         parity.hints[0] ||
@@ -2700,13 +2658,13 @@ export function Forms() {
                   setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
                 }}
                 className={`flex items-center gap-2 rounded-full px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors ${
-                  step === 7 && data.costApproved
+                  step === 6 && data.costApproved
                     ? 'bg-[#00e676] text-[#0b1f14] hover:bg-[#00d66c]'
                     : 'bg-[#FF5A45] hover:bg-[#F4412A]'
                 }`}
                 data-testid="btn-next"
               >
-                {step === 7
+                {step === 6
                   ? data.costApproved
                     ? 'Continue to Proposal Pack'
                     : 'Approve & continue'
@@ -2875,7 +2833,7 @@ export function Forms() {
                     set('costApproved', true);
                     setQuoteDetailsOpen(false);
                     setErrorMessage('');
-                    setStep(8);
+                    setStep(7);
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#FF5A45] px-5 py-3.5 text-[13px] font-bold text-white transition-colors hover:bg-[#F4412A]"
                 >

@@ -42,7 +42,7 @@ export function QuoteCostLines({
 
   const toggleOpen = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
 
-  const sections = SECTION_META.filter((s) => s.id !== 'contingency' && s.id !== 'bespoke');
+  const sections = SECTION_META.filter((s) => s.id !== 'contingency');
 
   return (
     <div className="flex flex-col gap-3">
@@ -55,6 +55,67 @@ export function QuoteCostLines({
       </p>
 
       {sections.map((sec) => {
+        if (sec.id === 'bespoke') {
+          const secTotal = breakdown.sectionTotals.bespoke || 0;
+          return (
+            <div key={sec.id} className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
+              <div className="bg-[#fafafa] px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[13px] font-semibold text-gray-800">{sec.title}</p>
+                    <p className="text-[11px] text-gray-400">{sec.hint || 'Manual amounts (bar tab, extras, etc.)'}</p>
+                  </div>
+                  <span className="text-[13px] font-bold text-[#00e676]">£{secTotal.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 border-t border-[#f0f0f0] p-3">
+                {bespokeLines.map((b, idx) => (
+                  <div
+                    key={b.id}
+                    className={`flex items-center gap-2 rounded-[8px] p-1 ${prefilledBespoke && b.enabled ? PREFILL_INPUT_CLS : ''}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = [...bespokeLines];
+                        next[idx] = { ...b, enabled: !b.enabled };
+                        onBespokeChange(next);
+                      }}
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] ${
+                        b.enabled ? 'bg-[#FF5A45]' : 'border border-[#d0d0d0]'
+                      }`}
+                    >
+                      {b.enabled && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                    </button>
+                    <input
+                      value={b.label}
+                      onChange={(e) => {
+                        const next = [...bespokeLines];
+                        next[idx] = { ...b, label: e.target.value };
+                        onBespokeChange(next);
+                      }}
+                      placeholder={`Bespoke (${idx + 1})`}
+                      className="flex-1 rounded-[8px] border border-[#e3e6e4] px-3 py-2 text-[12.5px]"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={b.amount || ''}
+                      onChange={(e) => {
+                        const next = [...bespokeLines];
+                        next[idx] = { ...b, amount: parseFloat(e.target.value) || 0, enabled: true };
+                        onBespokeChange(next);
+                      }}
+                      placeholder="£"
+                      className="w-24 rounded-[8px] border border-[#e3e6e4] px-3 py-2 text-[12.5px] font-semibold text-[#00e676]"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
         const lines = linesForSection(sec.id as QuoteSectionId);
         const secTotal = breakdown.sectionTotals[sec.id] || 0;
         const selectedCount = lines.filter((l) => selected.has(l.id)).length;
@@ -119,55 +180,6 @@ export function QuoteCostLines({
           </div>
         );
       })}
-
-      {/* Bespoke */}
-      <div className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
-        <div className="bg-[#fafafa] px-4 py-3">
-          <p className="text-[13px] font-semibold text-gray-800">Section 7 — Bespoke</p>
-          <p className="text-[11px] text-gray-400">Manual amounts (bar tab, extras, etc.)</p>
-        </div>
-        <div className="flex flex-col gap-2 p-3">
-          {bespokeLines.map((b, idx) => (
-            <div key={b.id} className={`flex items-center gap-2 rounded-[8px] p-1 ${prefilledBespoke && b.enabled ? PREFILL_INPUT_CLS : ''}`}>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = [...bespokeLines];
-                  next[idx] = { ...b, enabled: !b.enabled };
-                  onBespokeChange(next);
-                }}
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] ${
-                  b.enabled ? 'bg-[#FF5A45]' : 'border border-[#d0d0d0]'
-                }`}
-              >
-                {b.enabled && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-              </button>
-              <input
-                value={b.label}
-                onChange={(e) => {
-                  const next = [...bespokeLines];
-                  next[idx] = { ...b, label: e.target.value };
-                  onBespokeChange(next);
-                }}
-                placeholder={`Bespoke (${idx + 1})`}
-                className="flex-1 rounded-[8px] border border-[#e3e6e4] px-3 py-2 text-[12.5px]"
-              />
-              <input
-                type="number"
-                min={0}
-                value={b.amount || ''}
-                onChange={(e) => {
-                  const next = [...bespokeLines];
-                  next[idx] = { ...b, amount: parseFloat(e.target.value) || 0, enabled: true };
-                  onBespokeChange(next);
-                }}
-                placeholder="£"
-                className="w-24 rounded-[8px] border border-[#e3e6e4] px-3 py-2 text-[12.5px] font-semibold text-[#00e676]"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
 
       <div className="flex items-center justify-between rounded-[10px] border border-[#FF5A45] bg-[#FFF1F0] px-4 py-3">
         <span className="text-[12px] font-semibold text-[#E22A12]">
