@@ -7,6 +7,15 @@
       "vesselType": ["WEOTT II (Avontuur)"],
       "eventType": "Christmas Event",
       "quoteVersion": "V4",
+      "proposalCategory": "corporate",
+      "templateId": "corporate/christmas_event/evening",
+      "requiresInserts": true,
+      "selectedInserts": [
+        "weott_ii_christmas_evening_dancefloor",
+        "natasha_minter_staff_profile_page_16_daytime_version",
+        "2024_weott_proposal_river_map"
+      ],
+      "keyItems": "HFB, £1500 bar tab, 2x casino, photobooth, BG music, TV/mic awards",
       "weeklyPeriod": "Mon to Thur",
       "dayPeriod": "Evening",
       "groupBracket": "Standard",
@@ -44,6 +53,14 @@
       "vesselType": ["WEOTT II (Avontuur)"],
       "eventType": "Summer Event",
       "quoteVersion": "V2",
+      "proposalCategory": "corporate",
+      "templateId": "corporate/summer_event/any",
+      "requiresInserts": true,
+      "selectedInserts": [
+        "weott_ii_spring_summer_insert_dancefloor_version",
+        "2024_weott_proposal_river_map"
+      ],
+      "keyItems": "Summer event — Outnet",
       "weeklyPeriod": "Mon to Thur",
       "dayPeriod": "Daytime",
       "groupBracket": "Standard",
@@ -76,6 +93,14 @@
       "vesselType": ["WEOTT II (Avontuur)"],
       "eventType": "Wedding Transfer",
       "quoteVersion": "V2",
+      "proposalCategory": "wedding",
+      "templateId": "wedding/wedding_transfer/any",
+      "requiresInserts": true,
+      "selectedInserts": [
+        "weott_ii_wedding_transfer_insert",
+        "2024_weott_proposal_river_map"
+      ],
+      "keyItems": "Wedding transfer",
       "weeklyPeriod": "Mon to Thur",
       "dayPeriod": "Daytime",
       "groupBracket": "Standard",
@@ -109,6 +134,14 @@
       "vesselType": ["WEOTT I (Rose)"],
       "eventType": "Team Building",
       "quoteVersion": "V2",
+      "proposalCategory": "corporate",
+      "templateId": "corporate/team_building/daytime",
+      "requiresInserts": true,
+      "selectedInserts": [
+        "weott_i_spring_summer_insert",
+        "2024_weott_proposal_river_map"
+      ],
+      "keyItems": "Team building daytime",
       "weeklyPeriod": "Mon to Thur",
       "dayPeriod": "Daytime",
       "groupBracket": "Standard",

@@ -29,6 +29,11 @@ from vessel import swap_vessel_page
 from catalog import resolve_template, get_catalog
 from measure import get_profile
 from inserts import apply_inserts
+from profile_validation import (
+    ProfileValidationError,
+    validate_profile_strict,
+    validate_render_warnings,
+)
 
 
 def build_proposal(payload: dict, template_path: str | None, output_path: str) -> dict:
@@ -89,6 +94,11 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
         }
 
     profile = get_profile(template_path)
+    validate_profile_strict(
+        profile,
+        template_id=(resolved or {}).get("id"),
+        category=(resolved or {}).get("category"),
+    )
     t_measure = time.perf_counter()
 
     doc = fitz.open(template_path)
@@ -107,6 +117,7 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
             swap_vessel_page(doc, vessel_id, warnings, page_index=profile.page_vessel)
 
     fill_cover_page(doc, lead, font_mgr, warnings, profile=profile)
+    validate_render_warnings(warnings, lead=lead)
     render_financials(doc, calculations, font_mgr, warnings, profile=profile)
     render_upgrade_list(doc, selected_upgrades, font_mgr, warnings, profile=profile)
 

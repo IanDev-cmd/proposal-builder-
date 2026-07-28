@@ -23,13 +23,15 @@ from flask import Flask, request, send_file, jsonify
 
 from engine import build_proposal
 from catalog import get_catalog
-from measure import warm_profiles
+from measure import warm_profiles, clear_profile_cache
 from inserts import get_insert_manifest, list_inserts
+from profile_validation import ProfileValidationError
 
 app = Flask(__name__)
 _BASE = Path(__file__).resolve().parent
 
 try:
+    clear_profile_cache()
     warm_profiles([str(_BASE / t["path"]) for t in get_catalog().templates])
 except Exception:
     pass
@@ -94,6 +96,11 @@ def generate():
             # AUTO still resolves when template_id is absent; with template_id
             # catalog.resolve prefers that id (manual MVP selection).
             report = build_proposal(payload, "AUTO", output_path)
+        except ProfileValidationError as exc:
+            return jsonify(
+                error="PDF layout validation failed — cover/contact measurements out of spec",
+                validation_errors=exc.errors,
+            ), 422
         except Exception as exc:
             return jsonify(error=f"Proposal generation failed: {exc}"), 500
 

@@ -43,6 +43,11 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
   if (f.templateId) set('templateId', f.templateId);
   if (f.proposalCategory) set('proposalCategory', f.proposalCategory);
   if (f.requiresInserts != null) set('requiresInserts', f.requiresInserts);
+  if (Array.isArray(f.selectedInserts) && f.selectedInserts.length) {
+    set('selectedInserts', f.selectedInserts);
+    for (const id of f.selectedInserts as string[]) prefilledKeys.add(`insert:${id}`);
+  }
+  if (f.keyItems) set('keyItems', f.keyItems);
 
   const labels = (f.costLineLabels as string[]) || [];
   if (labels.length) {

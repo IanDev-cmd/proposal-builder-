@@ -122,6 +122,59 @@ def format_guest_range(value) -> str:
     return raw
 
 
+def format_organisation(value: str, *, font_mgr=None, max_width: float | None = None, base_size: float = 4.63) -> str:
+    """House-style abbreviations so long company names stay at template point size."""
+    s = str(value or "").strip()
+    if not s:
+        return s
+    s = re.sub(r"\bLimited\b", "Ltd", s, flags=re.I)
+    s = re.sub(r"\bIncorporated\b", "Inc", s, flags=re.I)
+    s = re.sub(r"\s*\(\s*T/A\s+", " (t/a ", s, flags=re.I)
+    if font_mgr is not None and max_width:
+        bold = False
+        while font_mgr.text_length(s, base_size, bold) > max_width:
+            if re.search(r"\([^)]+\)", s):
+                s = re.sub(r"\s*\([^)]*\)\s*", "", s).strip()
+                continue
+            if " / " in s:
+                s = s.split(" / ", 1)[0].strip()
+                continue
+            break
+    return s
+
+
+def format_event_type(value: str, *, font_mgr=None, max_width: float | None = None, base_size: float = 4.63) -> str:
+    """Long catalogue event names must not shrink on the cover panel."""
+    s = str(value or "").strip()
+    if not s or font_mgr is None or not max_width:
+        return s
+    if font_mgr.text_length(s, base_size, False) <= max_width:
+        return s
+    if " or " in s:
+        first = s.split(" or ", 1)[0].strip()
+        if font_mgr.text_length(first, base_size, False) <= max_width:
+            return first
+    if " / " in s:
+        first = s.split(" / ", 1)[0].strip()
+        if font_mgr.text_length(first, base_size, False) <= max_width:
+            return first
+    return s
+
+
+def format_cover_email(value: str, *, font_mgr=None, max_width: float | None = None, base_size: float = 4.63) -> str:
+    """Dual emails: keep first address if pair won't fit at designed size."""
+    s = str(value or "").strip()
+    if not s or font_mgr is None or not max_width:
+        return s
+    if font_mgr.text_length(s, base_size, False) <= max_width:
+        return s
+    if " / " in s:
+        first = s.split(" / ", 1)[0].strip()
+        if font_mgr.text_length(first, base_size, False) <= max_width:
+            return first
+    return s
+
+
 def normalize_cover_lead(lead: dict) -> dict:
     out = dict(lead)
     if "event_date" in out:
@@ -141,6 +194,25 @@ def normalize_cover_lead(lead: dict) -> dict:
     return out
 
 
+def _fit_cover_value(field_name: str, value: str, spec: dict, font_mgr) -> str:
+    """Apply compact formatters before draw so cover stays at template point size."""
+    base_size = spec.get("size", 4.63)
+    max_w = spec.get("max_width", 56)
+    if field_name == "organisation":
+        return format_organisation(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
+    if field_name == "email":
+        return format_cover_email(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
+    if field_name == "event_type":
+        return format_event_type(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
+    if field_name == "client_name" and " / " in value:
+        parts = [p.strip() for p in value.split(" / ") if p.strip()]
+        if len(parts) == 2 and font_mgr.text_length(value, base_size, False) > max_w:
+            shorter = f"{parts[0]} & {parts[1]}"
+            if font_mgr.text_length(shorter, base_size, False) <= max_w:
+                return shorter
+    return value
+
+
 def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
     page_index = profile.page_cover if profile else config.PAGE_COVER
     fields = profile.cover_fields if profile and profile.cover_fields else config.COVER_FIELDS
@@ -153,6 +225,7 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         if field_name not in data or not spec:
             continue
         value = str(data[field_name])
+        value = _fit_cover_value(field_name, value, spec, font_mgr)
         # If event_date won't fit at designed size, use compact form before shrink
         if field_name == "event_date":
             max_w = spec.get("max_width", 56)

@@ -35,6 +35,13 @@ TEXT_COLOR = (50 / 255, 50 / 255, 50 / 255)
 # Cover panel ink as stored in catalog templates (RGB 230,242,243).
 # Page-13 pure white is separate — do not reuse that for the cover.
 COVER_TEXT_COLOR = (230 / 255, 242 / 255, 243 / 255)
+# Cover fields must not shrink more than ~8% from the template's measured size.
+COVER_STRICT_FIELDS = frozenset({
+    "proposal_ref", "prepared_by", "quote_date", "client_name", "organisation",
+    "telephone", "email", "event_type", "event_date", "event_timings",
+    "guest_range", "guest_quote_n",
+})
+COVER_SHRINK_RATIO_FLOOR = 0.92
 # Orange "click here" link colour from template (0xEE7B31)
 TEXT_COLOR_ORANGE_LINK = (0xEE / 255, 0x7B / 255, 0x31 / 255)
 

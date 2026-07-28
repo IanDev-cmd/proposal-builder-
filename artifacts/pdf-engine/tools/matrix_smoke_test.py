@@ -33,6 +33,8 @@ sys.path.insert(0, str(ROOT))
 from catalog import get_catalog  # noqa: E402
 from engine import build_proposal  # noqa: E402
 from inserts import get_insert_manifest  # noqa: E402
+from measure import get_profile  # noqa: E402
+from profile_validation import ProfileValidationError, validate_profile_strict  # noqa: E402
 
 SAMPLE = json.loads((ROOT / "data" / "sample_payload.json").read_text(encoding="utf-8"))
 
@@ -133,6 +135,9 @@ def run_one(label: str, payload: dict, out_dir: Path) -> dict:
         row["ok"] = len(hard) == 0 and "insert_page_out_of_range" not in row["issues"] and "insert_empty" not in row["issues"]
         if row.get("error"):
             row["ok"] = False
+    except ProfileValidationError as exc:
+        row["error"] = f"ProfileValidationError: {'; '.join(exc.errors)}"
+        row["issues"].append("layout_validation")
     except Exception as exc:
         row["error"] = f"{type(exc).__name__}: {exc}"
         row["issues"].append("exception")
@@ -234,6 +239,23 @@ def main() -> int:
     if missing_ins:
         print("MISSING INSERTS", missing_ins[:20])
 
+    # Phase 0.5 — measured profile gates (all templates must pass before render)
+    print("\n=== Phase 0.5: template profile validation ===")
+    profile_failures: list[dict] = []
+    for t in cat.templates:
+        path = str(ROOT / t["path"])
+        try:
+            profile = get_profile(path)
+            validate_profile_strict(profile, template_id=t["id"], category=t["category"])
+            mw = {k: profile.cover_fields[k].get("max_width") for k in ("client_name", "email", "organisation") if k in profile.cover_fields}
+            print(f"  [OK] {t['id']} cover_widths={mw}")
+        except ProfileValidationError as exc:
+            profile_failures.append({"id": t["id"], "errors": exc.errors})
+            print(f"  [FAIL] {t['id']} {exc.errors[:2]}")
+        except Exception as exc:
+            profile_failures.append({"id": t["id"], "errors": [str(exc)]})
+            print(f"  [FAIL] {t['id']} {exc}")
+
     with tempfile.TemporaryDirectory() as tmp:
         out_dir = Path(tmp)
 
@@ -324,6 +346,7 @@ def main() -> int:
         "inserts": len(inserts),
         "missing_templates": missing_tpl,
         "missing_inserts": missing_ins,
+        "profile_validation_failures": profile_failures,
         "runs": len(results),
         "passed": len(results) - len(failed),
         "failed": len(failed),
@@ -335,10 +358,10 @@ def main() -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(f"\nPASS {summary['passed']}/{summary['runs']}  FAIL {summary['failed']}")
-    print(f"Report → {out_path}")
+    print(f"Report -> {out_path}")
     if summary["issue_counts"]:
         print("Top issues:", dict(summary["issue_counts"].most_common(10)))
-    return 1 if failed or missing_tpl or missing_ins else 0
+    return 1 if failed or missing_tpl or missing_ins or profile_failures else 0
 
 
 if __name__ == "__main__":

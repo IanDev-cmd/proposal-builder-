@@ -56,7 +56,14 @@ def prepare_field_draw(spec: dict, text: str, font_mgr, warnings: list, field_na
 
     align = spec.get("align")
     box_width = spec.get("max_width", max(bbox.x1 - bbox.x0, 1.0))
-    size = font_mgr.fit_font_size(draw_str, box_width, base_size, bold, field_name, warnings)
+    size = font_mgr.fit_font_size(
+        draw_str, box_width, base_size, bold, field_name, warnings,
+        shrink_ratio_floor=(
+            config.COVER_SHRINK_RATIO_FLOOR
+            if field_name in config.COVER_STRICT_FIELDS
+            else 0.85
+        ),
+    )
 
     if align == "right":
         text_width = font_mgr.text_length(draw_str, size, bold)

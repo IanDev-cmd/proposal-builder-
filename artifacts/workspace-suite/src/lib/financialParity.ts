@@ -28,12 +28,32 @@ export function goldScenarioForRef(ref?: string): GoldScenarioEntry | null {
 }
 
 export function lineIdsFromLabels(labels: string[]): string[] {
-  const ids: string[] = [];
+  const ids = new Set<string>();
   for (const label of labels) {
     const line = QUOTE_LINES.find((l) => l.label === label);
-    if (line) ids.push(line.id);
+    if (line) ids.add(line.id);
   }
-  return ids;
+  // Structural defaults (vessel hire, delivery, decor, contingency) — required for WEOTT roll-up.
+  for (const line of QUOTE_LINES) {
+    if (line.defaultOn) ids.add(line.id);
+  }
+  return [...ids];
+}
+
+export function isGoldScenarioRef(ref?: string | null): boolean {
+  return Boolean(ref && GOLD_FINANCIAL_SCENARIOS[ref]);
+}
+
+/** Block generate when WEOTT must match sheet / gold North Star. */
+export function costApprovalBlocked(
+  parity: FinancialParityReport,
+  targets: SheetFinancialColumns | null,
+): boolean {
+  if (!targets?.weottCost) return false;
+  if (targets.source === 'gold_scenario' || targets.source === 'sheet_column') {
+    return !parity.ok;
+  }
+  return false;
 }
 
 export function clientTotalsFromWeott(weott: number, marginPercent: number) {

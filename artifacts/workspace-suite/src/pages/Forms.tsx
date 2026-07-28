@@ -48,12 +48,13 @@ import {
   PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
 import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
-import { financialParityReport } from '@/lib/financialParity';
+import { financialParityReport, costApprovalBlocked } from '@/lib/financialParity';
 import {
   resolveSheetFinancialTargets,
   rateEventDateFromLead,
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
+import { goldPackageWordingForRef } from '@/lib/goldPackageWording';
 import { toastError } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
 
@@ -1185,6 +1186,16 @@ export function Forms() {
       return;
     }
 
+    if (costApprovalBlocked(parity, sheetTargets)) {
+      setErrorMessage(
+        parity.hints[0] ||
+          'Financial cross-check failed — align WEOTT cost with Quote Sheet before generating.',
+      );
+      setStage('error');
+      setStep(7);
+      return;
+    }
+
     if (!data.templateId) {
       setErrorMessage('Select a proposal template in Proposal Pack before generating.');
       setStage('error');
@@ -1222,9 +1233,12 @@ export function Forms() {
       PROPOSAL_INSERTS,
     );
 
-    const packageWording = data.packageWordingNotes.trim()
-      ? { notes: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean) }
-      : {};
+    const goldWording = goldPackageWordingForRef(quoteLead?.referenceNumber);
+    const packageWording = goldWording
+      ? goldWording
+      : data.packageWordingNotes.trim()
+        ? { notes: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean) }
+        : {};
 
     const payload = buildStargtmPayload({
       form: financeInput,
@@ -1635,6 +1649,13 @@ export function Forms() {
                           for (const k of patch.prefilledKeys || []) next.add(k);
                           return next;
                         });
+                        if (patch.prefilledLineIds?.length) {
+                          setPrefilledLineIds((prev) => {
+                            const next = new Set(prev);
+                            for (const id of patch.prefilledLineIds || []) next.add(id);
+                            return next;
+                          });
+                        }
                         setData((prev) => ({
                           ...prev,
                           ...patch.data,
@@ -2300,7 +2321,7 @@ export function Forms() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (parity.blockApprove || (sheetTargets?.weottCost != null && !parity.ok)) {
+                    if (costApprovalBlocked(parity, sheetTargets)) {
                       setErrorMessage(
                         parity.hints[0] ||
                           'Financial cross-check failed — align WEOTT cost with Quote Sheet before approving.',
@@ -2312,11 +2333,11 @@ export function Forms() {
                     set('costApproved', !data.costApproved);
                   }}
                   data-testid="btn-approve-cost"
-                  disabled={Boolean(sheetTargets?.weottCost != null && !parity.ok)}
+                  disabled={costApprovalBlocked(parity, sheetTargets)}
                   className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors ${
                     data.costApproved
                       ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)]'
-                      : sheetTargets?.weottCost != null && !parity.ok
+                      : costApprovalBlocked(parity, sheetTargets)
                         ? 'cursor-not-allowed border border-amber-200 bg-amber-50/60 text-amber-900/80'
                         : 'border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40'
                   }`}
@@ -2619,7 +2640,7 @@ export function Forms() {
               <button
                 onClick={() => {
                   if (step === 7 && !data.costApproved) {
-                    if (sheetTargets?.weottCost != null && !parity.ok) {
+                    if (costApprovalBlocked(parity, sheetTargets)) {
                       setErrorMessage(
                         parity.hints[0] ||
                           'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',

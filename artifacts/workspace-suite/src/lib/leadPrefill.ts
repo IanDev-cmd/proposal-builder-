@@ -364,11 +364,13 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
   const bespoke = parseBespokeFromNotes(notes);
 
+  const goldEarly = goldTargetsFromRef(lead.referenceNumber);
+  const goldLabels = (goldEarly?.form?.costLineLabels as string[]) || [];
   const lineLabels = parseCostLineLabelsFromNotes(notes, quoteVersion);
   const inferredIds = lineIdsFromLabels(lineLabels);
-  const selectedLineIds = [
-    ...new Set([...defaultSelectedLineIds(menuType), ...inferredIds]),
-  ];
+  const selectedLineIds = goldLabels.length
+    ? lineIdsFromLabels(goldLabels)
+    : [...new Set([...defaultSelectedLineIds(menuType), ...inferredIds])];
 
   const bespokeLines = [...((init.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
   if (bespoke && bespokeLines[0]) {
@@ -525,6 +527,7 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
   quoteVersion: string,
 ): Partial<{ data: Partial<T>; prefilledKeys: string[]; prefilledLineIds: string[] }> {
   if (!lead) return {};
+  const goldEarly = goldTargetsFromRef(lead.referenceNumber);
   const notes = lead.progressNotes || '';
   const guestCount = parseGuestCount({
     groupSizeQuote: lead.groupSizeQuote,
@@ -567,5 +570,14 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
     patch.keyItems = keyItems;
     keys.push('keyItems');
   }
-  return { data: patch as Partial<T>, prefilledKeys: keys, prefilledLineIds: [] };
+  const merged = { ...current, ...patch } as T;
+  const prefilledKeys = new Set(keys);
+  const withGold = applyGoldScenarioPlaybook(lead.referenceNumber, merged, prefilledKeys);
+  return {
+    data: withGold as Partial<T>,
+    prefilledKeys: [...prefilledKeys],
+    prefilledLineIds: (goldEarly?.form?.costLineLabels as string[])?.length
+      ? lineIdsFromLabels(goldEarly!.form!.costLineLabels as string[])
+      : [],
+  };
 }
