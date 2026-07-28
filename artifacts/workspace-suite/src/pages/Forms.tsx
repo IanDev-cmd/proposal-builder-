@@ -44,6 +44,7 @@ import {
   PREFILL_INPUT_CLS,
   PREFILL_TOGGLE_CLS,
   PREFILL_CONFIRMED_CLS,
+  PREFILL_CONFIRMED_SURFACE,
   PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
 import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
@@ -1018,16 +1019,17 @@ export function Forms() {
     if (!templateId) return;
     setData((prev) => {
       if (prev.templateId === templateId) return prev;
+      setConfirmedKeys((c) => {
+        const next = new Set(c);
+        next.delete('templateId');
+        return next;
+      });
       return { ...prev, templateId, costApproved: false };
     });
     setPrefilledKeys((prev) => {
+      if (prev.has('templateId')) return prev;
       const next = new Set(prev);
       next.add('templateId');
-      return next;
-    });
-    setConfirmedKeys((prev) => {
-      const next = new Set(prev);
-      next.delete('templateId');
       return next;
     });
   }, [templateResolution]);
@@ -1568,7 +1570,7 @@ export function Forms() {
                 <p className={sectionLabelCls}>Your Event Details</p>
                 {hasSheetPrefill ? (
                   <p className="mb-4 rounded-[10px] border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-[12px] text-blue-900">
-                    <span className="font-semibold">Blue fields</span> were auto-filled from Enquiry / Sheets — click to confirm (glow outline), or edit any time.
+                    <span className="font-semibold">Blue fields</span> were auto-filled from Enquiry / Sheets — click to confirm (green glow), or edit any time.
                   </p>
                 ) : null}
 
@@ -2222,42 +2224,25 @@ export function Forms() {
                 </p>
 
                 {sheetTargets?.weottCost != null ? (
-                  <div
-                    className={`mb-6 overflow-hidden rounded-[12px] border ${
-                      parity.ok ? 'border-[#00e676]/40 bg-[#f0fdf5]' : 'border-amber-300 bg-amber-50'
-                    }`}
-                  >
-                    <div className="border-b border-inherit px-5 py-3 text-[12px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">
+                  <div className="mb-6 overflow-hidden rounded-[12px] border border-amber-200 bg-amber-50/50">
+                    <div className="border-b border-amber-200/80 px-5 py-3 text-[12px] font-bold uppercase tracking-[0.08em] text-amber-900/70">
                       Quote Sheet cross-check
                     </div>
                     {parity.rows.map((row) => (
                       <div
                         key={row.label}
-                        className="flex items-center justify-between border-b border-inherit px-5 py-2.5 text-[12.5px] last:border-b-0"
+                        className="flex items-center justify-between border-b border-amber-100 px-5 py-2.5 text-[12.5px] last:border-b-0"
                       >
-                        <span className="flex items-center gap-2 text-gray-700">
-                          {row.ok ? (
-                            <Check className="h-3.5 w-3.5 text-[#00e676]" strokeWidth={3} />
-                          ) : (
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                          )}
-                          {row.label}
-                        </span>
+                        <span className="text-gray-700">{row.label}</span>
                         <span className="text-right">
                           <span className="block font-semibold text-gray-800">£{row.actual.toFixed(2)}</span>
                           {row.expected != null ? (
-                            <span className={`text-[11px] ${row.ok ? 'text-gray-400' : 'text-amber-800'}`}>
+                            <span className="text-[11px] text-amber-800/75">
                               target £{row.expected.toFixed(2)}
-                              {row.delta != null && !row.ok ? ` (Δ £${Math.abs(row.delta).toFixed(2)})` : ''}
                             </span>
                           ) : null}
                         </span>
                       </div>
-                    ))}
-                    {parity.hints.map((h) => (
-                      <p key={h} className="px-5 py-2 text-[11.5px] text-amber-900">
-                        {h}
-                      </p>
                     ))}
                   </div>
                 ) : null}
@@ -2332,7 +2317,7 @@ export function Forms() {
                     data.costApproved
                       ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)]'
                       : sheetTargets?.weottCost != null && !parity.ok
-                        ? 'cursor-not-allowed border border-amber-300 bg-amber-50 text-amber-900'
+                        ? 'cursor-not-allowed border border-amber-200 bg-amber-50/60 text-amber-900/80'
                         : 'border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40'
                   }`}
                 >
@@ -2396,7 +2381,7 @@ export function Forms() {
                 <p className={sectionLabelCls}>Proposal Template</p>
                 <div className="mb-7">
                   <p className="mb-3 text-[11.5px] text-gray-400">
-                    {templateCatalog.count} templates indexed for {data.proposalCategory} — blue glow = auto-selected from enquiry data; click to confirm (coral glow).
+                    {templateCatalog.count} templates indexed for {data.proposalCategory} — blue glow = auto-selected; click to confirm (green glow).
                   </p>
                   {prefilledKeys.has('templateId') && templateResolution.templateId && !confirmedKeys.has('templateId') ? (
                     <p className="mb-3 rounded-[8px] border border-blue-200 bg-blue-50/80 px-3 py-2 text-[11.5px] text-blue-800">
@@ -2420,18 +2405,20 @@ export function Forms() {
                           key={t.id}
                           type="button"
                           onClick={() => {
-                            if (selected) {
+                            if (selected && prefilled && !confirmed) {
                               confirmKey('templateId');
-                            } else {
-                              templateManualRef.current = true;
-                              clearPrefill('templateId');
-                              setData((prev) => ({ ...prev, templateId: t.id, costApproved: false }));
+                              return;
                             }
+                            if (selected && confirmed) return;
+                            if (selected && !prefilled) return;
+                            templateManualRef.current = true;
+                            clearPrefill('templateId');
+                            setData((prev) => ({ ...prev, templateId: t.id, costApproved: false }));
                           }}
                           className={`flex w-full items-center justify-between rounded-[10px] border px-4 py-3.5 text-left text-[13px] transition-all ${
                             selected
-                              ? confirmed
-                                ? `border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12] ${PREFILL_CONFIRMED_CLS}`
+                              ? confirmed && prefilled
+                                ? `${PREFILL_CONFIRMED_SURFACE} ${PREFILL_CONFIRMED_CLS}`
                                 : prefilled
                                   ? `border-blue-400 bg-blue-50/80 font-semibold text-blue-900 ${PREFILL_BLUE_GLOW_CLS}`
                                   : 'border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12]'
@@ -2439,9 +2426,9 @@ export function Forms() {
                           }`}
                         >
                           <span>{templateLabel(t)}</span>
-                          {selected && confirmed ? (
-                            <Check className="h-4 w-4 shrink-0 text-[#FF5A45]" strokeWidth={3} />
-                          ) : prefilled ? (
+                          {selected && confirmed && prefilled ? (
+                            <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                          ) : prefilled && selected && !confirmed ? (
                             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Confirm</span>
                           ) : null}
                         </button>
@@ -2482,7 +2469,7 @@ export function Forms() {
                   className={`mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${
                     prefilledKeys.has('requiresInserts') && data.requiresInserts
                       ? confirmedKeys.has('requiresInserts')
-                        ? PREFILL_CONFIRMED_CLS
+                        ? `${PREFILL_CONFIRMED_SURFACE} ${PREFILL_CONFIRMED_CLS}`
                         : PREFILL_BLUE_GLOW_CLS
                       : ''
                   }`}
@@ -2508,7 +2495,9 @@ export function Forms() {
                           data.requiresInserts === yes
                             ? prefilledKeys.has('requiresInserts') && yes && !confirmedKeys.has('requiresInserts')
                               ? 'bg-blue-500 text-white ring-2 ring-blue-300'
-                              : 'bg-[#FF5A45] text-white'
+                              : prefilledKeys.has('requiresInserts') && yes && confirmedKeys.has('requiresInserts')
+                                ? 'bg-emerald-500 text-white ring-2 ring-emerald-300'
+                                : 'bg-[#FF5A45] text-white'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}
                       >
@@ -2533,13 +2522,13 @@ export function Forms() {
                           onClick={() => confirmInsert(id)}
                           className={`flex w-full items-center justify-between rounded-[10px] border px-4 py-3 text-left text-[12.5px] transition-all ${
                             confirmed
-                              ? `border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12] ${PREFILL_CONFIRMED_CLS}`
+                              ? `${PREFILL_CONFIRMED_SURFACE} ${PREFILL_CONFIRMED_CLS}`
                               : `border-blue-400 bg-blue-50/80 text-blue-900 ${PREFILL_BLUE_GLOW_CLS}`
                           }`}
                         >
                           <span className="truncate">{item?.label || id}</span>
                           {confirmed ? (
-                            <Check className="h-4 w-4 shrink-0" strokeWidth={3} />
+                            <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
                           ) : (
                             <span className="text-[10px] font-bold uppercase text-blue-600">Confirm</span>
                           )}
@@ -3115,9 +3104,9 @@ export function Forms() {
                               className={`mb-1 flex w-full items-start gap-3 rounded-[10px] px-3 py-2.5 text-left transition-all ${
                                 on
                                   ? confirmed
-                                    ? `bg-[#FFF1F0] ${PREFILL_CONFIRMED_CLS}`
+                                    ? `bg-emerald-50/90 ${PREFILL_CONFIRMED_CLS}`
                                     : suggested
-                                      ? `bg-blue-50/80 ${PREFILL_INPUT_CLS}`
+                                      ? `bg-blue-50/80 ${PREFILL_BLUE_GLOW_CLS}`
                                       : 'bg-[#FFF1F0]'
                                   : 'hover:bg-gray-50'
                               }`}
