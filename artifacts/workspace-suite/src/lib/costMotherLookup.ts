@@ -28,6 +28,7 @@ type RateIndex = Map<string, Map<string, number>>; // label → key → rate
 let liveOverlay: CostMotherBundle | null = null;
 let indexCache: RateIndex | null = null;
 let indexSource: string | null = null;
+let bundledIndexCache: RateIndex | null = null;
 
 function normalizeLabel(s: string): string {
   return s
@@ -51,14 +52,33 @@ function buildIndex(bundle: CostMotherBundle): RateIndex {
   return idx;
 }
 
+function getBundledIndex(): RateIndex {
+  if (!bundledIndexCache) bundledIndexCache = buildIndex(bundled as CostMotherBundle);
+  return bundledIndexCache;
+}
+
 function activeBundle(): CostMotherBundle {
   return liveOverlay || (bundled as CostMotherBundle);
 }
 
+/** Bundled snapshot + live overlay (live wins per label/key; bundled fills gaps). */
 function getIndex(): RateIndex {
-  const src = liveOverlay ? 'live' : 'bundled';
+  const src = liveOverlay ? 'merged' : 'bundled';
   if (!indexCache || indexSource !== src) {
-    indexCache = buildIndex(activeBundle());
+    indexCache = new Map();
+    for (const [label, map] of getBundledIndex()) {
+      indexCache.set(label, new Map(map));
+    }
+    if (liveOverlay) {
+      const liveIdx = buildIndex(liveOverlay);
+      for (const [label, liveMap] of liveIdx.entries()) {
+        const baseMap = new Map(indexCache.get(label) || []);
+        for (const [k, v] of liveMap.entries()) {
+          if (Number.isFinite(v)) baseMap.set(k, v);
+        }
+        indexCache.set(label, baseMap);
+      }
+    }
     indexSource = src;
   }
   return indexCache;
@@ -71,12 +91,13 @@ export function setLiveCostMotherRates(bundle: CostMotherBundle | null): void {
   indexSource = null;
 }
 
-export function getCostMotherMeta(): { source: string; itemCount: number; live: boolean } {
+export function getCostMotherMeta(): { source: string; itemCount: number; live: boolean; merged: boolean } {
   const b = activeBundle();
   return {
     source: b.source || 'Cost Mother',
-    itemCount: b.items?.length || 0,
+    itemCount: getIndex().size,
     live: Boolean(liveOverlay),
+    merged: Boolean(liveOverlay),
   };
 }
 
@@ -128,8 +149,7 @@ export function inferGroupBracket(guests: number, costMotherVessel: string | nul
   return 'Standard';
 }
 
-function findRateMap(label: string): Map<string, number> | null {
-  const idx = getIndex();
+function findRateMap(label: string, idx: RateIndex = getIndex()): Map<string, number> | null {
   if (idx.has(label)) return idx.get(label)!;
   const n = normalizeLabel(label);
   if (idx.has(n)) return idx.get(n)!;
@@ -140,21 +160,16 @@ function findRateMap(label: string): Map<string, number> | null {
   return null;
 }
 
-/**
- * Look up unit cost for a Cost Mother line under vessel/period/day/group.
- * Falls back across nearby weekly/group keys when exact match missing.
- */
-export function lookupUnitRate(
+function lookupInMap(
+  map: Map<string, number> | null,
   label: string,
   parts: RateKeyParts,
 ): { rate: number | null; keyUsed: string | null; note?: string } {
-  const map = findRateMap(label);
   if (!map || !map.size) return { rate: null, keyUsed: null, note: `No Cost Mother row for "${label}"` };
 
   const exact = makeRateKey(parts);
   if (map.has(exact)) return { rate: map.get(exact)!, keyUsed: exact };
 
-  // Fallbacks: Standard group, alternate weekly labels, any matching vessel+day
   const candidates: string[] = [];
   const weeklyAlts =
     parts.weeklyPeriod === 'Fri to Sun'
@@ -179,12 +194,29 @@ export function lookupUnitRate(
     }
   }
 
-  // Do not invent a rate from an unrelated vessel/period — surface the miss.
   return {
     rate: null,
     keyUsed: null,
     note: `No Cost Mother rate for ${label} @ ${exact}`,
   };
+}
+
+/**
+ * Look up unit cost for a Cost Mother line under vessel/period/day/group.
+ * Falls back across nearby weekly/group keys when exact match missing.
+ */
+export function lookupUnitRate(
+  label: string,
+  parts: RateKeyParts,
+): { rate: number | null; keyUsed: string | null; note?: string } {
+  const primary = lookupInMap(findRateMap(label), label, parts);
+  if (primary.rate != null || !liveOverlay) return primary;
+
+  const bundled = lookupInMap(findRateMap(label, getBundledIndex()), label, parts);
+  if (bundled.rate != null) {
+    return { ...bundled, note: `Bundled fallback${bundled.note ? `: ${bundled.note}` : ''}` };
+  }
+  return primary;
 }
 
 export function buildRateParts(opts: {

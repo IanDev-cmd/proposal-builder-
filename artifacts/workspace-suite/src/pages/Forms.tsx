@@ -1115,7 +1115,9 @@ export function Forms() {
         const v = r.counts?.vesselRates ?? r.vesselRates?.length ?? 0;
         setRatesNote(
           meta.live
-            ? `Live Cost Mother linked (${meta.itemCount} lines · ${v} vessel comparison rows).`
+            ? meta.merged
+              ? `Live Cost Mother linked with bundled fallback (${meta.itemCount} rate maps).`
+              : `Live Cost Mother linked (${meta.itemCount} lines · ${v} vessel comparison rows).`
             : n || v
               ? `Sheets rates reachable (${v} vessel · ${n} rows). Using bundled Cost Mother snapshot until Assemble Rates returns structured items.`
               : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
