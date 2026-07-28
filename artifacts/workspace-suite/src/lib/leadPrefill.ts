@@ -9,6 +9,14 @@ import { REPEAT_CLIENT_MARGIN, NEW_CLIENT_MARGIN } from '@/lib/quoteFinance';
 import type { QuoteLead } from '@/lib/quoteLeadStore';
 import { parseGuestCount } from '@/lib/parseGuestCount';
 import { resolveProposalPack } from '@/lib/proposalPrefill';
+import {
+  parseProgressNotesFinance,
+  rateEventDateFromLead,
+  resolveSheetFinancialTargets,
+  versionBlock,
+} from '@/lib/progressNotesFinance';
+import { applyGoldScenarioPlaybook, goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
+import { buildRateParts } from '@/lib/costMotherLookup';
 
 export const PREFILL_INPUT_CLS =
   'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
@@ -202,10 +210,11 @@ function inferDepartureReturn(embark: string, disembark: string): { departure: s
   return { departure: fromMin(e + 30), returnTime: fromMin(d - 30) };
 }
 
-function parseMenusFromNotes(notes: string): string[] {
+function parseMenusFromNotes(notes: string, quoteVersion?: string): string[] {
+  const scope = quoteVersion ? versionBlock(notes, quoteVersion) : notes;
   const found = new Set<string>();
   for (const { re, menu } of MENU_CODE_RULES) {
-    if (re.test(notes) && MENU_TYPES.includes(menu)) found.add(menu);
+    if (re.test(scope) && MENU_TYPES.includes(menu)) found.add(menu);
   }
   return [...found];
 }
@@ -219,10 +228,11 @@ function lineIdsFromLabels(labels: string[]): string[] {
   return ids;
 }
 
-function parseCostLineLabelsFromNotes(notes: string): string[] {
+function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): string[] {
+  const scope = quoteVersion ? versionBlock(notes, quoteVersion) : notes;
   const labels = new Set<string>();
   for (const { re, label } of NOTE_LINE_RULES) {
-    if (re.test(notes)) labels.add(label);
+    if (re.test(scope)) labels.add(label);
   }
   return [...labels];
 }
@@ -344,11 +354,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const agentReferral = inferAgentReferral(lead, notes);
   const marginPercent = inferMarginPercent(repeatClient, eventType, eventDate, lead.market, notes);
   const commissionPercent = inferCommissionPercent(agentReferral, notes);
-  const menuType = parseMenusFromNotes(notes);
+  const menuType = parseMenusFromNotes(notes, quoteVersion);
   const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
   const bespoke = parseBespokeFromNotes(notes);
 
-  const lineLabels = parseCostLineLabelsFromNotes(notes);
+  const lineLabels = parseCostLineLabelsFromNotes(notes, quoteVersion);
   const inferredIds = lineIdsFromLabels(lineLabels);
   const selectedLineIds = [
     ...new Set([...defaultSelectedLineIds(menuType), ...inferredIds]),
@@ -360,6 +370,58 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   }
 
   const proposalCategory = wedding ? 'wedding' : 'corporate';
+  const rateDate = rateEventDateFromLead(lead, eventDate, flex);
+  const guestsN = parseFloat(guestCount) || 0;
+
+  const noteFinance = parseProgressNotesFinance(notes, {
+    quoteVersion,
+    vesselUi: vesselType[0],
+    eventDate: rateDate,
+    dateFlexible: flex && !rateDate,
+    embarkation,
+    guests: guestsN,
+  });
+
+  const gold = goldTargetsFromRef(lead.referenceNumber);
+  const sheetTargets = resolveSheetFinancialTargets(
+    lead,
+    {
+      quoteVersion,
+      vesselUi: vesselType[0],
+      eventDate: rateDate,
+      dateFlexible: flex && !rateDate,
+      embarkation,
+      guests: guestsN,
+    },
+    gold
+      ? {
+          weottCost: gold.goldQuoteWeottCost,
+          marginPercent: gold.marginPercent,
+          weeklyPeriod: String(gold.form.weeklyPeriod || ''),
+          dayPeriod: String(gold.form.dayPeriod || ''),
+          groupBracket: String(gold.form.groupBracket || ''),
+          source: 'gold_scenario',
+        }
+      : null,
+  );
+
+  const rateParts = vesselType[0]
+    ? buildRateParts({
+        vesselUi: vesselType[0],
+        weeklyPeriod: sheetTargets?.weeklyPeriod || noteFinance.weeklyPeriod,
+        dayPeriod: sheetTargets?.dayPeriod || noteFinance.dayPeriod,
+        groupBracket: sheetTargets?.groupBracket || noteFinance.groupBracket,
+        eventDate: rateDate,
+        dateFlexible: flex && !rateDate,
+        embarkation,
+        guests: guestsN,
+      })
+    : null;
+
+  const weeklyPeriod = sheetTargets?.weeklyPeriod || rateParts?.weeklyPeriod || '';
+  const dayPeriod = sheetTargets?.dayPeriod || rateParts?.dayPeriod || '';
+  const groupBracket = sheetTargets?.groupBracket || rateParts?.groupBracket || '';
+
   const pack = resolveProposalPack({
     category: proposalCategory as 'corporate' | 'wedding',
     eventType: eventType || lead.eventType || '',
@@ -398,9 +460,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     budget: lead.budget || '',
     proposalCategory,
     noOfTables: inferTables(guestCount),
-    weeklyPeriod: '',
-    dayPeriod: '',
-    groupBracket: '',
+    weeklyPeriod,
+    dayPeriod,
+    groupBracket,
     templateId: pack.templateId || String(init.templateId || ''),
     requiresInserts: pack.requiresInserts,
     selectedInserts: pack.selectedInserts.length ? pack.selectedInserts : (init.selectedInserts as string[]) || [],
@@ -430,6 +492,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (notes) prefilledKeys.add('progressNotes');
   if (lead.budget) prefilledKeys.add('budget');
   if (inferTables(guestCount)) prefilledKeys.add('noOfTables');
+  if (weeklyPeriod) prefilledKeys.add('weeklyPeriod');
+  if (dayPeriod) prefilledKeys.add('dayPeriod');
+  if (groupBracket) prefilledKeys.add('groupBracket');
   prefilledKeys.add('proposalCategory');
   if (pack.templateId) prefilledKeys.add('templateId');
   if (pack.requiresInserts) prefilledKeys.add('requiresInserts');
@@ -438,7 +503,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   for (const id of inferredIds) prefilledLineIds.add(id);
   if (bespoke) prefilledKeys.add('bespokeLines');
 
-  return { data, prefilledKeys, prefilledLineIds };
+  const withGold = applyGoldScenarioPlaybook(lead.referenceNumber, data, prefilledKeys);
+
+  return { data: withGold, prefilledKeys, prefilledLineIds };
 }
 
 /** Re-infer version-sensitive fields when REP changes quote version. */

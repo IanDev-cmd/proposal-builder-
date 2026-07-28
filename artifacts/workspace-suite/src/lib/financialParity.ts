@@ -1,0 +1,215 @@
+/**
+ * Financial parity — UI calc vs Quote Sheet / progress-notes / gold scenarios.
+ */
+import goldScenarios from '@/lib/assets/goldFinancialScenarios.json';
+import { QUOTE_LINES } from '@/lib/quoteBuilderCatalog';
+import {
+  calcFinancials,
+  money,
+  VAT_RATE,
+  type QuoteFormInput,
+} from '@/lib/quoteFinance';
+import type { SheetFinancialColumns } from '@/lib/progressNotesFinance';
+
+export const FINANCIAL_TOLERANCE = 0.02;
+
+export type GoldScenarioEntry = {
+  label: string;
+  goldQuoteWeottCost: number;
+  marginPercent: number;
+  form: Record<string, unknown>;
+};
+
+export const GOLD_FINANCIAL_SCENARIOS = goldScenarios as Record<string, GoldScenarioEntry>;
+
+export function goldScenarioForRef(ref?: string): GoldScenarioEntry | null {
+  if (!ref) return null;
+  return GOLD_FINANCIAL_SCENARIOS[ref] || null;
+}
+
+export function lineIdsFromLabels(labels: string[]): string[] {
+  const ids: string[] = [];
+  for (const label of labels) {
+    const line = QUOTE_LINES.find((l) => l.label === label);
+    if (line) ids.push(line.id);
+  }
+  return ids;
+}
+
+export function clientTotalsFromWeott(weott: number, marginPercent: number) {
+  const margin = marginPercent / 100;
+  const packageCost = money(weott * (1 + margin));
+  const vat = money(packageCost * VAT_RATE);
+  const grand = money(packageCost + vat);
+  return { weott, packageCost, vat, grand, marginPercent };
+}
+
+export type ParityRow = {
+  label: string;
+  expected?: number;
+  actual: number;
+  delta?: number;
+  ok: boolean;
+  source?: string;
+};
+
+export type FinancialParityReport = {
+  ok: boolean;
+  blockApprove: boolean;
+  rows: ParityRow[];
+  hints: string[];
+};
+
+export function financialParityReport(
+  fin: ReturnType<typeof calcFinancials>,
+  targets: SheetFinancialColumns | null,
+  tolerance = FINANCIAL_TOLERANCE,
+): FinancialParityReport {
+  const rows: ParityRow[] = [];
+  const hints: string[] = [];
+
+  const push = (label: string, expected: number | undefined, actual: number, source?: string) => {
+    if (expected == null) return;
+    const delta = money(actual - expected);
+    rows.push({
+      label,
+      expected,
+      actual,
+      delta,
+      ok: Math.abs(delta) <= tolerance,
+      source,
+    });
+  };
+
+  push('WEOTT total cost', targets?.weottCost, fin.baseCost, targets?.source);
+  push(
+    'Cost to client (exc VAT)',
+    targets?.packageCost,
+    fin.costToClient,
+    targets?.packageCost != null ? targets.source : undefined,
+  );
+
+  if (targets?.weottCost != null && targets.marginPercent != null) {
+    const derived = clientTotalsFromWeott(targets.weottCost, targets.marginPercent);
+    push('Package (sheet WEOTT × margin)', derived.packageCost, fin.costToClient, 'derived');
+    push('VAT (20%)', derived.vat, fin.vat, 'derived');
+    push('Grand total', derived.grand, fin.grand, 'derived');
+  } else if (targets?.weottCost != null) {
+    const marginPct = fin.margin * 100;
+    const derived = clientTotalsFromWeott(targets.weottCost, marginPct);
+    push('VAT (20%)', derived.vat, fin.vat, 'derived');
+    push('Grand total', derived.grand, fin.grand, 'derived');
+  }
+
+  const weottRow = rows.find((r) => r.label === 'WEOTT total cost');
+  const blockApprove =
+    targets?.weottCost != null &&
+    weottRow != null &&
+    !weottRow.ok &&
+    (targets.source === 'sheet_column' || targets.source === 'gold_scenario');
+
+  if (weottRow && !weottRow.ok) {
+    hints.push(
+      `WEOTT mismatch £${Math.abs(weottRow.delta || 0).toFixed(2)} — check vessel rate key (weekly/day/group), cost lines, and bespoke.`,
+    );
+  }
+
+  const ok = rows.length === 0 || rows.every((r) => r.ok);
+  return { ok, blockApprove, rows, hints };
+}
+
+/** Build QuoteFormInput from embedded gold playbook (self-check / demo). */
+export function quoteFormFromGoldScenario(ref: string): QuoteFormInput | null {
+  const g = goldScenarioForRef(ref);
+  if (!g?.form) return null;
+  const f = g.form;
+  const labels = (f.costLineLabels as string[]) || [];
+  const bespokeAmount = f.bespokeAmount as number | undefined;
+  return {
+    vesselType: (f.vesselType as string[]) || [],
+    eventType: String(f.eventType || ''),
+    eventDate: String(f.eventDate || ''),
+    dateFlexible: Boolean(f.dateFlexible),
+    guestCount: String(f.guestCount || ''),
+    guestCountHigh: String(f.guestCountHigh || f.guestCount || ''),
+    embarkation: String(f.embarkation || '10:00'),
+    departure: String(f.departure || '12:00'),
+    returnTime: String(f.returnTime || '17:00'),
+    disembarkation: String(f.disembarkation || '18:00'),
+    menuType: (f.menuType as string[]) || [],
+    repeatClient: Boolean(f.repeatClient),
+    totalCost: '',
+    selectedUpgrades: [],
+    agentReferral: Boolean(f.agentReferral),
+    marginOverride:
+      f.marginPercent != null && String(f.marginPercent).trim() !== ''
+        ? Number(f.marginPercent) / 100
+        : null,
+    weeklyPeriod: String(f.weeklyPeriod || ''),
+    dayPeriod: String(f.dayPeriod || ''),
+    groupBracket: String(f.groupBracket || ''),
+    noOfTables: String(f.noOfTables || ''),
+    selectedLineIds: lineIdsFromLabels(labels),
+    bespokeLines: bespokeAmount
+      ? [
+          { id: 'bespoke_1', label: String(f.bespokeLabel || 'Bespoke'), amount: bespokeAmount, enabled: true },
+          { id: 'bespoke_2', label: 'Bespoke (2)', amount: 0, enabled: false },
+          { id: 'bespoke_3', label: 'Bespoke (3)', amount: 0, enabled: false },
+          { id: 'bespoke_4', label: 'Bespoke (4)', amount: 0, enabled: false },
+        ]
+      : [
+          { id: 'bespoke_1', label: 'Bespoke (1)', amount: 0, enabled: false },
+          { id: 'bespoke_2', label: 'Bespoke (2)', amount: 0, enabled: false },
+          { id: 'bespoke_3', label: 'Bespoke (3)', amount: 0, enabled: false },
+          { id: 'bespoke_4', label: 'Bespoke (4)', amount: 0, enabled: false },
+        ],
+    discountPercent: String(f.discountPercent || ''),
+    commissionPercent: String(f.commissionPercent ?? ''),
+  };
+}
+
+export type GoldVerifyResult = {
+  id: string;
+  label: string;
+  expectedWeott: number;
+  actualWeott: number;
+  delta: number;
+  ok: boolean;
+  expectedGrand: number;
+  actualGrand: number;
+  grandOk: boolean;
+};
+
+/** Run all gold scenarios against Cost Mother calc (CI / dev script). */
+export function verifyAllGoldFinancials(): GoldVerifyResult[] {
+  return Object.entries(GOLD_FINANCIAL_SCENARIOS).map(([id, sc]) => {
+    const form = quoteFormFromGoldScenario(id);
+    if (!form) {
+      return {
+        id,
+        label: sc.label,
+        expectedWeott: sc.goldQuoteWeottCost,
+        actualWeott: 0,
+        delta: sc.goldQuoteWeottCost,
+        ok: false,
+        expectedGrand: 0,
+        actualGrand: 0,
+        grandOk: false,
+      };
+    }
+    const fin = calcFinancials(form);
+    const delta = money(fin.baseCost - sc.goldQuoteWeottCost);
+    const derived = clientTotalsFromWeott(sc.goldQuoteWeottCost, sc.marginPercent);
+    return {
+      id,
+      label: sc.label,
+      expectedWeott: sc.goldQuoteWeottCost,
+      actualWeott: fin.baseCost,
+      delta,
+      ok: Math.abs(delta) <= FINANCIAL_TOLERANCE,
+      expectedGrand: derived.grand,
+      actualGrand: fin.grand,
+      grandOk: Math.abs(fin.grand - derived.grand) <= FINANCIAL_TOLERANCE,
+    };
+  });
+}

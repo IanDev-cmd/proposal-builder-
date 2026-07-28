@@ -71,6 +71,12 @@ export type Lead = {
   bestTimeToCall?: string;
   yearOfEvent?: string;
   progressNotes?: string;
+  quoteWeottCost?: number | string;
+  quotePackageCost?: number | string;
+  quoteMarginPercent?: number | string;
+  quoteWeeklyPeriod?: string;
+  quoteDayPeriod?: string;
+  quoteGroupBracket?: string;
   /** Full n8n Structure all Leads1 alias bag — SoT for QuoteBuilder nexusLead. */
   sapphire?: N8nSapphireLead;
 };
@@ -564,6 +570,12 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
       bestTimeToCall: lead.bestTimeToCall,
       yearOfEvent: lead.yearOfEvent,
       progressNotes: lead.progressNotes,
+      quoteWeottCost: lead.quoteWeottCost,
+      quotePackageCost: lead.quotePackageCost,
+      quoteMarginPercent: lead.quoteMarginPercent,
+      quoteWeeklyPeriod: lead.quoteWeeklyPeriod,
+      quoteDayPeriod: lead.quoteDayPeriod,
+      quoteGroupBracket: lead.quoteGroupBracket,
       sapphire: lead.sapphire,
     });
     soundClick();

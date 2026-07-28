@@ -33,6 +33,12 @@ export const N8N_LEAD_ALIASES = [
   'bestTimeToCall',
   'yearOfEvent',
   'progressNotes', // derived — Progress 1…N concat
+  'quoteWeottCost',
+  'quotePackageCost',
+  'quoteMarginPercent',
+  'quoteWeeklyPeriod',
+  'quoteDayPeriod',
+  'quoteGroupBracket',
 ] as const;
 
 export type N8nLeadAlias = (typeof N8N_LEAD_ALIASES)[number];

@@ -33,6 +33,11 @@ export const DEMO_LEAD_ROWS: Record<string, unknown>[] = [
     eventDateDisplay: 'Date TBC',
     progressNotes:
       'DEMO gold scenario WE.18900 Christmas V4 — Avontuur. Match cost lines from Quote Sheet notes before Generate.',
+    quoteWeottCost: 12278.64,
+    quoteMarginPercent: 25,
+    quoteWeeklyPeriod: 'Mon to Thur',
+    quoteDayPeriod: 'Evening',
+    quoteGroupBracket: 'Standard',
   },
   {
     id: 18759,
@@ -64,6 +69,11 @@ export const DEMO_LEAD_ROWS: Record<string, unknown>[] = [
     eventDateDisplay: 'Thursday 23rd July 2026',
     progressNotes:
       'DEMO gold scenario WE.18759 Summer V2 — 70 guests, substantial canapés. Use quote version V2.',
+    quoteWeottCost: 8900.1,
+    quoteMarginPercent: 25,
+    quoteWeeklyPeriod: 'Mon to Thur',
+    quoteDayPeriod: 'Daytime',
+    quoteGroupBracket: 'Standard',
   },
   {
     id: 18937,
@@ -95,6 +105,11 @@ export const DEMO_LEAD_ROWS: Record<string, unknown>[] = [
     eventDateDisplay: 'Date TBC',
     progressNotes:
       'DEMO gold scenario WE.18937 Wedding Transfer V2 — agent, no commission.',
+    quoteWeottCost: 10462.17,
+    quoteMarginPercent: 20,
+    quoteWeeklyPeriod: 'Mon to Thur',
+    quoteDayPeriod: 'Daytime',
+    quoteGroupBracket: 'Standard',
   },
   {
     id: 18931,
@@ -126,5 +141,10 @@ export const DEMO_LEAD_ROWS: Record<string, unknown>[] = [
     eventDateDisplay: 'Date TBC',
     progressNotes:
       'DEMO gold scenario WE.18931 Team Building V2 — Rose evening or Elizabethan daytime.',
+    quoteWeottCost: 18982.51,
+    quoteMarginPercent: 25,
+    quoteWeeklyPeriod: 'Mon to Thur',
+    quoteDayPeriod: 'Daytime',
+    quoteGroupBracket: 'Standard',
   },
 ];

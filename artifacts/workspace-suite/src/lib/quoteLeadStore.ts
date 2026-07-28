@@ -42,6 +42,13 @@ export type QuoteLead = {
   yearOfEvent?: string;
   /** Concatenated Progress 1…N */
   progressNotes?: string;
+  /** Optional Quote Sheet columns (future n8n) — authoritative for financial cross-check */
+  quoteWeottCost?: number | string;
+  quotePackageCost?: number | string;
+  quoteMarginPercent?: number | string;
+  quoteWeeklyPeriod?: string;
+  quoteDayPeriod?: string;
+  quoteGroupBracket?: string;
   /** Full n8n alias bag — pass through as nexusLead without re-mapping. */
   sapphire?: import('@/lib/sapphireLead').N8nSapphireLead;
 };

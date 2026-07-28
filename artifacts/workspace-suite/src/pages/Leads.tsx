@@ -109,6 +109,12 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
     bestTimeToCall: aliasFirst(raw, 'bestTimeToCall', 'Best time to call') || undefined,
     yearOfEvent: aliasFirst(raw, 'yearOfEvent', 'Year of Event') || undefined,
     progressNotes: aliasFirst(raw, 'progressNotes') || undefined,
+    quoteWeottCost: raw.quoteWeottCost as number | string | undefined,
+    quotePackageCost: raw.quotePackageCost as number | string | undefined,
+    quoteMarginPercent: raw.quoteMarginPercent as number | string | undefined,
+    quoteWeeklyPeriod: aliasFirst(raw, 'quoteWeeklyPeriod', 'Weekly Period') || undefined,
+    quoteDayPeriod: aliasFirst(raw, 'quoteDayPeriod', 'Day Period') || undefined,
+    quoteGroupBracket: aliasFirst(raw, 'quoteGroupBracket', 'Group Bracket') || undefined,
     sapphire: toNexusLeadPayload(raw),
   };
 }

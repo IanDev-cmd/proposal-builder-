@@ -46,6 +46,12 @@ import {
   PREFILL_CONFIRMED_CLS,
 } from '@/lib/leadPrefill';
 import { indexProposalTemplates, indexProposalInserts } from '@/lib/proposalPrefill';
+import { financialParityReport } from '@/lib/financialParity';
+import {
+  resolveSheetFinancialTargets,
+  rateEventDateFromLead,
+} from '@/lib/progressNotesFinance';
+import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -919,6 +925,43 @@ export function Forms() {
   const fin = calcFinancials(financeInput);
   const baseCostBreakdown = calcBaseCostBreakdown(data);
 
+  const sheetTargets = useMemo(() => {
+    if (!quoteLead) return null;
+    const rateDate = rateEventDateFromLead(quoteLead, data.eventDate, Boolean(data.dateFlexible));
+    const gold = goldTargetsFromRef(quoteLead.referenceNumber);
+    return resolveSheetFinancialTargets(
+      quoteLead,
+      {
+        quoteVersion: data.quoteVersion,
+        vesselUi: data.vesselType[0],
+        eventDate: rateDate,
+        dateFlexible: data.dateFlexible,
+        embarkation: data.embarkation,
+        guests: parseFloat(data.guestCount) || 0,
+      },
+      gold
+        ? {
+            weottCost: gold.goldQuoteWeottCost,
+            marginPercent: gold.marginPercent,
+            weeklyPeriod: String(gold.form.weeklyPeriod || ''),
+            dayPeriod: String(gold.form.dayPeriod || ''),
+            groupBracket: String(gold.form.groupBracket || ''),
+            source: 'gold_scenario',
+          }
+        : null,
+    );
+  }, [
+    quoteLead,
+    data.eventDate,
+    data.dateFlexible,
+    data.quoteVersion,
+    data.vesselType,
+    data.embarkation,
+    data.guestCount,
+  ]);
+
+  const parity = useMemo(() => financialParityReport(fin, sheetTargets), [fin, sheetTargets]);
+
   const availableTemplates = useMemo(
     () => templatesForCategory(data.proposalCategory),
     [data.proposalCategory],
@@ -1517,7 +1560,7 @@ export function Forms() {
                     <select
                       value={data.weeklyPeriod}
                       onChange={(e) => set('weeklyPeriod', e.target.value)}
-                      className={inputCls}
+                      className={fieldCls('weeklyPeriod')}
                     >
                       <option value="">Auto from date</option>
                       {WEEKLY_PERIODS.map((v) => (
@@ -1532,7 +1575,7 @@ export function Forms() {
                     <select
                       value={data.dayPeriod}
                       onChange={(e) => set('dayPeriod', e.target.value)}
-                      className={inputCls}
+                      className={fieldCls('dayPeriod')}
                     >
                       <option value="">Auto from embark</option>
                       {DAY_PERIODS.map((v) => (
@@ -1547,7 +1590,7 @@ export function Forms() {
                     <select
                       value={data.groupBracket}
                       onChange={(e) => set('groupBracket', e.target.value)}
-                      className={inputCls}
+                      className={fieldCls('groupBracket')}
                     >
                       <option value="">Auto from guests / vessel</option>
                       {GROUP_BRACKETS.map((v) => (
@@ -2076,9 +2119,55 @@ export function Forms() {
                 transition={{ duration: 0.25 }}
               >
                 <p className={sectionLabelCls}>Cost Cross-Check</p>
-                <p className="mb-6 text-[13px] leading-relaxed text-gray-500">
-                  Review the full quote, then approve before choosing a proposal pack. Approval is required to generate.
+                <p className="mb-4 text-[13px] leading-relaxed text-gray-500">
+                  Compare computed totals to Quote Sheet / progress-notes targets before Proposal Pack.
+                  {sheetTargets?.source ? (
+                    <span className="mt-1 block text-[12px] text-blue-800">
+                      Sheet target source: <span className="font-semibold">{sheetTargets.source.replace(/_/g, ' ')}</span>
+                    </span>
+                  ) : null}
                 </p>
+
+                {sheetTargets?.weottCost != null ? (
+                  <div
+                    className={`mb-6 overflow-hidden rounded-[12px] border ${
+                      parity.ok ? 'border-[#00e676]/40 bg-[#f0fdf5]' : 'border-amber-300 bg-amber-50'
+                    }`}
+                  >
+                    <div className="border-b border-inherit px-5 py-3 text-[12px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">
+                      Quote Sheet cross-check
+                    </div>
+                    {parity.rows.map((row) => (
+                      <div
+                        key={row.label}
+                        className="flex items-center justify-between border-b border-inherit px-5 py-2.5 text-[12.5px] last:border-b-0"
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          {row.ok ? (
+                            <Check className="h-3.5 w-3.5 text-[#00e676]" strokeWidth={3} />
+                          ) : (
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                          )}
+                          {row.label}
+                        </span>
+                        <span className="text-right">
+                          <span className="block font-semibold text-gray-800">£{row.actual.toFixed(2)}</span>
+                          {row.expected != null ? (
+                            <span className={`text-[11px] ${row.ok ? 'text-gray-400' : 'text-amber-800'}`}>
+                              target £{row.expected.toFixed(2)}
+                              {row.delta != null && !row.ok ? ` (Δ £${Math.abs(row.delta).toFixed(2)})` : ''}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                    ))}
+                    {parity.hints.map((h) => (
+                      <p key={h} className="px-5 py-2 text-[11.5px] text-amber-900">
+                        {h}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
 
                 <div className="mb-6 overflow-hidden rounded-[12px] border border-[#e3e6e4]">
                   <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-3">
@@ -2132,12 +2221,26 @@ export function Forms() {
 
                 <button
                   type="button"
-                  onClick={() => set('costApproved', !data.costApproved)}
+                  onClick={() => {
+                    if (parity.blockApprove || (sheetTargets?.weottCost != null && !parity.ok)) {
+                      setErrorMessage(
+                        parity.hints[0] ||
+                          'Financial cross-check failed — align WEOTT cost with Quote Sheet before approving.',
+                      );
+                      set('costApproved', false);
+                      return;
+                    }
+                    setErrorMessage('');
+                    set('costApproved', !data.costApproved);
+                  }}
                   data-testid="btn-approve-cost"
+                  disabled={Boolean(sheetTargets?.weottCost != null && !parity.ok)}
                   className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors ${
                     data.costApproved
                       ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)]'
-                      : 'border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40'
+                      : sheetTargets?.weottCost != null && !parity.ok
+                        ? 'cursor-not-allowed border border-amber-300 bg-amber-50 text-amber-900'
+                        : 'border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40'
                   }`}
                 >
                   {data.costApproved ? (
@@ -2419,7 +2522,13 @@ export function Forms() {
               <button
                 onClick={() => {
                   if (step === 7 && !data.costApproved) {
-                    // One-click approve + advance (no trapped overlay gate)
+                    if (sheetTargets?.weottCost != null && !parity.ok) {
+                      setErrorMessage(
+                        parity.hints[0] ||
+                          'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',
+                      );
+                      return;
+                    }
                     set('costApproved', true);
                     setQuoteDetailsOpen(false);
                     setErrorMessage('');
