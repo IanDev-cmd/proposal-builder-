@@ -7,7 +7,6 @@ import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
-import { parseGuestCount } from '@/lib/parseGuestCount';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
@@ -40,12 +39,10 @@ import { appendProgressNote, writeQuoteStatus, getSheetsMode, fetchCostRates } f
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
 import {
-  matchVessels,
-  matchEventType,
-  parseRequestedTimes,
-  isFlexibleDate,
-  isRepeatYes,
-  parseEventDateForInput,
+  buildLeadPrefill,
+  prefillForQuoteVersion,
+  PREFILL_INPUT_CLS,
+  PREFILL_TOGGLE_CLS,
 } from '@/lib/leadPrefill';
 
 const SOURCE_TYPES = [
@@ -124,21 +121,8 @@ const EMPTY_BESPOKE: BespokeLine[] = [1, 2, 3, 4].map((n) => ({
 /**
  * The n8n lead fetch's "Source" column is a free-text tag like
  * "Repeat Client 1, 2" or "Build your event form 1-3" — the trailing
- * numbers are spreadsheet artifacts, not part of the tag. Match it against
- * the known SOURCE_TYPES so the Quote Builder's Source picker can be
- * prefilled, and separately flag "Repeat Client" so the toggle can be too.
+ * numbers are spreadsheet artifacts, not part of the tag.
  */
-function matchSourceType(rawSource?: string): string {
-  if (!rawSource) return '';
-  const found = SOURCE_TYPES.find((type) => rawSource.toLowerCase().startsWith(type.toLowerCase()));
-  return found ?? '';
-}
-
-function isRepeatClientSource(rawSource?: string): boolean {
-  if (!rawSource) return false;
-  return rawSource.toLowerCase().includes('repeat client');
-}
-
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -186,47 +170,8 @@ const INIT: FormData = {
   costApproved: false,
 };
 
-function formFromLead(lead: QuoteLead | null): FormData {
-  if (!lead) return { ...INIT };
-  // Prefer n8n-derived fields (eventDateDisplay / eventDateFlexibleBool / groupSizeQuote)
-  const flex =
-    lead.eventDateFlexibleBool === true ||
-    lead.eventDateDisplay === 'Date TBC' ||
-    isFlexibleDate(lead.eventDateFlexible, lead.eventDateFlexibleBool);
-  const times = parseRequestedTimes(lead.requestedEventTimes);
-  const vessels = matchVessels(lead.vessels);
-  const eventType = matchEventType(lead.eventType) || lead.eventType || '';
-  const guest = parseGuestCount({
-    groupSizeQuote: lead.groupSizeQuote,
-    groupSize: lead.groupSize,
-    quoteVersion: INIT.quoteVersion,
-  });
-  const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
-  const eventDate = flex
-    ? ''
-    : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || INIT.eventDate;
-  const embarkation = times.embarkation || INIT.embarkation;
-  return {
-    ...INIT,
-    source: matchSourceType(lead.source) || INIT.source,
-    repeatClient: isRepeatYes(lead.repeatClient) || isRepeatClientSource(lead.source),
-    vesselType: vessels,
-    eventType: eventType || INIT.eventType,
-    dateFlexible: flex,
-    eventDate,
-    guestCount: guest,
-    embarkation,
-    disembarkation: times.disembarkation || INIT.disembarkation,
-    progressNotes: lead.progressNotes || '',
-    budget: lead.budget || '',
-    proposalCategory: wedding ? 'wedding' : 'corporate',
-    // Leave Cost Mother period keys empty so they stay "Auto" and re-infer
-    // when date / embark / guests / vessel change (buildRateParts fills them).
-    weeklyPeriod: '',
-    dayPeriod: '',
-    groupBracket: '',
-    keyItems: '',
-  };
+function formFromLead(lead: QuoteLead | null) {
+  return buildLeadPrefill(lead, INIT, SOURCE_TYPES);
 }
 
 type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
@@ -295,6 +240,7 @@ function FormMultiSelect({
   onChange,
   onPreview,
   helper,
+  prefilled,
 }: {
   label: string;
   field: string;
@@ -303,6 +249,7 @@ function FormMultiSelect({
   onChange: (v: string[]) => void;
   onPreview?: (field: string, option: string | null) => void;
   helper?: string;
+  prefilled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -339,7 +286,7 @@ function FormMultiSelect({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className={`${inputCls} flex items-center justify-between`}
+        className={`${inputCls} flex items-center justify-between ${prefilled ? PREFILL_INPUT_CLS : ''}`}
       >
         <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>
           {value.length ? value.join(', ') : `Select ${label}`}
@@ -400,6 +347,7 @@ function FormGroupedMenuSelect({
   onChange,
   onPreview,
   helper,
+  prefilled,
 }: {
   label: string;
   field: string;
@@ -408,6 +356,7 @@ function FormGroupedMenuSelect({
   onChange: (v: string[]) => void;
   onPreview?: (field: string, option: string | null) => void;
   helper?: string;
+  prefilled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -478,7 +427,7 @@ function FormGroupedMenuSelect({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className={`${inputCls} flex items-center justify-between`}
+        className={`${inputCls} flex items-center justify-between ${prefilled ? PREFILL_INPUT_CLS : ''}`}
       >
         <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>{summary}</span>
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -607,6 +556,7 @@ function FormSelect({
   onChange,
   onPreview,
   helper,
+  prefilled,
 }: {
   label: string;
   field: string;
@@ -615,6 +565,7 @@ function FormSelect({
   onChange: (v: string) => void;
   onPreview?: (field: string, option: string | null) => void;
   helper?: string;
+  prefilled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -648,7 +599,7 @@ function FormSelect({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className={`${inputCls} flex items-center justify-between`}
+        className={`${inputCls} flex items-center justify-between ${prefilled ? PREFILL_INPUT_CLS : ''}`}
       >
         <span className={value ? 'text-gray-800' : 'text-gray-400'}>
           {value || `Select ${label}`}
@@ -707,7 +658,14 @@ export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
-  const [data, setData] = useState<FormData>(() => formFromLead(getQuoteLead()));
+  const [leadInit] = useState(() => formFromLead(getQuoteLead()));
+  const [data, setData] = useState<FormData>(() => leadInit.data);
+  const [prefilledKeys, setPrefilledKeys] = useState<Set<string>>(
+    () => new Set(leadInit.prefilledKeys),
+  );
+  const [prefilledLineIds, setPrefilledLineIds] = useState<Set<string>>(
+    () => new Set(leadInit.prefilledLineIds),
+  );
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
@@ -728,7 +686,19 @@ export function Forms() {
     return () => window.removeEventListener('keydown', onKey);
   }, [quoteDetailsOpen]);
 
-  const set = (key: keyof FormData, val: unknown) =>
+  const fieldCls = (key: keyof FormData | string) =>
+    prefilledKeys.has(String(key)) ? `${inputCls} ${PREFILL_INPUT_CLS}` : inputCls;
+
+  const clearPrefill = (key: string) =>
+    setPrefilledKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+
+  const set = (key: keyof FormData, val: unknown) => {
+    clearPrefill(String(key));
     setData((prev) => {
       const next = { ...prev, [key]: val } as FormData;
       // Re-require Cost Approval when money-affecting fields change after approve
@@ -759,14 +729,24 @@ export function Forms() {
       }
       return next;
     });
+  };
 
-  const toggleLine = (id: string) =>
+  const toggleLine = (id: string) => {
+    setPrefilledLineIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setData((prev) => {
       const selectedLineIds = prev.selectedLineIds.includes(id)
         ? prev.selectedLineIds.filter((x) => x !== id)
         : [...prev.selectedLineIds, id];
       return { ...prev, selectedLineIds, costApproved: false };
     });
+  };
+
+  const hasSheetPrefill = prefilledKeys.size > 0 || prefilledLineIds.size > 0;
 
   const marginOverride =
     data.marginPercent.trim() !== '' && Number.isFinite(Number(data.marginPercent))
@@ -1238,6 +1218,11 @@ export function Forms() {
             {step === 1 && (
               <motion.div key="step1" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
                 <p className={sectionLabelCls}>Your Event Details</p>
+                {hasSheetPrefill ? (
+                  <p className="mb-4 rounded-[10px] border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-[12px] text-blue-900">
+                    <span className="font-semibold">Blue fields</span> were auto-filled from Enquiry / Sheets — edit any time.
+                  </p>
+                ) : null}
 
                 <div className="mb-7">
                   <FormSelect
@@ -1247,6 +1232,7 @@ export function Forms() {
                     value={data.source}
                     onChange={(v) => set('source', v)}
                     helper="Where this enquiry originated from"
+                    prefilled={prefilledKeys.has('source')}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">This should match how the lead first reached us.</p>
                 </div>
@@ -1258,14 +1244,16 @@ export function Forms() {
                     field="vesselType"
                     options={VESSEL_TYPES}
                     value={data.vesselType}
+                    prefilled={prefilledKeys.has('vesselType')}
                     onChange={(v) => {
-                      // Clear Auto period overrides so Cost Mother keys re-infer for new vessel.
+                      clearPrefill('vesselType');
                       setData((prev) => ({
                         ...prev,
                         vesselType: v,
                         weeklyPeriod: '',
                         dayPeriod: '',
                         groupBracket: '',
+                        costApproved: false,
                       }));
                     }}
                     onPreview={handlePreview}
@@ -1277,6 +1265,7 @@ export function Forms() {
                     value={data.eventType}
                     onChange={(v) => set('eventType', v)}
                     onPreview={handlePreview}
+                    prefilled={prefilledKeys.has('eventType')}
                   />
                 </div>
 
@@ -1288,21 +1277,21 @@ export function Forms() {
                       value={data.quoteVersion}
                       onChange={(e) => {
                         const quoteVersion = e.target.value;
-                        const guestCount = quoteLead
-                          ? parseGuestCount({
-                              groupSizeQuote: quoteLead.groupSizeQuote,
-                              groupSize: quoteLead.groupSize,
-                              quoteVersion,
-                            }) || data.guestCount
-                          : data.guestCount;
+                        const patch = quoteLead
+                          ? prefillForQuoteVersion(quoteLead, data, quoteVersion)
+                          : { data: { quoteVersion }, prefilledKeys: ['quoteVersion'] as string[] };
+                        setPrefilledKeys((prev) => {
+                          const next = new Set(prev);
+                          for (const k of patch.prefilledKeys || []) next.add(k);
+                          return next;
+                        });
                         setData((prev) => ({
                           ...prev,
-                          quoteVersion,
-                          guestCount,
+                          ...patch.data,
                           costApproved: false,
                         }));
                       }}
-                      className={inputCls}
+                      className={fieldCls('quoteVersion')}
                     >
                       {QUOTE_VERSIONS.map((v) => (
                         <option key={v} value={v}>
@@ -1364,12 +1353,12 @@ export function Forms() {
                     value={data.keyItems}
                     onChange={(e) => set('keyItems', e.target.value)}
                     placeholder="e.g. Canapés, drink tokens, DJ — short headline for the pack"
-                    className={inputCls}
+                    className={fieldCls('keyItems')}
                   />
                 </div>
 
                 <p className={sectionLabelCls}>Event Date</p>
-                <div className="mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                <div className={`mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('dateFlexible') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Date flexible → Date TBC</p>
                     <p className="text-[12px] text-gray-400">From Enquiry “Event Date - Flexible?”</p>
@@ -1377,11 +1366,12 @@ export function Forms() {
                   <button
                     type="button"
                     onClick={() => {
+                      clearPrefill('dateFlexible');
                       const next = !data.dateFlexible;
                       set('dateFlexible', next);
                       if (next) set('eventDate', '');
                     }}
-                    className={`relative h-7 w-14 rounded-full transition-colors ${data.dateFlexible ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
+                    className={`relative h-7 w-14 rounded-full transition-colors ${data.dateFlexible ? 'bg-[#FF5A45]' : 'bg-gray-200'} ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
                   >
                     <motion.div
                       animate={{ x: data.dateFlexible ? 28 : 2 }}
@@ -1398,13 +1388,13 @@ export function Forms() {
                     </span>
                   </label>
                   {data.dateFlexible ? (
-                    <div className={`${inputCls} font-semibold text-[#E22A12]`}>Date TBC</div>
+                    <div className={`${fieldCls('eventDate')} font-semibold text-[#E22A12]`}>Date TBC</div>
                   ) : (
                     <input
                       type="date"
                       value={data.eventDate}
                       onChange={(e) => set('eventDate', e.target.value)}
-                      className={inputCls}
+                      className={fieldCls('eventDate')}
                     />
                   )}
                 </div>
@@ -1412,7 +1402,7 @@ export function Forms() {
                 {data.budget ? (
                   <div className="mb-7">
                     <p className={sectionLabelCls}>Budget (from Enquiry / n8n)</p>
-                    <p className="rounded-[10px] border border-[#e3e6e4] bg-[#FFF1F0] px-4 py-3 text-[13px] font-semibold text-gray-800">
+                    <p className={`rounded-[10px] border border-[#e3e6e4] px-4 py-3 text-[13px] font-semibold text-gray-800 ${prefilledKeys.has('budget') ? PREFILL_INPUT_CLS : 'bg-[#FFF1F0]'}`}>
                       {data.budget}
                     </p>
                   </div>
@@ -1474,7 +1464,7 @@ export function Forms() {
                     onChange={(e) => set('progressNotes', e.target.value)}
                     rows={4}
                     placeholder="Event details, proposal info, next actions…"
-                    className={`${inputCls} min-h-[96px] resize-y`}
+                    className={`${fieldCls('progressNotes')} min-h-[96px] resize-y`}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
                     Replaces typing notes directly into the Enquiry sheet — synced on generate.
@@ -1496,7 +1486,7 @@ export function Forms() {
                       value={data.guestCount}
                       onChange={(e) => set('guestCount', e.target.value)}
                       placeholder="e.g. 80"
-                      className={inputCls}
+                      className={fieldCls('guestCount')}
                     />
                   </div>
                   <div>
@@ -1507,7 +1497,7 @@ export function Forms() {
                       value={data.guestCountHigh}
                       onChange={(e) => set('guestCountHigh', e.target.value)}
                       placeholder="Optional upper bound"
-                      className={inputCls}
+                      className={fieldCls('guestCountHigh')}
                     />
                   </div>
                 </div>
@@ -1519,7 +1509,7 @@ export function Forms() {
                     value={data.noOfTables}
                     onChange={(e) => set('noOfTables', e.target.value)}
                     placeholder="For Section 9 decor × tables"
-                    className={inputCls}
+                    className={fieldCls('noOfTables')}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
                     Used for table linen / centrepieces / event decor multipliers.
@@ -1547,7 +1537,7 @@ export function Forms() {
                         type="time"
                         value={data[key] as string}
                         onChange={(e) => set(key, e.target.value)}
-                        className={inputCls}
+                        className={fieldCls(key)}
                       />
                     </div>
                   ))}
@@ -1576,6 +1566,7 @@ export function Forms() {
                   onChange={(v) => set('menuType', v)}
                   onPreview={handlePreview}
                   helper="Grouped by service style (Quote Builder 2026 + Menu Cheat Sheet). Search to jump."
+                  prefilled={prefilledKeys.has('menuType')}
                 />
 
                 {data.menuType.length > 0 && (
@@ -1614,7 +1605,7 @@ export function Forms() {
                 transition={{ duration: 0.25 }}
               >
                 <p className={sectionLabelCls}>Client Status</p>
-                <div className="mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('repeatClient') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Repeat Client</p>
                     <p className="text-[12px] text-gray-400">Reduces margin from 25% to 15%</p>
@@ -1622,7 +1613,7 @@ export function Forms() {
                   <button
                     type="button"
                     onClick={() => set('repeatClient', !data.repeatClient)}
-                    className={`relative h-7 w-14 rounded-full transition-colors ${data.repeatClient ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
+                    className={`relative h-7 w-14 rounded-full transition-colors ${data.repeatClient ? 'bg-[#FF5A45]' : 'bg-gray-200'} ${prefilledKeys.has('repeatClient') ? PREFILL_TOGGLE_CLS : ''}`}
                   >
                     <motion.div
                       animate={{ x: data.repeatClient ? 28 : 2 }}
@@ -1632,7 +1623,7 @@ export function Forms() {
                   </button>
                 </div>
 
-                <div className="mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4">
+                <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('agentReferral') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Agent Referral</p>
                     <p className="text-[12px] text-gray-400">Defaults 10% commission (value lost from profit) unless you set %</p>
@@ -1640,7 +1631,7 @@ export function Forms() {
                   <button
                     type="button"
                     onClick={() => set('agentReferral', !data.agentReferral)}
-                    className={`relative h-7 w-14 rounded-full transition-colors ${data.agentReferral ? 'bg-[#FF5A45]' : 'bg-gray-200'}`}
+                    className={`relative h-7 w-14 rounded-full transition-colors ${data.agentReferral ? 'bg-[#FF5A45]' : 'bg-gray-200'} ${prefilledKeys.has('agentReferral') ? PREFILL_TOGGLE_CLS : ''}`}
                   >
                     <motion.div
                       animate={{ x: data.agentReferral ? 28 : 2 }}
@@ -1667,7 +1658,7 @@ export function Forms() {
                       value={data.marginPercent}
                       onChange={(e) => set('marginPercent', e.target.value)}
                       placeholder={data.repeatClient ? '15' : '25'}
-                      className={inputCls}
+                      className={fieldCls('marginPercent')}
                     />
                   </div>
                   <div>
@@ -1680,7 +1671,7 @@ export function Forms() {
                       value={data.discountPercent}
                       onChange={(e) => set('discountPercent', e.target.value)}
                       placeholder="0"
-                      className={inputCls}
+                      className={fieldCls('discountPercent')}
                     />
                   </div>
                   <div>
@@ -1693,7 +1684,7 @@ export function Forms() {
                       value={data.commissionPercent}
                       onChange={(e) => set('commissionPercent', e.target.value)}
                       placeholder={data.agentReferral ? '10' : '0'}
-                      className={inputCls}
+                      className={fieldCls('commissionPercent')}
                     />
                   </div>
                 </div>
@@ -1851,8 +1842,13 @@ export function Forms() {
                   data={financeInput}
                   selectedLineIds={data.selectedLineIds}
                   bespokeLines={data.bespokeLines}
+                  prefilledLineIds={prefilledLineIds}
+                  prefilledBespoke={prefilledKeys.has('bespokeLines')}
                   onToggleLine={toggleLine}
-                  onBespokeChange={(lines) => set('bespokeLines', lines)}
+                  onBespokeChange={(lines) => {
+                    clearPrefill('bespokeLines');
+                    set('bespokeLines', lines);
+                  }}
                 />
               </motion.div>
             )}
@@ -1976,7 +1972,9 @@ export function Forms() {
                       }}
                       className={`flex-1 rounded-[10px] border px-4 py-3.5 text-[13px] font-semibold capitalize transition-colors ${
                         data.proposalCategory === cat
-                          ? 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
+                          ? prefilledKeys.has('proposalCategory')
+                            ? `border-blue-400 bg-blue-50 text-blue-900 ${PREFILL_INPUT_CLS}`
+                            : 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
                           : 'border-[#e3e6e4] text-gray-600 hover:border-[#FF5A45]/40'
                       }`}
                     >

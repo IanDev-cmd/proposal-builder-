@@ -8,10 +8,14 @@ import {
 import type { BespokeLine, QuoteFormInput } from '@/lib/quoteFinance';
 import { calcBaseCostBreakdown } from '@/lib/quoteFinance';
 
+import { PREFILL_INPUT_CLS } from '@/lib/leadPrefill';
+
 type Props = {
   data: QuoteFormInput;
   selectedLineIds: string[];
   bespokeLines: BespokeLine[];
+  prefilledLineIds?: Set<string>;
+  prefilledBespoke?: boolean;
   onToggleLine: (id: string) => void;
   onBespokeChange: (lines: BespokeLine[]) => void;
 };
@@ -20,6 +24,8 @@ export function QuoteCostLines({
   data,
   selectedLineIds,
   bespokeLines,
+  prefilledLineIds,
+  prefilledBespoke,
   onToggleLine,
   onBespokeChange,
 }: Props) {
@@ -85,7 +91,11 @@ export function QuoteCostLines({
                       type="button"
                       onClick={() => onToggleLine(line.id)}
                       className={`flex items-center justify-between rounded-[8px] px-3 py-2.5 text-left transition-colors ${
-                        on ? 'bg-[#FFF1F0]' : 'hover:bg-[#fafafa]'
+                        on
+                          ? prefilledLineIds?.has(line.id)
+                            ? `bg-blue-50 ${PREFILL_INPUT_CLS}`
+                            : 'bg-[#FFF1F0]'
+                          : 'hover:bg-[#fafafa]'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
@@ -118,7 +128,7 @@ export function QuoteCostLines({
         </div>
         <div className="flex flex-col gap-2 p-3">
           {bespokeLines.map((b, idx) => (
-            <div key={b.id} className="flex items-center gap-2">
+            <div key={b.id} className={`flex items-center gap-2 rounded-[8px] p-1 ${prefilledBespoke && b.enabled ? PREFILL_INPUT_CLS : ''}`}>
               <button
                 type="button"
                 onClick={() => {

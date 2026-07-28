@@ -1,8 +1,60 @@
 /**
- * Match Enquiry vessel string(s) to VESSEL_TYPES options.
- * e.g. "WEOTT II (Avontuur)" → ["WEOTT II (Avontuur)"]
+ * Enquiry / Sheets → Quote Builder prefill.
+ * Parses n8n lead aliases + progressNotes hints; tracks auto-filled keys for blue UI styling.
  */
-import { VESSEL_TYPES, EVENT_TYPES } from '@/lib/formOptions';
+import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES } from '@/lib/formOptions';
+import { QUOTE_LINES, defaultSelectedLineIds } from '@/lib/quoteBuilderCatalog';
+import { lookupMinMargin } from '@/lib/costMotherLookup';
+import { REPEAT_CLIENT_MARGIN, NEW_CLIENT_MARGIN } from '@/lib/quoteFinance';
+import type { QuoteLead } from '@/lib/quoteLeadStore';
+import { parseGuestCount } from '@/lib/parseGuestCount';
+
+export const PREFILL_INPUT_CLS =
+  'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
+export const PREFILL_TOGGLE_CLS = 'ring-2 ring-blue-400 ring-offset-2';
+
+export type LeadPrefillResult<T> = {
+  data: T;
+  prefilledKeys: Set<string>;
+  prefilledLineIds: Set<string>;
+};
+
+/** Progress-note / sheet catering shorthand → Menu Type labels */
+const MENU_CODE_RULES: { re: RegExp; menu: string }[] = [
+  { re: /\bHFB\b/i, menu: 'Hot Fork Buffet (All Seasons)' },
+  { re: /\b3\s*CSD\b|\b3CSD\b/i, menu: 'Three Course Seated Dinner (All Seasons)' },
+  {
+    re: /\b2\s*CSD\b|\b2CSD\b/i,
+    menu: 'Two Course Seated Dinner - Main & Dessert (All Seasons)',
+  },
+  { re: /\bSUB\s*CANS?\b/i, menu: 'Substantial Canapes (All Seasons)' },
+  { re: /\bCANAPES?\b/i, menu: 'Canapes (All Seasons)' },
+  { re: /\bSTREET\s*FOOD\b/i, menu: 'Street Food Station (All Seasons)' },
+  { re: /\bBOWL\s*FOOD\b/i, menu: 'Bowl Food (All Seasons)' },
+  { re: /\bBBQ\b|\bBARBECUE\b/i, menu: 'Barbecue' },
+  { re: /\bCHARCUTERIE\s*CUPS?\b/i, menu: 'Charcuterie Cups (All Seasons)' },
+  { re: /\bCHARCUTERIE\s*STATION\b/i, menu: 'Charcuterie Station (All Seasons)' },
+  { re: /\bBURGER\s*ST(ATION)?\b/i, menu: 'Burger Station' },
+];
+
+/** Progress-note tokens → Cost Mother line labels */
+const NOTE_LINE_RULES: { re: RegExp; label: string }[] = [
+  { re: /\bBG\s*MUSIC\b|\bBACKGROUND\s*MUSIC\b/i, label: 'Background Music/Sound Equipment Hire' },
+  { re: /\bCOCKTAIL\s*RECEPTION\b|\bRECEPTION\b/i, label: 'Cocktail Reception (1 x glass per guest)' },
+  {
+    re: /\b2\s*x\s*CASINO\b|\bCASINO\s*TABLE.*\bx\s*2\b|\bCASINO\s*TABLES?\s*\(2\b/i,
+    label: 'Casino table with croupier - x 2',
+  },
+  { re: /\bCASINO\s*TABLE\b|\b1\s*x\s*CASINO\b/i, label: 'Casino table with croupier - x 1' },
+  { re: /\bPHOTO\s*BOOTH\b|\bPHOTOBOOTH\b/i, label: 'Photobooth' },
+  { re: /\bTV\b|\bMIC\b|\bSCREEN\b|\bAWARDS\b/i, label: 'TV - 55"' },
+  {
+    re: /\bTEAM\s*BUILDING\b|\bPERFORMANCE\s*COACH\b|\bCOACH\b/i,
+    label: 'Team building activities with performance coach',
+  },
+  { re: /\bDRINK\s*TOKENS?\s*[-–]?\s*x\s*3\b|\b3\s*x\s*DRINK\s*TOKENS?\b/i, label: 'Drink tokens - x 3' },
+  { re: /\bDRINK\s*TOKENS?\s*[-–]?\s*x\s*2\b|\b2\s*x\s*DRINK\s*TOKENS?\b/i, label: 'Drink tokens - x 2' },
+];
 
 export function matchVessels(raw?: string): string[] {
   if (!raw?.trim()) return [];
@@ -43,22 +95,35 @@ export function matchEventType(raw?: string): string {
   const starts = EVENT_TYPES.find((e) => lower.startsWith(e.toLowerCase()) || e.toLowerCase().startsWith(lower));
   if (starts) return starts;
   if (lower.includes('wedding')) {
-    return EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding reception')) || 'Wedding Reception';
+    return EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding transfer')) ||
+      EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding reception')) ||
+      'Wedding Reception';
   }
   if (lower.includes('summer')) return 'Summer Event';
   if (lower.includes('christmas') || lower.includes('xmas')) return 'Christmas Event';
+  if (lower.includes('team building')) return 'Team Building';
   return '';
 }
 
-/** Parse "18:30 - 22:30" or "20:00 - 00:00" → embark / disembark HH:MM */
-export function parseRequestedTimes(raw?: string): { embarkation?: string; disembarkation?: string } {
+/** Parse times; prefers version-specific block when present (e.g. V2 13:00 -17:00). */
+export function parseRequestedTimes(
+  raw?: string,
+  quoteVersion?: string,
+): { embarkation?: string; disembarkation?: string } {
   if (!raw?.trim()) return {};
-  const m = raw.match(/(\d{1,2}:\d{2})\s*[-–—to]+\s*(\d{1,2}:\d{2})/i);
-  if (!m) return {};
   const norm = (t: string) => {
     const [h, min] = t.split(':');
     return `${h.padStart(2, '0')}:${min}`;
   };
+  const verNum = quoteVersion?.match(/V?\s*(\d+)/i)?.[1];
+  if (verNum) {
+    const vm = raw.match(
+      new RegExp(`V\\s*${verNum}\\s*[:\\-]?\\s*(\\d{1,2}:\\d{2})\\s*[-–—to]+\\s*(\\d{1,2}:\\d{2})`, 'i'),
+    );
+    if (vm) return { embarkation: norm(vm[1]), disembarkation: norm(vm[2]) };
+  }
+  const m = raw.match(/(\d{1,2}:\d{2})\s*[-–—to]+\s*(\d{1,2}:\d{2})/i);
+  if (!m) return {};
   return { embarkation: norm(m[1]), disembarkation: norm(m[2]) };
 }
 
@@ -78,16 +143,330 @@ export function isRepeatYes(raw?: string | boolean): boolean {
   return s === 'yes' || s === 'y' || s === 'true' || s.startsWith('yes');
 }
 
-/** Prefer ISO yyyy-mm-dd when parseable; otherwise leave for Date TBC handling. */
+export function isRepeatClientSource(rawSource?: string): boolean {
+  if (!rawSource) return false;
+  return rawSource.toLowerCase().includes('repeat client');
+}
+
 export function parseEventDateForInput(display?: string, full?: string, flexible?: boolean): string {
-  if (flexible) return ''; // Forms uses dateFlexible flag + empty date
+  if (flexible) return '';
   const src = (display || full || '').trim();
   if (!src || /tbc/i.test(src)) return '';
-  // already ISO
   if (/^\d{4}-\d{2}-\d{2}/.test(src)) return src.slice(0, 10);
   const d = new Date(src);
   if (!Number.isNaN(d.getTime())) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
   return '';
+}
+
+export function parseQuoteVersionFromNotes(notes?: string): string {
+  if (!notes?.trim()) return 'V1';
+  const nums = [...notes.matchAll(/\bV\s*(\d+)\b/gi)].map((m) => Number(m[1])).filter(Number.isFinite);
+  if (!nums.length) return 'V1';
+  return `V${Math.max(...nums)}`;
+}
+
+export function parseGuestHigh(groupSize?: string | number | null, guestCount?: string): string {
+  const text = String(groupSize ?? '');
+  const range = text.match(/(\d{2,})\s*[-–]\s*(\d{2,})/);
+  if (range) return range[2];
+  const nums = [...text.matchAll(/\d{2,}/g)].map((m) => m[0]);
+  if (nums.length >= 2) return nums[nums.length - 1];
+  return guestCount || '';
+}
+
+function inferTables(guestCount: string): string {
+  const n = parseFloat(guestCount);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return String(Math.max(1, Math.ceil(n / 8)));
+}
+
+function inferDepartureReturn(embark: string, disembark: string): { departure: string; returnTime: string } {
+  const toMin = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const fromMin = (mins: number) => {
+    const h = Math.floor(((mins % 1440) + 1440) % 1440 / 60);
+    const m = ((mins % 60) + 60) % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+  const e = toMin(embark);
+  const d = toMin(disembark);
+  if (d <= e) return { departure: '12:00', returnTime: '17:00' };
+  return { departure: fromMin(e + 30), returnTime: fromMin(d - 30) };
+}
+
+function parseMenusFromNotes(notes: string): string[] {
+  const found = new Set<string>();
+  for (const { re, menu } of MENU_CODE_RULES) {
+    if (re.test(notes) && MENU_TYPES.includes(menu)) found.add(menu);
+  }
+  return [...found];
+}
+
+function lineIdsFromLabels(labels: string[]): string[] {
+  const ids: string[] = [];
+  for (const label of labels) {
+    const line = QUOTE_LINES.find((l) => l.label === label);
+    if (line) ids.push(line.id);
+  }
+  return ids;
+}
+
+function parseCostLineLabelsFromNotes(notes: string): string[] {
+  const labels = new Set<string>();
+  for (const { re, label } of NOTE_LINE_RULES) {
+    if (re.test(notes)) labels.add(label);
+  }
+  return [...labels];
+}
+
+function parseKeyItemsFromNotes(notes: string, quoteVersion: string): string {
+  const chunks = notes.split(/\s*\|\s*/).filter(Boolean);
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    const c = chunks[i];
+    if (!new RegExp(`\\b${quoteVersion.replace('.', '\\.')}\\b`, 'i').test(c)) continue;
+    const stripped = c
+      .replace(/^[^A-Z0-9£]+/i, '')
+      .replace(/\b(proposal sent|spoke|called|email|video call).*$/i, '')
+      .trim();
+    if (stripped.length >= 8) return stripped.slice(0, 220);
+  }
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    const c = chunks[i];
+    if (/\b(AVON|RECEPTION|BG MUSIC|HFB|3CSD|2CSD|SUB CANS|STREET FOOD|CASINO|PHOTOBOOTH)\b/i.test(c)) {
+      return c.trim().slice(0, 220);
+    }
+  }
+  return '';
+}
+
+function parseBespokeFromNotes(notes: string): { label: string; amount: number } | null {
+  const m =
+    notes.match(/(?:£|\b)(\d{1,3}(?:,\d{3})*|\d+)\s*bar\s*tab/i) ||
+    notes.match(/bar\s*tab[^£\d]{0,20}(?:£|\b)(\d{1,3}(?:,\d{3})*|\d+)/i);
+  if (!m) return null;
+  const amount = Number(String(m[1]).replace(/,/g, ''));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return { label: 'Bar tab', amount };
+}
+
+function inferAgentReferral(lead: QuoteLead, notes: string): boolean {
+  if (/event agency|wedding planner\/agent|tagvenue outreach/i.test(lead.source || '')) return true;
+  if (/agent/i.test(String(lead.status || ''))) return true;
+  if (/\bIT IS AN AGENT\b|\bagent referral\b/i.test(notes)) return true;
+  return false;
+}
+
+function inferCommissionPercent(agentReferral: boolean, notes: string): string {
+  if (!agentReferral) return '0';
+  if (/\bNO COMMISSION\b/i.test(notes)) return '0';
+  return '10';
+}
+
+function inferMarginPercent(
+  repeatClient: boolean,
+  eventType: string,
+  eventDate: string,
+  market: string | undefined,
+  notes: string,
+): string {
+  if (/\bSAME\s+MARGIN\s+AS\s+V/i.test(notes)) return '';
+  if (repeatClient) return String(REPEAT_CLIENT_MARGIN * 100);
+  const min = lookupMinMargin(eventType, eventDate, market);
+  if (min != null) return String(Math.round(min * 1000) / 10);
+  return String(NEW_CLIENT_MARGIN * 100);
+}
+
+function vesselsForVersion(notes: string, quoteVersion: string, fallback: string[]): string[] {
+  const verNum = quoteVersion.match(/V(\d+)/i)?.[1];
+  if (!verNum) return fallback;
+  const blockRe = new RegExp(`V\\s*${verNum}[^|]{0,120}`, 'i');
+  const block = notes.match(blockRe)?.[0] || '';
+  if (/ELIZABETHAN/i.test(block)) return matchVessels('WEOTT VI (Elizabethan)');
+  if (/\bROSE\b/i.test(block)) return matchVessels('WEOTT I (Rose)');
+  if (/AVON|AVONTUUR/i.test(block)) return matchVessels('WEOTT II (Avontuur)');
+  return fallback;
+}
+
+export function matchSourceType(rawSource: string | undefined, sourceTypes: string[]): string {
+  if (!rawSource) return '';
+  const found = sourceTypes.find((type) => rawSource.toLowerCase().startsWith(type.toLowerCase()));
+  return found ?? '';
+}
+
+/** Build Quote Builder form + which fields were auto-filled from Sheets/lead. */
+export function buildLeadPrefill<T extends Record<string, unknown>>(
+  lead: QuoteLead | null,
+  init: T,
+  sourceTypes: string[],
+): LeadPrefillResult<T> {
+  const prefilledKeys = new Set<string>();
+  const prefilledLineIds = new Set<string>();
+
+  if (!lead) {
+    return { data: { ...init }, prefilledKeys, prefilledLineIds };
+  }
+
+  const notes = lead.progressNotes || '';
+  const flex =
+    lead.eventDateFlexibleBool === true ||
+    lead.eventDateDisplay === 'Date TBC' ||
+    isFlexibleDate(lead.eventDateFlexible, lead.eventDateFlexibleBool);
+  const quoteVersion = parseQuoteVersionFromNotes(notes);
+  const eventType = matchEventType(lead.eventType) || lead.eventType || '';
+  const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
+  const eventDate = flex
+    ? ''
+    : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || String(init.eventDate || '');
+  const guestCount = parseGuestCount({
+    groupSizeQuote: lead.groupSizeQuote,
+    groupSize: lead.groupSize,
+    quoteVersion,
+  });
+  const guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
+  const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
+  const embarkation = times.embarkation || String(init.embarkation || '');
+  const disembarkation = times.disembarkation || String(init.disembarkation || '');
+  const schedule = inferDepartureReturn(embarkation, disembarkation);
+
+  let vesselType = matchVessels(lead.vessels);
+  vesselType = vesselsForVersion(notes, quoteVersion, vesselType);
+
+  const source = matchSourceType(lead.source, sourceTypes);
+  const repeatClient = isRepeatYes(lead.repeatClient) || isRepeatClientSource(lead.source);
+  const agentReferral = inferAgentReferral(lead, notes);
+  const marginPercent = inferMarginPercent(repeatClient, eventType, eventDate, lead.market, notes);
+  const commissionPercent = inferCommissionPercent(agentReferral, notes);
+  const menuType = parseMenusFromNotes(notes);
+  const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
+  const bespoke = parseBespokeFromNotes(notes);
+
+  const lineLabels = parseCostLineLabelsFromNotes(notes);
+  const inferredIds = lineIdsFromLabels(lineLabels);
+  const selectedLineIds = [
+    ...new Set([...defaultSelectedLineIds(menuType), ...inferredIds]),
+  ];
+
+  const bespokeLines = [...((init.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
+  if (bespoke && bespokeLines[0]) {
+    bespokeLines[0] = { ...bespokeLines[0], label: bespoke.label, amount: bespoke.amount, enabled: true };
+  }
+
+  const data = {
+    ...init,
+    source: source || init.source,
+    repeatClient,
+    agentReferral,
+    vesselType,
+    eventType: eventType || init.eventType,
+    dateFlexible: flex,
+    eventDate,
+    guestCount,
+    guestCountHigh,
+    embarkation,
+    disembarkation,
+    departure: schedule.departure,
+    returnTime: schedule.returnTime,
+    menuType,
+    marginPercent,
+    discountPercent: '0',
+    commissionPercent,
+    selectedLineIds,
+    bespokeLines,
+    quoteVersion,
+    keyItems,
+    progressNotes: notes,
+    budget: lead.budget || '',
+    proposalCategory: wedding ? 'wedding' : 'corporate',
+    noOfTables: inferTables(guestCount),
+    weeklyPeriod: '',
+    dayPeriod: '',
+    groupBracket: '',
+  } as T;
+
+  if (source) prefilledKeys.add('source');
+  prefilledKeys.add('repeatClient');
+  if (agentReferral) prefilledKeys.add('agentReferral');
+  if (vesselType.length) prefilledKeys.add('vesselType');
+  if (eventType) prefilledKeys.add('eventType');
+  prefilledKeys.add('dateFlexible');
+  if (eventDate) prefilledKeys.add('eventDate');
+  if (guestCount) prefilledKeys.add('guestCount');
+  if (guestCountHigh) prefilledKeys.add('guestCountHigh');
+  if (times.embarkation) prefilledKeys.add('embarkation');
+  if (times.disembarkation) prefilledKeys.add('disembarkation');
+  if (times.embarkation || times.disembarkation) {
+    prefilledKeys.add('departure');
+    prefilledKeys.add('returnTime');
+  }
+  if (menuType.length) prefilledKeys.add('menuType');
+  if (marginPercent) prefilledKeys.add('marginPercent');
+  prefilledKeys.add('discountPercent');
+  if (commissionPercent !== '0' || agentReferral) prefilledKeys.add('commissionPercent');
+  if (quoteVersion !== 'V1') prefilledKeys.add('quoteVersion');
+  if (keyItems) prefilledKeys.add('keyItems');
+  if (notes) prefilledKeys.add('progressNotes');
+  if (lead.budget) prefilledKeys.add('budget');
+  if (inferTables(guestCount)) prefilledKeys.add('noOfTables');
+  prefilledKeys.add('proposalCategory');
+
+  for (const id of inferredIds) prefilledLineIds.add(id);
+  if (bespoke) prefilledKeys.add('bespokeLines');
+
+  return { data, prefilledKeys, prefilledLineIds };
+}
+
+/** Re-infer version-sensitive fields when REP changes quote version. */
+export function prefillForQuoteVersion<T extends Record<string, unknown>>(
+  lead: QuoteLead | null,
+  current: T,
+  quoteVersion: string,
+): Partial<{ data: Partial<T>; prefilledKeys: string[]; prefilledLineIds: string[] }> {
+  if (!lead) return {};
+  const notes = lead.progressNotes || '';
+  const guestCount = parseGuestCount({
+    groupSizeQuote: lead.groupSizeQuote,
+    groupSize: lead.groupSize,
+    quoteVersion,
+  });
+  const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
+  const vessels = vesselsForVersion(notes, quoteVersion, matchVessels(lead.vessels));
+  const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
+  const keys: string[] = ['quoteVersion'];
+  const patch: Record<string, unknown> = { quoteVersion };
+  if (guestCount) {
+    patch.guestCount = guestCount;
+    patch.guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
+    patch.noOfTables = inferTables(guestCount);
+    keys.push('guestCount', 'guestCountHigh', 'noOfTables');
+  }
+  if (times.embarkation) {
+    patch.embarkation = times.embarkation;
+    keys.push('embarkation');
+  }
+  if (times.disembarkation) {
+    patch.disembarkation = times.disembarkation;
+    keys.push('disembarkation');
+  }
+  if (times.embarkation || times.disembarkation) {
+    const sch = inferDepartureReturn(
+      String(patch.embarkation || current.embarkation || '10:00'),
+      String(patch.disembarkation || current.disembarkation || '18:00'),
+    );
+    patch.departure = sch.departure;
+    patch.returnTime = sch.returnTime;
+    keys.push('departure', 'returnTime');
+  }
+  if (vessels.length) {
+    patch.vesselType = vessels;
+    keys.push('vesselType');
+  }
+  if (keyItems) {
+    patch.keyItems = keyItems;
+    keys.push('keyItems');
+  }
+  return { data: patch as Partial<T>, prefilledKeys: keys, prefilledLineIds: [] };
 }
