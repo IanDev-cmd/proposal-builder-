@@ -33,4 +33,8 @@ python app.py
 
 ## Deploy
 
-Same as upstream stargtm (`render.yaml` / gunicorn `app:app`).
+Production (Render Blueprint service **`weott-proposal-engine`**):
+
+- Base URL: `https://weott-proposal-engine.onrender.com`
+- Generate: `POST /generate` (binary PDF)
+- Start: `gunicorn app:app` (see root `render.yaml` or `render.yaml` in this folder)

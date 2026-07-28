@@ -36,7 +36,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://stargtm-kkzz.onrender.com/generate",
+        "url": "https://weott-proposal-engine.onrender.com/generate",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",

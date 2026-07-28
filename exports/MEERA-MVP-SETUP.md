@@ -43,9 +43,9 @@ Import `exports/n8n-quote-builder-mvp.json` into meeraworkflows and reconnect Go
 
 Webhooks: `QuoteBuilder` · `LeadDataFetch` · `NoteAppend` · `QuoteStatus` · `CostRatesFetch`
 
-**Proposal engine:** `https://stargtm-kkzz.onrender.com/generate`
+**Proposal engine:** `https://weott-proposal-engine.onrender.com/generate`
 
 ## stargtm / ProductionENV
 - Upstream: https://github.com/ProximaOpal/stargtm  
 - Production package: https://github.com/ProximaOpal/ProductionENV-Proposal_engine-  
-- Live Render URL: https://stargtm-kkzz.onrender.com
+- Live Render URL: https://weott-proposal-engine.onrender.com

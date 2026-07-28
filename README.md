@@ -14,7 +14,7 @@ Open http://localhost:5173 (or the port shown in the terminal).
 ## Deploy (Render)
 
 - **Frontend (static):** use root `render.yaml` — builds `artifacts/workspace-suite` and publishes `dist/public` with SPA rewrites.
-- **PDF engine:** `artifacts/pdf-engine/render.yaml` — Python/stargtm service on Render.
+- **PDF engine:** `artifacts/pdf-engine/` — Python service on Render as **`weott-proposal-engine`** → `https://weott-proposal-engine.onrender.com/generate` (n8n `QuoteBuilder` workflow calls this; UI calls n8n only).
 
 Env for local dev (optional):
 

@@ -18,7 +18,7 @@ Do NOT invent a new CRM. Do NOT hardcode pricing rates into Code nodes permanent
 6. Demo vs Live:
    - `mode: "demo"` → TEST sheet `https://docs.google.com/spreadsheets/d/1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs/edit`
    - `mode: "live"` → PRODUCTION sheet `https://docs.google.com/spreadsheets/d/1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o/edit`
-7. PDF engine: `POST https://stargtm-kkzz.onrender.com/generate` (return PDF binary).
+7. PDF engine: `POST https://weott-proposal-engine.onrender.com/generate` (return PDF binary).
 
 ## CURRENT WORKFLOW (what I already have — keep webhook paths)
 I will paste my current workflow JSON after this prompt. Review it first and list gaps, then rebuild/fix connections.
@@ -182,7 +182,7 @@ Reuse existing credential: `Google Sheets OAuth2 API` (id `8aF9CpidfdOSoB9E` if 
 ## ACCEPTANCE TESTS
 - `LeadDataFetch` with `{ "mode": "demo" }` never reads production sheet.
 - `LeadDataFetch` with `{ "mode": "live" }` returns leads including `budget`, `preparedBy`, `eventDateFlexible`, `groupSizeQuote`, `vessels`, `progressNotes` when columns exist.
-- `QuoteBuilder` with UI payload returns PDF from `https://stargtm-kkzz.onrender.com/generate`.
+- `QuoteBuilder` with UI payload returns PDF from `https://weott-proposal-engine.onrender.com/generate`.
 - Transform does not overwrite UI `calculations.package_cost` / `vat` / `grand_total` with invented numbers.
 - NoteAppend / QuoteStatus write to correct Demo vs Live workbook.
 
