@@ -149,9 +149,17 @@ export function inferGroupBracket(guests: number, costMotherVessel: string | nul
   return 'Standard';
 }
 
-function findRateMap(label: string, idx: RateIndex = getIndex()): Map<string, number> | null {
-  if (idx.has(label)) return idx.get(label)!;
+function resolveSheetLabel(label: string): string {
   const n = normalizeLabel(label);
+  if (n === 'weott providing') return 'Own Food Surcharge';
+  return label;
+}
+
+function findRateMap(label: string, idx: RateIndex = getIndex()): Map<string, number> | null {
+  const resolved = resolveSheetLabel(label);
+  if (idx.has(resolved)) return idx.get(resolved)!;
+  if (idx.has(label)) return idx.get(label)!;
+  const n = normalizeLabel(resolved);
   if (idx.has(n)) return idx.get(n)!;
   for (const [k, map] of idx.entries()) {
     if (normalizeLabel(k) === n) return map;

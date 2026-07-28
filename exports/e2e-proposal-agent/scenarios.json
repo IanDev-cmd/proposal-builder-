@@ -43,6 +43,7 @@
       "costLineLabels": [
         "Hot Fork Buffet (All Seasons)",
         "Catering Delivery Charge (In every quote)",
+        "Own Food Surcharge",
         "Background Music/Sound Equipment Hire",
         "Casino table with croupier - x 2",
         "Photobooth",
@@ -153,6 +154,7 @@
       "costLineLabels": [
         "Substantial Canapes (All Sesons)",
         "Catering Delivery Charge (In every quote)",
+        "Own Food Surcharge",
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
         "Event Decor (Add to every quote)",
@@ -220,6 +222,7 @@
       "marginPercent": "20",
       "costLineLabels": [
         "Catering Delivery Charge (In every quote)",
+        "Own Food Surcharge",
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
         "Event Decor (Add to every quote)",
@@ -289,6 +292,7 @@
       "costLineLabels": [
         "Street Food Station (All Seasons)",
         "Catering Delivery Charge (In every quote)",
+        "Own Food Surcharge",
         "Disposable tableware (Add to street food quotes ONLY)",
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
