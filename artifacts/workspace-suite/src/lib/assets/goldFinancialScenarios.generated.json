@@ -1,11 +1,7 @@
-[
-  {
-    "id": "WE.18900",
-    "label": "José Rubio / Hannah Charles — Space Made — Christmas V4",
-    "goldQuoteVersion": "V4",
+{
+  "WE.18900": {
     "goldQuoteWeottCost": 12278.64,
     "marginPercent": 25,
-    "leadFixture": "../proposal-testing-scenario/fixtures/WE.18900.lead.json",
     "form": {
       "vesselType": [
         "WEOTT II (Avontuur)"
@@ -76,7 +72,8 @@
         "Rice Bowl",
         "Cutlery Linen",
         "Dessert/Starter Spoon",
-        "Starter fork"
+        "Starter fork",
+        "Barbecue"
       ],
       "bespokeLines": [
         {
@@ -103,23 +100,15 @@
           "amount": 0,
           "enabled": false
         }
-      ],
-      "source": "Build your event form",
-      "bespoke": [
-        {
-          "label": "Bar tab",
-          "amount": 1500
-        }
       ]
-    }
+    },
+    "calcWeott": 12283.8,
+    "delta": 5.1599999999998545,
+    "ok": true
   },
-  {
-    "id": "WE.18759",
-    "label": "Mankaasha Umba — The Outnet — Summer V2",
-    "goldQuoteVersion": "V2",
+  "WE.18759": {
     "goldQuoteWeottCost": 8900.1,
     "marginPercent": 25,
-    "leadFixture": "../proposal-testing-scenario/fixtures/WE.18759.lead.json",
     "form": {
       "vesselType": [
         "WEOTT II (Avontuur)"
@@ -176,85 +165,17 @@
         "Disposable Napkins",
         "Dinner Forks",
         "Dinner Plates",
-        "Cutlery Linen"
-      ],
-      "source": "Build your event form"
-    }
+        "Cutlery Linen",
+        "Afternoon Tea"
+      ]
+    },
+    "calcWeott": 8896.87,
+    "delta": -3.2299999999995634,
+    "ok": true
   },
-  {
-    "id": "WE.18937",
-    "label": "Loretta Greeley-Ward — Caribou — Wedding Transfer V2",
-    "goldQuoteVersion": "V2",
-    "goldQuoteWeottCost": 10462.17,
-    "marginPercent": 20,
-    "leadFixture": "../proposal-testing-scenario/fixtures/WE.18937.lead.json",
-    "form": {
-      "vesselType": [
-        "WEOTT II (Avontuur)"
-      ],
-      "eventType": "Wedding Transfer",
-      "quoteVersion": "V2",
-      "proposalCategory": "wedding",
-      "templateId": "wedding/wedding_transfer/any",
-      "requiresInserts": true,
-      "selectedInserts": [
-        "weott_ii_wedding_transfer_insert",
-        "2024_weott_proposal_river_map"
-      ],
-      "keyItems": "Wedding transfer",
-      "weeklyPeriod": "Mon to Thur",
-      "dayPeriod": "Daytime",
-      "groupBracket": "Standard",
-      "guestCount": "150",
-      "noOfTables": "15",
-      "embarkation": "14:30",
-      "disembarkation": "16:30",
-      "departure": "14:45",
-      "returnTime": "16:15",
-      "eventDate": "2027-09-05",
-      "dateFlexible": false,
-      "menuType": [],
-      "repeatClient": false,
-      "agentReferral": true,
-      "commissionPercent": "0",
-      "marginPercent": "20",
-      "costLineLabels": [
-        "Catering Delivery Charge (In every quote)",
-        "Cocktail Reception (1 x glass per guest)",
-        "Background Music/Sound Equipment Hire",
-        "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
-        "Project Management - Wedding",
-        "Pier Coordinator",
-        "Unit Management (Packing team)",
-        "Event Manager (In house member of team)",
-        "Event Coordinator (In house member of team)",
-        "Event Assistant x 1",
-        "Event Assistants x 2",
-        "Head Chef x 1",
-        "Chef De Partie",
-        "Catering Assistant x 4",
-        "Wild Catering Assistant",
-        "CONTIGENCY STAFF",
-        "Staff Taxi or Train Cost",
-        "Event Manager 'Creative Kitty'",
-        "Financial Admin Fee - Carly",
-        "Financial Admin Fee - Shilen",
-        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
-        "Flowers - Wedding",
-        "Table Linen & Runner",
-        "Drink tokens - x 4"
-      ],
-      "source": "Wedding Planner/Agent"
-    }
-  },
-  {
-    "id": "WE.18931",
-    "label": "Mia Cruickshank — Databarracks — Team Building V2",
-    "goldQuoteVersion": "V2",
+  "WE.18931": {
     "goldQuoteWeottCost": 18982.51,
     "marginPercent": 25,
-    "leadFixture": "../proposal-testing-scenario/fixtures/WE.18931.lead.json",
     "form": {
       "vesselType": [
         "WEOTT VI (Elizabethan)"
@@ -341,26 +262,76 @@
           "amount": 400,
           "enabled": true
         }
-      ],
-      "source": "Build your event form",
-      "bespoke": [
-        {
-          "label": "Bespoke (1)",
-          "amount": 650
-        },
-        {
-          "label": "Bespoke (2)",
-          "amount": 450
-        },
-        {
-          "label": "Bespoke (3)",
-          "amount": 2520
-        },
-        {
-          "label": "Bespoke (4)",
-          "amount": 400
-        }
       ]
-    }
+    },
+    "calcWeott": 18980.97,
+    "delta": -1.5399999999972351,
+    "ok": true
+  },
+  "WE.18937": {
+    "goldQuoteWeottCost": 10462.17,
+    "marginPercent": 20,
+    "form": {
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
+      "eventType": "Wedding Transfer",
+      "quoteVersion": "V2",
+      "proposalCategory": "wedding",
+      "templateId": "wedding/wedding_transfer/any",
+      "requiresInserts": true,
+      "selectedInserts": [
+        "weott_ii_wedding_transfer_insert",
+        "2024_weott_proposal_river_map"
+      ],
+      "keyItems": "Wedding transfer",
+      "weeklyPeriod": "Mon to Thur",
+      "dayPeriod": "Daytime",
+      "groupBracket": "Standard",
+      "guestCount": "150",
+      "noOfTables": "15",
+      "embarkation": "14:30",
+      "disembarkation": "16:30",
+      "departure": "14:45",
+      "returnTime": "16:15",
+      "eventDate": "2027-09-05",
+      "dateFlexible": false,
+      "menuType": [],
+      "repeatClient": false,
+      "agentReferral": true,
+      "commissionPercent": "0",
+      "marginPercent": "20",
+      "costLineLabels": [
+        "Catering Delivery Charge (In every quote)",
+        "Cocktail Reception (1 x glass per guest)",
+        "Background Music/Sound Equipment Hire",
+        "Event Decor (Add to every quote)",
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Wedding",
+        "Pier Coordinator",
+        "Unit Management (Packing team)",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Event Assistants x 2",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 4",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF",
+        "Staff Taxi or Train Cost",
+        "Event Manager 'Creative Kitty'",
+        "Financial Admin Fee - Carly",
+        "Financial Admin Fee - Shilen",
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Flowers - Wedding",
+        "Table Linen & Runner",
+        "Drink tokens - x 4",
+        "Saxophonist"
+      ]
+    },
+    "calcWeott": 10473.42,
+    "delta": 11.25,
+    "ok": true
   }
-]
+}

@@ -58,8 +58,13 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
     }
   }
 
+  const bespokeFromForm = f.bespokeLines as
+    | { id: string; label: string; amount: number; enabled: boolean }[]
+    | undefined;
   const bespokeAmount = f.bespokeAmount as number | undefined;
-  if (bespokeAmount) {
+  if (bespokeFromForm?.length) {
+    set('bespokeLines', bespokeFromForm);
+  } else if (bespokeAmount) {
     const bespokeLines = [...((next.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
     if (bespokeLines[0]) {
       bespokeLines[0] = {

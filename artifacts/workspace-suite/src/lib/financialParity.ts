@@ -145,6 +145,29 @@ export function quoteFormFromGoldScenario(ref: string): QuoteFormInput | null {
   const f = g.form;
   const labels = (f.costLineLabels as string[]) || [];
   const bespokeAmount = f.bespokeAmount as number | undefined;
+  const bespokeFromForm = f.bespokeLines as
+    | { id: string; label: string; amount: number; enabled: boolean }[]
+    | undefined;
+  const defaultBespoke = [
+    { id: 'bespoke_1', label: 'Bespoke (1)', amount: 0, enabled: false },
+    { id: 'bespoke_2', label: 'Bespoke (2)', amount: 0, enabled: false },
+    { id: 'bespoke_3', label: 'Bespoke (3)', amount: 0, enabled: false },
+    { id: 'bespoke_4', label: 'Bespoke (4)', amount: 0, enabled: false },
+  ];
+  const bespokeLines =
+    bespokeFromForm?.length
+      ? bespokeFromForm
+      : bespokeAmount
+        ? [
+            {
+              id: 'bespoke_1',
+              label: String(f.bespokeLabel || 'Bespoke'),
+              amount: bespokeAmount,
+              enabled: true,
+            },
+            ...defaultBespoke.slice(1),
+          ]
+        : defaultBespoke;
   return {
     vesselType: (f.vesselType as string[]) || [],
     eventType: String(f.eventType || ''),
@@ -170,19 +193,7 @@ export function quoteFormFromGoldScenario(ref: string): QuoteFormInput | null {
     groupBracket: String(f.groupBracket || ''),
     noOfTables: String(f.noOfTables || ''),
     selectedLineIds: lineIdsFromLabels(labels),
-    bespokeLines: bespokeAmount
-      ? [
-          { id: 'bespoke_1', label: String(f.bespokeLabel || 'Bespoke'), amount: bespokeAmount, enabled: true },
-          { id: 'bespoke_2', label: 'Bespoke (2)', amount: 0, enabled: false },
-          { id: 'bespoke_3', label: 'Bespoke (3)', amount: 0, enabled: false },
-          { id: 'bespoke_4', label: 'Bespoke (4)', amount: 0, enabled: false },
-        ]
-      : [
-          { id: 'bespoke_1', label: 'Bespoke (1)', amount: 0, enabled: false },
-          { id: 'bespoke_2', label: 'Bespoke (2)', amount: 0, enabled: false },
-          { id: 'bespoke_3', label: 'Bespoke (3)', amount: 0, enabled: false },
-          { id: 'bespoke_4', label: 'Bespoke (4)', amount: 0, enabled: false },
-        ],
+    bespokeLines,
     discountPercent: String(f.discountPercent || ''),
     commissionPercent: String(f.commissionPercent ?? ''),
   };

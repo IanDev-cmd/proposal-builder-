@@ -4,7 +4,9 @@
     "goldQuoteWeottCost": 12278.64,
     "marginPercent": 25,
     "form": {
-      "vesselType": ["WEOTT II (Avontuur)"],
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
       "eventType": "Christmas Event",
       "quoteVersion": "V4",
       "proposalCategory": "corporate",
@@ -28,7 +30,9 @@
       "returnTime": "21:30",
       "eventDate": "2026-12-02",
       "dateFlexible": true,
-      "menuType": ["Hot Fork Buffet (All Seasons)"],
+      "menuType": [
+        "Hot Fork Buffet (All Seasons)"
+      ],
       "repeatClient": false,
       "marginPercent": "25",
       "bespokeAmount": 1500,
@@ -45,14 +49,57 @@
         "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
         "Project Management - Corporate/Special",
         "Pier Coordinator",
+        "Unit Management (Packing team)",
         "Event Manager (In house member of team)",
         "Event Coordinator (In house member of team)",
         "Event Assistant x 1",
         "Head Chef x 1",
         "Chef De Partie",
-        "Catering Assistant x 2",
+        "Catering Assistant x 3",
         "Wild Catering Assistant",
-        "CONTIGENCY STAFF"
+        "CONTIGENCY STAFF",
+        "Staff Taxi or Train Cost",
+        "Event Manager 'Creative Kitty'",
+        "Financial Admin Fee - Carly",
+        "Financial Admin Fee - Shilen",
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Disposable Napkins",
+        "Dinner Forks",
+        "Dinner Knife",
+        "Butter Knife",
+        "Dinner Plates",
+        "Small Plates",
+        "Soup Plate",
+        "Rice Bowl",
+        "Cutlery Linen",
+        "Dessert/Starter Spoon",
+        "Starter fork"
+      ],
+      "bespokeLines": [
+        {
+          "id": "b1",
+          "label": "Bar tab",
+          "amount": 1500,
+          "enabled": true
+        },
+        {
+          "id": "b2",
+          "label": "Bespoke (2)",
+          "amount": 0,
+          "enabled": false
+        },
+        {
+          "id": "b3",
+          "label": "Bespoke (3)",
+          "amount": 0,
+          "enabled": false
+        },
+        {
+          "id": "b4",
+          "label": "Bespoke (4)",
+          "amount": 0,
+          "enabled": false
+        }
       ]
     }
   },
@@ -61,7 +108,9 @@
     "goldQuoteWeottCost": 8900.1,
     "marginPercent": 25,
     "form": {
-      "vesselType": ["WEOTT II (Avontuur)"],
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
       "eventType": "Summer Event",
       "quoteVersion": "V2",
       "proposalCategory": "corporate",
@@ -83,11 +132,13 @@
       "returnTime": "16:30",
       "eventDate": "2026-07-23",
       "dateFlexible": false,
-      "menuType": ["Canapes (All Seasons)"],
+      "menuType": [
+        "Substantial Canapes (All Sesons)"
+      ],
       "repeatClient": false,
       "marginPercent": "25",
       "costLineLabels": [
-        "Canapes (All Seasons)",
+        "Substantial Canapes (All Sesons)",
         "Catering Delivery Charge (In every quote)",
         "Cocktail Reception (1 x glass per guest)",
         "Background Music/Sound Equipment Hire",
@@ -95,14 +146,117 @@
         "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
         "Project Management - Corporate/Special",
         "Pier Coordinator",
+        "Unit Management (Packing team)",
         "Event Manager (In house member of team)",
         "Event Coordinator (In house member of team)",
         "Event Assistant x 1",
         "Head Chef x 1",
         "Chef De Partie",
-        "Catering Assistant x 2",
+        "Catering Assistant x 3",
         "Wild Catering Assistant",
-        "CONTIGENCY STAFF"
+        "CONTIGENCY STAFF",
+        "Staff Taxi or Train Cost",
+        "Event Manager 'Creative Kitty'",
+        "Financial Admin Fee - Carly",
+        "Financial Admin Fee - Shilen",
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Disposable Napkins",
+        "Dinner Forks",
+        "Dinner Plates",
+        "Cutlery Linen"
+      ]
+    }
+  },
+  "WE.18931": {
+    "label": "Team Building V2 — Databarracks",
+    "goldQuoteWeottCost": 18982.51,
+    "marginPercent": 25,
+    "form": {
+      "vesselType": [
+        "WEOTT VI (Elizabethan)"
+      ],
+      "eventType": "Team Building",
+      "quoteVersion": "V2",
+      "proposalCategory": "corporate",
+      "templateId": "corporate/team_building/daytime",
+      "requiresInserts": true,
+      "selectedInserts": [
+        "weott_i_spring_summer_insert",
+        "2024_weott_proposal_river_map"
+      ],
+      "keyItems": "Team building daytime",
+      "weeklyPeriod": "Thur to Sun",
+      "dayPeriod": "Daytime",
+      "groupBracket": "Standard",
+      "guestCount": "80",
+      "noOfTables": "10",
+      "embarkation": "13:00",
+      "disembarkation": "17:00",
+      "departure": "13:30",
+      "returnTime": "16:30",
+      "eventDate": "2026-09-17",
+      "dateFlexible": true,
+      "menuType": [
+        "Street Food Station (All Seasons)"
+      ],
+      "repeatClient": false,
+      "marginPercent": "25",
+      "costLineLabels": [
+        "Street Food Station (All Seasons)",
+        "Catering Delivery Charge (In every quote)",
+        "Disposable tableware (Add to street food quotes ONLY)",
+        "Cocktail Reception (1 x glass per guest)",
+        "Background Music/Sound Equipment Hire",
+        "Team building activities with performance coach",
+        "TV - 55\"",
+        "Event Decor (Add to every quote)",
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Project Management - Corporate/Special",
+        "Unit Management (Packing team)",
+        "Event Manager (In house member of team)",
+        "Event Coordinator (In house member of team)",
+        "Event Assistant x 1",
+        "Head Chef x 1",
+        "Chef De Partie",
+        "Catering Assistant x 4",
+        "Wild Catering Assistant",
+        "CONTIGENCY STAFF",
+        "Additional Chefs x 2 (for all seated dinners)",
+        "Staff Taxi or Train Cost",
+        "Event Manager 'Creative Kitty'",
+        "Financial Admin Fee - Carly",
+        "Financial Admin Fee - Shilen",
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Van Courier",
+        "Table Linen & Runner",
+        "Festive Crackers",
+        "Half a bottle of wine with dinner"
+      ],
+      "bespokeLines": [
+        {
+          "id": "b1",
+          "label": "Bespoke (1)",
+          "amount": 650,
+          "enabled": true
+        },
+        {
+          "id": "b2",
+          "label": "Bespoke (2)",
+          "amount": 450,
+          "enabled": true
+        },
+        {
+          "id": "b3",
+          "label": "Bespoke (3)",
+          "amount": 2520,
+          "enabled": true
+        },
+        {
+          "id": "b4",
+          "label": "Bespoke (4)",
+          "amount": 400,
+          "enabled": true
+        }
       ]
     }
   },
@@ -111,7 +265,9 @@
     "goldQuoteWeottCost": 10462.17,
     "marginPercent": 20,
     "form": {
-      "vesselType": ["WEOTT II (Avontuur)"],
+      "vesselType": [
+        "WEOTT II (Avontuur)"
+      ],
       "eventType": "Wedding Transfer",
       "quoteVersion": "V2",
       "proposalCategory": "wedding",
@@ -146,67 +302,24 @@
         "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
         "Project Management - Wedding",
         "Pier Coordinator",
+        "Unit Management (Packing team)",
         "Event Manager (In house member of team)",
         "Event Coordinator (In house member of team)",
         "Event Assistant x 1",
+        "Event Assistants x 2",
         "Head Chef x 1",
         "Chef De Partie",
-        "Catering Assistant x 2",
+        "Catering Assistant x 4",
         "Wild Catering Assistant",
-        "CONTIGENCY STAFF"
-      ]
-    }
-  },
-  "WE.18931": {
-    "label": "Team Building V2 — Databarracks",
-    "goldQuoteWeottCost": 18982.51,
-    "marginPercent": 25,
-    "form": {
-      "vesselType": ["WEOTT I (Rose)"],
-      "eventType": "Team Building",
-      "quoteVersion": "V2",
-      "proposalCategory": "corporate",
-      "templateId": "corporate/team_building/daytime",
-      "requiresInserts": true,
-      "selectedInserts": [
-        "weott_i_spring_summer_insert",
-        "2024_weott_proposal_river_map"
-      ],
-      "keyItems": "Team building daytime",
-      "weeklyPeriod": "Mon to Thur",
-      "dayPeriod": "Daytime",
-      "groupBracket": "Standard",
-      "guestCount": "80",
-      "noOfTables": "10",
-      "embarkation": "13:00",
-      "disembarkation": "17:00",
-      "departure": "13:30",
-      "returnTime": "16:30",
-      "eventDate": "2026-09-17",
-      "dateFlexible": true,
-      "menuType": ["Street Food Station (All Seasons)"],
-      "repeatClient": false,
-      "marginPercent": "25",
-      "costLineLabels": [
-        "Street Food Station (All Seasons)",
-        "Catering Delivery Charge (In every quote)",
-        "Disposable tableware (Add to street food quotes ONLY)",
-        "Cocktail Reception (1 x glass per guest)",
-        "Background Music/Sound Equipment Hire",
-        "Team building activities with performance coach",
-        "TV - 55\"",
-        "Event Decor (Add to every quote)",
-        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
-        "Project Management - Corporate/Special",
-        "Pier Coordinator",
-        "Event Manager (In house member of team)",
-        "Event Coordinator (In house member of team)",
-        "Event Assistant x 1",
-        "Head Chef x 1",
-        "Chef De Partie",
-        "Catering Assistant x 2",
-        "Wild Catering Assistant",
-        "CONTIGENCY STAFF"
+        "CONTIGENCY STAFF",
+        "Staff Taxi or Train Cost",
+        "Event Manager 'Creative Kitty'",
+        "Financial Admin Fee - Carly",
+        "Financial Admin Fee - Shilen",
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Flowers - Wedding",
+        "Table Linen & Runner",
+        "Drink tokens - x 4"
       ]
     }
   }
