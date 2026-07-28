@@ -10,6 +10,7 @@ import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type Lead
 import { soundClick } from '@/lib/sounds';
 import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
+import { toastError } from '@/lib/notify';
 import type { N8nSapphireLead } from '@/lib/sapphireLead';
 
 const NOTE_ICONS: Record<NoteTag, typeof Search> = {
@@ -538,7 +539,7 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
 
   function handleBuildQuote() {
     if (!lead) return;
-    setQuoteLead({
+    const saved = setQuoteLead({
       id: lead.id,
       name: lead.name,
       email: lead.email,
@@ -578,6 +579,14 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
       quoteGroupBracket: lead.quoteGroupBracket,
       sapphire: lead.sapphire,
     });
+    if (!saved) {
+      toastError({
+        key: 'quote-lead',
+        title: 'Could not open Quote Builder',
+        description: 'Browser storage is unavailable. Check privacy settings and try again.',
+      });
+      return;
+    }
     soundClick();
     onClose();
     navigate('/quote-builder');

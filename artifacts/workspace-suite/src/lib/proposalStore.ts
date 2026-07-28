@@ -82,24 +82,20 @@ async function ensureMigrated(db: IDBDatabase): Promise<void> {
   return migrated;
 }
 
-/** All generated proposals, newest first. */
+/** All generated proposals, newest first. Throws if IndexedDB is unavailable. */
 export async function loadProposals(): Promise<GeneratedProposal[]> {
-  try {
-    const db = await openDb();
-    await ensureMigrated(db);
-    return await new Promise<GeneratedProposal[]>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).getAll();
-      req.onsuccess = () => {
-        const rows = (req.result as GeneratedProposal[]) ?? [];
-        rows.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-        resolve(rows);
-      };
-      req.onerror = () => reject(req.error ?? new Error('Failed to read proposals'));
-    });
-  } catch {
-    return [];
-  }
+  const db = await openDb();
+  await ensureMigrated(db);
+  return await new Promise<GeneratedProposal[]>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => {
+      const rows = (req.result as GeneratedProposal[]) ?? [];
+      rows.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+      resolve(rows);
+    };
+    req.onerror = () => reject(req.error ?? new Error('Failed to read proposals'));
+  });
 }
 
 /**

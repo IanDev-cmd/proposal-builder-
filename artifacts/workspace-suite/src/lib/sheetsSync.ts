@@ -7,6 +7,7 @@
  */
 
 import { N8N_BASE } from '@/lib/backendUrls';
+import { N8nWebhookError } from '@/lib/errors';
 
 const STORAGE_KEY = 'nexus.sheetsMode';
 
@@ -57,13 +58,38 @@ export function getActiveSheetMeta() {
 
 async function postWebhook(path: string, payload: Record<string, unknown>) {
   const mode = (payload.mode as SheetsMode) || getSheetsMode();
-  const res = await fetch(`${N8N_BASE}/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...payload, mode }),
-  });
-  if (!res.ok) throw new Error(`${path} failed (${res.status})`);
-  return res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${N8N_BASE}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, mode }),
+    });
+  } catch (err) {
+    throw new N8nWebhookError(
+      path,
+      undefined,
+      `Could not reach n8n (${path}): ${err instanceof Error ? err.message : 'network error'}`,
+    );
+  }
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = (await res.text()).trim().slice(0, 160);
+    } catch {
+      /* ignore */
+    }
+    throw new N8nWebhookError(
+      path,
+      res.status,
+      detail ? `${path} failed (${res.status}): ${detail}` : undefined,
+    );
+  }
+  try {
+    return await res.json();
+  } catch {
+    return { ok: true };
+  }
 }
 
 export async function appendProgressNote(payload: {

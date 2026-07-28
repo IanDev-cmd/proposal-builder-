@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye } from 'lucide-react';
@@ -44,14 +44,17 @@ import {
   PREFILL_INPUT_CLS,
   PREFILL_TOGGLE_CLS,
   PREFILL_CONFIRMED_CLS,
+  PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
-import { indexProposalTemplates, indexProposalInserts } from '@/lib/proposalPrefill';
+import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
 import { financialParityReport } from '@/lib/financialParity';
 import {
   resolveSheetFinancialTargets,
   rateEventDateFromLead,
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
+import { toastError } from '@/lib/notify';
+import { errorMessage as formatError } from '@/lib/errors';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -785,6 +788,22 @@ const STEPS = [
 
 const LAST_CONTENT_STEP = 8;
 
+/** Run a Sheets write-back; toast on failure but do not throw (PDF may still succeed). */
+async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await fn();
+    return true;
+  } catch (err) {
+    toastError({
+      key: `sheets:${label}`,
+      title: 'Sheets sync failed',
+      description: `${label} — ${formatError(err)}`,
+      err,
+    });
+    return false;
+  }
+}
+
 export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
@@ -801,6 +820,7 @@ export function Forms() {
   const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(() => new Set());
   const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [showAllInsertsPanel, setShowAllInsertsPanel] = useState(false);
+  const templateManualRef = useRef(false);
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
@@ -976,6 +996,61 @@ export function Forms() {
     [data.proposalCategory, data.vesselType],
   );
 
+  const templateResolution = useMemo(
+    () => resolveProposalTemplateFromForm(data, quoteLead),
+    [
+      data.proposalCategory,
+      data.eventType,
+      data.guestCount,
+      data.embarkation,
+      data.disembarkation,
+      data.dayPeriod,
+      data.eventDate,
+      data.quoteVersion,
+      data.progressNotes,
+      quoteLead,
+    ],
+  );
+
+  const syncAutoTemplate = useCallback(() => {
+    if (templateManualRef.current) return;
+    const { templateId } = templateResolution;
+    if (!templateId) return;
+    setData((prev) => {
+      if (prev.templateId === templateId) return prev;
+      return { ...prev, templateId, costApproved: false };
+    });
+    setPrefilledKeys((prev) => {
+      const next = new Set(prev);
+      next.add('templateId');
+      return next;
+    });
+    setConfirmedKeys((prev) => {
+      const next = new Set(prev);
+      next.delete('templateId');
+      return next;
+    });
+  }, [templateResolution]);
+
+  useEffect(() => {
+    if (step === 8) syncAutoTemplate();
+  }, [step, syncAutoTemplate, templateResolution.templateId]);
+
+  useEffect(() => {
+    if (prefilledKeys.has('templateId') && !templateManualRef.current) {
+      syncAutoTemplate();
+    }
+  }, [
+    data.eventType,
+    data.proposalCategory,
+    data.guestCount,
+    data.embarkation,
+    data.disembarkation,
+    data.dayPeriod,
+    data.quoteVersion,
+    syncAutoTemplate,
+    prefilledKeys,
+  ]);
   const templateCatalog = useMemo(
     () => indexProposalTemplates(data.proposalCategory),
     [data.proposalCategory],
@@ -1023,10 +1098,16 @@ export function Forms() {
               : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
         );
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
           const meta = getCostMotherMeta();
           setRatesNote(`Using bundled Cost Mother snapshot (${meta.itemCount} lines).`);
+          toastError({
+            key: 'cost-rates',
+            title: 'Live Cost Mother unavailable',
+            description: 'Using bundled rate snapshot. Totals may differ from the live sheet.',
+            err,
+          });
         }
       });
     return () => {
@@ -1224,16 +1305,19 @@ export function Forms() {
     try {
       // Write progress notes + quote financials back to Sheets (SoT) before/alongside PDF.
       if (data.progressNotes.trim()) {
-        await appendProgressNote({
-          referenceNumber: quoteLead?.referenceNumber,
-          email: quoteLead?.email,
-          leadName: quoteLead?.name,
-          note: data.progressNotes.trim(),
-          tag: 'pipeline',
-          mode: sheetsMode,
-        }).catch(() => undefined);
+        await sheetsWrite('Progress note', () =>
+          appendProgressNote({
+            referenceNumber: quoteLead?.referenceNumber,
+            email: quoteLead?.email,
+            leadName: quoteLead?.name,
+            note: data.progressNotes.trim(),
+            tag: 'pipeline',
+            mode: sheetsMode,
+          }),
+        );
       }
-      await writeQuoteStatus({
+      await sheetsWrite('Quote status (generating)', () =>
+        writeQuoteStatus({
         referenceNumber: quoteLead?.referenceNumber,
         email: quoteLead?.email,
         leadName: quoteLead?.name,
@@ -1279,7 +1363,8 @@ export function Forms() {
         grandTotal: fin.grand,
         sectionTotals: fin.sectionTotals,
         mode: sheetsMode,
-      }).catch(() => undefined);
+        }),
+      );
 
       const res = await fetch(QUOTE_WEBHOOK_URL, {
         method: 'POST',
@@ -1346,31 +1431,39 @@ export function Forms() {
         );
       }
 
-      await writeQuoteStatus({
-        referenceNumber: quoteLead?.referenceNumber,
-        email: quoteLead?.email,
-        leadName: quoteLead?.name,
-        status: 'ready',
-        version: data.quoteVersion,
-        eventType: data.eventType,
-        eventDate: data.eventDate,
-        guestCount: data.guestCount,
-        guestCountHigh: data.guestCountHigh,
-        grandTotal: fin.grand,
-        costToClient: fin.costToClient,
-        vat: fin.vat,
-        updatedProfit: fin.updatedProfit,
-        costPerGuestInc: fin.costPerGuestInc,
-        templateId: data.templateId,
-        selectedLineLabels: (fin.lines || []).map((l) => l.label),
-      }).catch(() => undefined);
+      await sheetsWrite('Quote status (ready)', () =>
+        writeQuoteStatus({
+          referenceNumber: quoteLead?.referenceNumber,
+          email: quoteLead?.email,
+          leadName: quoteLead?.name,
+          status: 'ready',
+          version: data.quoteVersion,
+          eventType: data.eventType,
+          eventDate: data.eventDate,
+          guestCount: data.guestCount,
+          guestCountHigh: data.guestCountHigh,
+          grandTotal: fin.grand,
+          costToClient: fin.costToClient,
+          vat: fin.vat,
+          updatedProfit: fin.updatedProfit,
+          costPerGuestInc: fin.costPerGuestInc,
+          templateId: data.templateId,
+          selectedLineLabels: (fin.lines || []).map((l) => l.label),
+        }),
+      );
 
       clearQuoteLead();
       setStage('done');
       setTimeout(() => navigate('/proposal-doc'), 1200);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to generate the proposal.');
+      const msg = formatError(err, 'Failed to generate the proposal.');
+      setErrorMessage(msg);
       setStage('error');
+      toastError({
+        key: 'generate',
+        title: 'Proposal generation failed',
+        description: msg,
+      });
     }
   };
 
@@ -2282,8 +2375,10 @@ export function Forms() {
                       key={cat}
                       type="button"
                       onClick={() => {
+                        if (data.proposalCategory === cat) return;
+                        templateManualRef.current = false;
+                        setShowAllTemplates(false);
                         set('proposalCategory', cat);
-                        set('templateId', '');
                       }}
                       className={`flex-1 rounded-[10px] border px-4 py-3.5 text-[13px] font-semibold capitalize transition-colors ${
                         data.proposalCategory === cat
@@ -2301,8 +2396,20 @@ export function Forms() {
                 <p className={sectionLabelCls}>Proposal Template</p>
                 <div className="mb-7">
                   <p className="mb-3 text-[11.5px] text-gray-400">
-                    {templateCatalog.count} templates indexed for {data.proposalCategory} — blue = auto-selected from Sheets; click to confirm (glow).
+                    {templateCatalog.count} templates indexed for {data.proposalCategory} — blue glow = auto-selected from enquiry data; click to confirm (coral glow).
                   </p>
+                  {prefilledKeys.has('templateId') && templateResolution.templateId && !confirmedKeys.has('templateId') ? (
+                    <p className="mb-3 rounded-[8px] border border-blue-200 bg-blue-50/80 px-3 py-2 text-[11.5px] text-blue-800">
+                      Suggested from event data:{' '}
+                      <span className="font-semibold">{templateResolution.eventTypeUsed || data.eventType}</span>
+                      {templateResolution.slotUsed ? (
+                        <>
+                          {' '}
+                          · slot <span className="font-semibold">{templateResolution.slotUsed.replace(/_/g, ' ')}</span>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                   <div className="space-y-2">
                     {templatesVisible.map((t) => {
                       const selected = data.templateId === t.id;
@@ -2316,6 +2423,7 @@ export function Forms() {
                             if (selected) {
                               confirmKey('templateId');
                             } else {
+                              templateManualRef.current = true;
                               clearPrefill('templateId');
                               setData((prev) => ({ ...prev, templateId: t.id, costApproved: false }));
                             }
@@ -2325,7 +2433,7 @@ export function Forms() {
                               ? confirmed
                                 ? `border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12] ${PREFILL_CONFIRMED_CLS}`
                                 : prefilled
-                                  ? `border-blue-400 bg-blue-50/80 font-semibold text-blue-900 ${PREFILL_INPUT_CLS}`
+                                  ? `border-blue-400 bg-blue-50/80 font-semibold text-blue-900 ${PREFILL_BLUE_GLOW_CLS}`
                                   : 'border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12]'
                               : 'border-[#e3e6e4] text-gray-600 hover:border-[#FF5A45]/40'
                           }`}
@@ -2375,7 +2483,7 @@ export function Forms() {
                     prefilledKeys.has('requiresInserts') && data.requiresInserts
                       ? confirmedKeys.has('requiresInserts')
                         ? PREFILL_CONFIRMED_CLS
-                        : PREFILL_INPUT_CLS
+                        : PREFILL_BLUE_GLOW_CLS
                       : ''
                   }`}
                 >
@@ -2426,7 +2534,7 @@ export function Forms() {
                           className={`flex w-full items-center justify-between rounded-[10px] border px-4 py-3 text-left text-[12.5px] transition-all ${
                             confirmed
                               ? `border-[#FF5A45] bg-[#FFF1F0] font-semibold text-[#E22A12] ${PREFILL_CONFIRMED_CLS}`
-                              : `border-blue-400 bg-blue-50/80 text-blue-900 ${PREFILL_INPUT_CLS}`
+                              : `border-blue-400 bg-blue-50/80 text-blue-900 ${PREFILL_BLUE_GLOW_CLS}`
                           }`}
                         >
                           <span className="truncate">{item?.label || id}</span>

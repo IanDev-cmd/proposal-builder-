@@ -20,6 +20,8 @@ import { N8N_BASE } from '@/lib/backendUrls';
 import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
 import { parseGuestCount } from '@/lib/parseGuestCount';
 import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
+import { toastError } from '@/lib/notify';
+import { errorMessage } from '@/lib/errors';
 
 const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
 
@@ -136,12 +138,19 @@ function tabStatusFromLiveDead(liveDead: string, crmStatus: string): string {
 }
 
 async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
-  const res = await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode }),
-  });
-  if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Could not reach LeadDataFetch: ${err instanceof Error ? err.message : 'network error'}`,
+    );
+  }
+  if (!res.ok) throw new Error(`LeadDataFetch failed (${res.status})`);
   const data = await res.json();
   const rows: AnyLeadRow[] = Array.isArray(data?.leads) ? data.leads : [];
   if (rows.length) return rows.map(mapRaw);
@@ -213,6 +222,18 @@ export function Leads() {
         setStatus('ok');
       } else if (!hasRowsRef.current && !readLeadsCache(currentMode)?.leads?.length) {
         setStatus('error');
+        toastError({
+          key: 'leads-fetch',
+          title: 'Could not load leads',
+          description: errorMessage(err, 'Check n8n connection and try again.'),
+        });
+      } else if (silent) {
+        toastError({
+          key: 'leads-refresh',
+          title: 'Lead refresh failed',
+          description: 'Showing cached data. Will retry automatically.',
+          err,
+        });
       }
       console.warn('[leads] refresh failed', err);
     } finally {

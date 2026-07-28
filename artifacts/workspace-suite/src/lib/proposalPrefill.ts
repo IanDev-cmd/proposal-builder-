@@ -8,6 +8,27 @@ import {
   type ProposalInsert,
   type ProposalTemplate,
 } from '@/lib/proposalAssets';
+import { versionBlock } from '@/lib/progressNotesFinance';
+
+export type ProposalTemplateContext = {
+  proposalCategory: 'corporate' | 'wedding';
+  eventType: string;
+  guestCount?: string;
+  embarkation?: string;
+  disembarkation?: string;
+  dayPeriod?: string;
+  eventDate?: string;
+  progressNotes?: string;
+  quoteVersion?: string;
+  market?: string;
+};
+
+export type ProposalTemplateResolution = {
+  templateId: string;
+  matchedBy: string;
+  eventTypeUsed: string;
+  slotUsed: string;
+};
 
 export type ProposalPackPrefill = {
   templateId: string;
@@ -169,24 +190,63 @@ export function indexProposalInserts(opts?: { category?: string; kind?: string }
   return { all: list, byKind, count: list.length };
 }
 
-export function resolveProposalTemplate(opts: {
-  category: 'corporate' | 'wedding';
-  eventType: string;
-  guestCount?: string;
-  embarkation?: string;
-  disembarkation?: string;
-}): string {
-  const { category, eventType } = opts;
-  if (!eventType.trim()) return '';
+function inferEventTypeForTemplate(
+  notes: string,
+  quoteVersion: string,
+  eventType: string,
+  market?: string,
+): string {
+  const block = versionBlock(notes, quoteVersion);
+  const hay = `${block} ${eventType} ${market || ''}`.toLowerCase();
+  if (/\btransfer\b/.test(block.toLowerCase()) && /wedding/.test(hay)) return 'Wedding Transfer';
+  if (/\bengagement\b/.test(hay)) return 'Engagement Celebration';
+  if (/\bteam\s*building\b/.test(hay)) return 'Team Building';
+  if (/\bchristmas|xmas\b/.test(hay)) return 'Christmas Event';
+  if (/\bsummer\s*event\b/.test(hay) || (/\bsummer\b/.test(hay) && !/wedding/.test(hay))) return 'Summer Event';
+  if (/\bwedding\s*reception\b/.test(hay)) return 'Wedding Reception';
+  return eventType;
+}
 
-  let slot = inferTimeSlot(opts.embarkation, opts.disembarkation);
-  if (eventType.toLowerCase().includes('transfer')) {
-    const n = parseInt(String(opts.guestCount || '0').trim(), 10);
+function slotForTemplate(ctx: Pick<ProposalTemplateContext, 'dayPeriod' | 'embarkation' | 'disembarkation' | 'eventType' | 'guestCount'>): string {
+  if (ctx.dayPeriod === 'Daytime') return 'daytime';
+  if (ctx.dayPeriod === 'Evening') return 'evening';
+  let slot = inferTimeSlot(ctx.embarkation, ctx.disembarkation);
+  if ((ctx.eventType || '').toLowerCase().includes('transfer')) {
+    const n = parseInt(String(ctx.guestCount || '0').trim(), 10);
     slot = Number.isFinite(n) && n >= 12 ? 'above_12' : 'below_12';
   }
+  return slot;
+}
 
-  let candidates = PROPOSAL_TEMPLATES.filter((t) => t.category === category);
+export function resolveProposalTemplateDetailed(ctx: ProposalTemplateContext): ProposalTemplateResolution {
+  const category = ctx.proposalCategory;
+  let eventType = ctx.eventType.trim();
+  if (ctx.progressNotes?.trim()) {
+    eventType = inferEventTypeForTemplate(
+      ctx.progressNotes,
+      ctx.quoteVersion || 'V1',
+      eventType,
+      ctx.market,
+    );
+  }
+  if (!eventType && /wedding/i.test(ctx.market || '')) eventType = 'Wedding Reception';
+  if (!eventType) {
+    return { templateId: '', matchedBy: 'missing_event_type', eventTypeUsed: '', slotUsed: '' };
+  }
+
+  const slot = slotForTemplate({ ...ctx, eventType });
+  const templateId = pickTemplateId(category, eventType, slot);
+  return {
+    templateId,
+    matchedBy: templateId ? `event_type+slot:${slot}` : 'none',
+    eventTypeUsed: eventType,
+    slotUsed: slot,
+  };
+}
+
+function pickTemplateId(category: 'corporate' | 'wedding', eventType: string, slot: string): string {
   const slugEt = slug(eventType);
+  let candidates = PROPOSAL_TEMPLATES.filter((t) => t.category === category);
 
   if (eventType) {
     const matched = candidates.filter((t) => {
@@ -221,6 +281,38 @@ export function resolveProposalTemplate(opts: {
     if (hit) return hit.id;
   }
   return candidates[0].id;
+}
+
+export function resolveProposalTemplate(ctx: ProposalTemplateContext): string {
+  return resolveProposalTemplateDetailed(ctx).templateId;
+}
+
+export function resolveProposalTemplateFromForm(
+  data: {
+    proposalCategory: 'corporate' | 'wedding';
+    eventType: string;
+    guestCount?: string;
+    embarkation?: string;
+    disembarkation?: string;
+    dayPeriod?: string;
+    eventDate?: string;
+    quoteVersion?: string;
+    progressNotes?: string;
+  },
+  lead?: { progressNotes?: string; market?: string } | null,
+): ProposalTemplateResolution {
+  return resolveProposalTemplateDetailed({
+    proposalCategory: data.proposalCategory,
+    eventType: data.eventType,
+    guestCount: data.guestCount,
+    embarkation: data.embarkation,
+    disembarkation: data.disembarkation,
+    dayPeriod: data.dayPeriod,
+    eventDate: data.eventDate,
+    quoteVersion: data.quoteVersion,
+    progressNotes: data.progressNotes || lead?.progressNotes,
+    market: lead?.market,
+  });
 }
 
 export function resolveProposalInserts(opts: {
@@ -287,14 +379,23 @@ export function resolveProposalPack(opts: {
   eventDate?: string;
   embarkation?: string;
   disembarkation?: string;
+  dayPeriod?: string;
+  quoteVersion?: string;
+  progressNotes?: string;
+  market?: string;
   repName?: string;
 }): ProposalPackPrefill {
   const templateId = resolveProposalTemplate({
-    category: opts.category,
+    proposalCategory: opts.category,
     eventType: opts.eventType,
     guestCount: opts.guestCount,
     embarkation: opts.embarkation,
     disembarkation: opts.disembarkation,
+    dayPeriod: opts.dayPeriod,
+    eventDate: opts.eventDate,
+    quoteVersion: opts.quoteVersion,
+    progressNotes: opts.progressNotes,
+    market: opts.market,
   });
   const { requiresInserts, selectedInserts } = resolveProposalInserts(opts);
   return { templateId, requiresInserts, selectedInserts };

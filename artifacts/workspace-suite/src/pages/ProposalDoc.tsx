@@ -10,6 +10,7 @@ import {
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { toastError } from '@/lib/notify';
 
 /* ─── Real document pages from the uploaded PDF ─── */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -143,9 +144,20 @@ export function ProposalDoc() {
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      loadProposals().then((rows) => {
-        if (!cancelled) setGenerated(rows);
-      });
+      loadProposals()
+        .then((rows) => {
+          if (!cancelled) setGenerated(rows);
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setGenerated([]);
+            toastError({
+              key: 'proposals-load',
+              title: 'Could not load proposals',
+              err,
+            });
+          }
+        });
     };
     refresh();
     const unsubscribe = subscribeProposals(refresh);
@@ -194,6 +206,11 @@ export function ProposalDoc() {
       setPdfBlobUrl(objectUrl);
     } catch {
       setPdfBlobUrl(null);
+      toastError({
+        key: 'pdf-preview',
+        title: 'Could not preview PDF',
+        description: 'The stored file may be corrupt. Try downloading instead.',
+      });
     }
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -241,7 +258,15 @@ export function ProposalDoc() {
     const ok = window.confirm(`Delete "${active.title}"? This can't be undone.`);
     if (!ok) return;
     const deleted = await deleteProposal(active.id);
-    if (deleted) setActiveId(null);
+    if (deleted) {
+      setActiveId(null);
+    } else {
+      toastError({
+        key: 'proposal-delete',
+        title: 'Could not delete proposal',
+        description: 'Try again or clear browser storage if the problem persists.',
+      });
+    }
   };
 
   /* ── Share targets: each opens the exact right destination in a new tab ── */

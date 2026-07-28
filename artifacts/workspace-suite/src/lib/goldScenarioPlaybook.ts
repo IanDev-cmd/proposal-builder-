@@ -40,6 +40,9 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
   if (f.repeatClient != null) set('repeatClient', f.repeatClient);
   if (f.agentReferral != null) set('agentReferral', f.agentReferral);
   if (f.commissionPercent != null) set('commissionPercent', String(f.commissionPercent));
+  if (f.templateId) set('templateId', f.templateId);
+  if (f.proposalCategory) set('proposalCategory', f.proposalCategory);
+  if (f.requiresInserts != null) set('requiresInserts', f.requiresInserts);
 
   const labels = (f.costLineLabels as string[]) || [];
   if (labels.length) {

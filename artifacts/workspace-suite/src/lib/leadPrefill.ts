@@ -24,6 +24,9 @@ export const PREFILL_TOGGLE_CLS = 'ring-2 ring-blue-400 ring-offset-2';
 /** Applied when the REP clicks to confirm a blue auto-selection. */
 export const PREFILL_CONFIRMED_CLS =
   'ring-2 ring-[#FF5A45] ring-offset-2 shadow-[0_0_14px_rgba(255,90,69,0.45)] border-[#FF5A45]';
+/** Blue glow for auto-selected items awaiting REP click-to-confirm. */
+export const PREFILL_BLUE_GLOW_CLS =
+  'ring-2 ring-blue-400 ring-offset-2 shadow-[0_0_14px_rgba(59,130,246,0.42)] border-blue-400';
 
 export type LeadPrefillResult<T> = {
   data: T;
@@ -427,9 +430,13 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     eventType: eventType || lead.eventType || '',
     guestCount,
     vesselHint: vesselType[0] || lead.vessels,
-    eventDate,
+    eventDate: rateDate || eventDate,
     embarkation,
     disembarkation,
+    dayPeriod,
+    quoteVersion,
+    progressNotes: notes,
+    market: lead.market,
     repName: lead.assignedRep || lead.preparedBy || '',
   });
 

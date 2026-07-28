@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, X, Check } from 'lucide-react';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES, loadFieldPhotos, saveFieldPhotos, photoKey, type PhotoMap } from '@/lib/formOptions';
+import { toastError } from '@/lib/notify';
 
 /* ─── Categories that support hover preview photos — one photo per individual item ─── */
 const PHOTO_CATEGORIES = [
@@ -34,13 +35,29 @@ export function Settings() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUrl = reader.result as string;
-      setPhotos((prev) => {
-        const next = { ...prev, [key]: dataUrl };
-        saveFieldPhotos(next);
-        return next;
+      try {
+        setPhotos((prev) => {
+          const next = { ...prev, [key]: dataUrl };
+          saveFieldPhotos(next);
+          return next;
+        });
+        setSaved(key);
+        setTimeout(() => setSaved(null), 2000);
+      } catch (err) {
+        toastError({
+          key: 'settings-photo-save',
+          title: 'Could not save photo',
+          description: 'Browser storage may be full.',
+          err,
+        });
+      }
+    };
+    reader.onerror = () => {
+      toastError({
+        key: 'settings-photo-read',
+        title: 'Could not read photo',
+        description: 'Try a smaller JPG or PNG file.',
       });
-      setSaved(key);
-      setTimeout(() => setSaved(null), 2000);
     };
     reader.readAsDataURL(file);
   };

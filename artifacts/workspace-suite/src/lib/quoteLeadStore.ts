@@ -53,11 +53,12 @@ export type QuoteLead = {
   sapphire?: import('@/lib/sapphireLead').N8nSapphireLead;
 };
 
-export function setQuoteLead(lead: QuoteLead): void {
+export function setQuoteLead(lead: QuoteLead): boolean {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lead));
+    return true;
   } catch {
-    /* ignore */
+    return false;
   }
 }
 
