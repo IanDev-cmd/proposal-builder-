@@ -150,7 +150,6 @@ export function quoteFormFromGoldScenario(ref: string): QuoteFormInput | null {
   const bespokeFromForm = f.bespokeLines as
     | { id: string; label: string; amount: number; enabled: boolean }[]
     | undefined;
-  const bespokeAmount = f.bespokeAmount as number | undefined;
   const bespokeLines = normalizeBespokeLines(bespokeFromForm, {
     label: String(f.bespokeLabel || 'Bar tab'),
     amount: bespokeAmount,
