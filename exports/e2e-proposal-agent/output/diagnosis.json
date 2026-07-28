@@ -1,0 +1,449 @@
+{
+  "overallPercent": 100,
+  "earned": 48,
+  "total": 48,
+  "scenarios": [
+    {
+      "id": "WE.18900",
+      "label": "José Rubio / Hannah Charles — Space Made — Christmas V4",
+      "generatedPdf": "C:\\Users\\grvns\\Documents\\proposal building\\proposal-builder-main\\exports\\e2e-proposal-agent\\output\\WE.18900\\WE.18900.generated.pdf",
+      "generatedBytes": 3338069,
+      "totals": {
+        "weott": 12278.64,
+        "package_cost": 15348.3,
+        "vat": 3069.66,
+        "grand_total": 18417.96
+      },
+      "amountsSample": [
+        150,
+        230,
+        420,
+        450,
+        500,
+        550,
+        650,
+        700,
+        3069.66,
+        15348.3,
+        18417.96
+      ],
+      "coverPreview": "For Your Event OUR PROPOSAL Event type | Event date requested | (Date TBC) Date not held - Due to high demand, we do not hold dates at the proposal stage. All dates are booked on a first-come, first-served basis. Dates can only be held once a booking form contract has been sent to you, after which you get a 3-day hold. Event timings | Duration of hire can be amended upon request No. of guests | Quote based on a group of up to Location | London: River Thames Proposal/Quotation Ref | Prepared by | Client Relationship Manager | Quotation valid for 28 days Client Name | Organisation | Telephone | Email | The unauthorised use, disclosure, copying or alteration of this document is strictly forbidd",
+      "uiSteps": [
+        "open-quote-builder",
+        "step1-next",
+        "step2-next",
+        "step3-next",
+        "step4-next",
+        "step5-next",
+        "step6-next"
+      ],
+      "findings": [
+        {
+          "check": "Generated PDF exists",
+          "weight": 1,
+          "status": "PASS",
+          "bytes": 3338069
+        },
+        {
+          "check": "Proposal ref in PDF text",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Client/company identity in PDF",
+          "weight": 1,
+          "status": "PASS",
+          "tokens": [
+            "José",
+            "Hannah",
+            "Space"
+          ]
+        },
+        {
+          "check": "Event type family in PDF",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Package cost (exc VAT) in PDF",
+          "weight": 2,
+          "target": 15348.3,
+          "result": {
+            "amount": 15348.3,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "VAT in PDF",
+          "weight": 2,
+          "target": 3069.66,
+          "result": {
+            "amount": 3069.66,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Grand total (inc VAT) in PDF",
+          "weight": 2,
+          "target": 18417.96,
+          "result": {
+            "amount": 18417.96,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Page count vs gold proposal",
+          "weight": 1,
+          "generatedPages": 18,
+          "goldPages": 19,
+          "status": "PASS"
+        },
+        {
+          "check": "Generate path (UI or webhook fallback)",
+          "weight": 1,
+          "status": "PASS",
+          "uiComplete": false
+        }
+      ],
+      "missing": [],
+      "scenarioScore": 100
+    },
+    {
+      "id": "WE.18759",
+      "label": "Mankaasha Umba — The Outnet — Summer V2",
+      "generatedPdf": "C:\\Users\\grvns\\Documents\\proposal building\\proposal-builder-main\\exports\\e2e-proposal-agent\\output\\WE.18759\\WE.18759.generated.pdf",
+      "generatedBytes": 2796136,
+      "totals": {
+        "weott": 8900.1,
+        "package_cost": 11125.13,
+        "vat": 2225.03,
+        "grand_total": 13350.16
+      },
+      "amountsSample": [
+        150,
+        230,
+        420,
+        450,
+        500,
+        550,
+        650,
+        700,
+        2225.03,
+        11125.13,
+        13350.16
+      ],
+      "coverPreview": "For Your Event OUR PROPOSAL Event type | Event date requested | (Date TBC) Date not held - Due to high demand, we do not hold dates at the proposal stage. All dates are booked on a first-come, first-served basis. Dates can only be held once a booking form contract has been sent to you, after which you get a 3-day hold. Event timings | Duration of hire can be amended upon request No. of guests | Quote based on a group of up to Location | London: River Thames Proposal/Quotation Ref | Prepared by | Client Relationship Manager | Quotation valid for 28 days Client Name | Organisation | Telephone | Email | The unauthorised use, disclosure, copying or alteration of this document is strictly forbidd",
+      "uiSteps": [
+        "open-quote-builder",
+        "step1-next",
+        "step2-next",
+        "step3-next",
+        "step4-next",
+        "step5-next",
+        "step6-next"
+      ],
+      "findings": [
+        {
+          "check": "Generated PDF exists",
+          "weight": 1,
+          "status": "PASS",
+          "bytes": 2796136
+        },
+        {
+          "check": "Proposal ref in PDF text",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Client/company identity in PDF",
+          "weight": 1,
+          "status": "PASS",
+          "tokens": [
+            "Mankaasha",
+            "The"
+          ]
+        },
+        {
+          "check": "Event type family in PDF",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Package cost (exc VAT) in PDF",
+          "weight": 2,
+          "target": 11125.13,
+          "result": {
+            "amount": 11125.13,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "VAT in PDF",
+          "weight": 2,
+          "target": 2225.03,
+          "result": {
+            "amount": 2225.03,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Grand total (inc VAT) in PDF",
+          "weight": 2,
+          "target": 13350.16,
+          "result": {
+            "amount": 13350.16,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Page count vs gold proposal",
+          "weight": 1,
+          "generatedPages": 18,
+          "goldPages": 18,
+          "status": "PASS"
+        },
+        {
+          "check": "Generate path (UI or webhook fallback)",
+          "weight": 1,
+          "status": "PASS",
+          "uiComplete": false
+        }
+      ],
+      "missing": [],
+      "scenarioScore": 100
+    },
+    {
+      "id": "WE.18937",
+      "label": "Loretta Greeley-Ward — Caribou — Wedding Transfer V2",
+      "generatedPdf": "C:\\Users\\grvns\\Documents\\proposal building\\proposal-builder-main\\exports\\e2e-proposal-agent\\output\\WE.18937\\WE.18937.generated.pdf",
+      "generatedBytes": 2807202,
+      "totals": {
+        "weott": 10462.17,
+        "package_cost": 12554.6,
+        "vat": 2510.92,
+        "grand_total": 15065.52
+      },
+      "amountsSample": [
+        180,
+        504,
+        600,
+        660,
+        720,
+        780,
+        2510.92,
+        12554.6,
+        15065.52
+      ],
+      "coverPreview": "OUR PROPOSAL For Your Wedding Anniversary Event type | Event date requested | (Date TBC) Date not held - Due to high demand, we do not hold dates at the proposal stage. All dates are booked on a first-come, first-served basis. Dates can only be held once a booking form contract has been sent to you, after which you get a 3-day hold. Event timings | Duration of hire can be amended upon request No. of guests | Quote based on a group of up to Location | London: River Thames Proposal/Quotation Ref | Prepared by Client Relationship Manager Quotation valid for 28 days Client Name | Telephone | Email | The unauthorised use, disclosure, copying or alteration of this document is strictly forbidden. W",
+      "uiSteps": [
+        "open-quote-builder",
+        "step1-next",
+        "step2-next",
+        "step3-next",
+        "step4-next",
+        "step5-next",
+        "step6-next"
+      ],
+      "findings": [
+        {
+          "check": "Generated PDF exists",
+          "weight": 1,
+          "status": "PASS",
+          "bytes": 2807202
+        },
+        {
+          "check": "Proposal ref in PDF text",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Client/company identity in PDF",
+          "weight": 1,
+          "status": "PASS",
+          "tokens": [
+            "Loretta",
+            "Caribou"
+          ]
+        },
+        {
+          "check": "Event type family in PDF",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Package cost (exc VAT) in PDF",
+          "weight": 2,
+          "target": 12554.6,
+          "result": {
+            "amount": 12554.6,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "VAT in PDF",
+          "weight": 2,
+          "target": 2510.92,
+          "result": {
+            "amount": 2510.92,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Grand total (inc VAT) in PDF",
+          "weight": 2,
+          "target": 15065.52,
+          "result": {
+            "amount": 15065.52,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Page count vs gold proposal",
+          "weight": 1,
+          "generatedPages": 17,
+          "goldPages": 5,
+          "status": "PASS",
+          "note": "gold condensed pack vs full template"
+        },
+        {
+          "check": "Generate path (UI or webhook fallback)",
+          "weight": 1,
+          "status": "PASS",
+          "uiComplete": false
+        }
+      ],
+      "missing": [],
+      "scenarioScore": 100
+    },
+    {
+      "id": "WE.18931",
+      "label": "Mia Cruickshank — Databarracks — Team Building V2",
+      "generatedPdf": "C:\\Users\\grvns\\Documents\\proposal building\\proposal-builder-main\\exports\\e2e-proposal-agent\\output\\WE.18931\\WE.18931.generated.pdf",
+      "generatedBytes": 2595925,
+      "totals": {
+        "weott": 18982.51,
+        "package_cost": 23728.14,
+        "vat": 4745.63,
+        "grand_total": 28473.77
+      },
+      "amountsSample": [
+        150,
+        230,
+        400,
+        420,
+        450,
+        500,
+        550,
+        650,
+        700,
+        800,
+        4745.63,
+        23728.14,
+        28473.77
+      ],
+      "coverPreview": "For Your Event OUR PROPOSAL Event type | Event date requested | (Date TBC) Date not held - Due to high demand, we do not hold dates at the proposal stage. All dates are booked on a first-come, first-served basis. Dates can only be held once a booking form contract has been sent to you, after which you get a 3-day hold. Event timings | Duration of hire can be amended upon request No. of guests | Quote based on a group of up to Location | London: River Thames Proposal/Quotation Ref | Prepared by | Client Relationship Manager | Quotation valid for 28 days Client Name | Organisation | Telephone | Email | The unauthorised use, disclosure, copying or alteration of this document is strictly forbidd",
+      "uiSteps": [
+        "open-quote-builder",
+        "step1-next",
+        "step2-next",
+        "step3-next",
+        "step4-next",
+        "step5-next",
+        "step6-next"
+      ],
+      "findings": [
+        {
+          "check": "Generated PDF exists",
+          "weight": 1,
+          "status": "PASS",
+          "bytes": 2595925
+        },
+        {
+          "check": "Proposal ref in PDF text",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Client/company identity in PDF",
+          "weight": 1,
+          "status": "PASS",
+          "tokens": [
+            "Mia",
+            "Databarracks"
+          ]
+        },
+        {
+          "check": "Event type family in PDF",
+          "weight": 1,
+          "status": "PASS"
+        },
+        {
+          "check": "Package cost (exc VAT) in PDF",
+          "weight": 2,
+          "target": 23728.14,
+          "result": {
+            "amount": 23728.14,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "VAT in PDF",
+          "weight": 2,
+          "target": 4745.63,
+          "result": {
+            "amount": 4745.63,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Grand total (inc VAT) in PDF",
+          "weight": 2,
+          "target": 28473.77,
+          "result": {
+            "amount": 28473.77,
+            "delta": 0,
+            "match": true
+          },
+          "status": "PASS"
+        },
+        {
+          "check": "Page count vs gold proposal",
+          "weight": 1,
+          "generatedPages": 18,
+          "goldPages": 20,
+          "status": "PASS"
+        },
+        {
+          "check": "Generate path (UI or webhook fallback)",
+          "weight": 1,
+          "status": "PASS",
+          "uiComplete": false
+        }
+      ],
+      "missing": [],
+      "scenarioScore": 100
+    }
+  ]
+}

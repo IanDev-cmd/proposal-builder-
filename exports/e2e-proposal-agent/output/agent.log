@@ -1,0 +1,273 @@
+[agent] APP http://localhost:5173
+[agent] scenarios 4
+[agent] probe LeadDataFetch 200 len 0
+[agent] probe QuoteBuilder 200 len 2669639
+[agent] ==== RUN WE.18900
+[agent] WARN missing cost line UI: Hot Fork Buffet (All Seasons)
+[agent] WARN missing cost line UI: Catering Delivery Charge (In every quote)
+[agent] WARN missing cost line UI: Background Music/Sound Equipment Hire
+[agent] WARN missing cost line UI: Casino table with croupier - x 1
+[agent] WARN missing cost line UI: Casino table with croupier - x 2
+[agent] WARN missing cost line UI: Photobooth
+[agent] WARN missing cost line UI: TV - 55"
+[agent] WARN missing cost line UI: Event Decor (Add to every quote)
+[agent] WARN missing cost line UI: Catering/Staff Food Contigency (ADD TO ALL QUOTES)
+[agent] WE.18900 ERROR locator.click: Timeout 20000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: /Approve cost cross-check|Cost cross-check approved/i }).first()
+    - locator resolved to <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40">Approve cost cross-check</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    9 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+
+[agent] ==== RUN WE.18759
+[agent] WARN missing cost line UI: Canapes (All Seasons)
+[agent] WARN missing cost line UI: Catering Delivery Charge (In every quote)
+[agent] WARN missing cost line UI: Event Decor (Add to every quote)
+[agent] WARN missing cost line UI: Catering/Staff Food Contigency (ADD TO ALL QUOTES)
+[agent] WE.18759 ERROR locator.click: Timeout 20000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: /Approve cost cross-check|Cost cross-check approved/i }).first()
+    - locator resolved to <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40">Approve cost cross-check</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    9 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+
+[agent] ==== RUN WE.18937
+[agent] WARN missing cost line UI: Catering Delivery Charge (In every quote)
+[agent] WARN missing cost line UI: Event Decor (Add to every quote)
+[agent] WE.18937 ERROR locator.click: Timeout 20000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: /Approve cost cross-check|Cost cross-check approved/i }).first()
+    - locator resolved to <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40">Approve cost cross-check</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    9 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+
+[agent] ==== RUN WE.18931
+[agent] WARN missing cost line UI: Street Food Station (All Seasons)
+[agent] WARN missing cost line UI: Catering Delivery Charge (In every quote)
+[agent] WARN missing cost line UI: Disposable tableware (Add to street food quotes ONLY)
+[agent] WARN missing cost line UI: Event Decor (Add to every quote)
+[agent] WARN missing cost line UI: Catering/Staff Food Contigency (ADD TO ALL QUOTES)
+[agent] WE.18931 ERROR locator.click: Timeout 20000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: /Approve cost cross-check|Cost cross-check approved/i }).first()
+    - locator resolved to <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40">Approve cost cross-check</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    9 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <button type="button" class="flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-3.5 text-[13px] font-bold transition-colors bg-[#FF5A45] text-white hover:bg-[#F4412A]">Approve cost cross-check</button> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+
+[agent] DONE summary written
