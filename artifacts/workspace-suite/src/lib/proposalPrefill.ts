@@ -249,21 +249,40 @@ function pickTemplateId(category: 'corporate' | 'wedding', eventType: string, sl
   let candidates = PROPOSAL_TEMPLATES.filter((t) => t.category === category);
 
   if (eventType) {
-    const matched = candidates.filter((t) => {
-      const aliases = [...(t.aliases || []), t.event_type, t.event_slug].map(slug);
-      return (
-        aliases.includes(slugEt) ||
-        aliases.some((a) => slugEt.includes(a) || a.includes(slugEt)) ||
-        slugEt.replace(/_event$/, '') === slug(t.event_type).replace(/_event$/, '')
-      );
-    });
-    if (matched.length) candidates = matched;
+    // Prefer exact alias / event_slug matches. Do not let bare "wedding" steal
+    // Wedding Transfer / Anniversary (slugEt.includes("wedding") was wrong).
+    const scored = candidates
+      .map((t) => {
+        const aliases = [...(t.aliases || []), t.event_type, t.event_slug].map(slug);
+        const exact = aliases.includes(slugEt);
+        const partialHits = aliases.filter(
+          (a) => a && a !== 'wedding' && (slugEt.includes(a) || a.includes(slugEt)),
+        );
+        const bestPartial = partialHits.length ? Math.max(...partialHits.map((a) => a.length)) : 0;
+        const weakWeddingOnly =
+          !exact && bestPartial === 0 && aliases.includes('wedding') && slugEt.startsWith('wedding');
+        return { t, exact, bestPartial, weakWeddingOnly };
+      })
+      .filter((x) => x.exact || x.bestPartial > 0 || x.weakWeddingOnly);
+
+    if (scored.length) {
+      scored.sort((a, b) => {
+        if (a.exact !== b.exact) return a.exact ? -1 : 1;
+        if (a.bestPartial !== b.bestPartial) return b.bestPartial - a.bestPartial;
+        if (a.weakWeddingOnly !== b.weakWeddingOnly) return a.weakWeddingOnly ? 1 : -1;
+        return 0;
+      });
+      candidates = scored.map((x) => x.t);
+    }
   }
 
   if (!candidates.length) {
     const broad = PROPOSAL_TEMPLATES.filter((t) => {
       const aliases = [...(t.aliases || []), t.event_slug].map(slug);
-      return aliases.includes(slugEt) || aliases.some((a) => slugEt.includes(a));
+      return (
+        aliases.includes(slugEt) ||
+        aliases.some((a) => a && a !== 'wedding' && (slugEt.includes(a) || a.includes(slugEt)))
+      );
     });
     if (broad.length) candidates = broad;
   }
@@ -277,6 +296,7 @@ function pickTemplateId(category: 'corporate' | 'wedding', eventType: string, sl
     ? [slot, 'any', 'default', 'daytime', 'evening', 'above_12', 'below_12']
     : ['any', 'default', 'daytime', 'evening'];
   for (const pref of preferred) {
+    // Keep scored order: first candidate that matches preferred slot wins
     const hit = candidates.find((t) => t.slot === pref);
     if (hit) return hit.id;
   }

@@ -11,13 +11,13 @@ from dataclasses import dataclass
 from typing import Iterable
 
 # Measured from config.COVER_FIELDS + catalog templates (corporate cluster).
-LEFT_PANEL_X1 = 336.0
+LEFT_PANEL_X1 = 342.0
 RIGHT_PANEL_X1 = 465.0
 
 # Minimum editable width (pt) — placeholder spans are often ~38pt; real leads need more.
 MIN_COVER_MAX_WIDTH: dict[str, float] = {
     "proposal_ref": 40.0,
-    "prepared_by": 30.0,
+    "prepared_by": 72.0,
     "quote_date": 34.0,
     "client_name": 58.0,
     "organisation": 65.0,

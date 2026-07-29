@@ -313,7 +313,8 @@ def measure_cover(page) -> dict:
     spans = _spans(page)
     fields = {}
     RIGHT_PANEL = 467.0
-    LEFT_PANEL = 338.0
+    # Left info panel stroke ends ~344pt; keep 2pt inset so one-line values fit.
+    LEFT_PANEL = 342.0
 
     # "No. of guests" is often split across spans ("No. " / "o" / "f guests |")
     label_map = {
@@ -345,58 +346,57 @@ def measure_cover(page) -> dict:
                 fields["proposal_ref"] = _span_field(sp, next_sp=nxt, max_x1=LEFT_PANEL)
                 break
 
-    # Prepared by — handle both split and combined spans; don't collide with quote_date
+    # Prepared by — redact name + title as one line: "NAME | Client Relationship Manager"
     for i, sp in enumerate(spans):
         text = sp["text"]
         low = text.lower()
         if "prepared by" not in low:
             continue
 
-        # Combined: 'Prepared by Katherine Bulaon |'
-        if "|" in text:
-            m = re.search(r"prepared by\s+(.+?)\s*\|", text, re.I)
-            if m:
-                full = fitz.Rect(sp["bbox"])
-                pre = "Prepared by "
-                ratio0 = len(pre) / max(len(text), 1)
-                ratio1 = text.lower().find("|") / max(len(text), 1)
-                if ratio1 <= 0:
-                    ratio1 = 1.0
-                x0 = full.x0 + full.width * ratio0
-                x1 = full.x0 + full.width * ratio1
-                if LEFT_PANEL > x0:
-                    x1 = min(x1, LEFT_PANEL)
-                fields["prepared_by"] = dict(
-                    bbox=(round(x0, 1), round(full.y0, 1), round(x1, 1), round(full.y1, 1)),
-                    origin=(round(x0, 1), round(sp["origin"][1], 1)),
-                    size=round(sp["size"], 2),
-                    bold=True,
-                    max_width=round(max(x1 - x0, 1.0), 1),
-                    color=_span_color(sp),
-                )
-                break
+        size = round(sp["size"], 2)
+        color = _span_color(sp)
+        bold = True
+        y0 = sp["bbox"][1]
+        y1 = sp["bbox"][3]
+        origin_y = sp["origin"][1]
 
-        # Split: 'Prepared by ' + 'Katherine Bulaon' + ' |'
-        if text.strip().lower() in ("prepared by", "prepared by "):
-            months = (
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December",
-            )
-            for j in range(i + 1, min(i + 4, len(spans))):
-                cand = spans[j]
-                t = cand["text"].strip()
-                if t.startswith("|") or t.lower().startswith("client") or t.lower().startswith("relationship"):
-                    continue
-                # skip dates so we don't collide with quote_date
-                if any(m in t for m in months):
-                    continue
-                if len(t) >= 4:
-                    nxt2 = spans[j + 1] if j + 1 < len(spans) else None
-                    f = _span_field(cand, next_sp=nxt2, max_x1=LEFT_PANEL)
-                    f["bold"] = True
-                    fields["prepared_by"] = f
-                    break
-            break
+        # Name starts after "Prepared by "
+        if "|" in text and re.search(r"prepared by\s+.+\s*\|", text, re.I):
+            full = fitz.Rect(sp["bbox"])
+            pre = "Prepared by "
+            ratio0 = len(pre) / max(len(text), 1)
+            x0 = full.x0 + full.width * ratio0
+        elif text.strip().lower() in ("prepared by", "prepared by "):
+            nxt = _next_same_line(spans, i)
+            x0 = nxt["bbox"][0] if nxt is not None else sp["bbox"][2] + 0.5
+        else:
+            m = re.search(r"prepared by\s*", text, re.I)
+            if not m:
+                continue
+            full = fitz.Rect(sp["bbox"])
+            ratio0 = m.end() / max(len(text), 1)
+            x0 = full.x0 + full.width * ratio0
+
+        # Include wrapped title line ("Relationship Manager/Coordinator") in redact box
+        for sp2 in spans:
+            t2 = (sp2.get("text") or "").strip().lower()
+            if not t2:
+                continue
+            if abs(sp2["bbox"][1] - y0) < 14 and sp2["bbox"][0] < LEFT_PANEL:
+                if "relationship" in t2 or t2 in ("manager", "coordinator", "client"):
+                    y1 = max(y1, sp2["bbox"][3])
+
+        # Use near full panel width so "NAME | Client Relationship Manager" stays one line.
+        x1 = LEFT_PANEL - 0.5
+        fields["prepared_by"] = dict(
+            bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)),
+            origin=(round(x0, 1), round(origin_y, 1)),
+            size=size,
+            bold=bold,
+            max_width=round(max(x1 - x0, 1.0), 1),
+            color=color,
+        )
+        break
 
     # Quote date: left-panel date like "27 January 2026" (NOT weekday event dates)
     months = (
@@ -461,10 +461,7 @@ def measure_cover(page) -> dict:
         fields["proposal_ref"] = _expand_cover_field(
             fields["proposal_ref"], LEFT_PANEL, min_width=48.0, max_width_cap=56.0,
         )
-    if "prepared_by" in fields:
-        fields["prepared_by"] = _expand_cover_field(
-            fields["prepared_by"], LEFT_PANEL, min_width=32.0, max_width_cap=42.0,
-        )
+    # prepared_by already spans nearly full panel (name + title on one line)
     if "quote_date" in fields:
         fields["quote_date"] = _expand_cover_field(
             fields["quote_date"], LEFT_PANEL, min_width=36.0, max_width_cap=72.0,
@@ -798,7 +795,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 2
+MEASURE_SCHEMA_VERSION = 4
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 
