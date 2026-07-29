@@ -346,10 +346,9 @@ def measure_cover(page) -> dict:
                 fields["proposal_ref"] = _span_field(sp, next_sp=nxt, max_x1=LEFT_PANEL)
                 break
 
-    # Prepared by — wipe name + wrapped title; redraw one line:
-    # "NAME | Client Relationship Manager"
-    # Wrap line ("Relationship Manager") starts under the "Prepared by" label (x≈227),
-    # so it needs an extra redact; the draw box starts after "Prepared by ".
+    # Prepared by — templates wrap "| Client / Relationship Manager" onto a 2nd
+    # line that starts UNDER the "Prepared by" label. Wipe the whole band and
+    # redraw one full line: "Prepared by NAME | Client Relationship Manager".
     for i, sp in enumerate(spans):
         text = sp["text"]
         low = text.lower()
@@ -364,58 +363,32 @@ def measure_cover(page) -> dict:
         origin_y = sp["origin"][1]
         label_x0 = sp["bbox"][0]
 
-        # Name starts after "Prepared by "
-        if "|" in text and re.search(r"prepared by\s+.+\s*\|", text, re.I):
-            full = fitz.Rect(sp["bbox"])
-            pre = "Prepared by "
-            ratio0 = len(pre) / max(len(text), 1)
-            x0 = full.x0 + full.width * ratio0
-        elif text.strip().lower() in ("prepared by", "prepared by "):
-            nxt = _next_same_line(spans, i)
-            x0 = nxt["bbox"][0] if nxt is not None else sp["bbox"][2] + 0.5
-        else:
-            m = re.search(r"prepared by\s*", text, re.I)
-            if not m:
-                continue
-            full = fitz.Rect(sp["bbox"])
-            ratio0 = m.end() / max(len(text), 1)
-            x0 = full.x0 + full.width * ratio0
-
-        wrap_y0 = None
-        wrap_y1 = None
         for sp2 in spans:
             t2 = (sp2.get("text") or "").strip().lower()
-            if not t2:
+            if not t2 or sp2["bbox"][0] >= LEFT_PANEL:
                 continue
-            if sp2["bbox"][0] >= LEFT_PANEL:
-                continue
-            # Same band as prepared-by / title wrap (not the quote-date row below).
+            # Title wrap sits ~10pt below; stop before quote-date (~18pt down).
             if not (y0 - 1.0 <= sp2["bbox"][1] <= y0 + 12.0):
                 continue
-            if "relationship" in t2 or t2 in ("manager", "coordinator", "client"):
+            if (
+                "prepared by" in t2
+                or "relationship" in t2
+                or t2 in ("manager", "coordinator", "client")
+                or t2.startswith("|")
+            ):
                 y1 = max(y1, sp2["bbox"][3])
-                if sp2["bbox"][1] > y0 + 3.0:
-                    wrap_y0 = sp2["bbox"][1] if wrap_y0 is None else min(wrap_y0, sp2["bbox"][1])
-                    wrap_y1 = sp2["bbox"][3] if wrap_y1 is None else max(wrap_y1, sp2["bbox"][3])
+                label_x0 = min(label_x0, sp2["bbox"][0])
 
-        # Line-1 wipe: name + "| Client …" across the panel.
         x1 = LEFT_PANEL - 0.5
-        line1_y1 = min(y1, y0 + 7.2)
-        extra_redacts = []
-        if wrap_y0 is not None and wrap_y1 is not None:
-            # Full wipe of wrap line (includes glyphs under the "Prepared by" label).
-            extra_redacts.append(
-                (round(label_x0 - 0.5, 1), round(wrap_y0 - 0.4, 1), round(x1, 1), round(wrap_y1 + 0.4, 1))
-            )
-
         fields["prepared_by"] = dict(
-            bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(line1_y1, 1)),
-            origin=(round(x0, 1), round(origin_y, 1)),
+            bbox=(round(label_x0 - 0.5, 1), round(y0 - 0.3, 1), round(x1, 1), round(y1 + 0.4, 1)),
+            origin=(round(label_x0, 1), round(origin_y, 1)),
             size=size,
             bold=bold,
-            max_width=round(max(x1 - x0, 1.0), 1),
+            max_width=round(max(x1 - label_x0, 1.0), 1),
             color=color,
-            extra_redacts=extra_redacts,
+            # Value from payload is "NAME | title"; prefix restores the label we wiped.
+            prefix="Prepared by ",
         )
         break
 
@@ -816,7 +789,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 5
+MEASURE_SCHEMA_VERSION = 6
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 

@@ -176,13 +176,16 @@ def format_cover_email(value: str, *, font_mgr=None, max_width: float | None = N
 
 
 def format_prepared_by(lead: dict) -> str:
-    """Cover must show one line: NAME | Client Relationship Manager."""
+    """Cover value only (engine prefixes 'Prepared by '): NAME | title."""
     raw = str(lead.get("prepared_by") or "").strip()
     if not raw:
         return ""
+    # Strip accidental label if UI/n8n already included it.
+    raw = re.sub(r"^\s*prepared\s+by\s+", "", raw, flags=re.I).strip()
     if "|" in raw:
         return " ".join(raw.split())
     title = str(lead.get("contact_title") or "Client Relationship Manager").strip()
+    title = re.sub(r"^\s*prepared\s+by\s+", "", title, flags=re.I).strip()
     return f"{raw} | {title}" if title else raw
 
 
