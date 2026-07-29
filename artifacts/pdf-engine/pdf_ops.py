@@ -93,6 +93,7 @@ def prepare_field_draw(spec: dict, text: str, font_mgr, warnings: list, field_na
         "bold": bold,
         "deep_bold": bool(spec.get("deep_bold")),
         "extra_redacts": list(spec.get("extra_redacts") or []),
+        "skip_redact": bool(spec.get("skip_redact")),
     }
     suffix = spec.get("suffix")
     if suffix:
@@ -174,9 +175,10 @@ def draw_fields_batched(page, items: list, font_mgr, *, clear_graphics: bool = F
         return
     font_mgr.ensure_registered(page)
     for item in items:
-        add_redact(page, item["bbox"])
-        for extra in item.get("extra_redacts") or []:
-            add_redact(page, extra)
+        if not item.get("skip_redact"):
+            add_redact(page, item["bbox"])
+            for extra in item.get("extra_redacts") or []:
+                add_redact(page, extra)
     apply_redacts(page, clear_graphics=clear_graphics)
     for item in items:
         draw_prepared(page, item, font_mgr=font_mgr)

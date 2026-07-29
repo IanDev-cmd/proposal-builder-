@@ -477,7 +477,6 @@ export function buildStargtmPayload(opts: {
   };
 
   const preparedBy = lead?.preparedBy || lead?.assignedRep || contact.name;
-  const preparedByLine = `${preparedBy} | ${contact.title}`;
   const eventDate =
     lead?.eventDateDisplay && !/^date tbc$/i.test(String(lead.eventDateDisplay).trim())
       ? String(lead.eventDateDisplay)
@@ -513,7 +512,7 @@ export function buildStargtmPayload(opts: {
       event_timings: `${form.embarkation || ''} - ${form.disembarkation || ''}`,
       guest_range: guestRange,
       guest_quote_n: String(guests || lead?.groupSizeQuote || ''),
-      prepared_by: preparedByLine,
+      prepared_by: preparedBy,
       contact_name: contact.name,
       contact_title: contact.title,
       contact_phone: contact.phone,

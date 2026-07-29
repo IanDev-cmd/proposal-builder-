@@ -10,6 +10,7 @@ import re
 
 import config
 from pdf_ops import prepare_field_draw, draw_fields_batched
+from fonts import ValidationWarning
 
 
 _ORDINAL = {1: "st", 2: "nd", 3: "rd"}
@@ -175,24 +176,46 @@ def format_cover_email(value: str, *, font_mgr=None, max_width: float | None = N
     return s
 
 
-def format_prepared_by(lead: dict) -> str:
-    """Cover value only (engine prefixes 'Prepared by '): NAME | title."""
+def format_prepared_by_name(lead: dict) -> str:
+    """REP name only — gold keeps '| Client' + role on the template lines."""
     raw = str(lead.get("prepared_by") or "").strip()
     if not raw:
         return ""
-    # Strip accidental label if UI/n8n already included it.
     raw = re.sub(r"^\s*prepared\s+by\s+", "", raw, flags=re.I).strip()
     if "|" in raw:
-        return " ".join(raw.split())
-    title = str(lead.get("contact_title") or "Client Relationship Manager").strip()
+        raw = raw.split("|", 1)[0].strip()
+    return " ".join(raw.split())
+
+
+def format_prepared_by_role(lead: dict) -> str:
+    """
+    Second cover line under Prepared by (regular weight), matching gold:
+    'Relationship Manager' / 'Relationship Coordinator'.
+    """
+    title = str(lead.get("contact_title") or "").strip()
+    if not title:
+        raw = str(lead.get("prepared_by") or "")
+        if "|" in raw:
+            title = raw.split("|", 1)[1].strip()
+    if not title:
+        title = "Client Relationship Manager"
     title = re.sub(r"^\s*prepared\s+by\s+", "", title, flags=re.I).strip()
-    return f"{raw} | {title}" if title else raw
+    # Gold drops the leading 'Client ' — that stays on line 1 after the pipe.
+    title = re.sub(r"^\s*client\s+", "", title, flags=re.I).strip()
+    return " ".join(title.split()) or "Relationship Manager"
+
+
+def format_prepared_by(lead: dict) -> str:
+    """Back-compat: name only for cover prepared_by field."""
+    return format_prepared_by_name(lead)
 
 
 def normalize_cover_lead(lead: dict) -> dict:
     out = dict(lead)
-    if "prepared_by" in out:
-        out["prepared_by"] = format_prepared_by(out)
+    if "prepared_by" in out or lead.get("contact_title"):
+        if "prepared_by" in out or lead.get("prepared_by"):
+            out["prepared_by"] = format_prepared_by_name(out if "prepared_by" in out else lead)
+        out["prepared_by_role"] = format_prepared_by_role(out)
     if "event_date" in out:
         out["event_date"] = format_event_date(out["event_date"])
     if "event_timings" in out:
@@ -229,6 +252,88 @@ def _fit_cover_value(field_name: str, value: str, spec: dict, font_mgr) -> str:
     return value
 
 
+def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) -> list:
+    """
+    Match gold PDF typography:
+      Prepared by {NAME} | Client     <- name+pipe bold (deep_bold), Client regular
+      Relationship Coordinator        <- regular, second line
+    """
+    color = _cover_ink_from_template(spec.get("color"))
+    size = float(spec.get("size") or 4.63)
+    name = format_prepared_by_name(data)
+    role = format_prepared_by_role(data)
+    if not name:
+        return []
+
+    x0, y = spec["origin"]
+    max_w = float(spec.get("max_width") or 80)
+    client = " Client"
+    pipe = " |"
+
+    # Fit name so "NAME | Client" stays on line 1 at designed size when possible.
+    def line1_width(sz):
+        return (
+            font_mgr.text_length(name, sz, False)
+            + font_mgr.text_length(pipe, sz, False)
+            + font_mgr.text_length(client, sz, False)
+        )
+
+    draw_size = size
+    while draw_size > 2.8 and line1_width(draw_size) > max_w:
+        draw_size = round(draw_size - 0.1, 1)
+    if draw_size < size * 0.72:
+        warnings.append(
+            ValidationWarning(
+                field="prepared_by",
+                message=f"prepared_by shrunk from {size}pt to {draw_size}pt to fit gold line-1 layout.",
+            )
+        )
+
+    items = []
+    # Primary redact covers name + Client + role line.
+    bold_spec = dict(
+        bbox=spec["bbox"],
+        origin=(x0, y),
+        size=draw_size,
+        bold=False,
+        deep_bold=True,
+        color=color,
+        max_width=max_w,
+        extra_redacts=list(spec.get("extra_redacts") or []),
+    )
+    items.append(prepare_field_draw(bold_spec, f"{name}{pipe}", font_mgr, warnings, "prepared_by"))
+
+    name_w = font_mgr.text_length(name, draw_size, False)
+    pipe_w = font_mgr.text_length(pipe, draw_size, False)
+    client_x = x0 + name_w + pipe_w
+    client_spec = dict(
+        bbox=spec["bbox"],  # already redacted via first item
+        origin=(client_x, y),
+        size=draw_size,
+        bold=False,
+        deep_bold=False,
+        color=color,
+        max_width=max(max_w - (client_x - x0), 8.0),
+        skip_redact=True,
+    )
+    items.append(prepare_field_draw(client_spec, client, font_mgr, warnings, "prepared_by_client"))
+
+    role_origin = spec.get("role_origin") or (spec.get("label_x0", x0), y + 9.5)
+    role_bbox = spec.get("role_bbox") or spec["bbox"]
+    role_spec = dict(
+        bbox=role_bbox,
+        origin=role_origin,
+        size=size,  # role stays at template size (gold 4.63)
+        bold=False,
+        deep_bold=False,
+        color=color,
+        max_width=max(float(role_bbox[2]) - float(role_bbox[0]), 20.0),
+        skip_redact=True,
+    )
+    items.append(prepare_field_draw(role_spec, role, font_mgr, warnings, "prepared_by_role"))
+    return items
+
+
 def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
     page_index = profile.page_cover if profile else config.PAGE_COVER
     fields = profile.cover_fields if profile and profile.cover_fields else config.COVER_FIELDS
@@ -238,7 +343,14 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
 
     prepared = []
     for field_name, spec in fields.items():
-        if field_name not in data or not spec:
+        if not spec:
+            continue
+        if field_name == "prepared_by" and spec.get("layout") == "gold_prepared_by":
+            if not data.get("prepared_by"):
+                continue
+            prepared.extend(_prepare_gold_prepared_by(dict(spec), data, font_mgr, warnings))
+            continue
+        if field_name not in data:
             continue
         value = str(data[field_name])
         value = _fit_cover_value(field_name, value, spec, font_mgr)
@@ -264,15 +376,14 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
 
 def _cover_ink_from_template(color) -> tuple:
     """
-    Cover ink must match the template PDF, not Page-13 pure white.
+    Cover panel ink must match the template / gold PDFs.
 
-    Catalog templates store panel copy as RGB(230,242,243). Re-inserting with
-    that exact triplet keeps edited values identical to static labels.
+    Wedding/corporate cover panels use dark gray RGB(50,50,50) on the frosted
+    boxes — not Page-13 pure white and not the older near-white COVER_TEXT_COLOR.
     """
     if color and isinstance(color, (tuple, list)) and len(color) >= 3:
         return (float(color[0]), float(color[1]), float(color[2]))
-    # Same triplet measured from assets/templates/catalog/**/template.pdf covers
-    return (230 / 255, 242 / 255, 243 / 255)
+    return (50 / 255, 50 / 255, 50 / 255)
 
 
 def fill_contact_page(doc, data: dict, font_mgr, warnings: list, profile=None):

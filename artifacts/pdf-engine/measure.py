@@ -346,9 +346,10 @@ def measure_cover(page) -> dict:
                 fields["proposal_ref"] = _span_field(sp, next_sp=nxt, max_x1=LEFT_PANEL)
                 break
 
-    # Prepared by — templates wrap "| Client / Relationship Manager" onto a 2nd
-    # line that starts UNDER the "Prepared by" label. Wipe the whole band and
-    # redraw one full line: "Prepared by NAME | Client Relationship Manager".
+    # Prepared by — gold layout is TWO lines (not one):
+    #   Line 1: "Prepared by {NAME} |" (bold) + " Client" (regular)
+    #   Line 2: "Relationship Manager/Coordinator" (regular)
+    # Measure anchors so fill can wipe the variable band and redraw like the gold PDF.
     for i, sp in enumerate(spans):
         text = sp["text"]
         low = text.lower()
@@ -357,38 +358,72 @@ def measure_cover(page) -> dict:
 
         size = round(sp["size"], 2)
         color = _span_color(sp)
-        bold = True
         y0 = sp["bbox"][1]
         y1 = sp["bbox"][3]
         origin_y = sp["origin"][1]
         label_x0 = sp["bbox"][0]
 
-        for sp2 in spans:
-            t2 = (sp2.get("text") or "").strip().lower()
-            if not t2 or sp2["bbox"][0] >= LEFT_PANEL:
+        # End of the static "Prepared by " label
+        if text.strip().lower() in ("prepared by", "prepared by "):
+            name_x0 = sp["bbox"][2]
+        else:
+            m = re.search(r"prepared by\s*", text, re.I)
+            if not m:
                 continue
-            # Title wrap sits ~10pt below; stop before quote-date (~18pt down).
+            full = fitz.Rect(sp["bbox"])
+            name_x0 = full.x0 + full.width * (m.end() / max(len(text), 1))
+
+        client_x0 = None
+        role_bbox = None
+        for sp2 in spans:
+            t2 = (sp2.get("text") or "").strip()
+            t2l = t2.lower()
+            if sp2["bbox"][0] >= LEFT_PANEL:
+                continue
             if not (y0 - 1.0 <= sp2["bbox"][1] <= y0 + 12.0):
                 continue
-            if (
-                "prepared by" in t2
-                or "relationship" in t2
-                or t2 in ("manager", "coordinator", "client")
-                or t2.startswith("|")
-            ):
+            if t2l.strip() in ("client",) or t2l.strip().startswith("client"):
+                # " Client " on the first line after the pipe
+                if abs(sp2["bbox"][1] - y0) < 3.5:
+                    client_x0 = sp2["bbox"][0]
+                    y1 = max(y1, sp2["bbox"][3])
+            if "relationship" in t2l:
+                role_bbox = tuple(round(x, 1) for x in sp2["bbox"])
                 y1 = max(y1, sp2["bbox"][3])
-                label_x0 = min(label_x0, sp2["bbox"][0])
 
         x1 = LEFT_PANEL - 0.5
+        if role_bbox is None:
+            role_bbox = (
+                round(label_x0, 1),
+                round(y0 + 9.0, 1),
+                round(min(x1, label_x0 + 60.0), 1),
+                round(y0 + 16.0, 1),
+            )
+        else:
+            # Widen role box to panel so "Relationship Coordinator" keeps 4.63pt.
+            role_bbox = (role_bbox[0], role_bbox[1], round(x1, 1), role_bbox[3])
         fields["prepared_by"] = dict(
-            bbox=(round(label_x0 - 0.5, 1), round(y0 - 0.3, 1), round(x1, 1), round(y1 + 0.4, 1)),
-            origin=(round(label_x0, 1), round(origin_y, 1)),
+            # Wipe from name start across line 1; role line needs a full-width extra wipe
+            # because it starts under the static "Prepared by" label.
+            bbox=(round(name_x0, 1), round(y0 - 0.3, 1), round(x1, 1), round(y0 + 7.2, 1)),
+            origin=(round(name_x0, 1), round(origin_y, 1)),
             size=size,
-            bold=bold,
-            max_width=round(max(x1 - label_x0, 1.0), 1),
+            bold=True,
+            max_width=round(max(x1 - name_x0, 1.0), 1),
             color=color,
-            # Value from payload is "NAME | title"; prefix restores the label we wiped.
-            prefix="Prepared by ",
+            label_x0=round(label_x0, 1),
+            name_x0=round(name_x0, 1),
+            role_bbox=role_bbox,
+            role_origin=(round(role_bbox[0], 1), round(role_bbox[3] - 0.8, 1)),
+            extra_redacts=[
+                (
+                    round(label_x0 - 0.5, 1),
+                    round(role_bbox[1] - 0.4, 1),
+                    round(x1, 1),
+                    round(role_bbox[3] + 0.4, 1),
+                )
+            ],
+            layout="gold_prepared_by",
         )
         break
 
@@ -789,7 +824,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 6
+MEASURE_SCHEMA_VERSION = 7
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 
