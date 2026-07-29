@@ -346,7 +346,10 @@ def measure_cover(page) -> dict:
                 fields["proposal_ref"] = _span_field(sp, next_sp=nxt, max_x1=LEFT_PANEL)
                 break
 
-    # Prepared by — redact name + title as one line: "NAME | Client Relationship Manager"
+    # Prepared by — wipe name + wrapped title; redraw one line:
+    # "NAME | Client Relationship Manager"
+    # Wrap line ("Relationship Manager") starts under the "Prepared by" label (x≈227),
+    # so it needs an extra redact; the draw box starts after "Prepared by ".
     for i, sp in enumerate(spans):
         text = sp["text"]
         low = text.lower()
@@ -359,6 +362,7 @@ def measure_cover(page) -> dict:
         y0 = sp["bbox"][1]
         y1 = sp["bbox"][3]
         origin_y = sp["origin"][1]
+        label_x0 = sp["bbox"][0]
 
         # Name starts after "Prepared by "
         if "|" in text and re.search(r"prepared by\s+.+\s*\|", text, re.I):
@@ -377,24 +381,41 @@ def measure_cover(page) -> dict:
             ratio0 = m.end() / max(len(text), 1)
             x0 = full.x0 + full.width * ratio0
 
-        # Include wrapped title line ("Relationship Manager/Coordinator") in redact box
+        wrap_y0 = None
+        wrap_y1 = None
         for sp2 in spans:
             t2 = (sp2.get("text") or "").strip().lower()
             if not t2:
                 continue
-            if abs(sp2["bbox"][1] - y0) < 14 and sp2["bbox"][0] < LEFT_PANEL:
-                if "relationship" in t2 or t2 in ("manager", "coordinator", "client"):
-                    y1 = max(y1, sp2["bbox"][3])
+            if sp2["bbox"][0] >= LEFT_PANEL:
+                continue
+            # Same band as prepared-by / title wrap (not the quote-date row below).
+            if not (y0 - 1.0 <= sp2["bbox"][1] <= y0 + 12.0):
+                continue
+            if "relationship" in t2 or t2 in ("manager", "coordinator", "client"):
+                y1 = max(y1, sp2["bbox"][3])
+                if sp2["bbox"][1] > y0 + 3.0:
+                    wrap_y0 = sp2["bbox"][1] if wrap_y0 is None else min(wrap_y0, sp2["bbox"][1])
+                    wrap_y1 = sp2["bbox"][3] if wrap_y1 is None else max(wrap_y1, sp2["bbox"][3])
 
-        # Use near full panel width so "NAME | Client Relationship Manager" stays one line.
+        # Line-1 wipe: name + "| Client …" across the panel.
         x1 = LEFT_PANEL - 0.5
+        line1_y1 = min(y1, y0 + 7.2)
+        extra_redacts = []
+        if wrap_y0 is not None and wrap_y1 is not None:
+            # Full wipe of wrap line (includes glyphs under the "Prepared by" label).
+            extra_redacts.append(
+                (round(label_x0 - 0.5, 1), round(wrap_y0 - 0.4, 1), round(x1, 1), round(wrap_y1 + 0.4, 1))
+            )
+
         fields["prepared_by"] = dict(
-            bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)),
+            bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(line1_y1, 1)),
             origin=(round(x0, 1), round(origin_y, 1)),
             size=size,
             bold=bold,
             max_width=round(max(x1 - x0, 1.0), 1),
             color=color,
+            extra_redacts=extra_redacts,
         )
         break
 
@@ -795,7 +816,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 4
+MEASURE_SCHEMA_VERSION = 5
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 

@@ -175,8 +175,21 @@ def format_cover_email(value: str, *, font_mgr=None, max_width: float | None = N
     return s
 
 
+def format_prepared_by(lead: dict) -> str:
+    """Cover must show one line: NAME | Client Relationship Manager."""
+    raw = str(lead.get("prepared_by") or "").strip()
+    if not raw:
+        return ""
+    if "|" in raw:
+        return " ".join(raw.split())
+    title = str(lead.get("contact_title") or "Client Relationship Manager").strip()
+    return f"{raw} | {title}" if title else raw
+
+
 def normalize_cover_lead(lead: dict) -> dict:
     out = dict(lead)
+    if "prepared_by" in out:
+        out["prepared_by"] = format_prepared_by(out)
     if "event_date" in out:
         out["event_date"] = format_event_date(out["event_date"])
     if "event_timings" in out:

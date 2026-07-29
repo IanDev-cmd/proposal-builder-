@@ -58,10 +58,15 @@ def prepare_field_draw(spec: dict, text: str, font_mgr, warnings: list, field_na
     box_width = spec.get("max_width", max(bbox.x1 - bbox.x0, 1.0))
     size = font_mgr.fit_font_size(
         draw_str, box_width, base_size, bold, field_name, warnings,
+        # Long REP + title must stay one line; allow more shrink than other cover fields.
         shrink_ratio_floor=(
-            config.COVER_SHRINK_RATIO_FLOOR
-            if field_name in config.COVER_STRICT_FIELDS
-            else 0.85
+            0.72
+            if field_name == "prepared_by"
+            else (
+                config.COVER_SHRINK_RATIO_FLOOR
+                if field_name in config.COVER_STRICT_FIELDS
+                else 0.85
+            )
         ),
     )
 
@@ -87,6 +92,7 @@ def prepare_field_draw(spec: dict, text: str, font_mgr, warnings: list, field_na
         "origin": (x, y),
         "bold": bold,
         "deep_bold": bool(spec.get("deep_bold")),
+        "extra_redacts": list(spec.get("extra_redacts") or []),
     }
     suffix = spec.get("suffix")
     if suffix:
@@ -169,6 +175,8 @@ def draw_fields_batched(page, items: list, font_mgr, *, clear_graphics: bool = F
     font_mgr.ensure_registered(page)
     for item in items:
         add_redact(page, item["bbox"])
+        for extra in item.get("extra_redacts") or []:
+            add_redact(page, extra)
     apply_redacts(page, clear_graphics=clear_graphics)
     for item in items:
         draw_prepared(page, item, font_mgr=font_mgr)
