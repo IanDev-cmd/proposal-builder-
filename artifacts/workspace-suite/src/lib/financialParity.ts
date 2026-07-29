@@ -180,6 +180,10 @@ export function quoteFormFromGoldScenario(ref: string): QuoteFormInput | null {
     noOfTables: String(f.noOfTables || ''),
     selectedLineIds: lineIdsFromLabels(labels),
     bespokeLines,
+    lineAmountOverrides:
+      f.lineAmountOverrides && typeof f.lineAmountOverrides === 'object'
+        ? (f.lineAmountOverrides as Record<string, number>)
+        : undefined,
     discountPercent: String(f.discountPercent || ''),
     commissionPercent: String(f.commissionPercent ?? ''),
   };

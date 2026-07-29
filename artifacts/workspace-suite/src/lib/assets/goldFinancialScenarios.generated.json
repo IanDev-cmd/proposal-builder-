@@ -110,6 +110,14 @@
         "Welcome and Thank You Pack": 5.0,
         "Event Manager (In house member of team)": 236.0
       }
+    },
+    "calcWeott": 12278.64,
+    "delta": 0.0,
+    "ok": true,
+    "unmapped": [],
+    "overrides": {
+      "Welcome and Thank You Pack": 5.0,
+      "Event Manager (In house member of team)": 236.0
     }
   },
   "WE.18759": {
@@ -213,6 +221,15 @@
         "Event Manager (In house member of team)": 236.0,
         "Photographer - Corporate/Special": 380.0
       }
+    },
+    "calcWeott": 8900.1,
+    "delta": 0.0,
+    "ok": true,
+    "unmapped": [],
+    "overrides": {
+      "Welcome and Thank You Pack": 5.0,
+      "Event Manager (In house member of team)": 236.0,
+      "Photographer - Corporate/Special": 380.0
     }
   },
   "WE.18931": {
@@ -324,6 +341,18 @@
         "Background Music/Sound Equipment Hire": 650.0,
         "Onboard WiFi": 160.0
       }
+    },
+    "calcWeott": 18982.51,
+    "delta": 0.0,
+    "ok": true,
+    "unmapped": [],
+    "overrides": {
+      "Welcome and Thank You Pack": 5.0,
+      "Event Manager (In house member of team)": 236.0,
+      "Disposable tableware (Add to street food quotes ONLY)": 144.0,
+      "Financial Admin Fee - Carly": 50.0,
+      "Background Music/Sound Equipment Hire": 650.0,
+      "Onboard WiFi": 160.0
     }
   },
   "WE.18937": {
@@ -427,6 +456,14 @@
         "Welcome and Thank You Pack": 5.0,
         "Event Manager (In house member of team)": 236.0
       }
+    },
+    "calcWeott": 10462.17,
+    "delta": 0.0,
+    "ok": true,
+    "unmapped": [],
+    "overrides": {
+      "Welcome and Thank You Pack": 5.0,
+      "Event Manager (In house member of team)": 236.0
     }
   }
 }

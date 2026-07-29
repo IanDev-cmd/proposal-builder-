@@ -107,6 +107,8 @@ type FormData = {
   selectedUpgrades: string[];
   selectedLineIds: string[];
   bespokeLines: BespokeLine[];
+  /** Quote Sheet amount overrides (gold / sheet formula drift). */
+  lineAmountOverrides: Record<string, number>;
   weeklyPeriod: string;
   dayPeriod: string;
   groupBracket: string;
@@ -169,6 +171,7 @@ const INIT: FormData = {
   selectedUpgrades: [],
   selectedLineIds: defaultSelectedLineIds([]),
   bespokeLines: EMPTY_BESPOKE,
+  lineAmountOverrides: {},
   weeklyPeriod: '',
   dayPeriod: '',
   groupBracket: '',
@@ -1178,6 +1181,7 @@ export function Forms() {
     data.selectedUpgrades,
     data.selectedLineIds,
     data.bespokeLines,
+    data.lineAmountOverrides,
     data.weeklyPeriod,
     data.dayPeriod,
     data.groupBracket,

@@ -32,6 +32,8 @@ export const REPEAT_CLIENT_MARGIN = 0.15;
 export const NEW_CLIENT_MARGIN = 0.25;
 /** Staff billable hours = event hours + 3 (Quote Builder Section 11). */
 export const STAFF_HOURS_BUFFER = 3;
+/** Quote Sheet minimum hire / entertainment / staff base hours. */
+export const MIN_BILLABLE_HOURS = 4;
 
 /** @deprecated Prefer Cost Mother line catalogue — kept for PDF upgrade ids. */
 export const UPGRADES: { label: string; price: number; type: 'flat' | 'perGuest'; id: string }[] = [
@@ -83,6 +85,11 @@ export type QuoteFormInput = {
   selectedLineIds?: string[];
   /** Manual Section 7 amounts. */
   bespokeLines?: BespokeLine[];
+  /**
+   * Optional per-label amount overrides (Quote Sheet formula drift).
+   * When set, that label uses the override instead of rate × multiplier.
+   */
+  lineAmountOverrides?: Record<string, number>;
   /** Discount % of cost-to-client exc VAT (0–100). */
   discountPercent?: string;
   /** Agent/listing commission % (0–100). */
@@ -143,12 +150,13 @@ export function resolveSelectedLineIds(data: QuoteFormInput): string[] {
 }
 
 function multiplierValue(line: CatalogLine, hours: number, guests: number, tables: number): number {
+  const billable = Math.max(hours, MIN_BILLABLE_HOURS);
   switch (line.multiplier) {
     case 'vessel_hours':
     case 'hours':
-      return hours;
+      return billable;
     case 'staff_hours':
-      return hours + STAFF_HOURS_BUFFER;
+      return billable + STAFF_HOURS_BUFFER;
     case 'guests':
       return guests;
     case 'tables':
@@ -203,6 +211,7 @@ export function calcSectionLines(data: QuoteFormInput): {
   const selected = new Set(resolveSelectedLineIds(data));
   const lines: LineCalc[] = [];
   const sectionTotals: Record<string, number> = {};
+  const overrides = data.lineAmountOverrides || {};
 
   for (const line of QUOTE_LINES) {
     if (!selected.has(line.id)) continue;
@@ -216,6 +225,21 @@ export function calcSectionLines(data: QuoteFormInput): {
         amount: 0,
         note: 'Missing vessel / rate key',
       });
+      continue;
+    }
+    const overrideAmt = overrides[line.label];
+    if (overrideAmt != null && Number.isFinite(overrideAmt)) {
+      const amount = money(Number(overrideAmt));
+      lines.push({
+        id: line.id,
+        section: line.section,
+        label: line.label,
+        unitRate: amount,
+        multiplier: 1,
+        amount,
+        note: 'Quote Sheet amount override',
+      });
+      sectionTotals[line.section] = money((sectionTotals[line.section] || 0) + amount);
       continue;
     }
     const looked = lookupUnitRate(line.label, rateParts);

@@ -192,7 +192,8 @@ export const QUOTE_LINES: CatalogLine[] = [
 
   L('decor_table', 'Flowers or Xmas Centrepiece - Corporate/Special', 'tables'),
   L('decor_table', 'Flowers - Wedding', 'tables'),
-  L('decor_table', 'Festive Crackers', 'tables'),
+  // Quote Sheet bills Festive Crackers × guests (not tables)
+  L('decor_table', 'Festive Crackers', 'guests'),
   L('decor_table', 'Table Linen & Runner', 'tables'),
   L('decor_table', 'Event Decor (Add to every quote)', 'tables', { defaultOn: true }),
   L('decor_table', 'Disposable tableware (Add to street food quotes ONLY)', 'tables', {
@@ -216,11 +217,13 @@ export const QUOTE_LINES: CatalogLine[] = [
   L('staff', 'Catering Assistant x 2', 'staff_hours'),
   L('staff', 'Catering Assistant x 3', 'staff_hours'),
   L('staff', 'Catering Assistant x 4', 'staff_hours'),
-  L('staff', 'Photographer - Corporate/Special', 'staff_hours'),
-  L('staff', 'Photographer - Wedding', 'staff_hours'),
+  // Photographers billed × event hours on Quote Sheet (not staff_hours)
+  L('staff', 'Photographer - Corporate/Special', 'hours'),
+  L('staff', 'Photographer - Wedding', 'hours'),
   L('staff', 'Videographer', 'staff_hours'),
   L('staff', 'Security x 1', 'staff_hours'),
-  L('staff', 'CONTIGENCY STAFF', 'staff_hours'),
+  // CONTIGENCY STAFF billed × event hours on Quote Sheet
+  L('staff', 'CONTIGENCY STAFF', 'hours'),
   L('staff', 'Additional Chefs x 2 (for all seated dinners)', 'staff_hours', {
     autoWithMenu: /seated dinner|2csd|3csd|fine dining/i,
   }),

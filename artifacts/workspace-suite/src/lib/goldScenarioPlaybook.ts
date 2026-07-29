@@ -38,6 +38,9 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
   if (f.dateFlexible != null) set('dateFlexible', f.dateFlexible);
   if (f.menuType) set('menuType', f.menuType);
   if (f.marginPercent != null) set('marginPercent', String(f.marginPercent));
+  if (f.lineAmountOverrides && typeof f.lineAmountOverrides === 'object') {
+    set('lineAmountOverrides', f.lineAmountOverrides);
+  }
   if (f.repeatClient != null) set('repeatClient', f.repeatClient);
   if (f.agentReferral != null) set('agentReferral', f.agentReferral);
   if (f.commissionPercent != null) set('commissionPercent', String(f.commissionPercent));
