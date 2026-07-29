@@ -7,10 +7,7 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "verify:gold": "npx tsx scripts/verify-gold-financials.ts",
-    "verify:gold:scenarios": "npx tsx scripts/verify-gold-scenarios.ts",
-    "apply:gold": "node scripts/apply-generated-gold.mjs"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@radix-ui/react-toast": "^1.2.7",
