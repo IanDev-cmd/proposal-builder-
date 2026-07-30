@@ -193,7 +193,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "c068562b-eb1a-4d81-aad4-692f545ef5b3",
@@ -836,7 +836,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "137a5348-591c-434b-8db4-687d54d5e48f",

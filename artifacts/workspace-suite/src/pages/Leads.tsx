@@ -151,7 +151,18 @@ async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
     );
   }
   if (!res.ok) throw new Error(`LeadDataFetch failed (${res.status})`);
-  const data = await res.json();
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(
+      'LeadDataFetch returned an empty body (n8n Respond Leads must JSON.stringify the payload).',
+    );
+  }
+  let data: { leads?: AnyLeadRow[] };
+  try {
+    data = JSON.parse(text) as { leads?: AnyLeadRow[] };
+  } catch {
+    throw new Error('LeadDataFetch returned invalid JSON');
+  }
   const rows: AnyLeadRow[] = Array.isArray(data?.leads) ? data.leads : [];
   if (rows.length) return rows.map(mapRaw);
   // Demo workbook has no Enquiry rows — ship gold scenarios so Quote Builder is usable.
