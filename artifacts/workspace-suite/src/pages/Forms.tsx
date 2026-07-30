@@ -1335,6 +1335,11 @@ export function Forms() {
             yearOfEvent: quoteLead.yearOfEvent,
             progressNotes: data.progressNotes || quoteLead.progressNotes,
             agent: data.agentReferral ? 'YES' : '',
+            // Cover / page-16 contact — n8n Transform reads nexusLead first
+            contact_name: staffContact.name,
+            contact_title: staffContact.title,
+            contact_phone: staffContact.phone,
+            contact_email: staffContact.email,
           }
         : null,
       templateId: data.templateId,

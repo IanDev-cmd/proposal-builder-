@@ -477,6 +477,15 @@ export function buildStargtmPayload(opts: {
   };
 
   const preparedBy = lead?.preparedBy || lead?.assignedRep || contact.name;
+  const nexusOut = {
+    ...(nexusLead || lead || {}),
+    preparedBy,
+    assignedRep: lead?.assignedRep || lead?.preparedBy || preparedBy,
+    contact_name: contact.name,
+    contact_title: contact.title,
+    contact_phone: contact.phone,
+    contact_email: contact.email,
+  } as Record<string, unknown>;
   const eventDate =
     lead?.eventDateDisplay && !/^date tbc$/i.test(String(lead.eventDateDisplay).trim())
       ? String(lead.eventDateDisplay)
@@ -500,7 +509,7 @@ export function buildStargtmPayload(opts: {
     vessel: form.vesselType[0] || undefined,
     vessels: form.vesselType.join(', ') || lead?.vessels || undefined,
     budget: lead?.budget || undefined,
-    nexusLead: nexusLead || lead || undefined,
+    nexusLead: nexusOut,
     lead: {
       proposal_ref: formatProposalRef(lead?.referenceNumber, form.quoteVersion),
       client_name: lead?.name,
