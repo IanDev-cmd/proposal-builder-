@@ -85,7 +85,7 @@ const APP_TILES: AppTile[] = [
     name:   'Chatbot Form',
     domain: 'n8n.io',
     color:  '#EA5E00',
-    getUrl: () => 'https://ravenmark.app.n8n.cloud/',
+    getUrl: () => 'https://proximaopal.app.n8n.cloud/',
   },
 ];
 
