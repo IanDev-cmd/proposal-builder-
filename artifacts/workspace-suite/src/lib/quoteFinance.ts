@@ -245,8 +245,19 @@ export function calcSectionLines(data: QuoteFormInput): {
       continue;
     }
     const looked = lookupUnitRate(line.label, rateParts);
-    if (looked.rate == null) {
-      notes.push(looked.note || `No rate: ${line.label}`);
+    if (looked.rate == null || !(looked.rate > 0)) {
+      const note = looked.note || `No rate: ${line.label}`;
+      notes.push(note);
+      // Keep the row so Cost Lines UI can show "No rate" instead of a silent £0.00.
+      lines.push({
+        id: line.id,
+        section: line.section,
+        label: line.label,
+        unitRate: 0,
+        multiplier: 0,
+        amount: 0,
+        note,
+      });
       continue;
     }
     const mult = multiplierValue(line, hours, guests, tables);

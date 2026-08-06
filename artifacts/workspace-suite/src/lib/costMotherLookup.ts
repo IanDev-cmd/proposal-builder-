@@ -61,7 +61,7 @@ function activeBundle(): CostMotherBundle {
   return liveOverlay || (bundled as CostMotherBundle);
 }
 
-/** Bundled snapshot + live overlay (live wins per label/key; bundled fills gaps). */
+/** Bundled snapshot + live overlay (live wins per label/key when > 0; bundled fills gaps). */
 function getIndex(): RateIndex {
   const src = liveOverlay ? 'merged' : 'bundled';
   if (!indexCache || indexSource !== src) {
@@ -74,7 +74,11 @@ function getIndex(): RateIndex {
       for (const [label, liveMap] of liveIdx.entries()) {
         const baseMap = new Map(indexCache.get(label) || []);
         for (const [k, v] of liveMap.entries()) {
-          if (Number.isFinite(v)) baseMap.set(k, v);
+          // Never let blank/zero live cells wipe a real bundled rate (shows as £0.00 in UI).
+          if (!Number.isFinite(v)) continue;
+          if (v > 0 || !baseMap.has(k) || !(Number(baseMap.get(k)) > 0)) {
+            baseMap.set(k, v);
+          }
         }
         indexCache.set(label, baseMap);
       }
@@ -176,7 +180,9 @@ function lookupInMap(
   if (!map || !map.size) return { rate: null, keyUsed: null, note: `No Cost Mother row for "${label}"` };
 
   const exact = makeRateKey(parts);
-  if (map.has(exact)) return { rate: map.get(exact)!, keyUsed: exact };
+  const exactRate = map.has(exact) ? map.get(exact)! : null;
+  // Sheet often stores 0 for N/A cells — treat as missing so weekly/group fallbacks can win.
+  if (exactRate != null && exactRate > 0) return { rate: exactRate, keyUsed: exact };
 
   const candidates: string[] = [];
   const weeklyAlts =
@@ -197,9 +203,22 @@ function lookupInMap(
   }
 
   for (const k of candidates) {
-    if (map.has(k)) {
-      return { rate: map.get(k)!, keyUsed: k, note: `Rate fallback key ${k}` };
-    }
+    if (!map.has(k)) continue;
+    const rate = map.get(k)!;
+    if (!(rate > 0)) continue;
+    return {
+      rate,
+      keyUsed: k,
+      note: exactRate === 0 ? `Rate fallback (sheet 0 at ${exact}) → ${k}` : `Rate fallback key ${k}`,
+    };
+  }
+
+  if (exactRate === 0) {
+    return {
+      rate: null,
+      keyUsed: exact,
+      note: `Cost Mother rate is 0 for ${label} @ ${exact}`,
+    };
   }
 
   return {
@@ -211,20 +230,22 @@ function lookupInMap(
 
 /**
  * Look up unit cost for a Cost Mother line under vessel/period/day/group.
- * Falls back across nearby weekly/group keys when exact match missing.
+ * Falls back across nearby weekly/group keys when exact match missing or zero.
+ * Live overlay zeros never block the bundled snapshot.
  */
 export function lookupUnitRate(
   label: string,
   parts: RateKeyParts,
 ): { rate: number | null; keyUsed: string | null; note?: string } {
   const primary = lookupInMap(findRateMap(label), label, parts);
-  if (primary.rate != null || !liveOverlay) return primary;
+  if (primary.rate != null && primary.rate > 0) return primary;
+  if (!liveOverlay) return primary;
 
   const bundled = lookupInMap(findRateMap(label, getBundledIndex()), label, parts);
-  if (bundled.rate != null) {
+  if (bundled.rate != null && bundled.rate > 0) {
     return { ...bundled, note: `Bundled fallback${bundled.note ? `: ${bundled.note}` : ''}` };
   }
-  return primary;
+  return primary.rate != null ? primary : bundled.rate != null ? bundled : primary;
 }
 
 export function buildRateParts(opts: {

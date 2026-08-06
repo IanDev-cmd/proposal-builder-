@@ -43,6 +43,14 @@ export function QuoteCostLines({
     for (const l of breakdown.lines) m.set(l.id, l.amount);
     return m;
   }, [breakdown.lines]);
+  const noteById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of breakdown.lines) {
+      if (l.note) m.set(l.id, l.note);
+    }
+    return m;
+  }, [breakdown.lines]);
+  const missingVessel = !(data.vesselType && data.vesselType[0]);
 
   const toggleOpen = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
 
@@ -50,6 +58,14 @@ export function QuoteCostLines({
 
   return (
     <div className="flex flex-col gap-3">
+      {missingVessel ? (
+        <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-950">
+          <p className="font-semibold">No vessel selected — all line costs show as £0.00</p>
+          <p className="mt-0.5 text-amber-900/80">
+            Pick a vessel on Event Core so Cost Mother can resolve unit rates for the period / day / group key.
+          </p>
+        </div>
+      ) : null}
       <p className="text-[12px] text-gray-500">
         YES lines from Quote Builder 2026 · rates from Cost Mother
         {breakdown.rateParts
@@ -150,11 +166,17 @@ export function QuoteCostLines({
                 {lines.map((line) => {
                   const on = selected.has(line.id);
                   const amt = amountById.get(line.id) || 0;
+                  const note = noteById.get(line.id) || '';
+                  const noRate =
+                    on &&
+                    amt <= 0 &&
+                    (/no rate|missing vessel|rate is 0|no cost mother/i.test(note) || missingVessel);
                   return (
                     <button
                       key={line.id}
                       type="button"
                       onClick={() => onToggleLine(line.id)}
+                      title={note || undefined}
                       className={`flex items-center justify-between rounded-[8px] px-3 py-2.5 text-left transition-colors ${
                         on
                           ? prefilledLineIds?.has(line.id)
@@ -173,8 +195,12 @@ export function QuoteCostLines({
                         </div>
                         <span className="text-[12.5px] font-medium text-gray-800">{line.label}</span>
                       </div>
-                      <span className={`text-[12px] font-semibold ${on ? 'text-[#00e676]' : 'text-gray-300'}`}>
-                        {on ? `£${amt.toFixed(2)}` : '—'}
+                      <span
+                        className={`text-[12px] font-semibold ${
+                          on ? (noRate ? 'text-amber-600' : 'text-[#00e676]') : 'text-gray-300'
+                        }`}
+                      >
+                        {on ? (noRate ? 'No rate' : `£${amt.toFixed(2)}`) : '—'}
                       </span>
                     </button>
                   );
