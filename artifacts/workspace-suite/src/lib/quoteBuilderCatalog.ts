@@ -357,12 +357,30 @@ export function linesForSection(section: QuoteSectionId): CatalogLine[] {
   return QUOTE_LINES.filter((l) => l.section === section);
 }
 
-export function defaultSelectedLineIds(menus: string[] = []): string[] {
+/**
+ * Default YES lines for a new quote.
+ * Sapphire: Section 11 + 12 always on (REP unchecks), plus photographer unless stated otherwise.
+ * Photographers are mutually exclusive — corporate vs wedding by event type.
+ * Structural defaultOn lines (vessel / delivery / decor / contingency) stay forced.
+ */
+export function defaultSelectedLineIds(
+  menus: string[] = [],
+  opts?: { wedding?: boolean },
+): string[] {
   const ids = new Set<string>();
+  const wedding = Boolean(opts?.wedding);
   for (const line of QUOTE_LINES) {
     if (line.defaultOn) ids.add(line.id);
     if (line.autoWithMenu && menus.some((m) => line.autoWithMenu!.test(m))) ids.add(line.id);
+    // Section 12 — Other: always included in every quote
+    if (line.section === 'other') ids.add(line.id);
+    // Section 11 — Event Staff: always included except photographers (handled below)
+    if (line.section === 'staff' && !/^Photographer\s*-/i.test(line.label)) ids.add(line.id);
   }
+  const photoLabel = wedding ? 'Photographer - Wedding' : 'Photographer - Corporate/Special';
+  const photo = QUOTE_LINES.find((l) => l.label === photoLabel);
+  if (photo) ids.add(photo.id);
+
   // Menus selected in Catering step → YES on matching catering lines
   for (const menu of menus) {
     const cm = resolveCostMotherMenu(menu);

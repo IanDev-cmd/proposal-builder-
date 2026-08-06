@@ -56,6 +56,11 @@ import {
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { goldPackageWordingForRef } from '@/lib/goldPackageWording';
 import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
+import {
+  buildItineraryProposalText,
+  parseItineraryProposalText,
+  buildItineraryProposalBlock,
+} from '@/lib/proposalTimings';
 import { collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
@@ -124,6 +129,10 @@ type FormData = {
   progressNotes: string;
   budget: string;
   packageWordingNotes: string;
+  /** Editable proposal itinerary wording (auto from schedule; REP can tweak). */
+  proposalTimingsNotes: string;
+  /** When true, regenerating schedule overwrites proposalTimingsNotes. */
+  proposalTimingsAuto: boolean;
   /** Cost cross-check before generate */
   costApproved: boolean;
 };
@@ -146,7 +155,9 @@ function todayIso() {
 }
 
 function moneySum(...vals: Array<number | undefined>): number {
-  return Math.round(vals.reduce((s, v) => s + (v || 0), 0) * 100) / 100;
+  let total = 0;
+  for (const v of vals) total += v ?? 0;
+  return Math.round(total * 100) / 100;
 }
 
 const INIT: FormData = {
@@ -185,6 +196,8 @@ const INIT: FormData = {
   progressNotes: '',
   budget: '',
   packageWordingNotes: '',
+  proposalTimingsNotes: '',
+  proposalTimingsAuto: true,
   costApproved: false,
 };
 
@@ -447,6 +460,7 @@ function FormGroupedMenuSelect({
       const t = setTimeout(() => searchRef.current?.focus(), 40);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [open]);
 
   const q = query.trim().toLowerCase();
@@ -815,7 +829,14 @@ export function Forms() {
   const [step, setStep] = useState(1);
   const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
   const [leadInit] = useState(() => formFromLead(getQuoteLead()));
-  const [data, setData] = useState<FormData>(() => leadInit.data);
+  const [data, setData] = useState<FormData>(() => {
+    const d = leadInit.data as FormData;
+    return {
+      ...d,
+      proposalTimingsNotes: d.proposalTimingsNotes || buildItineraryProposalText(d),
+      proposalTimingsAuto: d.proposalTimingsAuto !== false,
+    };
+  });
   const [prefilledKeys, setPrefilledKeys] = useState<Set<string>>(
     () => new Set(leadInit.prefilledKeys),
   );
@@ -914,6 +935,15 @@ export function Forms() {
     clearPrefill(String(key));
     setData((prev) => {
       const next = { ...prev, [key]: val } as FormData;
+      if (
+        next.proposalTimingsAuto &&
+        (key === 'embarkation' ||
+          key === 'departure' ||
+          key === 'returnTime' ||
+          key === 'disembarkation')
+      ) {
+        next.proposalTimingsNotes = buildItineraryProposalText(next);
+      }
       // Re-require Cost Approval when money-affecting fields change after approve
       if (
         prev.costApproved &&
@@ -1258,11 +1288,29 @@ export function Forms() {
     );
 
     const goldWording = goldPackageWordingForRef(quoteLead?.referenceNumber);
+    const timingBlock =
+      parseItineraryProposalText(data.proposalTimingsNotes) ||
+      buildItineraryProposalBlock({
+        embarkation: data.embarkation,
+        departure: data.departure,
+        returnTime: data.returnTime,
+        disembarkation: data.disembarkation,
+      });
     const packageWording = goldWording
       ? goldWording
-      : data.packageWordingNotes.trim()
-        ? { notes: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean) }
-        : {};
+      : {
+          venue_and_management: [
+            timingBlock,
+            ...(data.packageWordingNotes.trim()
+              ? [
+                  {
+                    heading: 'Notes;',
+                    items: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean),
+                  },
+                ]
+              : []),
+          ],
+        };
 
     const payload = buildStargtmPayload({
       form: financeInput,
@@ -1348,6 +1396,7 @@ export function Forms() {
       progressNotes: data.progressNotes,
       packageWording,
       staffContact,
+      fullEventDate: quoteLead?.fullEventDate,
     });
 
     // Attach sheets mode so n8n routes demo→test sheet / live→production.
@@ -1768,20 +1817,42 @@ export function Forms() {
                 </div>
 
                 <p className={sectionLabelCls}>Event Date</p>
-                <div className={`mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('dateFlexible') ? PREFILL_INPUT_CLS : ''}`}>
+                <div className="mb-4">
+                  <label className={fieldLabelCls}>
+                    Date of Event
+                    <span title="The calendar day this quote is built around">
+                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
+                    </span>
+                  </label>
+                  <input
+                    type="date"
+                    value={data.eventDate}
+                    onChange={(e) => set('eventDate', e.target.value)}
+                    className={fieldCls('eventDate')}
+                  />
+                  {data.dateFlexible && data.eventDate ? (
+                    <p className="mt-1.5 text-[12px] font-semibold text-[#E22A12]">
+                      Proposal will show this date with TBC underneath
+                    </p>
+                  ) : null}
+                </div>
+                <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('dateFlexible') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-800">Date flexible → Date TBC</p>
-                    <p className="text-[12px] text-gray-400">From Enquiry “Event Date - Flexible?”</p>
+                    <p className="text-[13px] font-semibold text-gray-800">
+                      {data.dateFlexible ? 'Flexible' : 'Fixed'}
+                    </p>
+                    <p className="text-[12px] text-gray-400">
+                      Internal note — Fixed shows the date alone; Flexible shows the date with TBC underneath
+                    </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       clearPrefill('dateFlexible');
-                      const next = !data.dateFlexible;
-                      set('dateFlexible', next);
-                      if (next) set('eventDate', '');
+                      set('dateFlexible', !data.dateFlexible);
                     }}
                     className={`relative h-7 w-14 rounded-full transition-colors ${data.dateFlexible ? 'bg-[#FF5A45]' : 'bg-gray-200'} ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
+                    aria-label="Toggle Fixed vs Flexible date"
                   >
                     <motion.div
                       animate={{ x: data.dateFlexible ? 28 : 2 }}
@@ -1789,24 +1860,6 @@ export function Forms() {
                       className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm"
                     />
                   </button>
-                </div>
-                <div className="mb-7">
-                  <label className={fieldLabelCls}>
-                    Date of Event
-                    <span title="The calendar day this event takes place">
-                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
-                    </span>
-                  </label>
-                  {data.dateFlexible ? (
-                    <div className={`${fieldCls('eventDate')} font-semibold text-[#E22A12]`}>Date TBC</div>
-                  ) : (
-                    <input
-                      type="date"
-                      value={data.eventDate}
-                      onChange={(e) => set('eventDate', e.target.value)}
-                      className={fieldCls('eventDate')}
-                    />
-                  )}
                 </div>
 
                 {data.budget ? (
@@ -1960,6 +2013,49 @@ export function Forms() {
                   disembarkation={data.disembarkation}
                   onChangeField={(key, value) => set(key, value)}
                 />
+
+                <div className="mt-7">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className={fieldLabelCls}>
+                      Proposal timings text
+                      <span title="Auto-filled from the schedule above — edit freely before generate">
+                        <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
+                      </span>
+                    </label>
+                    {!data.proposalTimingsAuto ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setData((prev) => ({
+                            ...prev,
+                            proposalTimingsAuto: true,
+                            proposalTimingsNotes: buildItineraryProposalText(prev),
+                          }));
+                        }}
+                        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#FF5A45] hover:underline"
+                      >
+                        Reset from schedule
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-gray-400">Auto from schedule</span>
+                    )}
+                  </div>
+                  <textarea
+                    value={data.proposalTimingsNotes}
+                    onChange={(e) => {
+                      setData((prev) => ({
+                        ...prev,
+                        proposalTimingsNotes: e.target.value,
+                        proposalTimingsAuto: false,
+                      }));
+                    }}
+                    rows={6}
+                    className={`${inputCls} min-h-[140px] resize-y font-mono text-[12px] leading-relaxed`}
+                  />
+                  <p className="mt-1.5 text-[11.5px] text-gray-400">
+                    Flows into the proposal pack itinerary block. Editing here stops auto-updates until you reset.
+                  </p>
+                </div>
               </motion.div>
             )}
 
@@ -1974,8 +2070,25 @@ export function Forms() {
                 transition={{ duration: 0.25 }}
               >
                 <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
+                <div className="mb-4 sticky top-0 z-10 rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E22A12]">
+                    Key Items (from Lead / Progress Notes)
+                  </p>
+                  <p className="mt-1 text-[13px] font-semibold leading-snug text-gray-800">
+                    {data.keyItems?.trim() || 'No key items yet — add them on Event Details or keep referring to the lead sheet.'}
+                  </p>
+                  {!data.keyItems?.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#FF5A45] hover:underline"
+                    >
+                      Edit on Event Details
+                    </button>
+                  ) : null}
+                </div>
                 <p className="mb-4 text-[12px] text-gray-500">
-                  Select YES lines for Sections 1–13 — catering menus are under Section 2, same as the Quote Sheet. Grand total is on the next step.
+                  Select YES lines for Sections 1–13 — catering menus are under Section 2, same as the Quote Sheet. Sections 11–12 and photographer start selected; uncheck what you don’t need. Grand total is on the next step.
                 </p>
                 <QuoteCostLines
                   data={financeInput}

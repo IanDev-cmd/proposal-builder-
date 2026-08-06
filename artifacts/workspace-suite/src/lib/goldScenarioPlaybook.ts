@@ -18,7 +18,7 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
   const next = { ...data } as T & Record<string, unknown>;
 
   const set = (key: string, val: unknown, prefill = true) => {
-    next[key] = val;
+    (next as Record<string, unknown>)[key] = val;
     if (prefill) prefilledKeys.add(key);
   };
 

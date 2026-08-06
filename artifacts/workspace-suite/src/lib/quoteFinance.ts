@@ -24,7 +24,8 @@ import {
   lookupUnitRate,
   type RateKeyParts,
 } from '@/lib/costMotherLookup';
-import { formatProposalRef } from '@/lib/goldScenarioCover';
+import { formatProposalRef, formatEventDateForProposal } from '@/lib/goldScenarioCover';
+import type { PackageWordingColumns } from '@/lib/goldPackageWording';
 
 export const CONTINGENCY_RATE = 0.0225;
 export const VAT_RATE = 0.2;
@@ -126,10 +127,11 @@ export function money(n: number): number {
 }
 
 export function resolveSelectedLineIds(data: QuoteFormInput): string[] {
+  const wedding = /wedding|engagement/i.test(data.eventType || '');
   const base =
     data.selectedLineIds && data.selectedLineIds.length
       ? [...data.selectedLineIds]
-      : defaultSelectedLineIds(data.menuType || []);
+      : defaultSelectedLineIds(data.menuType || [], { wedding });
 
   const set = new Set(base);
   // Sync menus → catering lines
@@ -442,7 +444,7 @@ export function buildStargtmPayload(opts: {
   category?: 'corporate' | 'wedding';
   selectedInserts?: string[];
   progressNotes?: string;
-  packageWording?: Record<string, string[]>;
+  packageWording?: PackageWordingColumns | Record<string, string[]>;
   menuLinks?: Record<string, string>;
   staffContact?: {
     name: string;
@@ -450,6 +452,8 @@ export function buildStargtmPayload(opts: {
     phone: string;
     email: string;
   };
+  /** Raw lead full event date (e.g. Wednesday 2nd December 2026) for flexible display. */
+  fullEventDate?: string;
 }) {
   const {
     form,
@@ -462,6 +466,7 @@ export function buildStargtmPayload(opts: {
     packageWording,
     menuLinks,
     staffContact,
+    fullEventDate,
   } = opts;
   const guests = parseFloat(form.guestCount) || 0;
   const guestHigh = parseFloat(form.guestCountHigh || '') || 0;
@@ -486,12 +491,14 @@ export function buildStargtmPayload(opts: {
     contact_phone: contact.phone,
     contact_email: contact.email,
   } as Record<string, unknown>;
-  const eventDate =
-    lead?.eventDateDisplay && !/^date tbc$/i.test(String(lead.eventDateDisplay).trim())
-      ? String(lead.eventDateDisplay)
-      : form.dateFlexible || isEventDateTbc(form.eventDate, form.dateFlexible)
-        ? 'Date TBC'
-        : form.eventDate || lead?.eventDateDisplay || '';
+  const eventDate = formatEventDateForProposal({
+    eventDate: form.eventDate,
+    dateFlexible: form.dateFlexible,
+    fullEventDate:
+      fullEventDate ||
+      (typeof nexusLead?.fullEventDate === 'string' ? nexusLead.fullEventDate : undefined),
+    eventDateDisplay: lead?.eventDateDisplay,
+  });
 
   const guestRange =
     guestHigh > guests

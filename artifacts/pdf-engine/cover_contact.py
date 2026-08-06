@@ -28,19 +28,40 @@ def format_event_date(value: str) -> str:
     raw = str(value).strip()
     if not raw:
         return ""
-    # Flexible / TBC dates from Enquiry → show Date TBC on the proposal
-    if re.search(r"\b(tbc|flexible|date\s*tbc)\b", raw, re.I) or raw.upper() == "TBC":
+    # Pure TBC (no calendar date) → Date TBC
+    if re.match(r"^(date\s*)?tbc$", raw, re.I):
         return "Date TBC"
+
+    flexible = bool(
+        re.search(r"(?i)(?:\n\s*tbc\s*$|\(date\s*tbc\)|\(tbc\)|\bflexible\b)", raw)
+    ) or bool(re.search(r"(?i)\btbc\b", raw))
+
+    date_part = re.sub(r"(?i)\s*\n\s*tbc\s*$", "", raw)
+    date_part = re.sub(r"(?i)\s*\(date\s*tbc\)\s*", "", date_part)
+    date_part = re.sub(r"(?i)\s*\(tbc\)\s*", "", date_part)
+    date_part = re.sub(r"(?i)\s*\bflexible\b\s*", "", date_part).strip()
+    # Bare trailing / standalone TBC left after stripping wrappers
+    date_part = re.sub(r"(?i)\s*\btbc\b\s*$", "", date_part).strip()
+
+    if not date_part or re.match(r"^(date\s*)?tbc$", date_part, re.I):
+        return "Date TBC"
+
     months = "January February March April May June July August September October November December"
-    if any(m in raw for m in months.split()) and re.search(r"\d", raw):
-        return raw
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
-        try:
-            dt = datetime.strptime(raw[:10], fmt)
-            return f"{dt.strftime('%A')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%B %Y')}"
-        except ValueError:
-            continue
-    return raw
+    if any(m in date_part for m in months.split()) and re.search(r"\d", date_part):
+        formatted = date_part
+    else:
+        formatted = date_part
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+            try:
+                dt = datetime.strptime(date_part[:10], fmt)
+                formatted = f"{dt.strftime('%A')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%B %Y')}"
+                break
+            except ValueError:
+                continue
+
+    if flexible:
+        return f"{formatted}\nTBC"
+    return formatted
 
 
 def format_event_date_compact(value: str) -> str:
@@ -48,18 +69,23 @@ def format_event_date_compact(value: str) -> str:
     raw = format_event_date(value)
     if raw in ("", "TBC", "Date TBC"):
         return raw
+    flexible = "\nTBC" in raw
+    date_only = raw.replace("\nTBC", "").strip()
     # Try parse back from house style or ISO
+    source = str(value).strip().split("\n")[0]
+    source = re.sub(r"(?i)\s*\(date\s*tbc\)\s*", "", source).strip()
     for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
         try:
-            dt = datetime.strptime(str(value).strip()[:10], fmt)
-            return f"{dt.strftime('%a')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%b %Y')}"
+            dt = datetime.strptime(source[:10], fmt)
+            compact = f"{dt.strftime('%a')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%b %Y')}"
+            return f"{compact}\nTBC" if flexible else compact
         except ValueError:
             continue
     # From already-formatted long date: Tuesday 14th July 2026 -> Tue 14th Jul 2026
     m = re.match(
         r"(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2})(st|nd|rd|th)\s+"
         r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})",
-        raw,
+        date_only,
     )
     if m:
         day_map = {
@@ -71,7 +97,8 @@ def format_event_date_compact(value: str) -> str:
             "May": "May", "June": "Jun", "July": "Jul", "August": "Aug",
             "September": "Sep", "October": "Oct", "November": "Nov", "December": "Dec",
         }
-        return f"{day_map[m.group(1)]} {m.group(2)}{m.group(3)} {mon_map[m.group(4)]} {m.group(5)}"
+        compact = f"{day_map[m.group(1)]} {m.group(2)}{m.group(3)} {mon_map[m.group(4)]} {m.group(5)}"
+        return f"{compact}\nTBC" if flexible else compact
     return raw
 
 
@@ -355,10 +382,23 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         value = str(data[field_name])
         value = _fit_cover_value(field_name, value, spec, font_mgr)
         # If event_date won't fit at designed size, use compact form before shrink
+        tbc_under = False
         if field_name == "event_date":
+            if "\n" in value:
+                parts = value.split("\n", 1)
+                value = parts[0].strip()
+                tbc_under = parts[1].strip().upper() == "TBC" or "TBC" in parts[1].upper()
             max_w = spec.get("max_width", 56)
-            if font_mgr.text_length(value, spec["size"], spec.get("bold", False)) > max_w:
-                value = format_event_date_compact(data[field_name])
+            # Measure date line only (TBC draws underneath)
+            measure_src = value
+            if font_mgr.text_length(measure_src, spec["size"], spec.get("bold", False)) > max_w:
+                compact = format_event_date_compact(data[field_name])
+                if "\n" in compact:
+                    cparts = compact.split("\n", 1)
+                    value = cparts[0].strip()
+                    tbc_under = True
+                else:
+                    value = compact
         # Page 1 must stay pixel-perfect with the chosen template: measured
         # span colour + Century Gothic only. Page-13 pure-white / Fallback-Bold
         # styling must not leak onto the cover.
@@ -370,6 +410,19 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         spec["bold"] = False
         spec["deep_bold"] = want_weight  # light echo approximates template bold
         prepared.append(prepare_field_draw(spec, value, font_mgr, warnings, field_name))
+        if field_name == "event_date" and tbc_under:
+            x0, y = spec["origin"]
+            tbc_spec = dict(
+                bbox=spec["bbox"],
+                origin=(x0, y + 7.2),
+                size=float(spec.get("size") or 4.63),
+                bold=False,
+                deep_bold=False,
+                color=spec["color"],
+                max_width=float(spec.get("max_width") or 56),
+                skip_redact=True,
+            )
+            prepared.append(prepare_field_draw(tbc_spec, "TBC", font_mgr, warnings, "event_date_tbc"))
 
     draw_fields_batched(page, prepared, font_mgr, clear_graphics=False)
 

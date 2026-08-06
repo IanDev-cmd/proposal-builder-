@@ -166,14 +166,22 @@ export function isRepeatClientSource(rawSource?: string): boolean {
   return rawSource.toLowerCase().includes('repeat client');
 }
 
-export function parseEventDateForInput(display?: string, full?: string, flexible?: boolean): string {
-  if (flexible) return '';
-  const src = (display || full || '').trim();
-  if (!src || /tbc/i.test(src)) return '';
-  if (/^\d{4}-\d{2}-\d{2}/.test(src)) return src.slice(0, 10);
-  const d = new Date(src);
-  if (!Number.isNaN(d.getTime())) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export function parseEventDateForInput(display?: string, full?: string, _flexible?: boolean): string {
+  // Always keep a calendar date when the lead has one — Fixed/Flexible is a separate toggle.
+  for (const candidate of [full, display]) {
+    const src = (candidate || '').trim();
+    if (!src || /^date\s*tbc$/i.test(src)) continue;
+    const cleaned = src
+      .replace(/\s*\n\s*TBC\s*$/i, '')
+      .replace(/\s*\(date\s*tbc\)\s*/gi, '')
+      .replace(/\s*\(tbc\)\s*/gi, '')
+      .trim();
+    if (!cleaned || /^date\s*tbc$/i.test(cleaned)) continue;
+    if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) return cleaned.slice(0, 10);
+    const d = new Date(cleaned);
+    if (!Number.isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
   }
   return '';
 }
@@ -243,21 +251,51 @@ function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): str
   return [...labels];
 }
 
+const KEY_ITEM_TOKEN_RE =
+  /\b(AVON|RECEPTION|BG MUSIC|HFB|3CSD|2CSD|SUB CANS|STREET FOOD|CASINO|PHOTOBOOTH|BAR TAB|CANAP|DJ\b|PHOTOB|MUSIC|DECOR|BUFFET|CENTREPIECE|DRINK TOKEN|TOKENS)\b/i;
+const CALL_LOG_RE = /\b(proposal sent|spoke|called|email|video call|follow[- ]?up|left (a )?voicemail)\b/i;
+
+function cleanKeyItemsChunk(c: string): string {
+  return c
+    .replace(/^[^A-Z0-9£]+/i, '')
+    .replace(CALL_LOG_RE, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/** Prefer keyword-rich key-detail chunks over version-tagged call-log noise. */
 function parseKeyItemsFromNotes(notes: string, quoteVersion: string): string {
   const chunks = notes.split(/\s*\|\s*/).filter(Boolean);
-  for (let i = chunks.length - 1; i >= 0; i--) {
-    const c = chunks[i];
-    if (!new RegExp(`\\b${quoteVersion.replace('.', '\\.')}\\b`, 'i').test(c)) continue;
-    const stripped = c
-      .replace(/^[^A-Z0-9£]+/i, '')
-      .replace(/\b(proposal sent|spoke|called|email|video call).*$/i, '')
-      .trim();
+  const verRe = new RegExp(`\\b${quoteVersion.replace('.', '\\.')}\\b`, 'i');
+
+  const scored = chunks.map((c, i) => {
+    let score = 0;
+    if (KEY_ITEM_TOKEN_RE.test(c)) score += 10;
+    if (verRe.test(c)) score += 2;
+    if (CALL_LOG_RE.test(c)) score -= 6;
+    return { c, score, i };
+  });
+
+  scored.sort((a, b) => b.score - a.score || b.i - a.i);
+
+  for (const row of scored) {
+    if (row.score < 10) break;
+    const stripped = cleanKeyItemsChunk(row.c);
     if (stripped.length >= 8) return stripped.slice(0, 220);
   }
+
   for (let i = chunks.length - 1; i >= 0; i--) {
     const c = chunks[i];
-    if (/\b(AVON|RECEPTION|BG MUSIC|HFB|3CSD|2CSD|SUB CANS|STREET FOOD|CASINO|PHOTOBOOTH)\b/i.test(c)) {
-      return c.trim().slice(0, 220);
+    if (!verRe.test(c) || CALL_LOG_RE.test(c)) continue;
+    const stripped = cleanKeyItemsChunk(c);
+    if (stripped.length >= 8 && KEY_ITEM_TOKEN_RE.test(stripped)) return stripped.slice(0, 220);
+  }
+
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    const c = chunks[i];
+    if (KEY_ITEM_TOKEN_RE.test(c)) {
+      const stripped = cleanKeyItemsChunk(c);
+      if (stripped.length >= 8) return stripped.slice(0, 220);
     }
   }
   return '';
@@ -338,9 +376,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const quoteVersion = parseQuoteVersionFromNotes(notes);
   const eventType = matchEventType(lead.eventType) || lead.eventType || '';
   const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
-  const eventDate = flex
-    ? ''
-    : parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) || String(init.eventDate || '');
+  const eventDate =
+    parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) ||
+    (flex ? '' : String(init.eventDate || ''));
   const guestCount = parseGuestCount({
     groupSizeQuote: lead.groupSizeQuote,
     groupSize: lead.groupSize,
@@ -373,7 +411,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const inferredIds = lineIdsFromLabels(lineLabels);
   const selectedLineIds = goldLabels.length
     ? lineIdsFromLabels(goldLabels)
-    : [...new Set([...defaultSelectedLineIds(menuType), ...inferredIds])];
+    : [...new Set([...defaultSelectedLineIds(menuType, { wedding }), ...inferredIds])];
 
   const bespokeLines = [...((init.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
   if (bespoke && bespokeLines[0]) {
