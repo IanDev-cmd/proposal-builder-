@@ -411,10 +411,13 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         spec["deep_bold"] = want_weight  # light echo approximates template bold
         prepared.append(prepare_field_draw(spec, value, font_mgr, warnings, field_name))
         if field_name == "event_date" and tbc_under:
+            # Date origin is (410.4, 52.0); place TBC ~5pt below so it stays
+            # readable under the date without overlapping neighbouring panel copy.
             x0, y = spec["origin"]
+            tbc_y = y + 5.0
             tbc_spec = dict(
                 bbox=spec["bbox"],
-                origin=(x0, y + 7.2),
+                origin=(x0, tbc_y),
                 size=float(spec.get("size") or 4.63),
                 bold=False,
                 deep_bold=False,

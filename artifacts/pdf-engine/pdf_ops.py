@@ -32,7 +32,11 @@ def redact_zone(page: "fitz.Page", bbox, *, clear_graphics: bool = False):
 
 
 def draw_text(page: "fitz.Page", origin, text: str, fontname: str, size: float,
-              color=None, fontfile=None):
+              color=None, fontfile=None, *, line_gap: float | None = None):
+    """
+    Draw text at origin. PyMuPDF insert_text ignores newlines, so multi-line
+    strings (e.g. event_date with a trailing \\nTBC) are drawn line-by-line.
+    """
     if color is None:
         color = config.TEXT_COLOR
     text = (
@@ -40,7 +44,21 @@ def draw_text(page: "fitz.Page", origin, text: str, fontname: str, size: float,
             .replace("\u2010", "-")
             .replace("\u2011", "-")
     )
-    page.insert_text(origin, text, fontname=fontname, fontfile=fontfile, fontsize=size, color=color)
+    if "\n" not in text:
+        page.insert_text(origin, text, fontname=fontname, fontfile=fontfile, fontsize=size, color=color)
+        return
+    x, y = origin
+    # ~line-height for cover panel copy (~4.63pt → ~5–6pt step)
+    step = float(line_gap) if line_gap is not None else max(float(size) * 1.15, float(size) + 0.5)
+    for i, line in enumerate(text.split("\n")):
+        page.insert_text(
+            (x, y + i * step),
+            line,
+            fontname=fontname,
+            fontfile=fontfile,
+            fontsize=size,
+            color=color,
+        )
 
 
 def prepare_field_draw(spec: dict, text: str, font_mgr, warnings: list, field_name: str):
