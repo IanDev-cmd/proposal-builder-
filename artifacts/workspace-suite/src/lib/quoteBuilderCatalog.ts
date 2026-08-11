@@ -36,6 +36,11 @@ export type CatalogLine = {
   defaultOn?: boolean;
   /** Auto-select when matching menu is chosen. */
   autoWithMenu?: RegExp;
+  /**
+   * Optional client-facing proposal phrasing (Prompt 3 scaffold).
+   * When set, used instead of the raw Cost Mother label in package wording.
+   */
+  proposalWording?: string;
 };
 
 export const WEEKLY_PERIODS = ['Mon to Thur', 'Fri to Sun', 'Mon to Wed', 'Thur to Sun'] as const;
@@ -164,9 +169,15 @@ export const QUOTE_LINES: CatalogLine[] = [
   L('entertainment', 'Magician', 'hours'),
   L('entertainment', 'Tour Guide', 'hours'),
   L('entertainment', 'Team building activities with performance coach', 'hours'),
-  L('entertainment', 'Casino table with croupier - x 1', 'hours'),
-  L('entertainment', 'Casino table with croupier - x 2', 'hours'),
-  L('entertainment', 'Photobooth', 'hours'),
+  L('entertainment', 'Casino table with croupier - x 1', 'hours', {
+    proposalWording: 'Casino table with professional croupier',
+  }),
+  L('entertainment', 'Casino table with croupier - x 2', 'hours', {
+    proposalWording: 'Two casino tables with professional croupiers',
+  }),
+  L('entertainment', 'Photobooth', 'hours', {
+    proposalWording: 'Interactive photobooth experience for your guests',
+  }),
   L('entertainment', 'Chocolate fountain', 'hours'),
   L('entertainment', 'Dessert Treat Table (Combination of sweet and dessert treats)', 'hours'),
   L('entertainment', 'Wine Tasting', 'hours'),
@@ -233,9 +244,15 @@ export const QUOTE_LINES: CatalogLine[] = [
   L('other', 'Additional Pier Stop - x 1', 'set'),
   L('other', 'Embark and Disembark', 'set'),
   L('other', 'Pack Down Fee', 'set'),
-  L('other', 'Stationary', 'set'),
-  L('other', 'Welcome and Thank You Pack', 'set'),
-  L('other', 'Graphic Work (Design & Print) + Gift Vouchers', 'set'),
+  L('other', 'Stationary', 'set', {
+    proposalWording: 'Personalised digital invitation and on-board stationery suite',
+  }),
+  L('other', 'Welcome and Thank You Pack', 'set', {
+    proposalWording: 'Welcome and thank-you guest packs on arrival and departure',
+  }),
+  L('other', 'Graphic Work (Design & Print) + Gift Vouchers', 'set', {
+    proposalWording: 'Bespoke graphic design, print, and gift vouchers',
+  }),
   L('other', "Catering/Staff Food Contigency (ADD TO ALL QUOTES)", 'set', { defaultOn: true }),
   L('other', "Event Manager 'Creative Kitty'", 'set'),
 
@@ -357,6 +374,49 @@ export function linesForSection(section: QuoteSectionId): CatalogLine[] {
   return QUOTE_LINES.filter((l) => l.section === section);
 }
 
+const PHOTO_CORP = 'Photographer - Corporate/Special';
+const PHOTO_WEDDING = 'Photographer - Wedding';
+
+/** Line ids for both photographer variants (mutually exclusive). */
+export function photographerLineIds(): { corporate?: string; wedding?: string } {
+  return {
+    corporate: QUOTE_LINES.find((l) => l.label === PHOTO_CORP)?.id,
+    wedding: QUOTE_LINES.find((l) => l.label === PHOTO_WEDDING)?.id,
+  };
+}
+
+/**
+ * Keep exactly one photographer selected: Wedding vs Corporate/Special.
+ * Preserves any explicit uncheck of both (REP opted out).
+ */
+export function syncExclusivePhotographer(
+  selectedIds: string[],
+  wedding: boolean,
+  opts?: { force?: boolean },
+): string[] {
+  const { corporate, wedding: wedId } = photographerLineIds();
+  const photoIds = [corporate, wedId].filter(Boolean) as string[];
+  const without = selectedIds.filter((id) => !photoIds.includes(id));
+  const hadAny = selectedIds.some((id) => photoIds.includes(id));
+  if (!hadAny && !opts?.force) return without;
+  const pick = wedding ? wedId : corporate;
+  return pick ? [...without, pick] : without;
+}
+
+/**
+ * Aggregate high-quality proposal phrasing for selected lines (Prompt 3 scaffold).
+ * Only lines with proposalWording contribute — raw Cost Mother labels are skipped.
+ */
+export function buildPackageWordingNotes(selectedLineIds: string[]): string {
+  const wanted = new Set(selectedLineIds);
+  const lines: string[] = [];
+  for (const line of QUOTE_LINES) {
+    if (!wanted.has(line.id) || !line.proposalWording?.trim()) continue;
+    lines.push(line.proposalWording.trim());
+  }
+  return lines.join('\n');
+}
+
 /**
  * Default YES lines for a new quote.
  * Sapphire: Section 11 + 12 always on (REP unchecks), plus photographer unless stated otherwise.
@@ -377,16 +437,16 @@ export function defaultSelectedLineIds(
     // Section 11 — Event Staff: always included except photographers (handled below)
     if (line.section === 'staff' && !/^Photographer\s*-/i.test(line.label)) ids.add(line.id);
   }
-  const photoLabel = wedding ? 'Photographer - Wedding' : 'Photographer - Corporate/Special';
-  const photo = QUOTE_LINES.find((l) => l.label === photoLabel);
-  if (photo) ids.add(photo.id);
+  // Force the correct photographer for this event type
+  const withPhoto = syncExclusivePhotographer([...ids], wedding, { force: true });
 
   // Menus selected in Catering step → YES on matching catering lines
+  const set = new Set(withPhoto);
   for (const menu of menus) {
     const cm = resolveCostMotherMenu(menu);
     if (!cm) continue;
     const line = QUOTE_LINES.find((l) => l.section === 'catering' && l.label === cm);
-    if (line) ids.add(line.id);
+    if (line) set.add(line.id);
   }
-  return [...ids];
+  return [...set];
 }

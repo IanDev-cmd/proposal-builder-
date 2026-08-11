@@ -16,6 +16,7 @@ import {
   UPGRADE_TO_LINE_LABEL,
   defaultSelectedLineIds,
   resolveCostMotherMenu,
+  syncExclusivePhotographer,
   type CatalogLine,
 } from '@/lib/quoteBuilderCatalog';
 import {
@@ -148,7 +149,8 @@ export function resolveSelectedLineIds(data: QuoteFormInput): string[] {
     const line = QUOTE_LINES.find((l) => l.label === label);
     if (line) set.add(line.id);
   }
-  return [...set];
+  // Keep photographer exclusive to event type when one is selected (allow full untick)
+  return syncExclusivePhotographer([...set], wedding);
 }
 
 function multiplierValue(line: CatalogLine, hours: number, guests: number, tables: number): number {

@@ -3,7 +3,7 @@
  * Parses n8n lead aliases + progressNotes hints; tracks auto-filled keys for blue UI styling.
  */
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES } from '@/lib/formOptions';
-import { QUOTE_LINES, defaultSelectedLineIds } from '@/lib/quoteBuilderCatalog';
+import { QUOTE_LINES, defaultSelectedLineIds, buildPackageWordingNotes } from '@/lib/quoteBuilderCatalog';
 import { lookupMinMargin } from '@/lib/costMotherLookup';
 import { REPEAT_CLIENT_MARGIN, NEW_CLIENT_MARGIN } from '@/lib/quoteFinance';
 import type { QuoteLead } from '@/lib/quoteLeadStore';
@@ -17,6 +17,7 @@ import {
 } from '@/lib/progressNotesFinance';
 import { applyGoldScenarioPlaybook, goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { buildRateParts } from '@/lib/costMotherLookup';
+import { buildItineraryProposalText } from '@/lib/proposalTimings';
 
 export const PREFILL_INPUT_CLS =
   'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
@@ -252,11 +253,17 @@ function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): str
 }
 
 const KEY_ITEM_TOKEN_RE =
-  /\b(AVON|RECEPTION|BG MUSIC|HFB|3CSD|2CSD|SUB CANS|STREET FOOD|CASINO|PHOTOBOOTH|BAR TAB|CANAP|DJ\b|PHOTOB|MUSIC|DECOR|BUFFET|CENTREPIECE|DRINK TOKEN|TOKENS)\b/i;
-const CALL_LOG_RE = /\b(proposal sent|spoke|called|email|video call|follow[- ]?up|left (a )?voicemail)\b/i;
+  /\b(AVON|RECEPTION|BG MUSIC|HFB|3CSD|2CSD|SUB CANS|STREET FOOD|CASINO|PHOTOBOOTH|BAR TAB|CANAP|DJ\b|PHOTOB|MUSIC|DECOR|BUFFET|CENTREPIECE|DRINK TOKEN|TOKENS|AWARDS?|MIC|TV\/MIC)\b/i;
+const CALL_LOG_RE =
+  /\b(proposal sent|spoke(\s+to)?|called|email(ed)?|video call|follow[- ]?up|left (a )?voicemail|voicemail|chased|no answer|ring(?:ing)?|whatsapp|texted)\b/i;
+const VERSION_STAMP_RE = /^\s*V\s*\d+\b/i;
+const LEADING_REP_RE =
+  /^\s*(?:REP\s+)?(?:Natasha|Katherine|Sapphire|Meera|Carly|Shilen|Ian|Amy|Sarah|Emma|Sophie|Laura|Jessica|Chloe|Olivia|Hannah|Megan|Rachel|Georgia|Ellie|Lucy|Alice|Katie|Rebecca)\b[\s:,-]*/i;
 
 function cleanKeyItemsChunk(c: string): string {
   return c
+    .replace(LEADING_REP_RE, '')
+    .replace(VERSION_STAMP_RE, '')
     .replace(/^[^A-Z0-9£]+/i, '')
     .replace(CALL_LOG_RE, '')
     .replace(/\s{2,}/g, ' ')
@@ -270,18 +277,23 @@ function parseKeyItemsFromNotes(notes: string, quoteVersion: string): string {
 
   const scored = chunks.map((c, i) => {
     let score = 0;
-    if (KEY_ITEM_TOKEN_RE.test(c)) score += 10;
-    if (verRe.test(c)) score += 2;
-    if (CALL_LOG_RE.test(c)) score -= 6;
-    return { c, score, i };
+    const cleaned = cleanKeyItemsChunk(c);
+    if (KEY_ITEM_TOKEN_RE.test(c) || KEY_ITEM_TOKEN_RE.test(cleaned)) score += 10;
+    // Soft boost when chunk matches the active quote version, but not if it's only a stamp
+    if (verRe.test(c) && KEY_ITEM_TOKEN_RE.test(c)) score += 2;
+    if (CALL_LOG_RE.test(c)) score -= 8;
+    if (VERSION_STAMP_RE.test(c.trim()) && !KEY_ITEM_TOKEN_RE.test(c)) score -= 5;
+    if (LEADING_REP_RE.test(c) && !KEY_ITEM_TOKEN_RE.test(c)) score -= 4;
+    // Prefer later note chunks (newer progress) when scores tie
+    return { c, cleaned, score, i };
   });
 
   scored.sort((a, b) => b.score - a.score || b.i - a.i);
 
   for (const row of scored) {
     if (row.score < 10) break;
-    const stripped = cleanKeyItemsChunk(row.c);
-    if (stripped.length >= 8) return stripped.slice(0, 220);
+    const stripped = row.cleaned || cleanKeyItemsChunk(row.c);
+    if (stripped.length >= 8 && KEY_ITEM_TOKEN_RE.test(stripped)) return stripped.slice(0, 220);
   }
 
   for (let i = chunks.length - 1; i >= 0; i--) {
@@ -519,6 +531,15 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     templateId: pack.templateId || String(init.templateId || ''),
     requiresInserts: pack.requiresInserts,
     selectedInserts: pack.selectedInserts.length ? pack.selectedInserts : (init.selectedInserts as string[]) || [],
+    proposalTimingsNotes: buildItineraryProposalText({
+      embarkation,
+      departure: schedule.departure,
+      returnTime: schedule.returnTime,
+      disembarkation,
+    }),
+    proposalTimingsAuto: true,
+    packageWordingNotes:
+      String(init.packageWordingNotes || '').trim() || buildPackageWordingNotes(selectedLineIds),
   } as T;
 
   if (source) prefilledKeys.add('source');
@@ -552,6 +573,10 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (pack.templateId) prefilledKeys.add('templateId');
   if (pack.requiresInserts) prefilledKeys.add('requiresInserts');
   if (pack.selectedInserts.length) prefilledKeys.add('selectedInserts');
+  prefilledKeys.add('proposalTimingsNotes');
+  if (String((data as { packageWordingNotes?: string }).packageWordingNotes || '').trim()) {
+    prefilledKeys.add('packageWordingNotes');
+  }
 
   for (const id of inferredIds) prefilledLineIds.add(id);
   if (bespoke || goldForm?.bespokeAmount) prefilledKeys.add('bespokeLines');

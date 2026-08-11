@@ -21,6 +21,8 @@ import {
   GROUP_BRACKETS,
   QUOTE_VERSIONS,
   defaultSelectedLineIds,
+  syncExclusivePhotographer,
+  buildPackageWordingNotes,
 } from '@/lib/quoteBuilderCatalog';
 import {
   parseCostMotherRows,
@@ -944,6 +946,28 @@ export function Forms() {
     return () => window.removeEventListener('keydown', onKey);
   }, [quoteDetailsOpen]);
 
+  // Keep proposal itinerary text in sync with schedule while auto mode is on
+  useEffect(() => {
+    if (!data.proposalTimingsAuto) return;
+    const next = buildItineraryProposalText({
+      embarkation: data.embarkation,
+      departure: data.departure,
+      returnTime: data.returnTime,
+      disembarkation: data.disembarkation,
+    });
+    setData((prev) =>
+      prev.proposalTimingsAuto && prev.proposalTimingsNotes !== next
+        ? { ...prev, proposalTimingsNotes: next }
+        : prev,
+    );
+  }, [
+    data.embarkation,
+    data.departure,
+    data.returnTime,
+    data.disembarkation,
+    data.proposalTimingsAuto,
+  ]);
+
   const fieldCls = (key: keyof FormData | string) => {
     const k = String(key);
     if (confirmedKeys.has(k)) return `${inputCls} ${PREFILL_CONFIRMED_CLS}`;
@@ -1020,6 +1044,16 @@ export function Forms() {
       ) {
         next.proposalTimingsNotes = buildItineraryProposalText(next);
       }
+      if (key === 'eventType') {
+        const wedding = /wedding|engagement/i.test(String(val || ''));
+        next.selectedLineIds = syncExclusivePhotographer(next.selectedLineIds, wedding, {
+          force: true,
+        });
+        next.proposalCategory = wedding ? 'wedding' : next.proposalCategory;
+        if (!String(prev.packageWordingNotes || '').trim()) {
+          next.packageWordingNotes = buildPackageWordingNotes(next.selectedLineIds);
+        }
+      }
       // Re-require Cost Approval when money-affecting fields change after approve
       if (
         prev.costApproved &&
@@ -1042,6 +1076,7 @@ export function Forms() {
           'totalCost',
           'eventDate',
           'dateFlexible',
+          'eventType',
         ].includes(key)
       ) {
         next.costApproved = false;
@@ -2619,7 +2654,16 @@ export function Forms() {
                         if (data.proposalCategory === cat) return;
                         templateManualRef.current = false;
                         setShowAllTemplates(false);
-                        set('proposalCategory', cat);
+                        clearPrefill('proposalCategory');
+                        setData((prev) => ({
+                          ...prev,
+                          proposalCategory: cat,
+                          selectedLineIds: syncExclusivePhotographer(
+                            prev.selectedLineIds,
+                            cat === 'wedding',
+                            { force: true },
+                          ),
+                        }));
                       }}
                       className={`flex-1 rounded-[10px] border px-4 py-3.5 text-[13px] font-semibold capitalize transition-colors ${
                         data.proposalCategory === cat
@@ -2632,6 +2676,49 @@ export function Forms() {
                       {cat}
                     </button>
                   ))}
+                </div>
+
+                <div className="mb-7">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className={fieldLabelCls}>
+                      Itinerary
+                      <span title="Auto-filled from Schedule Timings — edit freely; auto-updates pause until you reset">
+                        <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
+                      </span>
+                    </label>
+                    {!data.proposalTimingsAuto ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setData((prev) => ({
+                            ...prev,
+                            proposalTimingsAuto: true,
+                            proposalTimingsNotes: buildItineraryProposalText(prev),
+                          }));
+                        }}
+                        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#FF5A45] hover:underline"
+                      >
+                        Reset from schedule
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-gray-400">Auto from schedule</span>
+                    )}
+                  </div>
+                  <textarea
+                    value={data.proposalTimingsNotes}
+                    onChange={(e) => {
+                      setData((prev) => ({
+                        ...prev,
+                        proposalTimingsNotes: e.target.value,
+                        proposalTimingsAuto: false,
+                      }));
+                    }}
+                    rows={6}
+                    className={`${inputCls} min-h-[140px] resize-y font-mono text-[12px] leading-relaxed`}
+                  />
+                  <p className="mt-1.5 text-[11.5px] text-gray-400">
+                    Flows into the proposal pack itinerary block. Editing here stops auto-updates until you reset.
+                  </p>
                 </div>
 
                 <p className={sectionLabelCls}>Proposal Template</p>
