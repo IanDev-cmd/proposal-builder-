@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye, StickyNote } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye } from 'lucide-react';
 import { SECTION_META } from '@/lib/quoteBuilderCatalog';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
+import { LeadReferenceCard } from '@/components/LeadReferenceCard';
+import { ScheduleTimingToasts } from '@/components/ScheduleTimingToasts';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
+import { loadQuoteNotesDraft } from '@/lib/leadNotes';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
@@ -826,90 +829,26 @@ async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<b
   }
 }
 
-/** Persistent floating lead sheet reference — Key Items + Progress Notes across all wizard steps. */
-function LeadReferenceCard({
-  keyItems,
-  progressNotes,
-  isOpen,
-  onToggle,
-}: {
-  keyItems: string;
-  progressNotes: string;
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
-  const keyItemsText = keyItems?.trim() || 'No key items yet — add them on Event Core.';
-  const notesText = progressNotes?.trim() || 'No progress notes yet.';
-
-  return (
-    <div
-      className="fixed right-6 top-20 z-40 w-[min(calc(100vw-1.5rem),300px)]"
-      data-testid="lead-reference-card"
-    >
-      <div className="overflow-hidden rounded-[12px] border border-amber-200 bg-amber-50 shadow-lg shadow-amber-900/10">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={isOpen}
-          className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-amber-100/70"
-          data-testid="lead-reference-toggle"
-        >
-          <StickyNote className="h-4 w-4 shrink-0 text-amber-700" strokeWidth={2} />
-          <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase tracking-[0.08em] text-amber-900">
-            Lead Notes
-          </span>
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-amber-700 transition-transform duration-200 ${
-              isOpen ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-
-        <AnimatePresence initial={false}>
-          {isOpen ? (
-            <motion.div
-              key="lead-notes-body"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="overflow-hidden"
-            >
-              <div className="scrollbar-thin max-h-60 space-y-3 overflow-y-auto border-t border-amber-200/80 px-3.5 pb-3.5 pt-3">
-                <div className="rounded-[8px] border border-amber-300/70 bg-amber-100/80 px-3 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-800">
-                    Key Items
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-[13px] font-semibold leading-snug text-amber-950">
-                    {keyItemsText}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700/80">
-                    Full Progress Notes
-                  </p>
-                  <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-amber-950/90">
-                    {notesText}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
 export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
   const [leadInit] = useState(() => formFromLead(getQuoteLead()));
+  const leadNotesKey =
+    quoteLead?.referenceNumber ||
+    quoteLead?.email ||
+    (quoteLead?.id != null ? `lead-${quoteLead.id}` : 'quote-draft');
   const [data, setData] = useState<FormData>(() => {
     const d = leadInit.data as FormData;
+    const draft = loadQuoteNotesDraft(
+      quoteLead?.referenceNumber ||
+        quoteLead?.email ||
+        (quoteLead?.id != null ? `lead-${quoteLead.id}` : 'quote-draft'),
+    );
     return {
       ...d,
+      keyItems: d.keyItems || draft?.keyItems || '',
+      progressNotes: d.progressNotes || draft?.progressNotes || '',
       proposalTimingsNotes: d.proposalTimingsNotes || buildItineraryProposalText(d),
       proposalTimingsAuto: d.proposalTimingsAuto !== false,
     };
@@ -935,7 +874,7 @@ export function Forms() {
   const [baseCostAuto, setBaseCostAuto] = useState(true);
   const [ratesNote, setRatesNote] = useState<string>('');
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
-  const [isNotesOpen, setIsNotesOpen] = useState(true);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
 
   useEffect(() => {
     if (!quoteDetailsOpen) return;
@@ -1691,10 +1630,13 @@ export function Forms() {
   return (
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
       <LeadReferenceCard
+        leadKey={leadNotesKey}
         keyItems={data.keyItems}
         progressNotes={data.progressNotes}
         isOpen={isNotesOpen}
         onToggle={() => setIsNotesOpen((open) => !open)}
+        onKeyItemsChange={(value) => set('keyItems', value)}
+        onProgressNotesChange={(value) => set('progressNotes', value)}
       />
 
       {/* ── Left: mint sidebar — logo, heading, numbered steps (DNB layout) ── */}
@@ -2150,48 +2092,30 @@ export function Forms() {
                   onChangeField={(key, value) => set(key, value)}
                 />
 
-                <div className="mt-7">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className={fieldLabelCls}>
-                      Proposal timings text
-                      <span title="Auto-filled from the schedule above — edit freely before generate">
-                        <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
-                      </span>
-                    </label>
-                    {!data.proposalTimingsAuto ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setData((prev) => ({
-                            ...prev,
-                            proposalTimingsAuto: true,
-                            proposalTimingsNotes: buildItineraryProposalText(prev),
-                          }));
-                        }}
-                        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#FF5A45] hover:underline"
-                      >
-                        Reset from schedule
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-gray-400">Auto from schedule</span>
-                    )}
-                  </div>
-                  <textarea
-                    value={data.proposalTimingsNotes}
-                    onChange={(e) => {
-                      setData((prev) => ({
-                        ...prev,
-                        proposalTimingsNotes: e.target.value,
-                        proposalTimingsAuto: false,
-                      }));
-                    }}
-                    rows={6}
-                    className={`${inputCls} min-h-[140px] resize-y font-mono text-[12px] leading-relaxed`}
-                  />
-                  <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Flows into the proposal pack itinerary block. Editing here stops auto-updates until you reset.
-                  </p>
-                </div>
+                <ScheduleTimingToasts
+                  timings={{
+                    embarkation: data.embarkation,
+                    departure: data.departure,
+                    returnTime: data.returnTime,
+                    disembarkation: data.disembarkation,
+                  }}
+                  proposalTimingsNotes={data.proposalTimingsNotes}
+                  proposalTimingsAuto={data.proposalTimingsAuto}
+                  onResetAuto={() => {
+                    setData((prev) => ({
+                      ...prev,
+                      proposalTimingsAuto: true,
+                      proposalTimingsNotes: buildItineraryProposalText(prev),
+                    }));
+                  }}
+                  onNotesChange={(text) => {
+                    setData((prev) => ({
+                      ...prev,
+                      proposalTimingsNotes: text,
+                      proposalTimingsAuto: false,
+                    }));
+                  }}
+                />
               </motion.div>
             )}
 

@@ -127,3 +127,53 @@ export function addNote(leadKey: string, note: LeadNote): LeadNote[] {
   saveStore(store);
   return updated;
 }
+
+export function updateNote(leadKey: string, noteId: string, text: string): LeadNote[] {
+  const store = loadStore();
+  const list = store[leadKey] ?? [];
+  const updated = list.map((n) =>
+    n.id === noteId ? { ...n, text, tag: detectTag(text) ?? n.tag } : n,
+  );
+  store[leadKey] = updated;
+  saveStore(store);
+  return updated;
+}
+
+export function deleteNote(leadKey: string, noteId: string): LeadNote[] {
+  const store = loadStore();
+  const updated = (store[leadKey] ?? []).filter((n) => n.id !== noteId);
+  store[leadKey] = updated;
+  saveStore(store);
+  return updated;
+}
+
+/** Quote Builder sticky-note draft (Key Items + Progress Notes + free notes). */
+export type QuoteNotesDraft = {
+  keyItems: string;
+  progressNotes: string;
+  savedAt: string;
+};
+
+const DRAFT_KEY = 'nexus_quote_builder_notes_draft';
+
+export function loadQuoteNotesDraft(leadKey: string): QuoteNotesDraft | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') as Record<string, QuoteNotesDraft>;
+    return raw[leadKey] || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveQuoteNotesDraft(leadKey: string, draft: Omit<QuoteNotesDraft, 'savedAt'>): QuoteNotesDraft {
+  let store: Record<string, QuoteNotesDraft> = {};
+  try {
+    store = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+  } catch {
+    store = {};
+  }
+  const next: QuoteNotesDraft = { ...draft, savedAt: new Date().toISOString() };
+  store[leadKey] = next;
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(store));
+  return next;
+}
