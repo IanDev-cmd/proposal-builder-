@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye, StickyNote } from 'lucide-react';
 import { SECTION_META } from '@/lib/quoteBuilderCatalog';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
@@ -824,6 +824,81 @@ async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<b
   }
 }
 
+/** Persistent floating lead sheet reference — Key Items + Progress Notes across all wizard steps. */
+function LeadReferenceCard({
+  keyItems,
+  progressNotes,
+  isOpen,
+  onToggle,
+}: {
+  keyItems: string;
+  progressNotes: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const keyItemsText = keyItems?.trim() || 'No key items yet — add them on Event Core.';
+  const notesText = progressNotes?.trim() || 'No progress notes yet.';
+
+  return (
+    <div
+      className="fixed right-6 top-20 z-40 w-[min(calc(100vw-1.5rem),300px)]"
+      data-testid="lead-reference-card"
+    >
+      <div className="overflow-hidden rounded-[12px] border border-amber-200 bg-amber-50 shadow-lg shadow-amber-900/10">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-amber-100/70"
+          data-testid="lead-reference-toggle"
+        >
+          <StickyNote className="h-4 w-4 shrink-0 text-amber-700" strokeWidth={2} />
+          <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase tracking-[0.08em] text-amber-900">
+            Lead Notes
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-amber-700 transition-transform duration-200 ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {isOpen ? (
+            <motion.div
+              key="lead-notes-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="scrollbar-thin max-h-60 space-y-3 overflow-y-auto border-t border-amber-200/80 px-3.5 pb-3.5 pt-3">
+                <div className="rounded-[8px] border border-amber-300/70 bg-amber-100/80 px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-800">
+                    Key Items
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-[13px] font-semibold leading-snug text-amber-950">
+                    {keyItemsText}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700/80">
+                    Full Progress Notes
+                  </p>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-amber-950/90">
+                    {notesText}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 export function Forms() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
@@ -858,6 +933,7 @@ export function Forms() {
   const [baseCostAuto, setBaseCostAuto] = useState(true);
   const [ratesNote, setRatesNote] = useState<string>('');
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(true);
 
   useEffect(() => {
     if (!quoteDetailsOpen) return;
@@ -1579,6 +1655,12 @@ export function Forms() {
 
   return (
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
+      <LeadReferenceCard
+        keyItems={data.keyItems}
+        progressNotes={data.progressNotes}
+        isOpen={isNotesOpen}
+        onToggle={() => setIsNotesOpen((open) => !open)}
+      />
 
       {/* ── Left: mint sidebar — logo, heading, numbered steps (DNB layout) ── */}
       <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[300px] shrink-0 flex-col bg-[#FFF1F0] px-9 py-10">
@@ -1836,30 +1918,49 @@ export function Forms() {
                     </p>
                   ) : null}
                 </div>
-                <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('dateFlexible') ? PREFILL_INPUT_CLS : ''}`}>
-                  <div>
-                    <p className="text-[13px] font-semibold text-gray-800">
-                      {data.dateFlexible ? 'Flexible' : 'Fixed'}
-                    </p>
-                    <p className="text-[12px] text-gray-400">
-                      Internal note — Fixed shows the date alone; Flexible shows the date with TBC underneath
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      clearPrefill('dateFlexible');
-                      set('dateFlexible', !data.dateFlexible);
-                    }}
-                    className={`relative h-7 w-14 rounded-full transition-colors ${data.dateFlexible ? 'bg-[#FF5A45]' : 'bg-gray-200'} ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
-                    aria-label="Toggle Fixed vs Flexible date"
+                <div className={`mb-7 rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('dateFlexible') ? PREFILL_INPUT_CLS : ''}`}>
+                  <p className="text-[13px] font-semibold text-gray-800">Date Flexibility</p>
+                  <p className="mt-0.5 text-[12px] text-gray-400">
+                    Fixed shows the date alone; Flexible shows the date with TBC on the line below
+                  </p>
+                  <div
+                    role="radiogroup"
+                    aria-label="Date Flexibility"
+                    className="mt-3 grid grid-cols-2 gap-2"
                   >
-                    <motion.div
-                      animate={{ x: data.dateFlexible ? 28 : 2 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                      className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm"
-                    />
-                  </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!data.dateFlexible}
+                      onClick={() => {
+                        clearPrefill('dateFlexible');
+                        set('dateFlexible', false);
+                      }}
+                      className={`rounded-[8px] border px-3 py-2.5 text-[13px] font-semibold transition-colors ${
+                        !data.dateFlexible
+                          ? 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
+                          : 'border-[#e3e6e4] bg-white text-gray-700 hover:border-[#cfd6d2]'
+                      } ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
+                    >
+                      Fixed
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={data.dateFlexible}
+                      onClick={() => {
+                        clearPrefill('dateFlexible');
+                        set('dateFlexible', true);
+                      }}
+                      className={`rounded-[8px] border px-3 py-2.5 text-[13px] font-semibold transition-colors ${
+                        data.dateFlexible
+                          ? 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
+                          : 'border-[#e3e6e4] bg-white text-gray-700 hover:border-[#cfd6d2]'
+                      } ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
+                    >
+                      Flexible
+                    </button>
+                  </div>
                 </div>
 
                 {data.budget ? (
