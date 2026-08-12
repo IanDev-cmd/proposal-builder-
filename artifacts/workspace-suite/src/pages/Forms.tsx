@@ -876,6 +876,11 @@ export function Forms() {
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
 
+  // Schedule Timings: collapse notes first so toasts have the right edge
+  useEffect(() => {
+    if (step === 3) setIsNotesOpen(false);
+  }, [step]);
+
   useEffect(() => {
     if (!quoteDetailsOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -1629,16 +1634,6 @@ export function Forms() {
 
   return (
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
-      <LeadReferenceCard
-        leadKey={leadNotesKey}
-        keyItems={data.keyItems}
-        progressNotes={data.progressNotes}
-        isOpen={isNotesOpen}
-        onToggle={() => setIsNotesOpen((open) => !open)}
-        onKeyItemsChange={(value) => set('keyItems', value)}
-        onProgressNotesChange={(value) => set('progressNotes', value)}
-      />
-
       {/* ── Left: mint sidebar — logo, heading, numbered steps (DNB layout) ── */}
       <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[300px] shrink-0 flex-col bg-[#FFF1F0] px-9 py-10">
         <div className="mb-10 flex items-center gap-2">
@@ -2928,6 +2923,23 @@ export function Forms() {
           </div>
         </div>
       </main>
+
+      {/* Docked notes rail — reserved width so the form never sits under the card */}
+      <aside
+        className={`sticky top-16 h-[calc(100vh-4rem)] shrink-0 border-l border-slate-100 bg-[#f7faf9] transition-[width] duration-300 ${
+          isNotesOpen ? 'w-[320px]' : 'w-[132px]'
+        }`}
+      >
+        <LeadReferenceCard
+          leadKey={leadNotesKey}
+          keyItems={data.keyItems}
+          progressNotes={data.progressNotes}
+          isOpen={isNotesOpen}
+          onToggle={() => setIsNotesOpen((open) => !open)}
+          onKeyItemsChange={(value) => set('keyItems', value)}
+          onProgressNotesChange={(value) => set('progressNotes', value)}
+        />
+      </aside>
 
       {/* ── Quote details overlay (Cost Approval step) ── */}
       <AnimatePresence>

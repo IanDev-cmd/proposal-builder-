@@ -78,7 +78,7 @@ export function ScheduleTimingToasts({
         window.setTimeout(() => {
           if (seqRef.current !== seq) return;
           setRevealedCount((n) => Math.max(n, i + 1));
-        }, 140 + i * 210),
+        }, 1000 + i * 1000),
       );
     }
     return () => timers.forEach((t) => window.clearTimeout(t));
