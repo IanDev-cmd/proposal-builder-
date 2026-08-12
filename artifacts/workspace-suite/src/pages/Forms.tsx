@@ -876,6 +876,11 @@ export function Forms() {
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(true);
 
+  // Schedule Timings: collapse Lead Notes so timing toasts have the rail
+  useEffect(() => {
+    if (step === 3) setIsNotesOpen(false);
+  }, [step]);
+
   useEffect(() => {
     saveQuoteNotesDraft(leadNotesKey, {
       keyItems: data.keyItems,
