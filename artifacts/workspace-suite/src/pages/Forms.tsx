@@ -1636,15 +1636,6 @@ export function Forms() {
 
   return (
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
-      <LeadReferenceCard
-        keyItems={data.keyItems}
-        progressNotes={data.progressNotes}
-        isOpen={isNotesOpen}
-        onToggle={() => setIsNotesOpen((open) => !open)}
-        onKeyItemsChange={(value) => set('keyItems', value)}
-        onProgressNotesChange={(value) => set('progressNotes', value)}
-      />
-
       {/* ── Left: mint sidebar — logo, heading, numbered steps (DNB layout) ── */}
       <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[300px] shrink-0 flex-col bg-[#FFF1F0] px-9 py-10">
         <div className="mb-10 flex items-center gap-2">
@@ -1726,8 +1717,8 @@ export function Forms() {
         </div>
       </aside>
 
-      {/* ── Right: form content ── */}
-      <main className="flex-1 overflow-y-auto bg-white">
+      {/* ── Center: form content ── */}
+      <main className="min-w-0 flex-1 overflow-y-auto bg-white">
         <div className="mx-auto max-w-[640px] px-12 py-14">
           <AnimatePresence mode="wait" initial={false}>
 
@@ -2894,9 +2885,22 @@ export function Forms() {
         </div>
       </main>
 
-      {step === 3 ? (
-        <div className="pointer-events-none fixed bottom-6 right-6 z-30 flex w-[min(calc(100vw-1.5rem),320px)] flex-col justify-end">
-          <div className="pointer-events-auto max-h-[min(50vh,420px)] overflow-y-auto rounded-[12px] border border-slate-200/80 bg-white/95 p-2 shadow-lg backdrop-blur-sm">
+      {/* ── Right: docked Lead Notes (+ schedule toasts on step 3) ── */}
+      <aside
+        className={`sticky top-16 flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-y-auto transition-[width] duration-300 ${
+          isNotesOpen ? 'w-[min(380px,32vw)]' : 'w-14'
+        }`}
+      >
+        <LeadReferenceCard
+          keyItems={data.keyItems}
+          progressNotes={data.progressNotes}
+          isOpen={isNotesOpen}
+          onToggle={() => setIsNotesOpen((open) => !open)}
+          onKeyItemsChange={(value) => set('keyItems', value)}
+          onProgressNotesChange={(value) => set('progressNotes', value)}
+        />
+        {step === 3 ? (
+          <div className="border-t border-sky-100/80 bg-white px-3 py-3">
             <ScheduleTimingToasts
               timings={{
                 embarkation: data.embarkation,
@@ -2922,8 +2926,8 @@ export function Forms() {
               }}
             />
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </aside>
 
       {/* ── Quote details overlay (Cost Approval step) ── */}
       <AnimatePresence>
