@@ -1986,26 +1986,6 @@ export function Forms() {
                     </dl>
                   </div>
                 ) : null}
-
-                <p className={sectionLabelCls}>Progress Notes</p>
-                <div>
-                  <label className={fieldLabelCls}>
-                    Call / progress notes
-                    <span title="Written back to Google Sheets (Nexus Ops Notes)">
-                      <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
-                    </span>
-                  </label>
-                  <textarea
-                    value={data.progressNotes}
-                    onChange={(e) => set('progressNotes', e.target.value)}
-                    rows={4}
-                    placeholder="Event details, proposal info, next actions…"
-                    className={`${fieldCls('progressNotes')} min-h-[96px] resize-y`}
-                  />
-                  <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Replaces typing notes directly into the Enquiry sheet — synced on generate.
-                  </p>
-                </div>
               </motion.div>
             )}
 
