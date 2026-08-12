@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
   Clock,
   LogIn,
@@ -7,9 +7,9 @@ import {
   ArrowLeftCircle,
   LogOut,
   Anchor,
-  X,
   RotateCcw,
 } from 'lucide-react';
+import { ToastRect } from '@/components/ToastRect';
 import {
   buildItineraryProposalBlock,
   parseItineraryProposalText,
@@ -123,55 +123,22 @@ export function ScheduleTimingToasts({
           <AnimatePresence initial={false}>
             {visible.map((toast) => {
               const meta = TOAST_META[Math.min(toast.metaIndex, TOAST_META.length - 1)];
-              const Icon = meta.icon;
               return (
-                <motion.div
+                <ToastRect
                   key={toast.key}
-                  layout
-                  initial={{ opacity: 0, x: 36 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 24 }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 400,
-                    damping: 34,
-                    mass: 0.8,
-                  }}
-                  className="relative flex overflow-hidden rounded-[4px] bg-white shadow-[0_8px_24px_-6px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.08)]"
-                >
-                  <div className="w-[4px] shrink-0" style={{ backgroundColor: meta.color }} />
-                  <div className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-3 pr-1.5">
-                    <span
-                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
-                      style={{ backgroundColor: meta.color }}
-                    >
-                      <Icon className="h-4 w-4" strokeWidth={2.4} />
-                    </span>
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <p className="text-[13px] font-bold leading-none text-[#1f2937]">{meta.label}</p>
-                      <input
-                        type="text"
-                        value={toast.text}
-                        onChange={(e) => writeBackLine(toast.metaIndex, e.target.value)}
-                        className="mt-1.5 w-full border-0 bg-transparent p-0 text-[12.5px] leading-snug text-[#6b7280] outline-none"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      aria-label={`Dismiss ${meta.label}`}
-                      onClick={() =>
-                        setDismissed((prev) => {
-                          const next = new Set(prev);
-                          next.add(toast.key);
-                          return next;
-                        })
-                      }
-                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-[#9ca3af] transition-colors hover:bg-gray-100 hover:text-[#4b5563]"
-                    >
-                      <X className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-                </motion.div>
+                  color={meta.color}
+                  icon={meta.icon}
+                  title={meta.label}
+                  value={toast.text}
+                  onChange={(v) => writeBackLine(toast.metaIndex, v)}
+                  onDismiss={() =>
+                    setDismissed((prev) => {
+                      const next = new Set(prev);
+                      next.add(toast.key);
+                      return next;
+                    })
+                  }
+                />
               );
             })}
           </AnimatePresence>
