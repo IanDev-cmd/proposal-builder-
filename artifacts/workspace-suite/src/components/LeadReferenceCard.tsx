@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { FileText, Plus, Package, ClipboardList, StickyNote, Minus } from 'lucide-react';
 import {
@@ -55,13 +55,54 @@ export function LeadReferenceCard({
   const [adding, setAdding] = useState(false);
   const [draftText, setDraftText] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
+  const [page, setPage] = useState(0);
+  const userPagedRef = useRef(false);
 
   useEffect(() => {
     setNotes(loadNotes(leadKey));
+    setPage(0);
+    userPagedRef.current = false;
   }, [leadKey]);
 
   const keySentences = splitSentences(keyItems);
   const progressSentences = splitSentences(progressNotes);
+
+  const queued = useMemo(
+    () => [
+      ...keySentences.map((text, index) => ({
+        key: `key-${index}`,
+        kind: 'key' as const,
+        index,
+        text,
+      })),
+      ...progressSentences.map((text, index) => ({
+        key: `prog-${index}`,
+        kind: 'prog' as const,
+        index,
+        text,
+      })),
+    ],
+    [keyItems, progressNotes],
+  );
+
+  const PAGE_SIZE = 4;
+  const pageCount = Math.max(1, Math.ceil(queued.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visibleQueued = queued.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const remaining = Math.max(0, queued.length - (safePage + 1) * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > pageCount - 1) setPage(Math.max(0, pageCount - 1));
+  }, [page, pageCount]);
+
+  // After the first 4 are up, show the rest (next page) unless the REP paged manually
+  useEffect(() => {
+    if (!isOpen || remaining <= 0 || userPagedRef.current) return;
+    const t = window.setTimeout(() => {
+      setPage((p) => Math.min(p + 1, pageCount - 1));
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [isOpen, remaining, pageCount, safePage]);
 
   const handleSave = () => {
     saveQuoteNotesDraft(leadKey, {
@@ -187,29 +228,29 @@ export function LeadReferenceCard({
             <div className="flex min-h-0 flex-1 flex-col justify-end gap-2.5 overflow-y-auto pb-2">
               <LayoutGroup>
                 <AnimatePresence initial={false}>
-                  {keySentences.map((sentence, i) => (
-                    <ToastRect
-                      key={`key-${i}`}
-                      color="#16a34a"
-                      icon={Package}
-                      title="Key Items"
-                      value={sentence}
-                      onChange={(v) => updateKey(i, v)}
-                      onDismiss={() => dismissKey(i)}
-                    />
-                  ))}
-
-                  {progressSentences.map((sentence, i) => (
-                    <ToastRect
-                      key={`prog-${i}`}
-                      color="#2563eb"
-                      icon={ClipboardList}
-                      title="Progress Notes"
-                      value={sentence}
-                      onChange={(v) => updateProgress(i, v)}
-                      onDismiss={() => dismissProgress(i)}
-                    />
-                  ))}
+                  {visibleQueued.map((item) =>
+                    item.kind === 'key' ? (
+                      <ToastRect
+                        key={item.key}
+                        color="#16a34a"
+                        icon={Package}
+                        title="Key Items"
+                        value={item.text}
+                        onChange={(v) => updateKey(item.index, v)}
+                        onDismiss={() => dismissKey(item.index)}
+                      />
+                    ) : (
+                      <ToastRect
+                        key={item.key}
+                        color="#2563eb"
+                        icon={ClipboardList}
+                        title="Progress Notes"
+                        value={item.text}
+                        onChange={(v) => updateProgress(item.index, v)}
+                        onDismiss={() => dismissProgress(item.index)}
+                      />
+                    ),
+                  )}
 
                   {notes.map((n) => (
                     <ToastRect
@@ -240,6 +281,20 @@ export function LeadReferenceCard({
                   ) : null}
                 </AnimatePresence>
               </LayoutGroup>
+              {queued.length > PAGE_SIZE ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    userPagedRef.current = true;
+                    setPage((p) => (p + 1) % pageCount);
+                  }}
+                  className="text-center text-[11px] font-semibold text-sky-600 hover:underline"
+                >
+                  {remaining > 0
+                    ? `Show ${remaining} more`
+                    : 'Show first notes'}
+                </button>
+              ) : null}
             </div>
 
             <button

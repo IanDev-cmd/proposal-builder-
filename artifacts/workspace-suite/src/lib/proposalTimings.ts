@@ -42,7 +42,6 @@ export function buildItineraryProposalBlock(opts: TimingFields): {
       `Boat departs at ${fmtHrs(opts.departure)}`,
       `Returns to pier for ${fmtHrs(opts.returnTime)}`,
       `Disembark completes at ${fmtHrs(opts.disembarkation)}`,
-      'Complimentary pier stop can be added at any point during your cruise',
     ],
   };
 }

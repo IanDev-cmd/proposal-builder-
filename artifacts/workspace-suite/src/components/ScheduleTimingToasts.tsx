@@ -6,7 +6,6 @@ import {
   ArrowRightCircle,
   ArrowLeftCircle,
   LogOut,
-  Anchor,
   RotateCcw,
 } from 'lucide-react';
 import { ToastRect } from '@/components/ToastRect';
@@ -29,7 +28,6 @@ const TOAST_META: ToastMeta[] = [
   { id: 'depart', label: 'Departure', icon: ArrowRightCircle, color: '#2563eb' },
   { id: 'return', label: 'Return', icon: ArrowLeftCircle, color: '#2563eb' },
   { id: 'disembark', label: 'Disembarkation', icon: LogOut, color: '#eab308' },
-  { id: 'pier', label: 'Pier stop', icon: Anchor, color: '#eab308' },
 ];
 
 type Props = {
@@ -59,7 +57,11 @@ export function ScheduleTimingToasts({
 }: Props) {
   const parsed =
     parseItineraryProposalText(proposalTimingsNotes) || buildItineraryProposalBlock(timings);
-  const lines = useMemo(() => [parsed.heading, ...parsed.items], [parsed.heading, parsed.items]);
+  const lines = useMemo(
+    () =>
+      [parsed.heading, ...parsed.items].filter((line) => !/pier\s*stop/i.test(line)),
+    [parsed.heading, parsed.items],
+  );
 
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [revealedCount, setRevealedCount] = useState(0);
