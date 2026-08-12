@@ -2067,30 +2067,9 @@ export function Forms() {
                   onChangeField={(key, value) => set(key, value)}
                 />
 
-                <ScheduleTimingToasts
-                  timings={{
-                    embarkation: data.embarkation,
-                    departure: data.departure,
-                    returnTime: data.returnTime,
-                    disembarkation: data.disembarkation,
-                  }}
-                  proposalTimingsNotes={data.proposalTimingsNotes}
-                  proposalTimingsAuto={data.proposalTimingsAuto}
-                  onResetAuto={() => {
-                    setData((prev) => ({
-                      ...prev,
-                      proposalTimingsAuto: true,
-                      proposalTimingsNotes: buildItineraryProposalText(prev),
-                    }));
-                  }}
-                  onNotesChange={(text) => {
-                    setData((prev) => ({
-                      ...prev,
-                      proposalTimingsNotes: text,
-                      proposalTimingsAuto: false,
-                    }));
-                  }}
-                />
+                <p className="mt-7 text-[12.5px] text-gray-400">
+                  Proposal timings appear in the right rail — they stay until you close each toast with ×.
+                </p>
               </motion.div>
             )}
 
@@ -2904,21 +2883,49 @@ export function Forms() {
         </div>
       </main>
 
-      {/* Docked notes rail — reserved width so the form never sits under the card */}
+      {/* Docked notes + timing toasts — reserved width so they never cover the form */}
       <aside
-        className={`sticky top-16 h-[calc(100vh-4rem)] shrink-0 border-l border-slate-100 bg-[#f7faf9] transition-[width] duration-300 ${
-          isNotesOpen ? 'w-[320px]' : 'w-[132px]'
+        className={`sticky top-16 flex h-[calc(100vh-4rem)] shrink-0 flex-col border-l border-slate-100 bg-[#f7faf9] transition-[width] duration-300 ${
+          isNotesOpen || step === 3 ? 'w-[360px]' : 'w-[132px]'
         }`}
       >
-        <LeadReferenceCard
-          leadKey={leadNotesKey}
-          keyItems={data.keyItems}
-          progressNotes={data.progressNotes}
-          isOpen={isNotesOpen}
-          onToggle={() => setIsNotesOpen((open) => !open)}
-          onKeyItemsChange={(value) => set('keyItems', value)}
-          onProgressNotesChange={(value) => set('progressNotes', value)}
-        />
+        <div className={step === 3 && !isNotesOpen ? 'shrink-0' : 'flex min-h-0 flex-1 flex-col'}>
+          <LeadReferenceCard
+            leadKey={leadNotesKey}
+            keyItems={data.keyItems}
+            progressNotes={data.progressNotes}
+            isOpen={isNotesOpen}
+            onToggle={() => setIsNotesOpen((open) => !open)}
+            onKeyItemsChange={(value) => set('keyItems', value)}
+            onProgressNotesChange={(value) => set('progressNotes', value)}
+          />
+        </div>
+        {step === 3 ? (
+          <ScheduleTimingToasts
+            timings={{
+              embarkation: data.embarkation,
+              departure: data.departure,
+              returnTime: data.returnTime,
+              disembarkation: data.disembarkation,
+            }}
+            proposalTimingsNotes={data.proposalTimingsNotes}
+            proposalTimingsAuto={data.proposalTimingsAuto}
+            onResetAuto={() => {
+              setData((prev) => ({
+                ...prev,
+                proposalTimingsAuto: true,
+                proposalTimingsNotes: buildItineraryProposalText(prev),
+              }));
+            }}
+            onNotesChange={(text) => {
+              setData((prev) => ({
+                ...prev,
+                proposalTimingsNotes: text,
+                proposalTimingsAuto: false,
+              }));
+            }}
+          />
+        ) : null}
       </aside>
 
       {/* ── Quote details overlay (Cost Approval step) ── */}

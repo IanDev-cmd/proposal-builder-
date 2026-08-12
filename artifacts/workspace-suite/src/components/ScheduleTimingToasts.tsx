@@ -16,12 +16,10 @@ import {
   type TimingFields,
 } from '@/lib/proposalTimings';
 
-/** Design-system toast palette (Success / Info / Warning style) with time icons. */
 type ToastMeta = {
   id: string;
   label: string;
   icon: typeof Clock;
-  /** Left accent bar + icon circle */
   color: string;
 };
 
@@ -49,8 +47,8 @@ type VisibleToast = {
 };
 
 /**
- * Proposal timings as design-system toast notifications.
- * Slide in from the right; stack pushes older toasts up; dismiss only via ×.
+ * Proposal timings as design-system toasts, docked in the right rail.
+ * One toast per second; stay until ×. Never overlay the form.
  */
 export function ScheduleTimingToasts({
   timings,
@@ -98,10 +96,6 @@ export function ScheduleTimingToasts({
     onNotesChange(next.join('\n'));
   };
 
-  const dismiss = (key: string) => {
-    setDismissed((prev) => new Set(prev).add(key));
-  };
-
   const restoreAll = () => {
     setDismissed(new Set());
     setRevealSeed((s) => s + 1);
@@ -109,29 +103,22 @@ export function ScheduleTimingToasts({
   };
 
   return (
-    <>
-      <div className="mt-7 flex items-center justify-between gap-3" data-testid="schedule-timing-toasts">
-        <p className="text-[12.5px] font-semibold text-gray-700">
+    <div className="flex min-h-0 flex-1 flex-col px-2 pb-4" data-testid="schedule-timing-toasts-rail">
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">
           Proposal timings
-          <span className="ml-2 text-[11px] font-normal text-gray-400">
-            Pop up from the right — close with ×
-          </span>
         </p>
         <button
           type="button"
           onClick={restoreAll}
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-600 hover:underline"
+          className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-600 hover:underline"
         >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Reset toasts
+          <RotateCcw className="h-3 w-3" />
+          Reset
         </button>
       </div>
 
-      {/* Fixed right-edge stack — newest at bottom pushes older ones up */}
-      <div
-        className="pointer-events-none fixed bottom-6 right-5 z-[60] flex w-[min(calc(100vw-1.75rem),380px)] flex-col justify-end gap-3"
-        aria-live="polite"
-      >
+      <div className="flex min-h-0 flex-1 flex-col justify-end gap-2.5 overflow-y-auto" aria-live="polite">
         <LayoutGroup>
           <AnimatePresence initial={false}>
             {visible.map((toast) => {
@@ -141,43 +128,44 @@ export function ScheduleTimingToasts({
                 <motion.div
                   key={toast.key}
                   layout
-                  initial={{ opacity: 0, x: 96 }}
+                  initial={{ opacity: 0, x: 36 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 80 }}
+                  exit={{ opacity: 0, x: 24 }}
                   transition={{
                     type: 'spring',
                     stiffness: 400,
                     damping: 34,
                     mass: 0.8,
                   }}
-                  className="pointer-events-auto relative flex overflow-hidden rounded-[4px] bg-white shadow-[0_8px_24px_-6px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.08)]"
+                  className="relative flex overflow-hidden rounded-[4px] bg-white shadow-[0_8px_24px_-6px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.08)]"
                 >
-                  {/* Left accent bar — matches design-system encyclopedia toasts */}
                   <div className="w-[4px] shrink-0" style={{ backgroundColor: meta.color }} />
-
-                  <div className="flex min-w-0 flex-1 items-start gap-3 px-3.5 py-3.5 pr-2">
-                    {/* Circular status / time icon */}
+                  <div className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-3 pr-1.5">
                     <span
                       className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
                       style={{ backgroundColor: meta.color }}
                     >
                       <Icon className="h-4 w-4" strokeWidth={2.4} />
                     </span>
-
                     <div className="min-w-0 flex-1 pt-0.5">
-                      <p className="text-[14px] font-bold leading-none text-[#1f2937]">{meta.label}</p>
+                      <p className="text-[13px] font-bold leading-none text-[#1f2937]">{meta.label}</p>
                       <input
                         type="text"
                         value={toast.text}
                         onChange={(e) => writeBackLine(toast.metaIndex, e.target.value)}
-                        className="mt-1.5 w-full border-0 bg-transparent p-0 text-[13px] leading-snug text-[#6b7280] outline-none"
+                        className="mt-1.5 w-full border-0 bg-transparent p-0 text-[12.5px] leading-snug text-[#6b7280] outline-none"
                       />
                     </div>
-
                     <button
                       type="button"
                       aria-label={`Dismiss ${meta.label}`}
-                      onClick={() => dismiss(toast.key)}
+                      onClick={() =>
+                        setDismissed((prev) => {
+                          const next = new Set(prev);
+                          next.add(toast.key);
+                          return next;
+                        })
+                      }
                       className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-[#9ca3af] transition-colors hover:bg-gray-100 hover:text-[#4b5563]"
                     >
                       <X className="h-4 w-4" strokeWidth={2} />
@@ -189,7 +177,7 @@ export function ScheduleTimingToasts({
           </AnimatePresence>
         </LayoutGroup>
       </div>
-    </>
+    </div>
   );
 }
 
