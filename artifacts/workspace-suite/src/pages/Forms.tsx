@@ -9,7 +9,7 @@ import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { LeadReferenceCard } from '@/components/LeadReferenceCard';
 import { ScheduleTimingToasts } from '@/components/ScheduleTimingToasts';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
-import { loadQuoteNotesDraft } from '@/lib/leadNotes';
+import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
@@ -874,12 +874,14 @@ export function Forms() {
   const [baseCostAuto, setBaseCostAuto] = useState(true);
   const [ratesNote, setRatesNote] = useState<string>('');
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
-  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(true);
 
-  // Schedule Timings: collapse notes first so toasts have the right edge
   useEffect(() => {
-    if (step === 3) setIsNotesOpen(false);
-  }, [step]);
+    saveQuoteNotesDraft(leadNotesKey, {
+      keyItems: data.keyItems,
+      progressNotes: data.progressNotes,
+    });
+  }, [leadNotesKey, data.keyItems, data.progressNotes]);
 
   useEffect(() => {
     if (!quoteDetailsOpen) return;
@@ -1634,6 +1636,15 @@ export function Forms() {
 
   return (
     <div className="flex bg-white" style={{ minHeight: 'calc(100vh - 4rem)' }}>
+      <LeadReferenceCard
+        keyItems={data.keyItems}
+        progressNotes={data.progressNotes}
+        isOpen={isNotesOpen}
+        onToggle={() => setIsNotesOpen((open) => !open)}
+        onKeyItemsChange={(value) => set('keyItems', value)}
+        onProgressNotesChange={(value) => set('progressNotes', value)}
+      />
+
       {/* ── Left: mint sidebar — logo, heading, numbered steps (DNB layout) ── */}
       <aside className="sticky top-16 flex h-[calc(100vh-4rem)] w-[300px] shrink-0 flex-col bg-[#FFF1F0] px-9 py-10">
         <div className="mb-10 flex items-center gap-2">
@@ -2068,7 +2079,7 @@ export function Forms() {
                 />
 
                 <p className="mt-7 text-[12.5px] text-gray-400">
-                  Proposal timings appear in the right rail — they stay until you close each toast with ×.
+                  Proposal timing toasts appear on the right — they stay until you close each with ×.
                 </p>
               </motion.div>
             )}
@@ -2883,50 +2894,36 @@ export function Forms() {
         </div>
       </main>
 
-      {/* Docked notes + timing toasts — reserved width so they never cover the form */}
-      <aside
-        className={`sticky top-16 flex h-[calc(100vh-4rem)] shrink-0 flex-col border-l border-slate-100 bg-[#f7faf9] transition-[width] duration-300 ${
-          isNotesOpen || step === 3 ? 'w-[360px]' : 'w-[132px]'
-        }`}
-      >
-        <div className={step === 3 && !isNotesOpen ? 'shrink-0' : 'flex min-h-0 flex-1 flex-col'}>
-          <LeadReferenceCard
-            leadKey={leadNotesKey}
-            keyItems={data.keyItems}
-            progressNotes={data.progressNotes}
-            isOpen={isNotesOpen}
-            onToggle={() => setIsNotesOpen((open) => !open)}
-            onKeyItemsChange={(value) => set('keyItems', value)}
-            onProgressNotesChange={(value) => set('progressNotes', value)}
-          />
+      {step === 3 ? (
+        <div className="pointer-events-none fixed bottom-6 right-6 z-30 flex w-[min(calc(100vw-1.5rem),320px)] flex-col justify-end">
+          <div className="pointer-events-auto max-h-[min(50vh,420px)] overflow-y-auto rounded-[12px] border border-slate-200/80 bg-white/95 p-2 shadow-lg backdrop-blur-sm">
+            <ScheduleTimingToasts
+              timings={{
+                embarkation: data.embarkation,
+                departure: data.departure,
+                returnTime: data.returnTime,
+                disembarkation: data.disembarkation,
+              }}
+              proposalTimingsNotes={data.proposalTimingsNotes}
+              proposalTimingsAuto={data.proposalTimingsAuto}
+              onResetAuto={() => {
+                setData((prev) => ({
+                  ...prev,
+                  proposalTimingsAuto: true,
+                  proposalTimingsNotes: buildItineraryProposalText(prev),
+                }));
+              }}
+              onNotesChange={(text) => {
+                setData((prev) => ({
+                  ...prev,
+                  proposalTimingsNotes: text,
+                  proposalTimingsAuto: false,
+                }));
+              }}
+            />
+          </div>
         </div>
-        {step === 3 ? (
-          <ScheduleTimingToasts
-            timings={{
-              embarkation: data.embarkation,
-              departure: data.departure,
-              returnTime: data.returnTime,
-              disembarkation: data.disembarkation,
-            }}
-            proposalTimingsNotes={data.proposalTimingsNotes}
-            proposalTimingsAuto={data.proposalTimingsAuto}
-            onResetAuto={() => {
-              setData((prev) => ({
-                ...prev,
-                proposalTimingsAuto: true,
-                proposalTimingsNotes: buildItineraryProposalText(prev),
-              }));
-            }}
-            onNotesChange={(text) => {
-              setData((prev) => ({
-                ...prev,
-                proposalTimingsNotes: text,
-                proposalTimingsAuto: false,
-              }));
-            }}
-          />
-        ) : null}
-      </aside>
+      ) : null}
 
       {/* ── Quote details overlay (Cost Approval step) ── */}
       <AnimatePresence>

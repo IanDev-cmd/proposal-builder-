@@ -105,7 +105,7 @@ export function ScheduleTimingToasts({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-2 pb-4" data-testid="schedule-timing-toasts-rail">
+    <div className="flex h-full min-h-0 flex-col px-1 pb-1" data-testid="schedule-timing-toasts-rail">
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
         <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">
           Proposal timings
@@ -120,7 +120,7 @@ export function ScheduleTimingToasts({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col justify-end gap-2.5 overflow-y-auto" aria-live="polite">
+      <div className="flex flex-col justify-end gap-2.5" aria-live="polite">
         <LayoutGroup>
           <AnimatePresence initial={false}>
             {visible.map((toast) => {
