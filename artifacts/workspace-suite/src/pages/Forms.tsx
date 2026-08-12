@@ -7,6 +7,7 @@ import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { LeadReferenceCard } from '@/components/LeadReferenceCard';
+import { ScheduleTimingToasts } from '@/components/ScheduleTimingToasts';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import {
@@ -2068,48 +2069,9 @@ export function Forms() {
                   onChangeField={(key, value) => set(key, value)}
                 />
 
-                <div className="mt-7">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className={fieldLabelCls}>
-                      Proposal timings text
-                      <span title="Auto-filled from the schedule above — edit freely before generate">
-                        <HelpCircle className="h-3.5 w-3.5 text-[#7c8a82]" />
-                      </span>
-                    </label>
-                    {!data.proposalTimingsAuto ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setData((prev) => ({
-                            ...prev,
-                            proposalTimingsAuto: true,
-                            proposalTimingsNotes: buildItineraryProposalText(prev),
-                          }));
-                        }}
-                        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#FF5A45] hover:underline"
-                      >
-                        Reset from schedule
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-gray-400">Auto from schedule</span>
-                    )}
-                  </div>
-                  <textarea
-                    value={data.proposalTimingsNotes}
-                    onChange={(e) => {
-                      setData((prev) => ({
-                        ...prev,
-                        proposalTimingsNotes: e.target.value,
-                        proposalTimingsAuto: false,
-                      }));
-                    }}
-                    rows={6}
-                    className={`${inputCls} min-h-[140px] resize-y font-mono text-[12px] leading-relaxed`}
-                  />
-                  <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Flows into the proposal pack itinerary block. Editing here stops auto-updates until you reset.
-                  </p>
-                </div>
+                <p className="mt-7 text-[12.5px] text-gray-400">
+                  Proposal timing toasts appear on the right — they stay until you close each with ×.
+                </p>
               </motion.div>
             )}
 
@@ -2923,10 +2885,10 @@ export function Forms() {
         </div>
       </main>
 
-      {/* ── Right: docked Lead Notes ── */}
+      {/* ── Right: docked Lead Notes (+ timing toasts on Schedule Timings only) ── */}
       <aside
         className={`sticky top-16 flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-y-auto transition-[width] duration-300 ${
-          isNotesOpen ? 'w-[min(380px,32vw)]' : 'w-14'
+          isNotesOpen || step === 3 ? 'w-[min(380px,32vw)]' : 'w-14'
         }`}
       >
         <LeadReferenceCard
@@ -2937,6 +2899,34 @@ export function Forms() {
           onKeyItemsChange={(value) => set('keyItems', value)}
           onProgressNotesChange={(value) => set('progressNotes', value)}
         />
+        {step === 3 ? (
+          <div className="border-t border-sky-100/80 bg-white px-3 py-3">
+            <ScheduleTimingToasts
+              timings={{
+                embarkation: data.embarkation,
+                departure: data.departure,
+                returnTime: data.returnTime,
+                disembarkation: data.disembarkation,
+              }}
+              proposalTimingsNotes={data.proposalTimingsNotes}
+              proposalTimingsAuto={data.proposalTimingsAuto}
+              onResetAuto={() => {
+                setData((prev) => ({
+                  ...prev,
+                  proposalTimingsAuto: true,
+                  proposalTimingsNotes: buildItineraryProposalText(prev),
+                }));
+              }}
+              onNotesChange={(text) => {
+                setData((prev) => ({
+                  ...prev,
+                  proposalTimingsNotes: text,
+                  proposalTimingsAuto: false,
+                }));
+              }}
+            />
+          </div>
+        ) : null}
       </aside>
 
       {/* ── Quote details overlay (Cost Approval step) ── */}
