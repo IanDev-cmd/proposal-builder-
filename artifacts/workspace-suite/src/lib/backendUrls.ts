@@ -5,5 +5,5 @@
 export const PROPOSAL_ENGINE_URL = 'https://weott-proposal-engine.onrender.com';
 export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
 
-export const N8N_BASE = 'https://proximaopal.app.n8n.cloud/webhook';
+export const N8N_BASE = 'https://prometheus5.app.n8n.cloud/webhook';
 export const QUOTE_WEBHOOK_URL = `${N8N_BASE}/QuoteBuilder`;

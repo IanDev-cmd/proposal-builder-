@@ -171,8 +171,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       },
       "notes": "Production Enquiry - Lead Data (2026)"
@@ -307,8 +307,8 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       },
       "notes": "Requires a \"Nexus Ops Notes\" tab in the LIVE workbook (create it once with the header row)."
@@ -365,8 +365,8 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       },
       "notes": "Requires a \"Nexus Ops Notes\" tab in the DEMO workbook (create it once with the header row)."
@@ -509,8 +509,8 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       },
       "notes": "Requires a \"Nexus Ops Quotes\" tab in the LIVE workbook (create it once with the header row)."
@@ -603,8 +603,8 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       },
       "notes": "Requires a \"Nexus Ops Quotes\" tab in the DEMO workbook (create it once with the header row)."
@@ -655,8 +655,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       }
     },
@@ -687,8 +687,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       }
     },
@@ -719,8 +719,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       }
     },
@@ -751,8 +751,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       }
     },
@@ -783,8 +783,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       }
     },
@@ -815,8 +815,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "8aF9CpidfdOSoB9E",
-          "name": "Google Sheets OAuth2 API"
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
         }
       }
     },
@@ -1161,6 +1161,6 @@
   "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "caed407d61d26bf3339c52dad45782d5aee8674e04b1439d67d50716d1c0932b"
+    "instanceId": "fddc87ae31f027b3f282ad2af0426aca0648e322195fce511d982fdc2d6ccfa7"
   }
 }
