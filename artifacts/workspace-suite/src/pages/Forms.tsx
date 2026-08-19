@@ -43,12 +43,14 @@ import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
 import {
   buildLeadPrefill,
   prefillForQuoteVersion,
+  prefillHealerTasks,
   PREFILL_INPUT_CLS,
   PREFILL_TOGGLE_CLS,
   PREFILL_CONFIRMED_CLS,
   PREFILL_CONFIRMED_SURFACE,
   PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
+import { applyPrefillHealerMatches, requestPrefillHealer } from '@/lib/prefillHealer';
 import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
 import { financialParityReport, costApprovalBlocked, clientTotalsFromWeott } from '@/lib/financialParity';
 import {
@@ -857,7 +859,7 @@ export function Forms() {
     () => new Set(leadInit.prefilledLineIds),
   );
   const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(() => new Set());
-  const [lowConfidenceKeys] = useState<Set<string>>(
+  const [lowConfidenceKeys, setLowConfidenceKeys] = useState<Set<string>>(
     () => new Set(leadInit.lowConfidenceKeys || []),
   );
   const [ambiguousFields] = useState<Set<string>>(
@@ -883,6 +885,59 @@ export function Forms() {
   useEffect(() => {
     if (step === 3) setIsNotesOpen(false);
   }, [step]);
+
+  // Gemini #2/#4 overlay only — guests and money stay local. Skip gold playbook leads.
+  useEffect(() => {
+    const lead = getQuoteLead();
+    if (goldTargetsFromRef(lead?.referenceNumber)) return;
+    const notes = String(lead?.progressNotes || data.progressNotes || '');
+    const tasks = prefillHealerTasks(notes, String(data.quoteVersion || 'V1'), String(data.keyItems || ''));
+    if (!tasks.keyItems && !tasks.collisionVeto) return;
+    let cancelled = false;
+    requestPrefillHealer({ notes, quoteVersion: String(data.quoteVersion || ''), tasks })
+      .then((matches) => {
+        if (cancelled || !matches?.length) return;
+        const patch = applyPrefillHealerMatches({ matches, notes, data, tasks });
+        if (
+          !Object.keys(patch.data).length &&
+          !patch.prefilledKeys.length &&
+          !patch.prefilledLineIds.length &&
+          !patch.removedLineIds.length
+        ) {
+          return;
+        }
+        setData((prev) => ({ ...prev, ...patch.data }));
+        if (patch.prefilledKeys.length) {
+          setPrefilledKeys((prev) => {
+            const next = new Set(prev);
+            for (const k of patch.prefilledKeys) next.add(k);
+            return next;
+          });
+        }
+        if (patch.prefilledLineIds.length) {
+          setPrefilledLineIds((prev) => {
+            const next = new Set(prev);
+            for (const id of patch.prefilledLineIds) next.add(id);
+            return next;
+          });
+        }
+        if (patch.lowConfidenceKeys.length) {
+          setLowConfidenceKeys((prev) => {
+            const next = new Set(prev);
+            for (const k of patch.lowConfidenceKeys) next.add(k);
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        /* healer is optional — local prefill already ran */
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only: local prefill is already applied; healer fills leftovers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     saveQuoteNotesDraft(leadNotesKey, {

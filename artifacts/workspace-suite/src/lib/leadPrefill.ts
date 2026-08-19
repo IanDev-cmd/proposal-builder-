@@ -66,24 +66,28 @@ const MENU_CODE_RULES: { re: RegExp; menu: string }[] = [
   { re: /\bBURGER\s*ST(ATION)?\b/i, menu: 'Burger Station' },
 ];
 
-/** Progress-note tokens → Cost Mother line labels */
+/** Progress-note tokens → Cost Mother line labels. Collision tokens are not auto-committed. */
 const NOTE_LINE_RULES: { re: RegExp; label: string }[] = [
   { re: /\bBG\s*MUSIC\b|\bBACKGROUND\s*MUSIC\b/i, label: 'Background Music/Sound Equipment Hire' },
-  { re: /\bCOCKTAIL\s*RECEPTION\b|\bRECEPTION\b/i, label: 'Cocktail Reception (1 x glass per guest)' },
+  { re: /\bCOCKTAIL\s*RECEPTION\b/i, label: 'Cocktail Reception (1 x glass per guest)' },
   {
     re: /\b2\s*x\s*CASINO\b|\bCASINO\s*TABLE.*\bx\s*2\b|\bCASINO\s*TABLES?\s*\(2\b/i,
     label: 'Casino table with croupier - x 2',
   },
   { re: /\bCASINO\s*TABLE\b|\b1\s*x\s*CASINO\b/i, label: 'Casino table with croupier - x 1' },
   { re: /\bPHOTO\s*BOOTH\b|\bPHOTOBOOTH\b/i, label: 'Photobooth' },
-  { re: /\bTV\b|\bMIC\b|\bSCREEN\b|\bAWARDS\b/i, label: 'TV - 55"' },
+  { re: /\bTV\b/i, label: 'TV - 55"' },
   {
-    re: /\bTEAM\s*BUILDING\b|\bPERFORMANCE\s*COACH\b|\bCOACH\b/i,
+    re: /\bTEAM\s*BUILDING\b|\bPERFORMANCE\s*COACH\b/i,
     label: 'Team building activities with performance coach',
   },
   { re: /\bDRINK\s*TOKENS?\s*[-–]?\s*x\s*3\b|\b3\s*x\s*DRINK\s*TOKENS?\b/i, label: 'Drink tokens - x 3' },
   { re: /\bDRINK\s*TOKENS?\s*[-–]?\s*x\s*2\b|\b2\s*x\s*DRINK\s*TOKENS?\b/i, label: 'Drink tokens - x 2' },
 ];
+
+/** MIC/SCREEN/AWARDS/generic RECEPTION — local must not tick TV or cocktail. Gemini may veto leftover TV. */
+const COLLISION_TOKEN_RE = /\b(MIC|SCREEN|AWARDS?)\b|\bRECEPTION\b/i;
+const EXPLICIT_COCKTAIL_RE = /\bCOCKTAIL\s+RECEPTION\b/i;
 
 export function matchVessels(raw?: string): string[] {
   if (!raw?.trim()) return [];
@@ -257,6 +261,7 @@ function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): str
   const scope = quoteVersion ? versionBlock(notes, quoteVersion) : notes;
   const labels = new Set<string>();
   for (const [alias, label] of Object.entries(CATALOGUE_TAXONOMY.noteAliases)) {
+    if (alias === 'TV' && collisionTvUnsafe_(scope)) continue;
     const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\s+/g, '\\s+');
     if (new RegExp(`\\b${escaped}\\b`, 'i').test(scope)) {
       const line = findLineByAlias(label) || QUOTE_LINES.find((l) => l.label === label);
@@ -264,9 +269,18 @@ function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): str
     }
   }
   for (const { re, label } of NOTE_LINE_RULES) {
+    if (label.startsWith('TV') && collisionTvUnsafe_(scope)) continue;
     if (re.test(scope)) labels.add(label);
   }
   return [...labels];
+}
+
+/** Awards/mic/screen without an explicit TV kit request must not auto-tick the 55" TV. */
+function collisionTvUnsafe_(scope: string): boolean {
+  if (/\bTV\/MIC\b|\bTV\s*\/\s*MIC\b/i.test(scope)) return false;
+  const collision = /\b(MIC|SCREEN|AWARDS?)\b/i.test(scope);
+  if (!collision) return false;
+  return !/\b(add(?:ing)?\s+(?:a\s+)?TV|TV\s*-?\s*55)\b/i.test(scope);
 }
 
 const KEY_ITEM_TOKEN_RE =
@@ -432,9 +446,6 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const marginPercent = inferMarginPercent(repeatClient, eventType, eventDate, lead.market, notes);
   const commissionPercent = inferCommissionPercent(agentReferral, notes);
   const menuType = parseMenusFromNotes(notes, quoteVersion);
-  if (menuType.length && !goldTargetsFromRef(lead.referenceNumber)) {
-    lowConfidenceKeys.add('menuType');
-  }
   const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
   const bespoke = parseBespokeFromNotes(notes);
 
@@ -675,5 +686,34 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
     prefilledLineIds: (goldEarly?.form?.costLineLabels as string[])?.length
       ? lineIdsFromLabels(goldEarly!.form!.costLineLabels as string[])
       : [],
+  };
+}
+
+export type PrefillHealerTasks = {
+  keyItems: boolean;
+  collisionVeto: boolean;
+};
+
+function notesNeedKeyItemHealer_(notes: string, localKeyItems: string): boolean {
+  if (localKeyItems.trim() || !notes.trim()) return false;
+  const chunks = notes.split(/\s*\|\s*/).filter(Boolean);
+  const mixedSameChunk = chunks.some((c) => KEY_ITEM_TOKEN_RE.test(c) && CALL_LOG_RE.test(c));
+  const paraphrase =
+    /\b(sit[- ]?down|seated dinner|two course|three course|canap)/i.test(notes) &&
+    !/\b(HFB|2\s*CSD|2CSD|3\s*CSD|3CSD|SUB\s*CANS?)\b/i.test(notes);
+  return mixedSameChunk || paraphrase;
+}
+
+/** Gemini is only for leftover key-item notes (#2) and TV/MIC/AWARDS/reception vetoes (#4). */
+export function prefillHealerTasks(
+  notes: string,
+  _quoteVersion: string,
+  localKeyItems: string,
+): PrefillHealerTasks {
+  const genericReception = COLLISION_TOKEN_RE.test(notes) && !EXPLICIT_COCKTAIL_RE.test(notes);
+  const tvCollision = /\b(MIC|SCREEN|AWARDS?)\b/i.test(notes) && collisionTvUnsafe_(notes);
+  return {
+    keyItems: notesNeedKeyItemHealer_(notes, localKeyItems),
+    collisionVeto: genericReception || tvCollision,
   };
 }

@@ -124,9 +124,9 @@ export type CostRatesContract = z.infer<typeof costRatesPayloadSchema>;
 
 export const prefillMatchSchema = z.object({
   field: z.string(),
-  value: z.string(),
-  confidence: z.number().min(0).max(1),
-  evidence_span: z.string(),
+  value: z.string().default(''),
+  confidence: z.number().min(0).max(1).default(0),
+  evidence_span: z.string().default(''),
 });
 
 export const prefillHealerResponseSchema = z.object({
@@ -136,6 +136,15 @@ export const prefillHealerResponseSchema = z.object({
 });
 
 export const LOW_CONFIDENCE_THRESHOLD = 0.75;
+
+export function parsePrefillHealerResponse(input: unknown): PrefillMatch[] {
+  const parsed = prefillHealerResponseSchema.safeParse(input);
+  if (!parsed.success) return [];
+  if (parsed.data.failureEvent) return [];
+  return parsed.data.matches.filter((m) => m.field && (m.value || m.evidence_span));
+}
+
+export type PrefillMatch = z.infer<typeof prefillMatchSchema>;
 
 export function formatZodIssues(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
