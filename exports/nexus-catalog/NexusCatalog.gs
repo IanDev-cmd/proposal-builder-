@@ -4,11 +4,14 @@
  * Paste into Extensions → Apps Script on the LIVE workbook.
  *
  * Setup:
- * 1. Run buildNexusCatalog once (authorize SpreadsheetApp).
- * 2. Triggers → onInstallableEdit → From spreadsheet → On edit.
- * 3. Optional: time trigger every 15 minutes on buildNexusCatalog.
+ * 1. Paste three files: Code.gs (this), Sentry.gs (taxonomy), Extras.gs.
+ * 2. Open THIS file, select buildNexusCatalog, Run (authorize SpreadsheetApp).
+ *    Do not Run from Sentry.gs — it has no functions.
+ * 3. Triggers → onInstallableEdit → From spreadsheet → On edit.
+ * 4. Optional: time trigger every 15 minutes on buildNexusCatalog.
  *
  * Writes tab "_Nexus Catalog". n8n CostRatesFetch reads that tab only.
+ * Extras.gs appends margin / cutlery_ratio / staff_ratio rows.
  * Does not call n8n. Does not dump the whole workbook.
  */
 
@@ -25,10 +28,11 @@ function buildNexusCatalog() {
     if (!mother) throw new Error('No Cost Mother tab found');
 
     var parsed = parseCostMother_(mother);
-    writeCatalog_(ss, parsed);
+    var extras = typeof collectCatalogExtras_ === 'function' ? collectCatalogExtras_(ss) : [];
+    writeCatalog_(ss, parsed, extras);
     Logger.log(
       'Catalog: ' + parsed.lines.length + ' lines, ' + parsed.rates.length + ' rates, ' +
-      parsed.vessels.length + ' vessels',
+      parsed.vessels.length + ' vessels, ' + extras.length + ' extras',
     );
   } finally {
     lock.releaseLock();
@@ -44,7 +48,8 @@ function onInstallableEdit(e) {
   if (ENQUIRY_RE.test(name)) {
     handleLeadAgentReference(sheet);
   }
-  if (COST_MOTHER_RE.test(name) || /quote builder/i.test(name)) {
+  var extrasHit = typeof isCatalogExtrasSheet_ === 'function' && isCatalogExtrasSheet_(name);
+  if (COST_MOTHER_RE.test(name) || /quote builder/i.test(name) || extrasHit) {
     buildNexusCatalog();
   }
 }
@@ -318,7 +323,7 @@ function inferLine_(label, sectionHint) {
   return { section: section, multiplier: multiplier };
 }
 
-function writeCatalog_(ss, parsed) {
+function writeCatalog_(ss, parsed, extras) {
   var tab = ss.getSheetByName(CATALOG_TAB);
   if (!tab) tab = ss.insertSheet(CATALOG_TAB);
   tab.clearContents();
@@ -331,6 +336,10 @@ function writeCatalog_(ss, parsed) {
   });
   parsed.rates.forEach(function (r) {
     rows.push(['rate', r.label, '', '', r.rateKey, r.rate]);
+  });
+  (extras || []).forEach(function (row) {
+    if (!row || !row.length) return;
+    rows.push([row[0], row[1], row[2], row[3], row[4], row[5]]);
   });
   var chunk = 4000;
   for (var i = 0; i < rows.length; i += chunk) {

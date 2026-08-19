@@ -1216,7 +1216,17 @@ export function Forms() {
             (rates.costMotherItems || rates.cateringRates || []) as Record<string, unknown>[],
           );
         if (structured?.items?.length) {
-          setLiveCostMotherRates(structured as Parameters<typeof setLiveCostMotherRates>[0]);
+          const liveMargins =
+            Array.isArray(structured.margins) && structured.margins.length
+              ? structured.margins
+              : Array.isArray(rates.margins) && rates.margins.length
+                ? (rates.margins as NonNullable<(typeof structured)['margins']>)
+                : structured.margins;
+          setLiveCostMotherRates(
+            (liveMargins
+              ? { ...structured, margins: liveMargins }
+              : structured) as Parameters<typeof setLiveCostMotherRates>[0],
+          );
         }
         const liveLines = rates.lines;
         if (Array.isArray(liveLines) && liveLines.length) {
@@ -1225,9 +1235,14 @@ export function Forms() {
         const meta = getCostMotherMeta();
         const n = rates.counts?.costMotherItems ?? rates.counts?.cateringRates ?? meta.itemCount;
         const extra = Array.isArray(liveLines) ? liveLines.length : 0;
+        const extraKinds = [
+          rates.counts?.margins ? `${rates.counts.margins} margins` : '',
+          rates.counts?.staffRatios ? `${rates.counts.staffRatios} staff ratios` : '',
+          rates.counts?.cutleryRatios ? `${rates.counts.cutleryRatios} cutlery ratios` : '',
+        ].filter(Boolean);
         setRatesNote(
           meta.live
-            ? `Live catalog (${n} Cost Mother lines${extra ? ` · ${extra} sheet cards` : ''}).`
+            ? `Live catalog (${n} Cost Mother lines${extra ? ` · ${extra} sheet cards` : ''}${extraKinds.length ? ` · ${extraKinds.join(' · ')}` : ''}).`
             : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
         );
       })

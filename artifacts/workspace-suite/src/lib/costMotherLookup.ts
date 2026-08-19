@@ -57,8 +57,16 @@ function getBundledIndex(): RateIndex {
   return bundledIndexCache;
 }
 
+function bundledCast(): CostMotherBundle {
+  return bundled as CostMotherBundle;
+}
+
 function activeBundle(): CostMotherBundle {
-  return liveOverlay || (bundled as CostMotherBundle);
+  if (!liveOverlay) return bundledCast();
+  const liveMargins = liveOverlay.margins && liveOverlay.margins.length
+    ? liveOverlay.margins
+    : bundledCast().margins;
+  return { ...liveOverlay, margins: liveMargins };
 }
 
 /** Bundled snapshot + live overlay (live wins per label/key when > 0; bundled fills gaps). */

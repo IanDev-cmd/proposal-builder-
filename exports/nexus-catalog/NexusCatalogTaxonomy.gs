@@ -1,4 +1,4 @@
-/** Paste alongside NexusCatalog.gs — canonical line taxonomy. */
+/** Paste as Sentry.gs alongside Code.gs — canonical line taxonomy. Do not Run this file; it has no functions. */
 var NEXUS_CATALOGUE_TAXONOMY = {
   "schema": "weott.nexus.catalogue.v1",
   "version": 1,
