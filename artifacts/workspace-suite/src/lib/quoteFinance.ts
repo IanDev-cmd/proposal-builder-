@@ -12,7 +12,7 @@
  */
 
 import {
-  QUOTE_LINES,
+  getQuoteLines,
   UPGRADE_TO_LINE_LABEL,
   defaultSelectedLineIds,
   resolveCostMotherMenu,
@@ -139,14 +139,14 @@ export function resolveSelectedLineIds(data: QuoteFormInput): string[] {
   for (const menu of data.menuType || []) {
     const cm = resolveCostMotherMenu(menu);
     if (!cm) continue;
-    const line = QUOTE_LINES.find((l) => l.section === 'catering' && l.label === cm);
+    const line = getQuoteLines().find((l) => l.section === 'catering' && l.label === cm);
     if (line) set.add(line.id);
   }
   // Legacy upgrades → Cost Mother lines
   for (const u of data.selectedUpgrades || []) {
     const label = UPGRADE_TO_LINE_LABEL[u];
     if (!label) continue;
-    const line = QUOTE_LINES.find((l) => l.label === label);
+    const line = getQuoteLines().find((l) => l.label === label);
     if (line) set.add(line.id);
   }
   // Keep photographer exclusive to event type when one is selected (allow full untick)
@@ -217,7 +217,7 @@ export function calcSectionLines(data: QuoteFormInput): {
   const sectionTotals: Record<string, number> = {};
   const overrides = data.lineAmountOverrides || {};
 
-  for (const line of QUOTE_LINES) {
+  for (const line of getQuoteLines()) {
     if (!selected.has(line.id)) continue;
     if (!rateParts) {
       lines.push({

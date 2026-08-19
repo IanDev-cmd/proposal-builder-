@@ -1,0 +1,88 @@
+{
+  "name": "WEOTT Nexus — Catalog Fetch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "CostRatesFetch",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "f4ecb67e-5ffa-4063-9041-4bee785d64db",
+      "name": "CostRatesFetch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "06d8799f-b23a-4b31-b057-0d29decbbb7b"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "_Nexus Catalog",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "c8e4d1a0-9b2f-4e11-8a77-0c1a7a10c001",
+      "name": "Catalog Tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [240, 0],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "98W6XYJASUxhiNHs",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Created by Apps Script buildNexusCatalog. Bind Google Sheets OAuth if the credential id differs on this instance."
+    },
+    {
+      "parameters": {
+        "jsCode": "function cell(row, names) {\n  const keys = Object.keys(row || {});\n  for (const want of names) {\n    if (row[want] !== undefined && row[want] !== null && String(row[want]).trim() !== '') return row[want];\n    const hit = keys.find((k) => k.toLowerCase() === String(want).toLowerCase());\n    if (hit && row[hit] !== undefined && row[hit] !== null && String(row[hit]).trim() !== '') return row[hit];\n  }\n  return '';\n}\n\nconst rows = $input.all().map((i) => i.json || {}).filter((r) => Object.keys(r).length && Object.values(r).some((v) => String(v ?? '').trim() !== ''));\nconst itemsByLabel = new Map();\nconst lines = [];\nconst vessels = new Set();\nconst periods = { weekly: new Set(), day: new Set(), group: new Set() };\n\nfor (const r of rows) {\n  const kind = String(cell(r, ['kind', 'Kind']) || 'rate').toLowerCase();\n  const label = String(cell(r, ['label', 'Label']) || '').trim();\n  if (kind === 'vessel') {\n    if (label) vessels.add(label);\n    continue;\n  }\n  if (kind === 'line') {\n    if (!label) continue;\n    const section = String(cell(r, ['section', 'Section']) || 'other');\n    const multiplier = String(cell(r, ['multiplier', 'Multiplier']) || 'set');\n    const id = (section + ':' + label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);\n    lines.push({ id, section, label, multiplier });\n    continue;\n  }\n  const rateKey = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim();\n  const rate = Number(cell(r, ['rate', 'Rate']));\n  if (!label || !rateKey || !Number.isFinite(rate)) continue;\n  if (!itemsByLabel.has(label)) itemsByLabel.set(label, { row: itemsByLabel.size + 1, label, rates: {} });\n  itemsByLabel.get(label).rates[rateKey] = rate;\n  const parts = rateKey.split('|');\n  if (parts[0]) vessels.add(parts[0]);\n  if (parts[1]) periods.weekly.add(parts[1]);\n  if (parts[2]) periods.day.add(parts[2]);\n  if (parts[3]) periods.group.add(parts[3]);\n}\n\nconst items = Array.from(itemsByLabel.values());\nconst costMother = items.length ? { source: '_Nexus Catalog', items } : null;\n\nreturn [{ json: {\n  ok: true,\n  source: 'live',\n  note: costMother\n    ? 'Catalog from Apps Script (_Nexus Catalog).'\n    : 'Catalog tab empty — run buildNexusCatalog in Apps Script.',\n  costMother,\n  lines,\n  vessels: Array.from(vessels),\n  periods: {\n    weekly: Array.from(periods.weekly),\n    day: Array.from(periods.day),\n    group: Array.from(periods.group),\n  },\n  counts: {\n    costMotherItems: items.length,\n    lines: lines.length,\n    catalogRows: rows.length,\n  },\n}}];\n"
+      },
+      "id": "a9f3c6e1-4d22-4b80-91aa-0c1a7a10c002",
+      "name": "Parse Catalog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "137a5348-591c-434b-8db4-687d54d5e48f",
+      "name": "Respond Rates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [720, 0]
+    }
+  ],
+  "connections": {
+    "CostRatesFetch Webhook": {
+      "main": [[{ "node": "Catalog Tab", "type": "main", "index": 0 }]]
+    },
+    "Catalog Tab": {
+      "main": [[{ "node": "Parse Catalog", "type": "main", "index": 0 }]]
+    },
+    "Parse Catalog": {
+      "main": [[{ "node": "Respond Rates", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fddc87ae31f027b3f282ad2af0426aca0648e322195fce511d982fdc2d6ccfa7"
+  }
+}

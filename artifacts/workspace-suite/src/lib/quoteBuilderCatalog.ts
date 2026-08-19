@@ -370,8 +370,84 @@ export function resolveCostMotherMenu(uiMenu: string): string | null {
   return null;
 }
 
+const SECTION_IDS = new Set<QuoteSectionId>([
+  'vessel',
+  'catering',
+  'catering_surcharge',
+  'catering_equipment',
+  'beverages',
+  'entertainment',
+  'bespoke',
+  'decor',
+  'decor_table',
+  'in_house',
+  'staff',
+  'other',
+  'financial',
+  'contingency',
+]);
+
+const MULTIPLIERS = new Set<LineMultiplier>([
+  'vessel_hours',
+  'guests',
+  'hours',
+  'staff_hours',
+  'tables',
+  'set',
+]);
+
+function normLabel(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function lineId(section: string, label: string): string {
+  return `${section}:${label}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 80);
+}
+
+let liveCatalogLines: CatalogLine[] | null = null;
+
+/** Extra Cost Mother lines from n8n / Apps Script catalog (new rows appear as cards). */
+export function setLiveCatalogLines(
+  lines: Array<{ id?: string; section?: string; label?: string; multiplier?: string }> | null,
+): void {
+  if (!lines?.length) {
+    liveCatalogLines = null;
+    return;
+  }
+  liveCatalogLines = lines
+    .map((raw) => {
+      const label = String(raw.label || '').trim();
+      if (!label) return null;
+      const section = SECTION_IDS.has(raw.section as QuoteSectionId)
+        ? (raw.section as QuoteSectionId)
+        : 'other';
+      const multiplier = MULTIPLIERS.has(raw.multiplier as LineMultiplier)
+        ? (raw.multiplier as LineMultiplier)
+        : 'set';
+      return {
+        id: raw.id && String(raw.id).trim() ? String(raw.id) : lineId(section, label),
+        section,
+        label,
+        multiplier,
+      } satisfies CatalogLine;
+    })
+    .filter(Boolean) as CatalogLine[];
+}
+
+/** Bundled catalogue plus any new live-sheet lines (bundled wins on matching labels). */
+export function getQuoteLines(): CatalogLine[] {
+  if (!liveCatalogLines?.length) return QUOTE_LINES;
+  const have = new Set(QUOTE_LINES.map((l) => normLabel(l.label)));
+  const extra = liveCatalogLines.filter((l) => !have.has(normLabel(l.label)));
+  return extra.length ? [...QUOTE_LINES, ...extra] : QUOTE_LINES;
+}
+
 export function linesForSection(section: QuoteSectionId): CatalogLine[] {
-  return QUOTE_LINES.filter((l) => l.section === section);
+  return getQuoteLines().filter((l) => l.section === section);
 }
 
 const PHOTO_CORP = 'Photographer - Corporate/Special';
@@ -410,7 +486,7 @@ export function syncExclusivePhotographer(
 export function buildPackageWordingNotes(selectedLineIds: string[]): string {
   const wanted = new Set(selectedLineIds);
   const lines: string[] = [];
-  for (const line of QUOTE_LINES) {
+  for (const line of getQuoteLines()) {
     if (!wanted.has(line.id) || !line.proposalWording?.trim()) continue;
     lines.push(line.proposalWording.trim());
   }
@@ -429,7 +505,7 @@ export function defaultSelectedLineIds(
 ): string[] {
   const ids = new Set<string>();
   const wedding = Boolean(opts?.wedding);
-  for (const line of QUOTE_LINES) {
+  for (const line of getQuoteLines()) {
     if (line.defaultOn) ids.add(line.id);
     if (line.autoWithMenu && menus.some((m) => line.autoWithMenu!.test(m))) ids.add(line.id);
     // Section 12 — Other: always included in every quote
@@ -445,7 +521,7 @@ export function defaultSelectedLineIds(
   for (const menu of menus) {
     const cm = resolveCostMotherMenu(menu);
     if (!cm) continue;
-    const line = QUOTE_LINES.find((l) => l.section === 'catering' && l.label === cm);
+    const line = getQuoteLines().find((l) => l.section === 'catering' && l.label === cm);
     if (line) set.add(line.id);
   }
   return [...set];

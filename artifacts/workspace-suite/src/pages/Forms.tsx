@@ -26,6 +26,7 @@ import {
   defaultSelectedLineIds,
   syncExclusivePhotographer,
   buildPackageWordingNotes,
+  setLiveCatalogLines,
 } from '@/lib/quoteBuilderCatalog';
 import {
   parseCostMotherRows,
@@ -1214,17 +1215,17 @@ export function Forms() {
         if (structured?.items?.length) {
           setLiveCostMotherRates(structured);
         }
+        const liveLines = (r as { lines?: Array<{ id?: string; section?: string; label?: string; multiplier?: string }> }).lines;
+        if (Array.isArray(liveLines) && liveLines.length) {
+          setLiveCatalogLines(liveLines);
+        }
         const meta = getCostMotherMeta();
-        const n = r.counts?.cateringRates ?? r.cateringRates?.length ?? meta.itemCount;
-        const v = r.counts?.vesselRates ?? r.vesselRates?.length ?? 0;
+        const n = r.counts?.costMotherItems ?? r.counts?.cateringRates ?? meta.itemCount;
+        const extra = Array.isArray(liveLines) ? liveLines.length : 0;
         setRatesNote(
           meta.live
-            ? meta.merged
-              ? `Live Cost Mother linked with bundled fallback (${meta.itemCount} rate maps).`
-              : `Live Cost Mother linked (${meta.itemCount} lines · ${v} vessel comparison rows).`
-            : n || v
-              ? `Sheets rates reachable (${v} vessel · ${n} rows). Using bundled Cost Mother snapshot until Assemble Rates returns structured items.`
-              : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
+            ? `Live catalog (${n} Cost Mother lines${extra ? ` · ${extra} sheet cards` : ''}).`
+            : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
         );
       })
       .catch((err) => {

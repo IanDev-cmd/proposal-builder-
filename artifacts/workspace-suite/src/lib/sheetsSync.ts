@@ -118,12 +118,15 @@ export type CostRatesPayload = {
   note?: string;
   vesselRates?: Record<string, unknown>[];
   cateringRates?: Record<string, unknown>[];
-  /** Structured Cost Mother (preferred) from Assemble Rates. */
+  /** Structured Cost Mother (preferred) from Assemble Rates / Apps Script catalog. */
   costMother?: {
     source?: string;
     items: { row?: number; label: string; rates: Record<string, number> }[];
     margins?: { eventService: string; market: string; months: Record<string, number> }[];
   };
+  /** Live Quote Sheet lines from `_Nexus Catalog` (new Cost Mother rows appear as cards). */
+  lines?: { id?: string; section?: string; label?: string; multiplier?: string }[];
+  vessels?: string[];
   costMotherItems?: Record<string, unknown>[];
   quoteBuilder2026?: Record<string, unknown>[];
   margins?: Record<string, unknown>[];
