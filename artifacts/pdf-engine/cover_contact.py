@@ -6,11 +6,31 @@ Uses batched redaction for speed and measured TemplateProfile geometry.
 """
 
 from datetime import datetime
+import logging
 import re
 
 import config
 from pdf_ops import prepare_field_draw, draw_fields_batched
 from fonts import ValidationWarning
+
+_log = logging.getLogger("weott.cover_contact")
+
+
+def _parse_iso_datetime(raw: str):
+    """Prefer ISO-8601 from the API. Returns datetime or None."""
+    s = raw.strip()
+    if not s:
+        return None
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(s[:10], "%Y-%m-%d")
+    except ValueError:
+        return None
 
 
 _ORDINAL = {1: "st", 2: "nd", 3: "rd"}
@@ -46,18 +66,23 @@ def format_event_date(value: str) -> str:
     if not date_part or re.match(r"^(date\s*)?tbc$", date_part, re.I):
         return "Date TBC"
 
-    months = "January February March April May June July August September October November December"
-    if any(m in date_part for m in months.split()) and re.search(r"\d", date_part):
-        formatted = date_part
+    iso = _parse_iso_datetime(date_part)
+    if iso:
+        formatted = f"{iso.strftime('%A')} {iso.day}{_ordinal(iso.day)} {iso.strftime('%B %Y')}"
     else:
-        formatted = date_part
-        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
-            try:
-                dt = datetime.strptime(date_part[:10], fmt)
-                formatted = f"{dt.strftime('%A')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%B %Y')}"
-                break
-            except ValueError:
-                continue
+        _log.info("event_date regex fallback for %r", date_part[:80])
+        months = "January February March April May June July August September October November December"
+        if any(m in date_part for m in months.split()) and re.search(r"\d", date_part):
+            formatted = date_part
+        else:
+            formatted = date_part
+            for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+                try:
+                    dt = datetime.strptime(date_part[:10], fmt)
+                    formatted = f"{dt.strftime('%A')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%B %Y')}"
+                    break
+                except ValueError:
+                    continue
 
     if flexible:
         return f"{formatted}\nTBC"

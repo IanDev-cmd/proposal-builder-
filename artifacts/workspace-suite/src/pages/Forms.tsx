@@ -28,11 +28,7 @@ import {
   buildPackageWordingNotes,
   setLiveCatalogLines,
 } from '@/lib/quoteBuilderCatalog';
-import {
-  parseCostMotherRows,
-  setLiveCostMotherRates,
-  getCostMotherMeta,
-} from '@/lib/costMotherLookup';
+import { parseCostRatesPayload } from '@/lib/contracts';
 import { QuoteCostLines } from '@/components/QuoteCostLines';
 import {
   templatesForCategory,
@@ -861,6 +857,12 @@ export function Forms() {
     () => new Set(leadInit.prefilledLineIds),
   );
   const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(() => new Set());
+  const [lowConfidenceKeys] = useState<Set<string>>(
+    () => new Set(leadInit.lowConfidenceKeys || []),
+  );
+  const [ambiguousFields] = useState<Set<string>>(
+    () => new Set(leadInit.ambiguousFields || []),
+  );
   const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(() => new Set());
   const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [showAllInsertsPanel, setShowAllInsertsPanel] = useState(false);
@@ -941,8 +943,10 @@ export function Forms() {
         confirmedKeys,
         requiresInserts: data.requiresInserts,
         selectedInserts: data.selectedInserts,
+        lowConfidenceKeys,
+        ambiguousFields,
       }),
-    [prefilledKeys, confirmedKeys, data.requiresInserts, data.selectedInserts],
+    [prefilledKeys, confirmedKeys, data.requiresInserts, data.selectedInserts, lowConfidenceKeys, ambiguousFields],
   );
 
   const confirmAllPrefilledSuggestions = useCallback(() => {
@@ -1205,22 +1209,21 @@ export function Forms() {
     fetchCostRates()
       .then((r) => {
         if (cancelled) return;
+        const rates = parseCostRatesPayload(r);
         const structured =
-          (r as { costMother?: Parameters<typeof setLiveCostMotherRates>[0] }).costMother ||
+          rates.costMother ||
           parseCostMotherRows(
-            ((r as { costMotherItems?: Record<string, unknown>[] }).costMotherItems ||
-              r.cateringRates ||
-              []) as Record<string, unknown>[],
+            (rates.costMotherItems || rates.cateringRates || []) as Record<string, unknown>[],
           );
         if (structured?.items?.length) {
-          setLiveCostMotherRates(structured);
+          setLiveCostMotherRates(structured as Parameters<typeof setLiveCostMotherRates>[0]);
         }
-        const liveLines = (r as { lines?: Array<{ id?: string; section?: string; label?: string; multiplier?: string }> }).lines;
+        const liveLines = rates.lines;
         if (Array.isArray(liveLines) && liveLines.length) {
           setLiveCatalogLines(liveLines);
         }
         const meta = getCostMotherMeta();
-        const n = r.counts?.costMotherItems ?? r.counts?.cateringRates ?? meta.itemCount;
+        const n = rates.counts?.costMotherItems ?? rates.counts?.cateringRates ?? meta.itemCount;
         const extra = Array.isArray(liveLines) ? liveLines.length : 0;
         setRatesNote(
           meta.live
@@ -1543,10 +1546,10 @@ export function Forms() {
 
       setStage('generating');
 
-      const contentType = res.headers.get('content-type') ?? '';
+      const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
       let pdfDataUrl = '';
 
-      if (contentType.includes('application/pdf') || contentType.includes('octet-stream')) {
+      if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
         const blob = await res.blob();
         pdfDataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -1554,28 +1557,31 @@ export function Forms() {
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-      } else {
-        const json = await res.json().catch(() => null);
-        const base64OrUrl: string | undefined =
-          json?.pdfBase64 ?? json?.pdf ?? json?.fileUrl ?? json?.pdfUrl ?? json?.url;
-        if (base64OrUrl?.startsWith('data:')) {
-          pdfDataUrl = base64OrUrl;
-        } else if (base64OrUrl) {
-          if (/^[A-Za-z0-9+/=]+$/.test(base64OrUrl) && base64OrUrl.length > 100) {
-            pdfDataUrl = `data:application/pdf;base64,${base64OrUrl}`;
-          } else {
-            const fileRes = await fetch(base64OrUrl);
-            const blob = await fileRes.blob();
-            pdfDataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
+      } else if (contentType.includes('application/json') || contentType.includes('+json')) {
+        const json = await res.json();
+        const fileUrl: string | undefined = json?.fileUrl ?? json?.pdfUrl ?? json?.url;
+        if (typeof json?.pdfBase64 === 'string' && json.pdfBase64.startsWith('data:application/pdf')) {
+          pdfDataUrl = json.pdfBase64;
+        } else if (typeof fileUrl === 'string' && /^https?:\/\//i.test(fileUrl)) {
+          const fileRes = await fetch(fileUrl);
+          const fileType = (fileRes.headers.get('content-type') ?? '').toLowerCase();
+          if (!fileType.includes('application/pdf') && !fileType.includes('octet-stream')) {
+            throw new Error('QuoteBuilder JSON pointed at a non-PDF URL.');
           }
+          const blob = await fileRes.blob();
+          pdfDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
         } else {
-          throw new Error('The webhook did not return a PDF.');
+          throw new Error('QuoteBuilder JSON did not include a PDF URL or data:application/pdf payload.');
         }
+      } else {
+        throw new Error(
+          `QuoteBuilder returned ${contentType || 'no Content-Type'}; expected application/pdf.`,
+        );
       }
 
       const saved = await addProposal({
@@ -2008,10 +2014,18 @@ export function Forms() {
                       type="number"
                       min={0}
                       value={data.guestCount}
-                      onChange={(e) => set('guestCount', e.target.value)}
+                      onChange={(e) => {
+                        set('guestCount', e.target.value);
+                        confirmKey('guestCount');
+                      }}
                       placeholder="e.g. 80"
                       className={fieldCls('guestCount')}
                     />
+                    {ambiguousFields.has('guestCount') && !data.guestCount ? (
+                      <p className="mt-1.5 text-[11.5px] text-amber-700">
+                        Group size on the sheet is ambiguous — enter the quote count before generating.
+                      </p>
+                    ) : null}
                   </div>
                   <div>
                     <label className={fieldLabelCls}>Guests high (proposal range)</label>

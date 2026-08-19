@@ -1,0 +1,105 @@
+{
+  "name": "WEOTT Nexus — Contract Sync (Google Gemini Free)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ContractSync",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "cs-webhook",
+      "name": "ContractSync Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "contract-sync-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst expected = {\n  source: 'quoteFinance.ts + Transform QuoteBuilder1',\n  recalculate_finance: false,\n  vat_rate: 0.2,\n  contingency_rate: 0.0225,\n  staff_hours_buffer: 3,\n  min_billable_hours: 4,\n  contact_defaults: {\n    contact_name: 'Katherine Bulaon',\n    contact_title: 'Client Relationship Manager',\n    contact_phone: '020 8323 5827',\n    contact_email: 'sales@westendonthethames.com'\n  },\n  upgradeIdMap: {\n    'Live DJ': 'live_dj', Saxophonist: 'saxophonist', Karaoke: 'karaoke',\n    'Photo Booth': 'photo_booth', 'Close-up Magician': 'close_up_magician',\n    'Branded Vessel Flag': 'branded_vessel_flag', 'Acoustic Artist': 'acoustic_artist',\n    'Jazz and Sax Duo': 'jazz_sax_duo', 'Additional Hour on Board': 'extra_hour',\n    'Casino Table with Croupier': 'casino_table', 'Social Media Highlight Reel': 'social_highlight_reel',\n    'Mingling Tour Guide': 'mingling_guide', 'Bespoke Logo Bunting': 'logo_bunting',\n    'Unlimited Drinks (4 hrs)': 'unlimited_drinks', 'Drink Tokens': 'drink_tokens',\n    'Street Food Upgrade': 'street_food_upgrade'\n  }\n};\nconst transformSource = String(body.transformSource || body.transformQuoteBuilder1 || '');\nif (!transformSource.trim()) {\n  return [{ json: {\n    ok: false,\n    drifts: [],\n    failureEvent: { type: 'FailureEvent', source: 'ContractSync', reason: 'missing transformSource', httpStatus: 400 },\n    expected\n  } }];\n}\nconst prompt = [\n  'Compare quoteFinance.ts contract vs n8n Transform QuoteBuilder1 source.',\n  'Flag drifts in: contact defaults, upgradeIdMap keys/ids, VAT/contingency, and any finance recalculation.',\n  'Never propose changing money formulas — only report parity.',\n  'Return JSON {\"ok\":boolean,\"drifts\":[{\"area\":\"string\",\"expected\":\"string\",\"found\":\"string\",\"severity\":\"low|medium|high\"}]}',\n  'EXPECTED CONTRACT:',\n  JSON.stringify(expected, null, 2),\n  'TRANSFORM SOURCE:',\n  transformSource.slice(0, 12000)\n].join('\\n');\nreturn [{ json: { prompt, expected, ok: true } }];"
+      },
+      "id": "cs-prep",
+      "name": "Prepare Contract Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": { "temperature": 0, "maxOutputTokens": 2048 }
+      },
+      "id": "cs-gemini",
+      "name": "Google Gemini Chat Model (Free Tier)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [480, 200],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GOOGLE_GEMINI_FREE_TIER",
+          "name": "Google Gemini (Free Tier)"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API free tier. Bind googlePalmApi credential after import."
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"ok\": { \"type\": \"boolean\" },\n    \"drifts\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"area\": { \"type\": \"string\" },\n          \"expected\": { \"type\": \"string\" },\n          \"found\": { \"type\": \"string\" },\n          \"severity\": { \"type\": \"string\" }\n        }\n      }\n    }\n  }\n}"
+      },
+      "id": "cs-parser",
+      "name": "Contract Structured Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "cs-chain",
+      "name": "Gemini Contract Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "cs-respond",
+      "name": "Respond Contract Sync",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [720, 0]
+    }
+  ],
+  "connections": {
+    "ContractSync Webhook": {
+      "main": [[{ "node": "Prepare Contract Prompt", "type": "main", "index": 0 }]]
+    },
+    "Prepare Contract Prompt": {
+      "main": [[{ "node": "Gemini Contract Chain", "type": "main", "index": 0 }]]
+    },
+    "Google Gemini Chat Model (Free Tier)": {
+      "ai_languageModel": [[{ "node": "Gemini Contract Chain", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Contract Structured Parser": {
+      "ai_outputParser": [[{ "node": "Gemini Contract Chain", "type": "ai_outputParser", "index": 0 }]]
+    },
+    "Gemini Contract Chain": {
+      "main": [[{ "node": "Respond Contract Sync", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "weott-nexus-gemini-contract-sync"
+  }
+}

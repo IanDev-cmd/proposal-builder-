@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WEOTT Nexus — Objectivity &amp; Agentic Self-Healing Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #07090f;
+      --bg-elev: #0e1320;
+      --bg-card: rgba(16, 22, 36, 0.78);
+      --line: rgba(212, 175, 90, 0.18);
+      --line-strong: rgba(212, 175, 90, 0.42);
+      --gold: #d4af5a;
+      --gold-2: #f0d48a;
+      --ink: #e8ecf4;
+      --muted: #93a0b8;
+      --dim: #6b7890;
+      --teal: #3dd6c6;
+      --rose: #f07178;
+      --amber: #f0b429;
+      --ok: #5ee0a0;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Instrument Sans", system-ui, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 12% -10%, rgba(212, 175, 90, 0.12), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(61, 214, 198, 0.08), transparent 50%),
+        linear-gradient(180deg, #07090f 0%, #0b1020 40%, #07090f 100%);
+      min-height: 100vh;
+    }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    header.hero {
+      padding: 36px 28px 18px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .kicker {
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-size: 11px;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    h1 {
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.08;
+      margin: 10px 0 12px;
+      font-weight: 700;
+    }
+    .lede { max-width: 820px; color: var(--muted); font-size: 17px; line-height: 1.55; }
+    nav.toc {
+      position: sticky; top: 0; z-index: 40;
+      backdrop-filter: blur(16px);
+      background: rgba(7, 9, 15, 0.72);
+      border-bottom: 1px solid var(--line);
+    }
+    nav.toc .inner {
+      max-width: 1280px; margin: 0 auto; padding: 10px 28px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    nav.toc a {
+      color: var(--muted); text-decoration: none; font-size: 13px;
+      padding: 7px 12px; border-radius: 999px; border: 1px solid transparent;
+    }
+    nav.toc a:hover, nav.toc a.active {
+      color: var(--gold-2); border-color: var(--line-strong); background: rgba(212,175,90,0.08);
+    }
+    main { max-width: 1280px; margin: 0 auto; padding: 28px; }
+    section { margin-bottom: 56px; }
+    h2 { font-size: 26px; margin: 0 0 8px; }
+    h3 { font-size: 16px; margin: 0 0 10px; color: var(--gold-2); }
+    .sub { color: var(--muted); margin: 0 0 22px; max-width: 860px; }
+    .grid { display: grid; gap: 16px; }
+    .metrics { grid-template-columns: repeat(5, 1fr); }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .metric .label { color: var(--dim); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .metric .value { font-size: 34px; font-weight: 700; margin-top: 6px; }
+    .metric .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .bad { color: var(--rose); }
+    .warn { color: var(--amber); }
+    .ok { color: var(--ok); }
+    .teal { color: var(--teal); }
+    .gold { color: var(--gold); }
+    .dash { grid-template-columns: 1.15fr 0.85fr; }
+    .charts { grid-template-columns: 1.2fr 0.8fr; }
+    .arch { grid-template-columns: 1fr; }
+    canvas { max-height: 360px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 10px 9px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+    th { color: var(--dim); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+    tr:hover td { background: rgba(212,175,90,0.04); }
+    .pill {
+      display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 999px;
+      border: 1px solid currentColor; font-weight: 600; white-space: nowrap;
+    }
+    .sev-crit { color: var(--rose); }
+    .sev-high { color: #ff8a65; }
+    .sev-med { color: var(--amber); }
+    .sev-low { color: var(--teal); }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filters button, .search {
+      background: transparent; color: var(--muted); border: 1px solid var(--line);
+      border-radius: 999px; padding: 7px 12px; cursor: pointer; font: inherit;
+    }
+    .filters button.active { color: var(--gold-2); border-color: var(--line-strong); background: rgba(212,175,90,0.1); }
+    .search { min-width: 240px; color: var(--ink); }
+    .path { color: var(--teal); font-size: 12px; word-break: break-all; }
+    .mermaid { background: #0b1020; border-radius: 14px; padding: 12px; }
+    .loop {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px;
+    }
+    .loop .step { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: rgba(61,214,198,0.04); }
+    .loop .n { color: var(--gold); font-size: 12px; letter-spacing: 0.14em; }
+    .matrix { display: grid; grid-template-columns: 1.1fr 1.1fr 0.8fr; gap: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; }
+    .matrix div { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; }
+    .matrix .mh { background: rgba(212,175,90,0.1); color: var(--gold-2); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .plan ol { color: var(--muted); line-height: 1.6; }
+    .plan li { margin-bottom: 10px; }
+    .plan strong { color: var(--ink); }
+    .footer { color: var(--dim); font-size: 12px; padding: 8px 28px 40px; max-width: 1280px; margin: 0 auto; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    @media (max-width: 1100px) {
+      .metrics, .dash, .charts, .loop { grid-template-columns: 1fr; }
+      .matrix { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="kicker">Principal Systems Architect · Read-only audit · 19 Aug 2026</div>
+    <h1>WEOTT Nexus Objectivity &amp; Agentic Self-Healing Audit</h1>
+    <p class="lede">End-to-end evaluation of <span class="mono">proposal-builder-main</span> (Quote Builder UI, n8n, Apps Script, bundled PDF engine) and <span class="mono">ProductionENV-Proposal_engine-</span>. No source was modified. Findings are line-cited from the live trees.</p>
+  </header>
+
+  <nav class="toc">
+    <div class="inner">
+      <a href="#exec">1. Executive Summary</a>
+      <a href="#findings">2. Findings Table</a>
+      <a href="#visuals">3. Visual Dashboard</a>
+      <a href="#plan">4. Self-Healing Plan</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="exec">
+      <h2>1. Executive Summary</h2>
+      <p class="sub">The stack is commercially viable and already has a few strong invariants (typed finance math, gold-scenario parity, PDF layout gates). System risk is concentrated in <em>string-coupled pipelines</em>: Cost Mother labels, regex prefill, n8n Code nodes, and unvalidated JSON at every hop. There is no runtime schema layer (no Zod, no Pydantic).</p>
+
+      <div class="grid metrics">
+        <article class="card metric">
+          <div class="label">Composite health</div>
+          <div class="value warn">54<span style="font-size:16px">/100</span></div>
+          <div class="hint">Production-capable, not self-healing</div>
+        </article>
+        <article class="card metric">
+          <div class="label">Pipeline fragility</div>
+          <div class="value bad">6.8<span style="font-size:16px">/10</span></div>
+          <div class="hint">UI 7.0 · Engine 6.5 blended</div>
+        </article>
+        <article class="card metric">
+          <div class="label">Runtime schema coverage</div>
+          <div class="value bad">0%</div>
+          <div class="hint">Types exist; nothing validates at the wire</div>
+        </article>
+        <article class="card metric">
+          <div class="label">Silent / soft failure sites</div>
+          <div class="value warn">40+</div>
+          <div class="hint">try/catch pass, demo fallback, JSON {ok:true}</div>
+        </article>
+        <article class="card metric">
+          <div class="label">Self-healing readiness</div>
+          <div class="value teal">28<span style="font-size:16px">/100</span></div>
+          <div class="hint">Parity gates exist; no repair loop</div>
+        </article>
+      </div>
+
+      <div class="grid dash" style="margin-top:16px">
+        <article class="card">
+          <h3>What is objectively sound</h3>
+          <ul class="sub" style="margin:0; padding-left:18px">
+            <li><span class="mono">quoteFinance.ts</span> documents contingency 2.25%, VAT 20%, staff buffer +3h, min 4 billable hours as named constants.</li>
+            <li><span class="mono">financialParity.ts</span> blocks approval on &gt; £0.02 gold-scenario drift.</li>
+            <li><span class="mono">sapphireLead.ts</span> is a canonical n8n alias registry — the right pattern for the rest of the stack.</li>
+            <li>Bundled PDF engine raises <span class="mono">ProfileValidationError</span> → HTTP 422 on cover geometry failure.</li>
+            <li>n8n Transform is explicitly pass-through for money (UI is the finance source of truth).</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>What is subjectively fragile</h3>
+          <ul class="sub" style="margin:0; padding-left:18px">
+            <li>Prefill is a keyword/regex engine (<span class="mono">leadPrefill.ts</span>) with REP-name lists and scored note chunks.</li>
+            <li>Catalogue labels must match across TS, GAS, n8n, and the sheet — including the preserved typo <em>All Sesons</em>.</li>
+            <li><span class="mono">sheetsWrite</span> toasts and continues; PDF and Sheets can diverge (split-brain).</li>
+            <li>Production engine <span class="mono">app.py</span> still does <span class="mono">except Exception: pass</span> on profile warm-up and has no inbound schema.</li>
+            <li>Four systems can disagree on a quote: UI calc, sheet columns, gold fixtures, PDF render.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="findings">
+      <h2>2. Subjective vs Objective Findings</h2>
+      <p class="sub">Each row contrasts a subjective pattern found in source with the objective architectural equivalent. Filter by severity or search by path.</p>
+      <div class="filters">
+        <input class="search" id="q" placeholder="Filter path, pattern, fix…" />
+        <button class="active" data-sev="all">All</button>
+        <button data-sev="critical">Critical</button>
+        <button data-sev="high">High</button>
+        <button data-sev="medium">Medium</button>
+        <button data-sev="low">Low / positive</button>
+      </div>
+      <article class="card" style="overflow:auto">
+        <table id="findings-table">
+          <thead>
+            <tr>
+              <th>Sev</th>
+              <th>File / lines</th>
+              <th>Subjective pattern</th>
+              <th>Objective equivalent</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-sev="critical">
+              <td><span class="pill sev-crit">Critical</span></td>
+              <td class="path">workspace-suite/src/lib/leadPrefill.ts:42–76, 255–261, 356–360</td>
+              <td>MENU_CODE_RULES / NOTE_LINE_RULES regex map free-text CRM notes to catalogue labels. <span class="mono">2CSD</span> maps to a dinner label that does not exist on the catalogue (missing “OR Starter &amp; Main”). <span class="mono">\bTV\b|\bMIC\b|\bAWARDS\b</span> all become a 55" TV.</td>
+              <td>Versioned catering ontology + confidence-scored semantic parser. Never bind a token to a label that is not in <span class="mono">QUOTE_LINES</span>. Log REP overrides as training pairs.</td>
+            </tr>
+            <tr data-sev="critical">
+              <td><span class="pill sev-crit">Critical</span></td>
+              <td class="path">quoteBuilderCatalog.ts:94 · NexusCatalog.gs · n8n Parse Catalog</td>
+              <td>Catalogue is a 260+ line hardcoded table. Label <span class="mono">'Substantial Canapes (All Sesons)'</span> is a typo that must match the sheet exactly. Inference is triplicated in TypeScript, Apps Script regex, and n8n.</td>
+              <td>Single canonical catalogue schema (id, section, multiplier, aliases[]). GAS/n8n/UI consume the same JSON. Alias list absorbs typos without code forks.</td>
+            </tr>
+            <tr data-sev="critical">
+              <td><span class="pill sev-crit">Critical</span></td>
+              <td class="path">Forms.tsx:817–830 · sheetsSync.ts:88–91, 106–107</td>
+              <td><span class="mono">sheetsWrite</span> catches all errors, toasts, returns false — PDF generation proceeds. Non-JSON webhook bodies are treated as <span class="mono">{ ok: true }</span>. QuoteStatus payload is <span class="mono">Record&lt;string, unknown&gt;</span>.</td>
+              <td>Transactional outbox: persist intended sheet writes, retry with idempotency key (ref + version + status). Runtime Zod for webhook I/O. Never map empty/malformed JSON to success.</td>
+            </tr>
+            <tr data-sev="critical">
+              <td><span class="pill sev-crit">Critical</span></td>
+              <td class="path">pdf-engine/app.py:33–37, 87–91 · ProductionENV app.py:32–35, 87</td>
+              <td>Startup <span class="mono">warm_profiles</span> failures are swallowed. Ingress is <span class="mono">get_json(force=True, silent=True)</span> with no payload schema. Non-numeric <span class="mono">calculations</span> can 500 inside <span class="mono">float()</span>.</td>
+              <td>Pydantic/JSON Schema on POST /generate. Failed warm-up is a degraded-mode flag in health, not silence. Coerce/repair numeric fields before render.</td>
+            </tr>
+            <tr data-sev="high">
+              <td><span class="pill sev-high">High</span></td>
+              <td class="path">costMotherLookup.ts:141–171, 188–214, 272–316</td>
+              <td>Evening = embark hour ≥ 16. Vessel guest brackets (Erasmus 200, Dixie 250). Rate rows matched with bidirectional <span class="mono">includes()</span>. Margin matrix scored on /summer/, /christmas/ event-type strings.</td>
+              <td>Declarative rate-key grammar (vessel × weekly × day × group × daypart). Exact key first; synonym table second; never substring collision. Schema-validate CostRatesFetch rows.</td>
+            </tr>
+            <tr data-sev="high">
+              <td><span class="pill sev-high">High</span></td>
+              <td class="path">progressNotesFinance.ts:88, 153–183, 276</td>
+              <td>Money/margin/bar-tab extracted from free-text notes with version-block regex. Margin ≤ 1 is assumed to be a decimal and multiplied by 100 — a one-record heuristic.</td>
+              <td>Prefer structured sheet columns (<span class="mono">quoteWeottCost</span>, <span class="mono">quoteMarginPercent</span>). Notes parser emits confidence; never silently rescale.</td>
+            </tr>
+            <tr data-sev="high">
+              <td><span class="pill sev-high">High</span></td>
+              <td class="path">ProductionENV measure.py (span heuristics) · config.py:44–48</td>
+              <td>Field geometry discovered by searching PDF text spans; page indices hardcoded (cover=0, vessel=8, bespoke=12, contact=15). Template redesign breaks silently until a human notices.</td>
+              <td>Keep <span class="mono">profile_validation.py</span> gates (already in the bundled engine) on production. Golden profile JSON per template id; agent diffs new measurements vs gold.</td>
+            </tr>
+            <tr data-sev="high">
+              <td><span class="pill sev-high">High</span></td>
+              <td class="path">cover_contact.py:30–114, 125, 142</td>
+              <td>Overlapping TBC/flexible date regexes, weekday+ordinal month parser, <span class="mono">HH:MM</span>-only timings, pipe-delimited “Quotation valid”, guest range <span class="mono">N-N</span> only.</td>
+              <td>Normalize dates/times in the UI before POST. Engine accepts ISO-8601 + display string. Regex becomes a last-resort fallback with a warning code, not the happy path.</td>
+            </tr>
+            <tr data-sev="high">
+              <td><span class="pill sev-high">High</span></td>
+              <td class="path">backendUrls.ts:5–9 · sheetsSync.ts:16–27 · n8n-quote-builder-mvp.json</td>
+              <td>Render URL, n8n host, and two Google Sheet IDs are triplicated across UI, workflow JSON, and comments. Workflow also embeds Google credential id and CORS <span class="mono">*</span>.</td>
+              <td>Environment contract (demo/live) injected once. n8n nodes read env vars. UI reads Vite env. Drift detector fails CI if IDs diverge.</td>
+            </tr>
+            <tr data-sev="high">
+              <td><span class="pill sev-high">High</span></td>
+              <td class="path">quoteFinance.ts:41–58 vs n8n Transform QuoteBuilder1</td>
+              <td>Deprecated <span class="mono">UPGRADES</span> price list still used in payload. Duplicate upgrade maps and contact defaults (Katherine Bulaon at 490–495) live in both TS and n8n JS.</td>
+              <td>One <span class="mono">buildStargtmPayload()</span> fixture test that the n8n Code node must match. Delete dead upgrade prices from the engine path (<span class="mono">render_upgrade_list</span> is a no-op in production).</td>
+            </tr>
+            <tr data-sev="medium">
+              <td><span class="pill sev-med">Medium</span></td>
+              <td class="path">Leads.tsx:29, 160–169 · leadCache.ts:32–64</td>
+              <td><span class="mono">AnyLeadRow = Record&lt;string, unknown&gt;</span>. JSON is cast, not validated. Demo mode injects gold rows when the sheet is empty — can mask a live outage if mode is wrong. Cache I/O failures are silent.</td>
+              <td>Zod lead row from <span class="mono">N8N_LEAD_ALIASES</span>. Distinguish “empty demo workbook” from “fetch failed”. Surface cache write failures in Settings health.</td>
+            </tr>
+            <tr data-sev="medium">
+              <td><span class="pill sev-med">Medium</span></td>
+              <td class="path">NexusCatalog.gs:16–17, 57–58, 155–158, 235–291</td>
+              <td>Tab discovery via /cost mother/i. Header row needs score ≥ 2. ~15 regex chains infer section/multiplier from label text. Lock timeout returns silently (ref assignment skipped).</td>
+              <td>Named-tab contract + header schema. Inference table in JSON. Lock failure raises a visible Apps Script error / Slack ping, never no-op.</td>
+            </tr>
+            <tr data-sev="medium">
+              <td><span class="pill sev-med">Medium</span></td>
+              <td class="path">parseGuestCount.ts:12, 24, 33 · catalog.py:100–106</td>
+              <td>Guest parsing uses versioned regex and magic thresholds (≥10 ignores version index, ≥2 fallback). PDF catalog slot: ≥12 guests → above_12, parse failure defaults to above_12.</td>
+              <td>Structured <span class="mono">groupSizeQuote</span> from n8n. Ambiguous counts stay null and force REP confirm — never default to the larger (more expensive) transfer slot silently.</td>
+            </tr>
+            <tr data-sev="medium">
+              <td><span class="pill sev-med">Medium</span></td>
+              <td class="path">inserts.py:8–9, 150–183 · engine.py:81–89</td>
+              <td>Insert page indices and staff-page shift assume maps are inserted before contact. Default WEOTT vessel ids skip swap via a hard-coded id list.</td>
+              <td>Manifest declares target page by label, not integer. Skip-list belongs in manifest metadata.</td>
+            </tr>
+            <tr data-sev="medium">
+              <td><span class="pill sev-med">Medium</span></td>
+              <td class="path">Forms.tsx:1564 · Leads.tsx:226–249</td>
+              <td>PDF response treated as JSON/base64/URL via heuristic <span class="mono">/^[A-Za-z0-9+/=]+$/</span>. Lead refresh failures in live mode <span class="mono">console.warn</span> only.</td>
+              <td>Content-Type contract: application/pdf vs application/json. n8n must not wrap binary as guessed base64. Live refresh failure is a visible stale-data banner.</td>
+            </tr>
+            <tr data-sev="low">
+              <td><span class="pill sev-low">Objective</span></td>
+              <td class="path">quoteFinance.ts:31–38 · financialParity.ts:15, 205–235</td>
+              <td>Business constants could have been scattered magic numbers — they are not. Parity tolerance is explicit.</td>
+              <td>Keep this pattern. Promote the same named-constant style to prefill, page indices, and sheet IDs. Wire <span class="mono">verifyAllGoldFinancials()</span> into CI against live rates.</td>
+            </tr>
+            <tr data-sev="low">
+              <td><span class="pill sev-low">Objective</span></td>
+              <td class="path">sapphireLead.ts:7–49 · errors.ts:8–20 · profile_validation.py:18–80</td>
+              <td>Canonical aliases, typed webhook errors, and required cover-key geometry gates are the architectural north star.</td>
+              <td>Extend aliases to a runtime schema. Reuse <span class="mono">N8nWebhookError</span> everywhere (including swallowed sheets writes). Ship production engine with the same strict validation as the bundled copy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+
+    <section id="visuals">
+      <h2>3. Visual Analytics Dashboard</h2>
+      <p class="sub">Scores are auditor judgements on a 1–10 fragility scale (10 = most brittle), derived from regex density, silent catches, schema absence, and cross-layer string coupling — not from automated cyclomatic tooling.</p>
+
+      <div class="grid charts">
+        <article class="card">
+          <h3>Fragility &amp; subjectivity by module</h3>
+          <canvas id="barChart" height="280"></canvas>
+        </article>
+        <article class="card">
+          <h3>Pattern breakdown</h3>
+          <canvas id="donutChart" height="280"></canvas>
+          <p class="legend">
+            <span><i class="dot" style="background:#f07178"></i>Subjective hacks 42%</span>
+            <span><i class="dot" style="background:#d4af5a"></i>Objective schemas / invariants 33%</span>
+            <span><i class="dot" style="background:#6b7890"></i>Missing catchers / unvalidated contracts 25%</span>
+          </p>
+        </article>
+      </div>
+
+      <div class="grid arch" style="margin-top:16px">
+        <article class="card">
+          <h3>Current fragile architecture — error flow</h3>
+          <p class="sub" style="margin-bottom:10px">Red nodes are single points of failure. Amber nodes swallow or soften errors so the UI keeps moving while source-of-truth drifts.</p>
+          <pre class="mermaid">
+flowchart LR
+  GS["Google Sheets<br/>Enquiry + Cost Mother"] -->|header/label drift| N8N["n8n Cloud<br/>LeadDataFetch / CostRatesFetch / QuoteBuilder"]
+  GAS["NexusCatalog.gs<br/>regex inferLine_"] --> NC["_Nexus Catalog tab"]
+  NC --> N8N
+  N8N -->|AnyLeadRow cast| LEADS["Leads.tsx + cache"]
+  LEADS -->|regex / fuzzy vessel| PRE["leadPrefill + progressNotesFinance"]
+  PRE --> FORMS["Forms.tsx + quoteFinance"]
+  FORMS -->|sheetsWrite swallows| NA["NoteAppend / QuoteStatus"]
+  FORMS -->|pass-through money| QB["n8n QuoteBuilder"]
+  QB -->|unvalidated JSON| PDF["PDF engine /generate"]
+  PDF -->|422/500 or silent warm fail| UI["REP UI"]
+  NA -.->|split-brain| GS
+  classDef risk fill:#3a1520,stroke:#f07178,color:#ffe4e6
+  classDef soft fill:#3a2a10,stroke:#f0b429,color:#fff3c4
+  classDef ok fill:#102018,stroke:#5ee0a0,color:#d1fae5
+  class GS,N8N,GAS,PRE,PDF risk
+  class NA,LEADS,FORMS soft
+  class QB,NC,UI ok
+          </pre>
+        </article>
+
+        <article class="card">
+          <h3>Target agentic architecture — background repair loop</h3>
+          <p class="sub" style="margin-bottom:10px">Agents sit <em>between</em> ingestion and the UI. They intercept, classify, repair, and retry without asking the REP to reload. Developers get a ledger, not a pager, for routine schema drift.</p>
+          <pre class="mermaid">
+flowchart TB
+  IN["Sheets / n8n / Cost Mother"] --> GATE["Contract Gate<br/>Zod + Pydantic + alias registry"]
+  GATE -->|valid| CORE["Quote + PDF happy path"]
+  GATE -->|invalid / 4xx / timeout| LOOP["Self-Healing Loop"]
+  LOOP --> CTX["1. Capture context<br/>payload, headers, node, template id"]
+  CTX --> REASON["2. Classify failure<br/>schema drift · label typo · date parse · geometry"]
+  REASON --> FIX["3. Synthesize repair<br/>alias map · coerce types · nearest insert · retry key"]
+  FIX --> POLICY["4. Policy check<br/>money fields never silently rewritten"]
+  POLICY -->|safe| RETRY["5. Retry ≤ N with backoff"]
+  POLICY -->|unsafe| HUMAN["REP confirm / queued ticket"]
+  RETRY --> GATE
+  CORE --> OBS["Observability<br/>drift metrics · gold parity · outbox lag"]
+  OBS --> LOOP
+  classDef agent fill:#0d2a28,stroke:#3dd6c6,color:#d1faf5
+  classDef core fill:#102018,stroke:#5ee0a0,color:#d1fae5
+  classDef hold fill:#3a2a10,stroke:#f0b429,color:#fff3c4
+  class GATE,LOOP,CTX,REASON,FIX,POLICY,RETRY,OBS agent
+  class CORE core
+  class HUMAN hold
+          </pre>
+          <div class="loop">
+            <div class="step"><div class="n">01 INTERCEPT</div><div>Wrap fetch, n8n respond, and /generate. Convert thrown errors + soft {ok:true} lies into typed FailureEvents.</div></div>
+            <div class="step"><div class="n">02 EVALUATE</div><div>Attach lead ref, webhook path, catalogue version, template id, and last gold-parity delta.</div></div>
+            <div class="step"><div class="n">03 SYNTHESIZE</div><div>Propose the smallest repair: alias, coerce, retry, or nearest-manifest match — never a new financial total.</div></div>
+            <div class="step"><div class="n">04 CONTINUE</div><div>UI stays on the current wizard step. Outbox drains in background. Unsafe money/status changes wait for REP confirm.</div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="plan">
+      <h2>4. Agentic Self-Healing Integration Plan</h2>
+      <p class="sub">Non-intrusive: agents wrap existing I/O. They do not replace <span class="mono">calcFinancials()</span> or PDF drawing primitives. Money remains deterministic.</p>
+
+      <article class="card" style="margin-bottom:16px">
+        <h3>Intelligence blueprint matrix</h3>
+        <div class="matrix">
+          <div class="mh">Current script component</div>
+          <div class="mh">AI-reasoning replacement</div>
+          <div class="mh">Guardrail</div>
+          <div>leadPrefill MENU/NOTE regex + REP name list</div>
+          <div>Semantic prefill agent: notes → {field, value, confidence, evidence span}. REP confirm already exists (blue → green).</div>
+          <div>Reject labels not in catalogue ids</div>
+          <div>costMotherLookup bidirectional includes()</div>
+          <div>Label ontology + embedding nearest-neighbour with distance threshold; unknown rows flagged as drift.</div>
+          <div>Exact key always wins</div>
+          <div>NexusCatalog.gs inferLine_ regex chains</div>
+          <div>Classifier that emits section + multiplier as JSON schema. Human publishes the table.</div>
+          <div>No silent lock skip</div>
+          <div>n8n Transform QuoteBuilder1 duplicate of TS</div>
+          <div>Contract-sync agent diffs fixture payloads nightly; opens a ticket on drift (contact defaults, flexible date, upgrades).</div>
+          <div>n8n must not recalc money</div>
+          <div>sheetsWrite toast-and-continue</div>
+          <div>Outbox agent retries QuoteStatus / NoteAppend with idempotency; heals rows stuck at “generating”.</div>
+          <div>Status enum + retry budget</div>
+          <div>cover_contact date/time regex farm</div>
+          <div>Normalize in UI to ISO; engine formats for print. Unparsed strings logged as training data.</div>
+          <div>Never invent an event date</div>
+          <div>measure.py span heuristics</div>
+          <div>Golden-profile regressor: re-measure on mtime, diff vs gold JSON, auto-clear cache, fail 422 if gates miss.</div>
+          <div>Keep strict cover keys</div>
+          <div>inserts.py missing id skip</div>
+          <div>Nearest-manifest match by kind/vessel/slot; apply only if score ≥ threshold else warn in X-Warnings.</div>
+          <div>No silent page shift</div>
+          <div>financialParityReport fail</div>
+          <div>Triage agent: rate key used, missing rates, gold delta → suggested weekly/day/group fix. Does not auto-approve.</div>
+          <div>£0.02 tolerance stays</div>
+        </div>
+      </article>
+
+      <div class="grid dash">
+        <article class="card plan">
+          <h3>Step-by-step rollout (no user interruption)</h3>
+          <ol>
+            <li><strong>Phase 0 — Observe only (week 1).</strong> Introduce a FailureEvent bus in the UI (<span class="mono">postWebhook</span>, LeadDataFetch, generate) and in the engine (validation 422, warm-up, missing insert). Log to an existing sheet tab or n8n Data Store. Zero behaviour change.</li>
+            <li><strong>Phase 1 — Contract gates (week 2–3).</strong> Zod at <span class="mono">postWebhook</span> / lead fetch / CostRatesFetch. Pydantic on production <span class="mono">/generate</span>. Malformed JSON stops being <span class="mono">{ ok: true }</span>. Health endpoint reports warm-up errors.</li>
+            <li><strong>Phase 2 — Safe retries (week 4).</strong> Outbox for Sheets writes. Idempotent QuoteStatus. Background loop retries network/5xx only. UI toasts “syncing…” instead of “failed, continuing anyway”.</li>
+            <li><strong>Phase 3 — Label drift agent (week 5–6).</strong> Compare live <span class="mono">_Nexus Catalog</span> labels to <span class="mono">QUOTE_LINES</span> + aliases. Flag “Sesons”, 2CSD mismatch, unknown rates for the selected vessel key. Propose catalogue patches; do not auto-merge money.</li>
+            <li><strong>Phase 4 — Prefill confidence (week 7–8).</strong> Per-field confidence. Low-confidence fields stay blue until REP confirm. Confirmed corrections feed alias tables (objective), not new one-off regexes (subjective).</li>
+            <li><strong>Phase 5 — PDF self-check (week 9+).</strong> Promote bundled <span class="mono">profile_validation.py</span> to production. Golden profiles in CI. Agent invalidates measure cache on template mtime. Overflow warnings already in <span class="mono">X-Warnings</span> become first-class FailureEvents.</li>
+          </ol>
+        </article>
+        <article class="card plan">
+          <h3>Observability &amp; schema-drift detection</h3>
+          <ol>
+            <li><strong>RED for webhooks:</strong> rate, errors, duration on LeadDataFetch, CostRatesFetch, QuoteBuilder, NoteAppend, QuoteStatus.</li>
+            <li><strong>Drift counters:</strong> unknown catalogue labels/day, rate-key fallbacks used, prefill corrections/day, gold-parity mismatches, PDF 422s by template id.</li>
+            <li><strong>Split-brain gauge:</strong> quotes where PDF status=ready but sheet status≠ready (outbox lag).</li>
+            <li><strong>Scheduled gold verify:</strong> <span class="mono">verifyAllGoldFinancials()</span> against live Cost Mother; open an issue when bundled snapshot diverges.</li>
+            <li><strong>Policy:</strong> agents may coerce types, retry I/O, map aliases, and pick nearest insert. Agents may not change VAT, margin, contingency, or grand total without REP confirmation.</li>
+          </ol>
+          <p class="sub" style="margin:16px 0 0">Highest-leverage first move: make success honest (stop <span class="mono">{ ok: true }</span> on empty JSON; stop swallowing warm-up; stop generating PDFs while QuoteStatus is best-effort). That alone turns today’s silent split-brain into a healable outbox.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <p class="footer">Read-only audit. Repositories: proposal-builder-main and ProductionENV-Proposal_engine-. Generated 19 Aug 2026. No application source was patched.</p>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "dark",
+      securityLevel: "loose",
+      flowchart: { curve: "basis", htmlLabels: true }
+    });
+
+    const gold = "#d4af5a";
+    const rose = "#f07178";
+    const teal = "#3dd6c6";
+    const muted = "#93a0b8";
+    const ticks = { color: muted, font: { family: "IBM Plex Mono", size: 10 } };
+
+    new Chart(document.getElementById("barChart"), {
+      type: "bar",
+      data: {
+        labels: [
+          "Lead prefill", "n8n workflows", "Catalogue TS+GAS", "progressNotesFinance",
+          "measure.py", "Quote Builder UI", "Cost Mother lookup", "Cover/contact PDF",
+          "Sheets sync", "Leads page", "Finance engine", "PDF ops / fonts"
+        ],
+        datasets: [{
+          label: "Fragility (1–10)",
+          data: [9, 8, 8, 8, 8, 7, 7, 7, 6, 6, 5, 3.5],
+          backgroundColor: [
+            "#f07178","#e85d75","#e85d75","#e85d75","#e85d75",
+            "#f0b429","#f0b429","#f0b429","#d4af5a","#d4af5a","#3dd6c6","#5ee0a0"
+          ],
+          borderWidth: 0,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => " Fragility " + c.raw + " / 10" } }
+        },
+        scales: {
+          x: { min: 0, max: 10, grid: { color: "rgba(255,255,255,0.06)" }, ticks },
+          y: { grid: { display: false }, ticks }
+        }
+      }
+    });
+
+    new Chart(document.getElementById("donutChart"), {
+      type: "doughnut",
+      data: {
+        labels: ["Subjective hacks", "Objective schemas / invariants", "Missing catchers / unvalidated contracts"],
+        datasets: [{
+          data: [42, 33, 25],
+          backgroundColor: ["#f07178", "#d4af5a", "#4b5568"],
+          borderWidth: 0,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        cutout: "62%",
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => " " + c.label + ": " + c.raw + "%" } }
+        }
+      }
+    });
+
+    const q = document.getElementById("q");
+    const buttons = document.querySelectorAll(".filters button");
+    let sev = "all";
+    function applyFilter() {
+      const term = q.value.toLowerCase();
+      document.querySelectorAll("#findings-table tbody tr").forEach((row) => {
+        const matchSev = sev === "all" || row.dataset.sev === sev;
+        const matchText = row.innerText.toLowerCase().includes(term);
+        row.style.display = matchSev && matchText ? "" : "none";
+      });
+    }
+    q.addEventListener("input", applyFilter);
+    buttons.forEach((b) => b.addEventListener("click", () => {
+      buttons.forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      sev = b.dataset.sev;
+      applyFilter();
+    }));
+  </script>
+</body>
+</html>

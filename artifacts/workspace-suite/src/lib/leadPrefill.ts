@@ -3,11 +3,17 @@
  * Parses n8n lead aliases + progressNotes hints; tracks auto-filled keys for blue UI styling.
  */
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES } from '@/lib/formOptions';
-import { QUOTE_LINES, defaultSelectedLineIds, buildPackageWordingNotes } from '@/lib/quoteBuilderCatalog';
+import {
+  QUOTE_LINES,
+  CATALOGUE_TAXONOMY,
+  defaultSelectedLineIds,
+  buildPackageWordingNotes,
+  findLineByAlias,
+} from '@/lib/quoteBuilderCatalog';
 import { lookupMinMargin } from '@/lib/costMotherLookup';
 import { REPEAT_CLIENT_MARGIN, NEW_CLIENT_MARGIN } from '@/lib/quoteFinance';
 import type { QuoteLead } from '@/lib/quoteLeadStore';
-import { parseGuestCount } from '@/lib/parseGuestCount';
+import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
 import { resolveProposalPack } from '@/lib/proposalPrefill';
 import {
   parseProgressNotesFinance,
@@ -36,6 +42,10 @@ export type LeadPrefillResult<T> = {
   data: T;
   prefilledKeys: Set<string>;
   prefilledLineIds: Set<string>;
+  /** Gemini / alias matches below 0.75 — stay blue until REP confirms. */
+  lowConfidenceKeys: Set<string>;
+  /** Fields that must be typed by the REP (e.g. ambiguous guest count). */
+  ambiguousFields: Set<string>;
 };
 
 /** Progress-note / sheet catering shorthand → Menu Type labels */
@@ -44,9 +54,9 @@ const MENU_CODE_RULES: { re: RegExp; menu: string }[] = [
   { re: /\b3\s*CSD\b|\b3CSD\b/i, menu: 'Three Course Seated Dinner (All Seasons)' },
   {
     re: /\b2\s*CSD\b|\b2CSD\b/i,
-    menu: 'Two Course Seated Dinner - Main & Dessert (All Seasons)',
+    menu: 'Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)',
   },
-  { re: /\bSUB\s*CANS?\b/i, menu: 'Substantial Canapes (All Seasons)' },
+  { re: /\bSUB\s*CANS?\b/i, menu: 'Substantial Canapes (All Sesons)' },
   { re: /\bCANAPES?\b/i, menu: 'Canapes (All Seasons)' },
   { re: /\bSTREET\s*FOOD\b/i, menu: 'Street Food Station (All Seasons)' },
   { re: /\bBOWL\s*FOOD\b/i, menu: 'Bowl Food (All Seasons)' },
@@ -246,6 +256,13 @@ function lineIdsFromLabels(labels: string[]): string[] {
 function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): string[] {
   const scope = quoteVersion ? versionBlock(notes, quoteVersion) : notes;
   const labels = new Set<string>();
+  for (const [alias, label] of Object.entries(CATALOGUE_TAXONOMY.noteAliases)) {
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\s+/g, '\\s+');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(scope)) {
+      const line = findLineByAlias(label) || QUOTE_LINES.find((l) => l.label === label);
+      if (line) labels.add(line.label);
+    }
+  }
   for (const { re, label } of NOTE_LINE_RULES) {
     if (re.test(scope)) labels.add(label);
   }
@@ -375,9 +392,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
 ): LeadPrefillResult<T> {
   const prefilledKeys = new Set<string>();
   const prefilledLineIds = new Set<string>();
+  const lowConfidenceKeys = new Set<string>();
+  const ambiguousFields = new Set<string>();
 
   if (!lead) {
-    return { data: { ...init }, prefilledKeys, prefilledLineIds };
+    return { data: { ...init }, prefilledKeys, prefilledLineIds, lowConfidenceKeys, ambiguousFields };
   }
 
   const notes = lead.progressNotes || '';
@@ -391,11 +410,13 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const eventDate =
     parseEventDateForInput(lead.eventDateDisplay, lead.fullEventDate, flex) ||
     (flex ? '' : String(init.eventDate || ''));
-  const guestCount = parseGuestCount({
+  const guestParsed = parseGuestCountDetailed({
     groupSizeQuote: lead.groupSizeQuote,
     groupSize: lead.groupSize,
     quoteVersion,
   });
+  const guestCount = guestParsed.ambiguous ? '' : guestParsed.value;
+  if (guestParsed.ambiguous) ambiguousFields.add('guestCount');
   const guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
   const embarkation = times.embarkation || String(init.embarkation || '');
@@ -411,6 +432,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const marginPercent = inferMarginPercent(repeatClient, eventType, eventDate, lead.market, notes);
   const commissionPercent = inferCommissionPercent(agentReferral, notes);
   const menuType = parseMenusFromNotes(notes, quoteVersion);
+  if (menuType.length && !goldTargetsFromRef(lead.referenceNumber)) {
+    lowConfidenceKeys.add('menuType');
+  }
   const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
   const bespoke = parseBespokeFromNotes(notes);
 
@@ -588,7 +612,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     for (const id of lineIdsFromLabels(goldLabels)) prefilledLineIds.add(id);
   }
 
-  return { data: withGold, prefilledKeys, prefilledLineIds };
+  return { data: withGold, prefilledKeys, prefilledLineIds, lowConfidenceKeys, ambiguousFields };
 }
 
 /** Re-infer version-sensitive fields when REP changes quote version. */
@@ -600,11 +624,12 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
   if (!lead) return {};
   const goldEarly = goldTargetsFromRef(lead.referenceNumber);
   const notes = lead.progressNotes || '';
-  const guestCount = parseGuestCount({
+  const guestParsed = parseGuestCountDetailed({
     groupSizeQuote: lead.groupSizeQuote,
     groupSize: lead.groupSize,
     quoteVersion,
   });
+  const guestCount = guestParsed.ambiguous ? '' : guestParsed.value;
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
   const vessels = vesselsForVersion(notes, quoteVersion, matchVessels(lead.vessels));
   const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);

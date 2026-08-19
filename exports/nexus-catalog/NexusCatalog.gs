@@ -251,7 +251,25 @@ function mapSection_(label) {
   return '';
 }
 
+function catalogueLookup_(label) {
+  if (typeof NEXUS_CATALOGUE_TAXONOMY === 'undefined' || !NEXUS_CATALOGUE_TAXONOMY.lines) return null;
+  var n = String(label || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!n) return null;
+  var lines = NEXUS_CATALOGUE_TAXONOMY.lines;
+  for (var i = 0; i < lines.length; i++) {
+    var aliases = lines[i].aliases || [lines[i].label];
+    for (var j = 0; j < aliases.length; j++) {
+      if (String(aliases[j]).toLowerCase().replace(/\s+/g, ' ').trim() === n) {
+        return { section: lines[i].section, multiplier: lines[i].multiplier };
+      }
+    }
+  }
+  return null;
+}
+
 function inferLine_(label, sectionHint) {
+  var fromTaxonomy = catalogueLookup_(label);
+  if (fromTaxonomy) return fromTaxonomy;
   var s = label.toLowerCase();
   var section = sectionHint || 'other';
   var multiplier = 'set';

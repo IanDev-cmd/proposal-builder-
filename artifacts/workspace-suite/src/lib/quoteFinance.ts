@@ -537,7 +537,7 @@ export function buildStargtmPayload(opts: {
       telephone: lead?.phone,
       email: lead?.email,
       event_type: form.eventType,
-      event_date: eventDate,
+      event_date: form.dateFlexible ? 'Date TBC' : (form.eventDate || eventDate),
       event_timings: `${form.embarkation || ''} - ${form.disembarkation || ''}`,
       guest_range: guestRange,
       guest_quote_n: String(guests || lead?.groupSizeQuote || ''),

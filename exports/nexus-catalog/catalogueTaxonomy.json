@@ -1,0 +1,1280 @@
+{
+  "schema": "weott.nexus.catalogue.v1",
+  "version": 1,
+  "lines": [
+    {
+      "id": "vessel_vessel_venue_hire",
+      "section": "vessel",
+      "label": "Vessel/Venue Hire",
+      "multiplier": "vessel_hours",
+      "aliases": [
+        "Vessel/Venue Hire"
+      ],
+      "defaultOn": true
+    },
+    {
+      "id": "catering_continental_breakfast",
+      "section": "catering",
+      "label": "Continental Breakfast",
+      "multiplier": "guests",
+      "aliases": [
+        "Continental Breakfast"
+      ]
+    },
+    {
+      "id": "catering_canapes_all_seasons",
+      "section": "catering",
+      "label": "Canapes (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Canapes (All Seasons)",
+        "CANAPES",
+        "Canapes"
+      ]
+    },
+    {
+      "id": "catering_substantial_canapes_all_sesons",
+      "section": "catering",
+      "label": "Substantial Canapes (All Sesons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Substantial Canapes (All Sesons)",
+        "SUB CANS",
+        "Substantial Canapes",
+        "Substantial Canapes (All Seasons)"
+      ]
+    },
+    {
+      "id": "catering_brunch_or_english_breakfast",
+      "section": "catering",
+      "label": "Brunch/Or English Breakfast",
+      "multiplier": "guests",
+      "aliases": [
+        "Brunch/Or English Breakfast",
+        "Brunch",
+        "Brunch / English Breakfast"
+      ]
+    },
+    {
+      "id": "catering_bowl_food_all_seasons",
+      "section": "catering",
+      "label": "Bowl Food (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Bowl Food (All Seasons)",
+        "BOWL FOOD",
+        "Bowl Food"
+      ]
+    },
+    {
+      "id": "catering_street_food_station_all_seasons",
+      "section": "catering",
+      "label": "Street Food Station (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Street Food Station (All Seasons)",
+        "STREET FOOD",
+        "Street Food",
+        "Street Food Station"
+      ]
+    },
+    {
+      "id": "catering_charcuterie_cups_all_seasons",
+      "section": "catering",
+      "label": "Charcuterie Cups (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Charcuterie Cups (All Seasons)",
+        "CHARCUTERIE CUPS",
+        "Charcuterie Cups"
+      ]
+    },
+    {
+      "id": "catering_afternoon_tea",
+      "section": "catering",
+      "label": "Afternoon Tea",
+      "multiplier": "guests",
+      "aliases": [
+        "Afternoon Tea"
+      ]
+    },
+    {
+      "id": "catering_charcuterie_station_all_seasons",
+      "section": "catering",
+      "label": "Charcuterie Station (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Charcuterie Station (All Seasons)",
+        "CHARCUTERIE STATION",
+        "Charcuterie Station"
+      ]
+    },
+    {
+      "id": "catering_light_bites_all_season",
+      "section": "catering",
+      "label": "Light Bites (All Season)",
+      "multiplier": "guests",
+      "aliases": [
+        "Light Bites (All Season)",
+        "Light Bites",
+        "Light Bites (All Seasons)"
+      ]
+    },
+    {
+      "id": "catering_traditional_pie_station",
+      "section": "catering",
+      "label": "Traditional Pie Station",
+      "multiplier": "guests",
+      "aliases": [
+        "Traditional Pie Station"
+      ]
+    },
+    {
+      "id": "catering_hot_fork_buffet_all_seasons",
+      "section": "catering",
+      "label": "Hot Fork Buffet (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Hot Fork Buffet (All Seasons)",
+        "HFB",
+        "Hot Fork Buffet"
+      ]
+    },
+    {
+      "id": "catering_barbecue",
+      "section": "catering",
+      "label": "Barbecue",
+      "multiplier": "guests",
+      "aliases": [
+        "Barbecue",
+        "BBQ",
+        "Summer Barbecue"
+      ]
+    },
+    {
+      "id": "catering_three_course_seated_dinner_all_seasons",
+      "section": "catering",
+      "label": "Three Course Seated Dinner (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Three Course Seated Dinner (All Seasons)",
+        "3CSD",
+        "Three Course Seated Dinner"
+      ]
+    },
+    {
+      "id": "catering_burger_station",
+      "section": "catering",
+      "label": "Burger Station",
+      "multiplier": "guests",
+      "aliases": [
+        "Burger Station",
+        "BURGER STATION"
+      ]
+    },
+    {
+      "id": "catering_mini_desserts",
+      "section": "catering",
+      "label": "Mini Desserts",
+      "multiplier": "guests",
+      "aliases": [
+        "Mini Desserts"
+      ]
+    },
+    {
+      "id": "catering_desserts",
+      "section": "catering",
+      "label": "Desserts",
+      "multiplier": "guests",
+      "aliases": [
+        "Desserts"
+      ]
+    },
+    {
+      "id": "catering_fruit_skewers_spring_summer_only",
+      "section": "catering",
+      "label": "Fruit Skewers (Spring/Summer Only)",
+      "multiplier": "guests",
+      "aliases": [
+        "Fruit Skewers (Spring/Summer Only)"
+      ],
+      "autoWithMenu": "barbecue|bbq"
+    },
+    {
+      "id": "catering_cranberry_chesnut_goats_cheese_mini_tart",
+      "section": "catering",
+      "label": "Cranberry, chesnut & Goats cheese mini tart",
+      "multiplier": "guests",
+      "aliases": [
+        "Cranberry, chesnut & Goats cheese mini tart"
+      ]
+    },
+    {
+      "id": "catering_catering_delivery_charge_in_every_quote",
+      "section": "catering",
+      "label": "Catering Delivery Charge (In every quote)",
+      "multiplier": "set",
+      "aliases": [
+        "Catering Delivery Charge (In every quote)"
+      ],
+      "defaultOn": true
+    },
+    {
+      "id": "catering_surcharge_own_food_surcharge",
+      "section": "catering_surcharge",
+      "label": "Own Food Surcharge",
+      "multiplier": "set",
+      "aliases": [
+        "Own Food Surcharge"
+      ]
+    },
+    {
+      "id": "catering_equipment_dessert_starter_spoon",
+      "section": "catering_equipment",
+      "label": "Dessert/Starter Spoon",
+      "multiplier": "guests",
+      "aliases": [
+        "Dessert/Starter Spoon"
+      ]
+    },
+    {
+      "id": "catering_equipment_starter_fork",
+      "section": "catering_equipment",
+      "label": "Starter fork",
+      "multiplier": "guests",
+      "aliases": [
+        "Starter fork"
+      ]
+    },
+    {
+      "id": "catering_equipment_starter_knife",
+      "section": "catering_equipment",
+      "label": "Starter Knife",
+      "multiplier": "guests",
+      "aliases": [
+        "Starter Knife"
+      ]
+    },
+    {
+      "id": "catering_equipment_tea_spoon",
+      "section": "catering_equipment",
+      "label": "Tea Spoon",
+      "multiplier": "guests",
+      "aliases": [
+        "Tea Spoon"
+      ]
+    },
+    {
+      "id": "catering_equipment_soup_spoons",
+      "section": "catering_equipment",
+      "label": "Soup Spoons",
+      "multiplier": "guests",
+      "aliases": [
+        "Soup Spoons"
+      ]
+    },
+    {
+      "id": "catering_equipment_dinner_forks",
+      "section": "catering_equipment",
+      "label": "Dinner Forks",
+      "multiplier": "guests",
+      "aliases": [
+        "Dinner Forks"
+      ]
+    },
+    {
+      "id": "catering_equipment_dinner_knife",
+      "section": "catering_equipment",
+      "label": "Dinner Knife",
+      "multiplier": "guests",
+      "aliases": [
+        "Dinner Knife"
+      ]
+    },
+    {
+      "id": "catering_equipment_butter_knife",
+      "section": "catering_equipment",
+      "label": "Butter Knife",
+      "multiplier": "guests",
+      "aliases": [
+        "Butter Knife"
+      ]
+    },
+    {
+      "id": "catering_equipment_rice_bowl",
+      "section": "catering_equipment",
+      "label": "Rice Bowl",
+      "multiplier": "guests",
+      "aliases": [
+        "Rice Bowl"
+      ]
+    },
+    {
+      "id": "catering_equipment_soup_plate",
+      "section": "catering_equipment",
+      "label": "Soup Plate",
+      "multiplier": "guests",
+      "aliases": [
+        "Soup Plate"
+      ]
+    },
+    {
+      "id": "catering_equipment_small_plates",
+      "section": "catering_equipment",
+      "label": "Small Plates",
+      "multiplier": "guests",
+      "aliases": [
+        "Small Plates"
+      ]
+    },
+    {
+      "id": "catering_equipment_dinner_plates",
+      "section": "catering_equipment",
+      "label": "Dinner Plates",
+      "multiplier": "guests",
+      "aliases": [
+        "Dinner Plates"
+      ]
+    },
+    {
+      "id": "catering_equipment_cutlery_linen",
+      "section": "catering_equipment",
+      "label": "Cutlery Linen",
+      "multiplier": "guests",
+      "aliases": [
+        "Cutlery Linen"
+      ]
+    },
+    {
+      "id": "catering_equipment_disposable_napkins",
+      "section": "catering_equipment",
+      "label": "Disposable Napkins",
+      "multiplier": "guests",
+      "aliases": [
+        "Disposable Napkins"
+      ]
+    },
+    {
+      "id": "beverages_reception_drink_pimms",
+      "section": "beverages",
+      "label": "Reception drink - Pimms",
+      "multiplier": "guests",
+      "aliases": [
+        "Reception drink - Pimms"
+      ]
+    },
+    {
+      "id": "beverages_reception_drink_mulled_wine",
+      "section": "beverages",
+      "label": "Reception drink - Mulled Wine",
+      "multiplier": "guests",
+      "aliases": [
+        "Reception drink - Mulled Wine"
+      ]
+    },
+    {
+      "id": "beverages_reception_drink_prosecco",
+      "section": "beverages",
+      "label": "Reception drink - Prosecco",
+      "multiplier": "guests",
+      "aliases": [
+        "Reception drink - Prosecco"
+      ]
+    },
+    {
+      "id": "beverages_reception_drink_champagne",
+      "section": "beverages",
+      "label": "Reception drink - Champagne",
+      "multiplier": "guests",
+      "aliases": [
+        "Reception drink - Champagne"
+      ]
+    },
+    {
+      "id": "beverages_drink_tokens_x_2",
+      "section": "beverages",
+      "label": "Drink tokens - x 2",
+      "multiplier": "guests",
+      "aliases": [
+        "Drink tokens - x 2",
+        "DRINK TOKENS x 2"
+      ]
+    },
+    {
+      "id": "beverages_drink_tokens_x_3",
+      "section": "beverages",
+      "label": "Drink tokens - x 3",
+      "multiplier": "guests",
+      "aliases": [
+        "Drink tokens - x 3",
+        "DRINK TOKENS x 3"
+      ]
+    },
+    {
+      "id": "beverages_drink_tokens_x_4",
+      "section": "beverages",
+      "label": "Drink tokens - x 4",
+      "multiplier": "guests",
+      "aliases": [
+        "Drink tokens - x 4"
+      ]
+    },
+    {
+      "id": "beverages_half_a_bottle_of_wine_with_dinner",
+      "section": "beverages",
+      "label": "Half a bottle of wine with dinner",
+      "multiplier": "guests",
+      "aliases": [
+        "Half a bottle of wine with dinner"
+      ]
+    },
+    {
+      "id": "beverages_tea_coffee",
+      "section": "beverages",
+      "label": "Tea/Coffee",
+      "multiplier": "guests",
+      "aliases": [
+        "Tea/Coffee"
+      ]
+    },
+    {
+      "id": "beverages_unlimited_drinks",
+      "section": "beverages",
+      "label": "Unlimited Drinks",
+      "multiplier": "guests",
+      "aliases": [
+        "Unlimited Drinks"
+      ]
+    },
+    {
+      "id": "beverages_unlimited_drinks_with_prosecco",
+      "section": "beverages",
+      "label": "Unlimited Drinks (with Prosecco)",
+      "multiplier": "guests",
+      "aliases": [
+        "Unlimited Drinks (with Prosecco)"
+      ]
+    },
+    {
+      "id": "beverages_prosecco_hour",
+      "section": "beverages",
+      "label": "Prosecco hour",
+      "multiplier": "guests",
+      "aliases": [
+        "Prosecco hour"
+      ]
+    },
+    {
+      "id": "beverages_champagne_hour",
+      "section": "beverages",
+      "label": "Champagne hour",
+      "multiplier": "guests",
+      "aliases": [
+        "Champagne hour"
+      ]
+    },
+    {
+      "id": "beverages_cocktail_reception_1_x_glass_per_guest",
+      "section": "beverages",
+      "label": "Cocktail Reception (1 x glass per guest)",
+      "multiplier": "guests",
+      "aliases": [
+        "Cocktail Reception (1 x glass per guest)",
+        "COCKTAIL RECEPTION"
+      ]
+    },
+    {
+      "id": "entertainment_background_music_sound_equipment_hire",
+      "section": "entertainment",
+      "label": "Background Music/Sound Equipment Hire",
+      "multiplier": "hours",
+      "aliases": [
+        "Background Music/Sound Equipment Hire",
+        "BG MUSIC"
+      ]
+    },
+    {
+      "id": "entertainment_dj_now_need_to_pair_with_the_above_item",
+      "section": "entertainment",
+      "label": "DJ (now need to pair with the above item)",
+      "multiplier": "hours",
+      "aliases": [
+        "DJ (now need to pair with the above item)"
+      ]
+    },
+    {
+      "id": "entertainment_live_band_4_piece",
+      "section": "entertainment",
+      "label": "Live Band - 4 piece",
+      "multiplier": "hours",
+      "aliases": [
+        "Live Band - 4 piece"
+      ]
+    },
+    {
+      "id": "entertainment_live_band_3_piece",
+      "section": "entertainment",
+      "label": "Live Band - 3 piece",
+      "multiplier": "hours",
+      "aliases": [
+        "Live Band - 3 piece"
+      ]
+    },
+    {
+      "id": "entertainment_live_acoustic",
+      "section": "entertainment",
+      "label": "Live Acoustic",
+      "multiplier": "hours",
+      "aliases": [
+        "Live Acoustic"
+      ]
+    },
+    {
+      "id": "entertainment_steel_band",
+      "section": "entertainment",
+      "label": "Steel Band",
+      "multiplier": "hours",
+      "aliases": [
+        "Steel Band"
+      ]
+    },
+    {
+      "id": "entertainment_jazz_duo",
+      "section": "entertainment",
+      "label": "Jazz Duo",
+      "multiplier": "hours",
+      "aliases": [
+        "Jazz Duo"
+      ]
+    },
+    {
+      "id": "entertainment_piano_ben",
+      "section": "entertainment",
+      "label": "Piano Ben",
+      "multiplier": "hours",
+      "aliases": [
+        "Piano Ben"
+      ]
+    },
+    {
+      "id": "entertainment_saxophonist",
+      "section": "entertainment",
+      "label": "Saxophonist",
+      "multiplier": "hours",
+      "aliases": [
+        "Saxophonist"
+      ]
+    },
+    {
+      "id": "entertainment_piano_bingo",
+      "section": "entertainment",
+      "label": "Piano Bingo",
+      "multiplier": "hours",
+      "aliases": [
+        "Piano Bingo"
+      ]
+    },
+    {
+      "id": "entertainment_karaoke",
+      "section": "entertainment",
+      "label": "Karaoke",
+      "multiplier": "hours",
+      "aliases": [
+        "Karaoke"
+      ]
+    },
+    {
+      "id": "entertainment_magician",
+      "section": "entertainment",
+      "label": "Magician",
+      "multiplier": "hours",
+      "aliases": [
+        "Magician"
+      ]
+    },
+    {
+      "id": "entertainment_tour_guide",
+      "section": "entertainment",
+      "label": "Tour Guide",
+      "multiplier": "hours",
+      "aliases": [
+        "Tour Guide"
+      ]
+    },
+    {
+      "id": "entertainment_team_building_activities_with_performance_coach",
+      "section": "entertainment",
+      "label": "Team building activities with performance coach",
+      "multiplier": "hours",
+      "aliases": [
+        "Team building activities with performance coach",
+        "TEAM BUILDING"
+      ]
+    },
+    {
+      "id": "entertainment_casino_table_with_croupier_x_1",
+      "section": "entertainment",
+      "label": "Casino table with croupier - x 1",
+      "multiplier": "hours",
+      "aliases": [
+        "Casino table with croupier - x 1",
+        "CASINO TABLE"
+      ],
+      "proposalWording": "Casino table with professional croupier"
+    },
+    {
+      "id": "entertainment_casino_table_with_croupier_x_2",
+      "section": "entertainment",
+      "label": "Casino table with croupier - x 2",
+      "multiplier": "hours",
+      "aliases": [
+        "Casino table with croupier - x 2",
+        "CASINO TABLE x 2"
+      ],
+      "proposalWording": "Two casino tables with professional croupiers"
+    },
+    {
+      "id": "entertainment_photobooth",
+      "section": "entertainment",
+      "label": "Photobooth",
+      "multiplier": "hours",
+      "aliases": [
+        "Photobooth",
+        "PHOTO BOOTH"
+      ],
+      "proposalWording": "Interactive photobooth experience for your guests"
+    },
+    {
+      "id": "entertainment_chocolate_fountain",
+      "section": "entertainment",
+      "label": "Chocolate fountain",
+      "multiplier": "hours",
+      "aliases": [
+        "Chocolate fountain"
+      ]
+    },
+    {
+      "id": "entertainment_dessert_treat_table_combination_of_sweet_and_dessert_treats",
+      "section": "entertainment",
+      "label": "Dessert Treat Table (Combination of sweet and dessert treats)",
+      "multiplier": "hours",
+      "aliases": [
+        "Dessert Treat Table (Combination of sweet and dessert treats)"
+      ]
+    },
+    {
+      "id": "entertainment_wine_tasting",
+      "section": "entertainment",
+      "label": "Wine Tasting",
+      "multiplier": "hours",
+      "aliases": [
+        "Wine Tasting"
+      ]
+    },
+    {
+      "id": "decor_astro_turf",
+      "section": "decor",
+      "label": "Astro Turf",
+      "multiplier": "hours",
+      "aliases": [
+        "Astro Turf"
+      ]
+    },
+    {
+      "id": "decor_rattan_set_7_seater_with_coffee_table",
+      "section": "decor",
+      "label": "Rattan Set - 7 seater with coffee table",
+      "multiplier": "hours",
+      "aliases": [
+        "Rattan Set - 7 seater with coffee table"
+      ]
+    },
+    {
+      "id": "decor_red_carpet_4m",
+      "section": "decor",
+      "label": "Red Carpet 4m",
+      "multiplier": "hours",
+      "aliases": [
+        "Red Carpet 4m"
+      ]
+    },
+    {
+      "id": "decor_red_carpet_6m",
+      "section": "decor",
+      "label": "Red Carpet 6m",
+      "multiplier": "hours",
+      "aliases": [
+        "Red Carpet 6m"
+      ]
+    },
+    {
+      "id": "decor_bean_bags_x_4",
+      "section": "decor",
+      "label": "Bean Bags x 4",
+      "multiplier": "hours",
+      "aliases": [
+        "Bean Bags x 4"
+      ]
+    },
+    {
+      "id": "decor_roll_up_banner_x_1",
+      "section": "decor",
+      "label": "Roll Up Banner x 1",
+      "multiplier": "hours",
+      "aliases": [
+        "Roll Up Banner x 1"
+      ]
+    },
+    {
+      "id": "decor_branded_backdrop_banner",
+      "section": "decor",
+      "label": "Branded Backdrop Banner",
+      "multiplier": "hours",
+      "aliases": [
+        "Branded Backdrop Banner"
+      ]
+    },
+    {
+      "id": "decor_welcome_board",
+      "section": "decor",
+      "label": "Welcome Board",
+      "multiplier": "hours",
+      "aliases": [
+        "Welcome Board"
+      ]
+    },
+    {
+      "id": "decor_tv_50",
+      "section": "decor",
+      "label": "TV - 50\"",
+      "multiplier": "hours",
+      "aliases": [
+        "TV - 50\""
+      ]
+    },
+    {
+      "id": "decor_tv_55",
+      "section": "decor",
+      "label": "TV - 55\"",
+      "multiplier": "hours",
+      "aliases": [
+        "TV - 55\"",
+        "TV"
+      ]
+    },
+    {
+      "id": "decor_tv_65",
+      "section": "decor",
+      "label": "TV - 65\"",
+      "multiplier": "hours",
+      "aliases": [
+        "TV - 65\""
+      ]
+    },
+    {
+      "id": "decor_projector_and_screen_with_pa",
+      "section": "decor",
+      "label": "Projector and Screen with PA",
+      "multiplier": "hours",
+      "aliases": [
+        "Projector and Screen with PA"
+      ]
+    },
+    {
+      "id": "decor_stationary_pens_paper",
+      "section": "decor",
+      "label": "Stationary (Pens/Paper)",
+      "multiplier": "hours",
+      "aliases": [
+        "Stationary (Pens/Paper)"
+      ]
+    },
+    {
+      "id": "decor_white_board",
+      "section": "decor",
+      "label": "White Board",
+      "multiplier": "hours",
+      "aliases": [
+        "White Board"
+      ]
+    },
+    {
+      "id": "decor_boat_flag",
+      "section": "decor",
+      "label": "Boat Flag",
+      "multiplier": "hours",
+      "aliases": [
+        "Boat Flag"
+      ]
+    },
+    {
+      "id": "decor_bunting",
+      "section": "decor",
+      "label": "Bunting",
+      "multiplier": "hours",
+      "aliases": [
+        "Bunting"
+      ]
+    },
+    {
+      "id": "decor_flower_plant_wall",
+      "section": "decor",
+      "label": "Flower/Plant Wall",
+      "multiplier": "hours",
+      "aliases": [
+        "Flower/Plant Wall"
+      ]
+    },
+    {
+      "id": "decor_onboard_wifi",
+      "section": "decor",
+      "label": "Onboard WiFi",
+      "multiplier": "hours",
+      "aliases": [
+        "Onboard WiFi"
+      ]
+    },
+    {
+      "id": "decor_table_flowers_or_xmas_centrepiece_corporate_special",
+      "section": "decor_table",
+      "label": "Flowers or Xmas Centrepiece - Corporate/Special",
+      "multiplier": "tables",
+      "aliases": [
+        "Flowers or Xmas Centrepiece - Corporate/Special"
+      ]
+    },
+    {
+      "id": "decor_table_flowers_wedding",
+      "section": "decor_table",
+      "label": "Flowers - Wedding",
+      "multiplier": "tables",
+      "aliases": [
+        "Flowers - Wedding"
+      ]
+    },
+    {
+      "id": "decor_table_festive_crackers",
+      "section": "decor_table",
+      "label": "Festive Crackers",
+      "multiplier": "guests",
+      "aliases": [
+        "Festive Crackers"
+      ]
+    },
+    {
+      "id": "decor_table_table_linen_runner",
+      "section": "decor_table",
+      "label": "Table Linen & Runner",
+      "multiplier": "tables",
+      "aliases": [
+        "Table Linen & Runner"
+      ]
+    },
+    {
+      "id": "decor_table_event_decor_add_to_every_quote",
+      "section": "decor_table",
+      "label": "Event Decor (Add to every quote)",
+      "multiplier": "tables",
+      "aliases": [
+        "Event Decor (Add to every quote)"
+      ],
+      "defaultOn": true
+    },
+    {
+      "id": "decor_table_disposable_tableware_add_to_street_food_quotes_only",
+      "section": "decor_table",
+      "label": "Disposable tableware (Add to street food quotes ONLY)",
+      "multiplier": "tables",
+      "aliases": [
+        "Disposable tableware (Add to street food quotes ONLY)"
+      ],
+      "autoWithMenu": "street food"
+    },
+    {
+      "id": "in_house_project_management_corporate_special",
+      "section": "in_house",
+      "label": "Project Management - Corporate/Special",
+      "multiplier": "set",
+      "aliases": [
+        "Project Management - Corporate/Special"
+      ]
+    },
+    {
+      "id": "in_house_project_management_wedding",
+      "section": "in_house",
+      "label": "Project Management - Wedding",
+      "multiplier": "set",
+      "aliases": [
+        "Project Management - Wedding"
+      ]
+    },
+    {
+      "id": "in_house_pier_coordinator",
+      "section": "in_house",
+      "label": "Pier Coordinator",
+      "multiplier": "set",
+      "aliases": [
+        "Pier Coordinator"
+      ]
+    },
+    {
+      "id": "in_house_unit_management_packing_team",
+      "section": "in_house",
+      "label": "Unit Management (Packing team)",
+      "multiplier": "set",
+      "aliases": [
+        "Unit Management (Packing team)"
+      ]
+    },
+    {
+      "id": "staff_event_manager_in_house_member_of_team",
+      "section": "staff",
+      "label": "Event Manager (In house member of team)",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Event Manager (In house member of team)"
+      ]
+    },
+    {
+      "id": "staff_event_coordinator_in_house_member_of_team",
+      "section": "staff",
+      "label": "Event Coordinator (In house member of team)",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Event Coordinator (In house member of team)"
+      ]
+    },
+    {
+      "id": "staff_event_assistant_x_1",
+      "section": "staff",
+      "label": "Event Assistant x 1",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Event Assistant x 1"
+      ]
+    },
+    {
+      "id": "staff_event_assistants_x_2",
+      "section": "staff",
+      "label": "Event Assistants x 2",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Event Assistants x 2"
+      ]
+    },
+    {
+      "id": "staff_wp_runner",
+      "section": "staff",
+      "label": "WP Runner",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "WP Runner"
+      ]
+    },
+    {
+      "id": "staff_wild_catering_assistant",
+      "section": "staff",
+      "label": "Wild Catering Assistant",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Wild Catering Assistant"
+      ]
+    },
+    {
+      "id": "staff_head_chef_x_1",
+      "section": "staff",
+      "label": "Head Chef x 1",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Head Chef x 1"
+      ]
+    },
+    {
+      "id": "staff_chef_de_partie",
+      "section": "staff",
+      "label": "Chef De Partie",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Chef De Partie"
+      ]
+    },
+    {
+      "id": "staff_catering_assistant_x_1",
+      "section": "staff",
+      "label": "Catering Assistant x 1",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Catering Assistant x 1"
+      ]
+    },
+    {
+      "id": "staff_catering_assistant_x_2",
+      "section": "staff",
+      "label": "Catering Assistant x 2",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Catering Assistant x 2"
+      ]
+    },
+    {
+      "id": "staff_catering_assistant_x_3",
+      "section": "staff",
+      "label": "Catering Assistant x 3",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Catering Assistant x 3"
+      ]
+    },
+    {
+      "id": "staff_catering_assistant_x_4",
+      "section": "staff",
+      "label": "Catering Assistant x 4",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Catering Assistant x 4"
+      ]
+    },
+    {
+      "id": "staff_photographer_corporate_special",
+      "section": "staff",
+      "label": "Photographer - Corporate/Special",
+      "multiplier": "hours",
+      "aliases": [
+        "Photographer - Corporate/Special"
+      ]
+    },
+    {
+      "id": "staff_photographer_wedding",
+      "section": "staff",
+      "label": "Photographer - Wedding",
+      "multiplier": "hours",
+      "aliases": [
+        "Photographer - Wedding"
+      ]
+    },
+    {
+      "id": "staff_videographer",
+      "section": "staff",
+      "label": "Videographer",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Videographer"
+      ]
+    },
+    {
+      "id": "staff_security_x_1",
+      "section": "staff",
+      "label": "Security x 1",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Security x 1"
+      ]
+    },
+    {
+      "id": "staff_contigency_staff",
+      "section": "staff",
+      "label": "CONTIGENCY STAFF",
+      "multiplier": "hours",
+      "aliases": [
+        "CONTIGENCY STAFF"
+      ]
+    },
+    {
+      "id": "staff_additional_chefs_x_2_for_all_seated_dinners",
+      "section": "staff",
+      "label": "Additional Chefs x 2 (for all seated dinners)",
+      "multiplier": "staff_hours",
+      "aliases": [
+        "Additional Chefs x 2 (for all seated dinners)"
+      ],
+      "autoWithMenu": "seated dinner|2csd|3csd|fine dining"
+    },
+    {
+      "id": "other_van_courier",
+      "section": "other",
+      "label": "Van Courier",
+      "multiplier": "set",
+      "aliases": [
+        "Van Courier"
+      ]
+    },
+    {
+      "id": "other_staff_taxi_or_train_cost",
+      "section": "other",
+      "label": "Staff Taxi or Train Cost",
+      "multiplier": "set",
+      "aliases": [
+        "Staff Taxi or Train Cost"
+      ]
+    },
+    {
+      "id": "other_additional_pier_stop_x_1",
+      "section": "other",
+      "label": "Additional Pier Stop - x 1",
+      "multiplier": "set",
+      "aliases": [
+        "Additional Pier Stop - x 1"
+      ]
+    },
+    {
+      "id": "other_embark_and_disembark",
+      "section": "other",
+      "label": "Embark and Disembark",
+      "multiplier": "set",
+      "aliases": [
+        "Embark and Disembark"
+      ]
+    },
+    {
+      "id": "other_pack_down_fee",
+      "section": "other",
+      "label": "Pack Down Fee",
+      "multiplier": "set",
+      "aliases": [
+        "Pack Down Fee"
+      ]
+    },
+    {
+      "id": "other_stationary",
+      "section": "other",
+      "label": "Stationary",
+      "multiplier": "set",
+      "aliases": [
+        "Stationary"
+      ],
+      "proposalWording": "Personalised digital invitation and on-board stationery suite"
+    },
+    {
+      "id": "other_welcome_and_thank_you_pack",
+      "section": "other",
+      "label": "Welcome and Thank You Pack",
+      "multiplier": "set",
+      "aliases": [
+        "Welcome and Thank You Pack"
+      ],
+      "proposalWording": "Welcome and thank-you guest packs on arrival and departure"
+    },
+    {
+      "id": "other_graphic_work_design_print_gift_vouchers",
+      "section": "other",
+      "label": "Graphic Work (Design & Print) + Gift Vouchers",
+      "multiplier": "set",
+      "aliases": [
+        "Graphic Work (Design & Print) + Gift Vouchers"
+      ],
+      "proposalWording": "Bespoke graphic design, print, and gift vouchers"
+    },
+    {
+      "id": "financial_financial_admin_fee_carly",
+      "section": "financial",
+      "label": "Financial Admin Fee - Carly",
+      "multiplier": "set",
+      "aliases": [
+        "Financial Admin Fee - Carly"
+      ]
+    },
+    {
+      "id": "financial_financial_admin_fee_shilen",
+      "section": "financial",
+      "label": "Financial Admin Fee - Shilen",
+      "multiplier": "set",
+      "aliases": [
+        "Financial Admin Fee - Shilen"
+      ]
+    }
+  ],
+  "vesselAliases": {
+    "WEOTT I (Rose)": "London Rose",
+    "London Rose (WEOTT I)": "London Rose",
+    "London Rose": "London Rose",
+    "WEOTT II (Avontuur)": "Avontuur",
+    "Avontuur": "Avontuur",
+    "WEOTT III (Golden Sal)": "Golden Salamander",
+    "Golden Salamander": "Golden Salamander",
+    "WEOTT IV (Vaulla)": "Alternative Vessel",
+    "WEOTT IV (Valulla)": "Alternative Vessel",
+    "WEOTT V (Dixie)": "Dixie Queen",
+    "Dixie Queen": "Dixie Queen",
+    "WEOTT VI (Elizabethan)": "Elizabethan",
+    "Elizabethan": "Elizabethan",
+    "WEOTT VII (Edwardian)": "Edwardian",
+    "Edwardian": "Edwardian",
+    "WEOTT Limo III (Bourne)": "Thames Limo",
+    "Thames Limo (WEOTT Limo)": "Thames Limo",
+    "Thames Limo": "Thames Limo",
+    "Erasmus": "Erasmus"
+  },
+  "menuAliases": {
+    "Charcuterie Cups": "Charcuterie Cups (All Seasons)",
+    "Charcuterie Cups (All Seasons)": "Charcuterie Cups (All Seasons)",
+    "Canapes": "Canapes (All Seasons)",
+    "Canapes (All Seasons)": "Canapes (All Seasons)",
+    "Street Food": "Street Food Station (All Seasons)",
+    "Street Food Station": "Street Food Station (All Seasons)",
+    "Street Food Station (All Seasons)": "Street Food Station (All Seasons)",
+    "Substantial Canapes": "Substantial Canapes (All Sesons)",
+    "Substantial Canapes (All Seasons)": "Substantial Canapes (All Sesons)",
+    "Substantial Canapes (All Sesons)": "Substantial Canapes (All Sesons)",
+    "Bowl Food": "Bowl Food (All Seasons)",
+    "Bowl Food (All Seasons)": "Bowl Food (All Seasons)",
+    "Continental Breakfast": "Continental Breakfast",
+    "Charcuterie Station": "Charcuterie Station (All Seasons)",
+    "Charcuterie Station (All Seasons)": "Charcuterie Station (All Seasons)",
+    "Brunch": "Brunch/Or English Breakfast",
+    "Brunch / English Breakfast": "Brunch/Or English Breakfast",
+    "Brunch/Or English Breakfast": "Brunch/Or English Breakfast",
+    "Afternoon Tea": "Afternoon Tea",
+    "Burger Station": "Burger Station",
+    "Light Bites": "Light Bites (All Season)",
+    "Light Bites (All Seasons)": "Light Bites (All Season)",
+    "Light Bites (All Season)": "Light Bites (All Season)",
+    "Barbecue": "Barbecue",
+    "Summer Barbecue": "Barbecue",
+    "Traditional Pie Station": "Traditional Pie Station",
+    "Hot Fork Buffet": "Hot Fork Buffet (All Seasons)",
+    "Hot Fork Buffet (All Seasons)": "Hot Fork Buffet (All Seasons)",
+    "2-Course Seated Dinner": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+    "Two Course Seated Dinner": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+    "Two Course Seated Dinner - Main & Dessert (All Seasons)": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+    "Two Course Seated Dinner - Starter & Main (All Seasons)": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+    "Three Course Seated Dinner": "Three Course Seated Dinner (All Seasons)",
+    "Three Course Seated Dinner (All Seasons)": "Three Course Seated Dinner (All Seasons)"
+  },
+  "upgradeToLineLabel": {
+    "Live DJ": "DJ (now need to pair with the above item)",
+    "Saxophonist": "Saxophonist",
+    "Karaoke": "Karaoke",
+    "Photo Booth": "Photobooth",
+    "Close-up Magician": "Magician",
+    "Acoustic Artist": "Live Acoustic",
+    "Jazz and Sax Duo": "Jazz Duo",
+    "Casino Table with Croupier": "Casino table with croupier - x 1",
+    "Mingling Tour Guide": "Tour Guide",
+    "Branded Vessel Flag": "Boat Flag",
+    "Bespoke Logo Bunting": "Bunting",
+    "Unlimited Drinks (4 hrs)": "Unlimited Drinks",
+    "Drink Tokens": "Drink tokens - x 2"
+  },
+  "noteAliases": {
+    "HFB": "Hot Fork Buffet (All Seasons)",
+    "3CSD": "Three Course Seated Dinner (All Seasons)",
+    "2CSD": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+    "SUB CANS": "Substantial Canapes (All Sesons)",
+    "CANAPES": "Canapes (All Seasons)",
+    "STREET FOOD": "Street Food Station (All Seasons)",
+    "BOWL FOOD": "Bowl Food (All Seasons)",
+    "BBQ": "Barbecue",
+    "CHARCUTERIE CUPS": "Charcuterie Cups (All Seasons)",
+    "CHARCUTERIE STATION": "Charcuterie Station (All Seasons)",
+    "BURGER STATION": "Burger Station",
+    "BG MUSIC": "Background Music/Sound Equipment Hire",
+    "COCKTAIL RECEPTION": "Cocktail Reception (1 x glass per guest)",
+    "CASINO TABLE x 2": "Casino table with croupier - x 2",
+    "CASINO TABLE": "Casino table with croupier - x 1",
+    "PHOTO BOOTH": "Photobooth",
+    "TV": "TV - 55\"",
+    "TEAM BUILDING": "Team building activities with performance coach",
+    "DRINK TOKENS x 3": "Drink tokens - x 3",
+    "DRINK TOKENS x 2": "Drink tokens - x 2"
+  }
+}

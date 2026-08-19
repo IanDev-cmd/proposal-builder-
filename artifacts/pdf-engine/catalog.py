@@ -103,7 +103,7 @@ class TemplateCatalog:
                 n = int(str(guests).strip())
                 slot = "above_12" if n >= 12 else "below_12"
             except (TypeError, ValueError):
-                slot = "above_12"
+                slot = None
 
         if template_id and template_id in self.by_id:
             return self._result(self.by_id[template_id], matched_by="template_id")

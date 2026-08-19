@@ -1,0 +1,118 @@
+{
+  "name": "WEOTT Nexus — Prefill Healer (Google Gemini Free)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PrefillHealer",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "pf-webhook",
+      "name": "PrefillHealer Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "prefill-healer-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst notes = String(body.notes || body.progressNotes || '').slice(0, 8000);\nif (!notes.trim()) {\n  return [{ json: {\n    matches: [],\n    model: 'none',\n    failureEvent: { type: 'FailureEvent', source: 'PrefillHealer', reason: 'empty notes', httpStatus: 400 }\n  } }];\n}\nconst taxonomy = body.taxonomy || {};\nconst lines = Array.isArray(taxonomy.lines) ? taxonomy.lines : [];\nconst aliases = lines.flatMap((l) => (l.aliases || [l.label]).map((a) => `${a} => ${l.label} [${l.id}]`)).slice(0, 400);\nconst prompt = [\n  'You are the WEOTT Nexus catalogue matcher.',\n  'Match CRM progress notes to canonical Cost Mother catalogue labels.',\n  'Return ONLY JSON: {\"matches\":[{\"field\":\"menuType|lineLabel|vesselType\",\"value\":\"exact catalogue label or id\",\"confidence\":0-1,\"evidence_span\":\"short quote from notes\"}]}',\n  'Never invent a label that is not in the catalogue list.',\n  'confidence < 0.75 if the token is ambiguous (TV/MIC/AWARDS, generic RECEPTION).',\n  'CATALOGUE:',\n  aliases.join('\\n'),\n  'NOTES:',\n  notes\n].join('\\n');\nreturn [{ json: { notes, prompt, ok: true } }];"
+      },
+      "id": "pf-prep",
+      "name": "Prepare Prefill Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": { "temperature": 0.1, "maxOutputTokens": 2048 }
+      },
+      "id": "pf-gemini",
+      "name": "Google Gemini Chat Model (Free Tier)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [480, 200],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GOOGLE_GEMINI_FREE_TIER",
+          "name": "Google Gemini (Free Tier)"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API free tier. Bind googlePalmApi credential after import."
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"matches\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"field\": { \"type\": \"string\" },\n          \"value\": { \"type\": \"string\" },\n          \"confidence\": { \"type\": \"number\" },\n          \"evidence_span\": { \"type\": \"string\" }\n        }\n      }\n    }\n  }\n}"
+      },
+      "id": "pf-parser",
+      "name": "Prefill Structured Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "pf-chain",
+      "name": "Gemini Prefill Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $json;\nconst matches = Array.isArray(parsed.matches) ? parsed.matches : (parsed.output?.matches || []);\nreturn [{ json: {\n  matches: matches.map((m) => ({\n    field: String(m.field || ''),\n    value: String(m.value || ''),\n    confidence: Math.max(0, Math.min(1, Number(m.confidence) || 0)),\n    evidence_span: String(m.evidence_span || '')\n  })),\n  model: 'n8n Google Gemini Chat Model / models/gemini-2.0-flash (Free Tier)'\n} }];"
+      },
+      "id": "pf-norm",
+      "name": "Normalize Prefill Matches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "pf-respond",
+      "name": "Respond Prefill",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [960, 0]
+    }
+  ],
+  "connections": {
+    "PrefillHealer Webhook": {
+      "main": [[{ "node": "Prepare Prefill Prompt", "type": "main", "index": 0 }]]
+    },
+    "Prepare Prefill Prompt": {
+      "main": [[{ "node": "Gemini Prefill Chain", "type": "main", "index": 0 }]]
+    },
+    "Google Gemini Chat Model (Free Tier)": {
+      "ai_languageModel": [[{ "node": "Gemini Prefill Chain", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Prefill Structured Parser": {
+      "ai_outputParser": [[{ "node": "Gemini Prefill Chain", "type": "ai_outputParser", "index": 0 }]]
+    },
+    "Gemini Prefill Chain": {
+      "main": [[{ "node": "Normalize Prefill Matches", "type": "main", "index": 0 }]]
+    },
+    "Normalize Prefill Matches": {
+      "main": [[{ "node": "Respond Prefill", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "weott-nexus-gemini-prefill-healer"
+  }
+}

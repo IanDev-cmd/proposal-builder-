@@ -6,9 +6,29 @@ export function collectPrefillConfirmKeys(opts: {
   confirmedKeys: Set<string>;
   requiresInserts: boolean;
   selectedInserts: string[];
+  lowConfidenceKeys?: Set<string>;
+  ambiguousFields?: Set<string>;
 }): string[] {
   const pending: string[] = [];
-  const { prefilledKeys, confirmedKeys, requiresInserts, selectedInserts } = opts;
+  const {
+    prefilledKeys,
+    confirmedKeys,
+    requiresInserts,
+    selectedInserts,
+    lowConfidenceKeys,
+    ambiguousFields,
+  } = opts;
+
+  if (lowConfidenceKeys) {
+    for (const key of lowConfidenceKeys) {
+      if (prefilledKeys.has(key) && !confirmedKeys.has(key)) pending.push(key);
+    }
+  }
+  if (ambiguousFields) {
+    for (const key of ambiguousFields) {
+      if (!confirmedKeys.has(key)) pending.push(key);
+    }
+  }
 
   if (prefilledKeys.has('templateId') && !confirmedKeys.has('templateId')) {
     pending.push('templateId');

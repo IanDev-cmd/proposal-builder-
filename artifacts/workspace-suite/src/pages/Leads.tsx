@@ -18,15 +18,13 @@ import {
 } from '@/lib/leadCache';
 import { N8N_BASE } from '@/lib/backendUrls';
 import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
-import { parseGuestCount } from '@/lib/parseGuestCount';
+import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
 import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
 import { toastError } from '@/lib/notify';
 import { errorMessage } from '@/lib/errors';
+import { parseLeadDataFetch } from '@/lib/contracts';
 
 const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
-
-/** n8n aliased leads preferred; raw sheet rows accepted as legacy fallback. */
-type AnyLeadRow = Record<string, unknown>;
 
 function toInitials(name: string): string {
   return name
@@ -45,7 +43,7 @@ function toInitials(name: string): string {
  * ("Live/Dead/ Blacklisted/Booked"), NOT the CRM Status column
  * (e.g. "Ongoing (No Decision made yet)").
  */
-function mapRaw(raw: AnyLeadRow, index: number): Lead {
+function mapRaw(raw: Record<string, unknown>, index: number): Lead {
   const name = aliasFirst(raw, 'name', 'Name') || '—';
   const email = aliasFirst(raw, 'email', 'Main Contact - Email') || '—';
   const ref = aliasFirst(raw, 'referenceNumber', 'Client Reference Number', 'code') || `#${index + 1}`;
@@ -62,10 +60,11 @@ function mapRaw(raw: AnyLeadRow, index: number): Lead {
   const preparedBy = aliasFirst(raw, 'preparedBy', 'Client Relationship Representative');
   const assignedRep = aliasFirst(raw, 'assignedRep') || preparedBy;
   const groupSize = aliasFirst(raw, 'groupSize', 'Group Size');
-  const groupSizeQuote = parseGuestCount({
+  const groupParsed = parseGuestCountDetailed({
     groupSizeQuote: raw.groupSizeQuote as number | string | null | undefined,
     groupSize,
   });
+  const groupSizeQuote = groupParsed.ambiguous ? '' : groupParsed.value;
   const flexRaw = aliasFirst(raw, 'eventDateFlexible', 'Event Date - Flexible');
   const flexBool =
     raw.eventDateFlexibleBool === true ||
@@ -151,20 +150,25 @@ async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
     );
   }
   if (!res.ok) throw new Error(`LeadDataFetch failed (${res.status})`);
+  const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
+  if (contentType && !contentType.includes('application/json') && !contentType.includes('+json') && !contentType.includes('text/plain')) {
+    throw new Error(`LeadDataFetch returned ${contentType}; expected application/json.`);
+  }
   const text = await res.text();
   if (!text.trim()) {
     throw new Error(
       'LeadDataFetch returned an empty body (n8n Respond Leads must JSON.stringify the payload).',
     );
   }
-  let data: { leads?: AnyLeadRow[] };
+  let data: unknown;
   try {
-    data = JSON.parse(text) as { leads?: AnyLeadRow[] };
+    data = JSON.parse(text);
   } catch {
     throw new Error('LeadDataFetch returned invalid JSON');
   }
-  const rows: AnyLeadRow[] = Array.isArray(data?.leads) ? data.leads : [];
-  if (rows.length) return rows.map(mapRaw);
+  const parsed = parseLeadDataFetch(data);
+  const rows = parsed.leads;
+  if (rows.length) return rows.map((row, i) => mapRaw(row as Record<string, unknown>, i));
   // Demo workbook has no Enquiry rows — ship gold scenarios so Quote Builder is usable.
   if (mode === 'demo') return DEMO_LEAD_ROWS.map(mapRaw);
   return [];
@@ -181,6 +185,7 @@ export function Leads() {
     readLeadsCache(getSheetsMode())?.leads?.length ? 'ok' : 'loading',
   );
   const [syncing, setSyncing] = useState(false);
+  const [stale, setStale] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(
     () => readLeadsCache(getSheetsMode())?.fetchedAt ?? null,
   );
@@ -223,6 +228,7 @@ export function Leads() {
       writeLeadsCache(data, currentMode);
       setLastSyncedAt(Date.now());
       setStatus('ok');
+      setStale(false);
     } catch (err) {
       if (ac.signal.aborted) return;
       if (currentMode === 'demo' && !hasRowsRef.current) {
@@ -231,6 +237,7 @@ export function Leads() {
         writeLeadsCache(demo, currentMode);
         setLastSyncedAt(Date.now());
         setStatus('ok');
+        setStale(false);
       } else if (!hasRowsRef.current && !readLeadsCache(currentMode)?.leads?.length) {
         setStatus('error');
         toastError({
@@ -238,13 +245,8 @@ export function Leads() {
           title: 'Could not load leads',
           description: errorMessage(err, 'Check n8n connection and try again.'),
         });
-      } else if (silent) {
-        toastError({
-          key: 'leads-refresh',
-          title: 'Lead refresh failed',
-          description: 'Showing cached data. Will retry automatically.',
-          err,
-        });
+      } else {
+        setStale(true);
       }
       console.warn('[leads] refresh failed', err);
     } finally {
@@ -377,6 +379,15 @@ export function Leads() {
             </div>
           </div>
         </div>
+
+        </div>
+
+        {stale && leads.length > 0 ? (
+          <div className="mx-8 mt-2 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] text-amber-800">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            Showing cached leads — last refresh failed. Data may be stale.
+          </div>
+        ) : null}
 
         <div className="flex border-b border-black/8 bg-white px-8 shrink-0">
           {TABS.map((tab, i) => {
