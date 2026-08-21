@@ -137,7 +137,7 @@ export function QuoteCostLines({
         }
 
         const lines = linesForSection(sec.id as QuoteSectionId);
-        const secTotal = breakdown.sectionTotals[sec.id] || 0;
+        const secTotal = money(breakdown.sectionTotals[sec.id] || 0);
         const selectedCount = lines.filter((l) => selected.has(l.id)).length;
         const isOpen = open[sec.id];
         return (

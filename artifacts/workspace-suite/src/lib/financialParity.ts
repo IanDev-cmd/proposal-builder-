@@ -9,6 +9,7 @@ import {
   VAT_RATE,
   type QuoteFormInput,
 } from '@/lib/quoteFinance';
+import { cateringSectionMatchesSelectedLines } from '@/lib/cateringTotalParity';
 import type { SheetFinancialColumns } from '@/lib/progressNotesFinance';
 import { normalizeBespokeLines } from '@/lib/bespokeLines';
 
@@ -221,13 +222,14 @@ export function verifyAllGoldFinancials(): GoldVerifyResult[] {
     const fin = calcFinancials(form);
     const delta = money(fin.baseCost - sc.goldQuoteWeottCost);
     const derived = clientTotalsFromWeott(sc.goldQuoteWeottCost, sc.marginPercent);
+    const catering = cateringSectionMatchesSelectedLines(form);
     return {
       id,
       label: sc.label,
       expectedWeott: sc.goldQuoteWeottCost,
       actualWeott: fin.baseCost,
       delta,
-      ok: Math.abs(delta) <= FINANCIAL_TOLERANCE,
+      ok: Math.abs(delta) <= FINANCIAL_TOLERANCE && catering.ok,
       expectedGrand: derived.grand,
       actualGrand: fin.grand,
       grandOk: Math.abs(fin.grand - derived.grand) <= FINANCIAL_TOLERANCE,

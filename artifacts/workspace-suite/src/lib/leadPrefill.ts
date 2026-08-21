@@ -7,8 +7,8 @@ import {
   QUOTE_LINES,
   CATALOGUE_TAXONOMY,
   defaultSelectedLineIds,
-  buildPackageWordingNotes,
   findLineByAlias,
+  tablesForVessel,
 } from '@/lib/quoteBuilderCatalog';
 import { lookupMinMargin } from '@/lib/costMotherLookup';
 import { REPEAT_CLIENT_MARGIN, NEW_CLIENT_MARGIN } from '@/lib/quoteFinance';
@@ -23,7 +23,7 @@ import {
 } from '@/lib/progressNotesFinance';
 import { applyGoldScenarioPlaybook, goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { buildRateParts } from '@/lib/costMotherLookup';
-import { buildItineraryProposalText } from '@/lib/proposalTimings';
+import { buildItineraryProposalText, embarkationFromDeparture } from '@/lib/proposalTimings';
 
 export const PREFILL_INPUT_CLS =
   'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
@@ -69,7 +69,6 @@ const MENU_CODE_RULES: { re: RegExp; menu: string }[] = [
 /** Progress-note tokens → Cost Mother line labels. Collision tokens are not auto-committed. */
 const NOTE_LINE_RULES: { re: RegExp; label: string }[] = [
   { re: /\bBG\s*MUSIC\b|\bBACKGROUND\s*MUSIC\b/i, label: 'Background Music/Sound Equipment Hire' },
-  { re: /\bCOCKTAIL\s*RECEPTION\b/i, label: 'Cocktail Reception (1 x glass per guest)' },
   {
     re: /\b2\s*x\s*CASINO\b|\bCASINO\s*TABLE.*\bx\s*2\b|\bCASINO\s*TABLES?\s*\(2\b/i,
     label: 'Casino table with croupier - x 2',
@@ -217,26 +216,20 @@ export function parseGuestHigh(groupSize?: string | number | null, guestCount?: 
   return guestCount || '';
 }
 
-function inferTables(guestCount: string): string {
-  const n = parseFloat(guestCount);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  return String(Math.max(1, Math.ceil(n / 8)));
-}
-
-function inferDepartureReturn(embark: string, disembark: string): { departure: string; returnTime: string } {
-  const toMin = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
-    return (h || 0) * 60 + (m || 0);
+function inferDepartureReturn(start: string, finish: string): {
+  embarkation: string;
+  departure: string;
+  returnTime: string;
+  disembarkation: string;
+} {
+  const departure = start || '12:00';
+  const returnTime = finish || '17:00';
+  return {
+    departure,
+    returnTime,
+    disembarkation: finish || returnTime,
+    embarkation: embarkationFromDeparture(departure),
   };
-  const fromMin = (mins: number) => {
-    const h = Math.floor(((mins % 1440) + 1440) % 1440 / 60);
-    const m = ((mins % 60) + 60) % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  };
-  const e = toMin(embark);
-  const d = toMin(disembark);
-  if (d <= e) return { departure: '12:00', returnTime: '17:00' };
-  return { departure: fromMin(e + 30), returnTime: fromMin(d - 30) };
 }
 
 function parseMenusFromNotes(notes: string, quoteVersion?: string): string[] {
@@ -257,7 +250,7 @@ function lineIdsFromLabels(labels: string[]): string[] {
   return ids;
 }
 
-function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): string[] {
+export function parseCostLineLabelsFromNotes(notes: string, quoteVersion?: string): string[] {
   const scope = quoteVersion ? versionBlock(notes, quoteVersion) : notes;
   const labels = new Set<string>();
   for (const [alias, label] of Object.entries(CATALOGUE_TAXONOMY.noteAliases)) {
@@ -433,9 +426,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (guestParsed.ambiguous) ambiguousFields.add('guestCount');
   const guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
-  const embarkation = times.embarkation || String(init.embarkation || '');
-  const disembarkation = times.disembarkation || String(init.disembarkation || '');
-  const schedule = inferDepartureReturn(embarkation, disembarkation);
+  const windowStart = times.embarkation || String(init.departure || '12:00');
+  const windowFinish = times.disembarkation || String(init.returnTime || init.disembarkation || '17:00');
+  const schedule = inferDepartureReturn(windowStart, windowFinish);
+  const embarkation = schedule.embarkation;
+  const disembarkation = schedule.disembarkation;
 
   let vesselType = matchVessels(lead.vessels);
   vesselType = vesselsForVersion(notes, quoteVersion, vesselType);
@@ -452,13 +447,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const goldEarly = goldTargetsFromRef(lead.referenceNumber);
   const goldForm = goldEarly?.form;
   const goldLabels = (goldForm?.costLineLabels as string[]) || [];
-  const lineLabels = goldLabels.length
-    ? goldLabels
-    : parseCostLineLabelsFromNotes(notes, quoteVersion);
-  const inferredIds = lineIdsFromLabels(lineLabels);
   const selectedLineIds = goldLabels.length
     ? lineIdsFromLabels(goldLabels)
-    : [...new Set([...defaultSelectedLineIds(menuType, { wedding }), ...inferredIds])];
+    : defaultSelectedLineIds();
 
   const bespokeLines = [...((init.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
   if (bespoke && bespokeLines[0]) {
@@ -475,6 +466,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     eventDate: rateDate,
     dateFlexible: flex && !rateDate,
     embarkation,
+    departure: schedule.departure,
     guests: guestsN,
   });
 
@@ -487,6 +479,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
       eventDate: rateDate,
       dateFlexible: flex && !rateDate,
       embarkation,
+      departure: schedule.departure,
       guests: guestsN,
     },
     gold
@@ -510,6 +503,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
         eventDate: rateDate,
         dateFlexible: flex && !rateDate,
         embarkation,
+        departure: schedule.departure,
         guests: guestsN,
       })
     : null;
@@ -525,6 +519,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     vesselHint: vesselType[0] || lead.vessels,
     eventDate: rateDate || eventDate,
     embarkation,
+    departure: schedule.departure,
     disembarkation,
     dayPeriod,
     quoteVersion,
@@ -556,10 +551,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     bespokeLines,
     quoteVersion,
     keyItems,
+    initialEnquiry: keyItems,
     progressNotes: notes,
     budget: lead.budget || '',
     proposalCategory,
-    noOfTables: inferTables(guestCount),
+    noOfTables: tablesForVessel(vesselType[0]),
     weeklyPeriod,
     dayPeriod,
     groupBracket,
@@ -573,8 +569,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
       disembarkation,
     }),
     proposalTimingsAuto: true,
-    packageWordingNotes:
-      String(init.packageWordingNotes || '').trim() || buildPackageWordingNotes(selectedLineIds),
+    packageWordingNotes: String(init.packageWordingNotes || ''),
   } as T;
 
   if (source) prefilledKeys.add('source');
@@ -600,7 +595,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (keyItems) prefilledKeys.add('keyItems');
   if (notes) prefilledKeys.add('progressNotes');
   if (lead.budget) prefilledKeys.add('budget');
-  if (inferTables(guestCount)) prefilledKeys.add('noOfTables');
+  if (tablesForVessel(vesselType[0])) prefilledKeys.add('noOfTables');
   if (weeklyPeriod) prefilledKeys.add('weeklyPeriod');
   if (dayPeriod) prefilledKeys.add('dayPeriod');
   if (groupBracket) prefilledKeys.add('groupBracket');
@@ -613,7 +608,6 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     prefilledKeys.add('packageWordingNotes');
   }
 
-  for (const id of inferredIds) prefilledLineIds.add(id);
   if (bespoke || goldForm?.bespokeAmount) prefilledKeys.add('bespokeLines');
 
   const withGold = applyGoldScenarioPlaybook(lead.referenceNumber, data, prefilledKeys);
@@ -643,39 +637,31 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
   const guestCount = guestParsed.ambiguous ? '' : guestParsed.value;
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
   const vessels = vesselsForVersion(notes, quoteVersion, matchVessels(lead.vessels));
-  const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
   const keys: string[] = ['quoteVersion'];
   const patch: Record<string, unknown> = { quoteVersion };
   if (guestCount) {
     patch.guestCount = guestCount;
     patch.guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
-    patch.noOfTables = inferTables(guestCount);
-    keys.push('guestCount', 'guestCountHigh', 'noOfTables');
-  }
-  if (times.embarkation) {
-    patch.embarkation = times.embarkation;
-    keys.push('embarkation');
-  }
-  if (times.disembarkation) {
-    patch.disembarkation = times.disembarkation;
-    keys.push('disembarkation');
-  }
-  if (times.embarkation || times.disembarkation) {
-    const sch = inferDepartureReturn(
-      String(patch.embarkation || current.embarkation || '10:00'),
-      String(patch.disembarkation || current.disembarkation || '18:00'),
-    );
-    patch.departure = sch.departure;
-    patch.returnTime = sch.returnTime;
-    keys.push('departure', 'returnTime');
+    keys.push('guestCount', 'guestCountHigh');
   }
   if (vessels.length) {
     patch.vesselType = vessels;
-    keys.push('vesselType');
+    patch.noOfTables = tablesForVessel(vessels[0]);
+    keys.push('vesselType', 'noOfTables');
+  } else if (!String((current as { noOfTables?: string }).noOfTables || '')) {
+    patch.noOfTables = tablesForVessel(String(((current as { vesselType?: string[] }).vesselType || [])[0] || ''));
+    if (patch.noOfTables) keys.push('noOfTables');
   }
-  if (keyItems) {
-    patch.keyItems = keyItems;
-    keys.push('keyItems');
+  if (times.embarkation || times.disembarkation) {
+    const sch = inferDepartureReturn(
+      String(times.embarkation || current.departure || '12:00'),
+      String(times.disembarkation || current.returnTime || current.disembarkation || '17:00'),
+    );
+    patch.embarkation = sch.embarkation;
+    patch.departure = sch.departure;
+    patch.returnTime = sch.returnTime;
+    patch.disembarkation = sch.disembarkation;
+    keys.push('embarkation', 'departure', 'returnTime', 'disembarkation');
   }
   const merged = { ...current, ...patch } as T;
   const prefilledKeys = new Set(keys);

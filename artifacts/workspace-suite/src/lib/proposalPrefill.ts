@@ -15,6 +15,7 @@ export type ProposalTemplateContext = {
   eventType: string;
   guestCount?: string;
   embarkation?: string;
+  departure?: string;
   disembarkation?: string;
   dayPeriod?: string;
   eventDate?: string;
@@ -207,10 +208,10 @@ function inferEventTypeForTemplate(
   return eventType;
 }
 
-function slotForTemplate(ctx: Pick<ProposalTemplateContext, 'dayPeriod' | 'embarkation' | 'disembarkation' | 'eventType' | 'guestCount'>): string {
+function slotForTemplate(ctx: Pick<ProposalTemplateContext, 'dayPeriod' | 'embarkation' | 'departure' | 'disembarkation' | 'eventType' | 'guestCount'>): string {
   if (ctx.dayPeriod === 'Daytime') return 'daytime';
   if (ctx.dayPeriod === 'Evening') return 'evening';
-  let slot = inferTimeSlot(ctx.embarkation, ctx.disembarkation);
+  let slot = inferTimeSlot(ctx.departure || ctx.embarkation, ctx.disembarkation);
   if ((ctx.eventType || '').toLowerCase().includes('transfer')) {
     const n = parseInt(String(ctx.guestCount || '0').trim(), 10);
     slot = Number.isFinite(n) && n >= 12 ? 'above_12' : 'below_12';
@@ -313,6 +314,7 @@ export function resolveProposalTemplateFromForm(
     eventType: string;
     guestCount?: string;
     embarkation?: string;
+    departure?: string;
     disembarkation?: string;
     dayPeriod?: string;
     eventDate?: string;
@@ -326,6 +328,7 @@ export function resolveProposalTemplateFromForm(
     eventType: data.eventType,
     guestCount: data.guestCount,
     embarkation: data.embarkation,
+    departure: data.departure,
     disembarkation: data.disembarkation,
     dayPeriod: data.dayPeriod,
     eventDate: data.eventDate,
@@ -341,10 +344,11 @@ export function resolveProposalInserts(opts: {
   vesselHint?: string;
   eventDate?: string;
   embarkation?: string;
+  departure?: string;
   disembarkation?: string;
   repName?: string;
 }): { requiresInserts: boolean; selectedInserts: string[] } {
-  const slot = inferTimeSlot(opts.embarkation, opts.disembarkation);
+  const slot = inferTimeSlot(opts.departure || opts.embarkation, opts.disembarkation);
   const season = inferSeason(opts.eventDate, opts.eventType);
   const wedding = opts.category === 'wedding' || /wedding|engagement/i.test(opts.eventType);
   const ctx = {
@@ -398,6 +402,7 @@ export function resolveProposalPack(opts: {
   vesselHint?: string;
   eventDate?: string;
   embarkation?: string;
+  departure?: string;
   disembarkation?: string;
   dayPeriod?: string;
   quoteVersion?: string;
@@ -410,6 +415,7 @@ export function resolveProposalPack(opts: {
     eventType: opts.eventType,
     guestCount: opts.guestCount,
     embarkation: opts.embarkation,
+    departure: opts.departure,
     disembarkation: opts.disembarkation,
     dayPeriod: opts.dayPeriod,
     eventDate: opts.eventDate,

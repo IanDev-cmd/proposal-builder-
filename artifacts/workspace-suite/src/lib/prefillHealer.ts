@@ -115,9 +115,10 @@ export function applyPrefillHealerMatches<T extends Record<string, unknown>>(opt
     if (field === 'lineLabel' && m.confidence >= LOW_CONFIDENCE_THRESHOLD) {
       const line = resolveLine(m.value);
       if (!line) continue;
-      if (opts.tasks.collisionVeto && /TV - 55|Cocktail Reception/i.test(line.label) && m.confidence < 0.9) {
+      if (opts.tasks.collisionVeto && /TV - 55|Cocktail Reception/i.test(line.label)) {
         continue;
       }
+      if (/Cocktail Reception/i.test(line.label)) continue;
       if (!selected.has(line.id)) {
         selected.add(line.id);
         prefilledLineIds.push(line.id);

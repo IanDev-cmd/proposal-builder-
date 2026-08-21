@@ -15,6 +15,7 @@ ENDPOINTS
 import io
 import json
 import os
+import re
 import tempfile
 
 from pathlib import Path
@@ -103,6 +104,21 @@ def inserts_endpoint():
     })
 
 
+def proposal_download_name(payload: dict, report: dict) -> str:
+    lead = payload.get("lead") or {}
+    name = str(lead.get("client_name") or "").strip() or "Contact TBC"
+    company = str(lead.get("organisation") or "").strip()
+    ref = str(lead.get("proposal_ref") or report.get("proposal_ref") or "").strip() or "REF TBC"
+
+    def clean(s: str) -> str:
+        s = re.sub(r'[<>:"/\\|?*]', "", s)
+        return re.sub(r"\s+", " ", s).strip()
+
+    name, company, ref = clean(name), clean(company), clean(ref)
+    who = f"{name} ({company})" if company else name
+    return f"Proposal - {who} - {ref}.pdf"
+
+
 @app.post("/generate")
 def generate():
     payload = request.get_json(force=True, silent=True)
@@ -130,12 +146,11 @@ def generate():
         with open(output_path, "rb") as f:
             pdf_bytes = f.read()
 
-    event_slug = (report.get("event_type") or "proposal").replace(" ", "-")
     response = send_file(
         io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{event_slug}.pdf",
+        download_name=proposal_download_name(payload, report),
     )
     response.headers["X-Warnings"] = json.dumps(report["warnings"])
     response.headers["X-Using-Brand-Font"] = str(report["using_brand_font"])

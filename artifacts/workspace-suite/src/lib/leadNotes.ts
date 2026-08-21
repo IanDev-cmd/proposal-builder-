@@ -177,3 +177,13 @@ export function saveQuoteNotesDraft(leadKey: string, draft: Omit<QuoteNotesDraft
   localStorage.setItem(DRAFT_KEY, JSON.stringify(store));
   return next;
 }
+
+/** Split concatenated Progress 1…N / pipe-joined notes into scannable entries. */
+export function splitProgressNoteEntries(raw: string): string[] {
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  return text
+    .split(/\s*\|\s*|\n{2,}|(?=Progress\s*\d+\s*[:.-])/i)
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}

@@ -18,6 +18,7 @@ import {
 } from '@/lib/leadCache';
 import { N8N_BASE } from '@/lib/backendUrls';
 import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
+import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
 import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
 import { toastError } from '@/lib/notify';
@@ -48,7 +49,7 @@ function mapRaw(raw: Record<string, unknown>, index: number): Lead {
   const email = aliasFirst(raw, 'email', 'Main Contact - Email') || '—';
   const ref = aliasFirst(raw, 'referenceNumber', 'Client Reference Number', 'code') || `#${index + 1}`;
   const designation = aliasFirst(raw, 'jobRole', 'designation', 'Main Contact - Job Role') || '—';
-  const phone = aliasFirst(raw, 'phone', 'Main Contact - Number') || '—';
+  const phone = formatPhoneDisplay(aliasFirst(raw, 'phone', 'Main Contact - Number')) || '—';
   const joined = aliasFirst(raw, 'enquiryDate', 'Enquiry Date', 'joined') || '—';
   const sector = aliasFirst(raw, 'companySector', 'sector', 'Company Sector') || '—';
   const source = aliasFirst(raw, 'source', 'Source') || '—';

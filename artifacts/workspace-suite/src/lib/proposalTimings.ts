@@ -15,18 +15,39 @@ function toMin(t?: string): number | null {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
+function fromMin(mins: number): string {
+  const n = ((mins % 1440) + 1440) % 1440;
+  const h = Math.floor(n / 60);
+  const m = n % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function addMinutesToTime(hhmm: string, delta: number): string {
+  const mins = toMin(hhmm);
+  if (mins == null) return hhmm;
+  return fromMin(mins + delta);
+}
+
+/** Embarkation is always 15 minutes before departure. */
+export function embarkationFromDeparture(departure: string): string {
+  return addMinutesToTime(departure, -15);
+}
+
 function fmtHrs(t?: string): string {
   const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return t || 'TBC';
   return `${String(Number(m[1])).padStart(2, '0')}:${m[2]}hrs`;
 }
 
-/** Event hours embark → disembark (min 1). */
+/**
+ * Billable event hours: departure → finish (return, else disembark).
+ * Never includes the 15-minute embarkation buffer.
+ */
 export function itineraryHours(opts: TimingFields): number {
-  const a = toMin(opts.embarkation);
-  const b = toMin(opts.disembarkation);
-  if (a == null || b == null || b <= a) return 4;
-  return Math.max(1, Math.round(((b - a) / 60) * 100) / 100);
+  const start = toMin(opts.departure) ?? toMin(opts.embarkation);
+  const finish = toMin(opts.returnTime) ?? toMin(opts.disembarkation);
+  if (start == null || finish == null || finish <= start) return 4;
+  return Math.max(1, Math.round(((finish - start) / 60) * 100) / 100);
 }
 
 export function buildItineraryProposalBlock(opts: TimingFields): {
@@ -50,6 +71,20 @@ export function buildItineraryProposalBlock(opts: TimingFields): {
 export function buildItineraryProposalText(opts: TimingFields): string {
   const block = buildItineraryProposalBlock(opts);
   return [block.heading, ...block.items].join('\n');
+}
+
+/** Cover / payload event window: departure → finish. Never the 15-minute embark buffer. */
+export function eventWindowTimes(opts: TimingFields): { start: string; end: string } {
+  return {
+    start: opts.departure || opts.embarkation || '',
+    end: opts.returnTime || opts.disembarkation || '',
+  };
+}
+
+export function formatEventTimingsPayload(opts: TimingFields): string {
+  const { start, end } = eventWindowTimes(opts);
+  if (start && end) return `${start} - ${end}`;
+  return start || end || '';
 }
 
 export function parseItineraryProposalText(text: string): { heading: string; items: string[] } | null {

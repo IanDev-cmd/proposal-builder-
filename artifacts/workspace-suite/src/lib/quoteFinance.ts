@@ -13,10 +13,7 @@
 
 import {
   getQuoteLines,
-  UPGRADE_TO_LINE_LABEL,
   defaultSelectedLineIds,
-  resolveCostMotherMenu,
-  syncExclusivePhotographer,
   type CatalogLine,
 } from '@/lib/quoteBuilderCatalog';
 import {
@@ -27,6 +24,9 @@ import {
 } from '@/lib/costMotherLookup';
 import { formatProposalRef, formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import type { PackageWordingColumns } from '@/lib/goldPackageWording';
+import { formatEventTimingsPayload, itineraryHours } from '@/lib/proposalTimings';
+import { fullStaffName } from '@/lib/staffContacts';
+import { formatPhoneDisplay, staffPhoneSlots } from '@/lib/phoneFormat';
 
 export const CONTINGENCY_RATE = 0.0225;
 export const VAT_RATE = 0.2;
@@ -71,7 +71,7 @@ export type QuoteFormInput = {
   menuType: string[];
   repeatClient: boolean;
   totalCost: string;
-  /** Legacy upgrade labels — merged into selectedLineIds when present. */
+  /** Legacy upgrade labels — display only; ticks on Cost Lines are the cost source. */
   selectedUpgrades: string[];
   agentReferral?: boolean;
   marginOverride?: number | null;
@@ -111,15 +111,11 @@ export function isWeekendOrPeak(eventDate: string, dateFlexible?: boolean): bool
   return day === 0 || day === 5 || day === 6;
 }
 
-/** Hours from embarkation → disembarkation (fallback 4). */
-export function eventHours(data: Pick<QuoteFormInput, 'embarkation' | 'disembarkation'>): number {
-  const toMin = (t: string) => {
-    const [h, m] = (t || '0:0').split(':').map(Number);
-    return (h || 0) * 60 + (m || 0);
-  };
-  const mins = toMin(data.disembarkation) - toMin(data.embarkation);
-  if (!Number.isFinite(mins) || mins <= 0) return 4;
-  return Math.max(1, Math.round((mins / 60) * 100) / 100);
+/** Hours from departure → finish. Never includes the 15-minute embark buffer. */
+export function eventHours(
+  data: Pick<QuoteFormInput, 'embarkation' | 'departure' | 'returnTime' | 'disembarkation'>,
+): number {
+  return itineraryHours(data);
 }
 
 export function money(n: number): number {
@@ -129,28 +125,12 @@ export function money(n: number): number {
 
 export function resolveSelectedLineIds(data: QuoteFormInput): string[] {
   const wedding = /wedding|engagement/i.test(data.eventType || '');
-  const base =
-    data.selectedLineIds && data.selectedLineIds.length
-      ? [...data.selectedLineIds]
-      : defaultSelectedLineIds(data.menuType || [], { wedding });
-
-  const set = new Set(base);
-  // Sync menus → catering lines
-  for (const menu of data.menuType || []) {
-    const cm = resolveCostMotherMenu(menu);
-    if (!cm) continue;
-    const line = getQuoteLines().find((l) => l.section === 'catering' && l.label === cm);
-    if (line) set.add(line.id);
-  }
-  // Legacy upgrades → Cost Mother lines
-  for (const u of data.selectedUpgrades || []) {
-    const label = UPGRADE_TO_LINE_LABEL[u];
-    if (!label) continue;
-    const line = getQuoteLines().find((l) => l.label === label);
-    if (line) set.add(line.id);
-  }
-  // Keep photographer exclusive to event type when one is selected (allow full untick)
-  return syncExclusivePhotographer([...set], wedding);
+  // Honour the UI ticks exactly. Do not add catering menus from menuType — that
+  // made Section 2's header include unchecked lines (walkthrough £2.9k vs £7.7k).
+  const base = Array.isArray(data.selectedLineIds)
+    ? [...data.selectedLineIds]
+    : defaultSelectedLineIds(data.menuType || [], { wedding });
+  return [...new Set(base)];
 }
 
 function multiplierValue(line: CatalogLine, hours: number, guests: number, tables: number): number {
@@ -208,6 +188,7 @@ export function calcSectionLines(data: QuoteFormInput): {
         eventDate: data.eventDate,
         dateFlexible: data.dateFlexible,
         embarkation: data.embarkation,
+        departure: data.departure,
         guests,
       })
     : null;
@@ -463,6 +444,7 @@ export function buildStargtmPayload(opts: {
     name: string;
     title: string;
     phone: string;
+    mobile?: string;
     email: string;
   };
   /** Raw lead full event date (e.g. Wednesday 2nd December 2026) for flexible display. */
@@ -493,16 +475,20 @@ export function buildStargtmPayload(opts: {
     phone: '020 8323 5827',
     email: 'sales@westendonthethames.com',
   };
+  const contactPhones = staffPhoneSlots(contact.phone, contact.mobile);
+  const clientPhones = formatPhoneDisplay(lead?.phone);
 
-  const preparedBy = lead?.preparedBy || lead?.assignedRep || contact.name;
+  const preparedBy = fullStaffName(lead?.preparedBy || lead?.assignedRep || contact.name);
   const nexusOut = {
     ...(nexusLead || lead || {}),
     preparedBy,
     assignedRep: lead?.assignedRep || lead?.preparedBy || preparedBy,
     contact_name: contact.name,
     contact_title: contact.title,
-    contact_phone: contact.phone,
+    contact_phone: contactPhones.phone,
+    contact_mobile: contactPhones.mobile || undefined,
     contact_email: contact.email,
+    phone: clientPhones || undefined,
   } as Record<string, unknown>;
   const eventDate = formatEventDateForProposal({
     eventDate: form.eventDate,
@@ -534,17 +520,18 @@ export function buildStargtmPayload(opts: {
       proposal_ref: formatProposalRef(lead?.referenceNumber, form.quoteVersion),
       client_name: lead?.name,
       organisation: lead?.company,
-      telephone: lead?.phone,
+      telephone: clientPhones || undefined,
       email: lead?.email,
       event_type: form.eventType,
-      event_date: form.dateFlexible ? 'Date TBC' : (form.eventDate || eventDate),
-      event_timings: `${form.embarkation || ''} - ${form.disembarkation || ''}`,
+      event_date: eventDate,
+      event_timings: formatEventTimingsPayload(form),
       guest_range: guestRange,
       guest_quote_n: String(guests || lead?.groupSizeQuote || ''),
       prepared_by: preparedBy,
       contact_name: contact.name,
       contact_title: contact.title,
-      contact_phone: contact.phone,
+      contact_phone: contactPhones.phone,
+      contact_mobile: contactPhones.mobile || undefined,
       contact_email: contact.email,
       budget: lead?.budget,
       vessels: form.vesselType.join(', ') || lead?.vessels,

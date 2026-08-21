@@ -118,6 +118,7 @@ export function parseProgressNotesFinance(
     eventDate?: string;
     dateFlexible?: boolean;
     embarkation?: string;
+    departure?: string;
     guests?: number;
   } = {},
 ): ProgressNotesFinanceHints {
@@ -198,6 +199,7 @@ export function parseProgressNotesFinance(
       eventDate: ctx.eventDate,
       dateFlexible: ctx.dateFlexible,
       embarkation: ctx.embarkation,
+      departure: ctx.departure,
       guests: ctx.guests,
     });
     if (!out.weeklyPeriod) {
@@ -292,6 +294,7 @@ export function resolveSheetFinancialTargets(
     eventDate?: string;
     dateFlexible?: boolean;
     embarkation?: string;
+    departure?: string;
     guests?: number;
   },
   gold?: Partial<SheetFinancialColumns> | null,

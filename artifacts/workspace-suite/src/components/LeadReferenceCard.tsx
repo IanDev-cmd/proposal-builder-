@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { StickyNote, ChevronDown } from 'lucide-react';
+import { splitProgressNoteEntries } from '@/lib/leadNotes';
 
 type Props = {
-  keyItems: string;
+  initialEnquiry: string;
+  updatedEnquiry: string;
   progressNotes: string;
   isOpen: boolean;
   onToggle: () => void;
-  onKeyItemsChange: (value: string) => void;
+  onUpdatedEnquiryChange: (value: string) => void;
   onProgressNotesChange: (value: string) => void;
 };
 
@@ -44,16 +46,22 @@ function AutoTextarea({
 }
 
 /**
- * Docked Lead Notes — blue palette, editable, full text visible (no inner scroll).
+ * Docked Lead Notes — original enquiry is frozen; form edits appear separately.
  */
 export function LeadReferenceCard({
-  keyItems,
+  initialEnquiry,
+  updatedEnquiry,
   progressNotes,
   isOpen,
   onToggle,
-  onKeyItemsChange,
+  onUpdatedEnquiryChange,
   onProgressNotesChange,
 }: Props) {
+  const progressEntries = splitProgressNoteEntries(progressNotes);
+  const showUpdated =
+    updatedEnquiry.trim() &&
+    updatedEnquiry.trim() !== initialEnquiry.trim();
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-sky-50" data-testid="lead-reference-card">
       <button
@@ -89,24 +97,34 @@ export function LeadReferenceCard({
             <div className="space-y-8">
               <div>
                 <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700/70">
-                  Key Items
+                  Initial Enquiry
                 </p>
-                <AutoTextarea
-                  value={keyItems}
-                  onChange={onKeyItemsChange}
-                  placeholder="No key items yet — add them here."
-                  className="text-[14px] font-semibold leading-[1.65] text-sky-950"
-                />
+                <p className="text-[14px] font-semibold leading-[1.65] text-sky-950">
+                  {initialEnquiry.trim() || 'No initial enquiry on the lead sheet.'}
+                </p>
               </div>
+              {showUpdated ? (
+                <div>
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700/70">
+                    Discovery notes
+                  </p>
+                  <AutoTextarea
+                    value={updatedEnquiry}
+                    onChange={onUpdatedEnquiryChange}
+                    placeholder="Updates after the discovery call."
+                    className="text-[14px] font-semibold leading-[1.65] text-sky-950"
+                  />
+                </div>
+              ) : null}
               <div>
                 <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700/70">
                   Full Progress Notes
                 </p>
                 <AutoTextarea
-                  value={progressNotes}
+                  value={progressEntries.join('\n\n')}
                   onChange={onProgressNotesChange}
                   placeholder="No progress notes yet."
-                  className="text-[13px] leading-[1.75] text-sky-950/90"
+                  className="whitespace-pre-wrap text-[13px] leading-[1.75] text-sky-950/90"
                 />
               </div>
             </div>

@@ -4,6 +4,8 @@
  * Agent is intentionally absent (no Enquiry column).
  */
 
+import { formatPhoneDisplay } from '@/lib/phoneFormat';
+
 export const N8N_LEAD_ALIASES = [
   'referenceNumber',
   'name',
@@ -78,5 +80,6 @@ export function toNexusLeadPayload(row: Record<string, unknown>): N8nSapphireLea
       out[key] = row[key] as string | number | boolean;
     }
   }
+  if (typeof out.phone === 'string') out.phone = formatPhoneDisplay(out.phone);
   return out;
 }

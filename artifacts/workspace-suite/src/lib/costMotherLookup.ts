@@ -144,7 +144,7 @@ export function inferWeeklyPeriod(
   return day === 0 || day >= 5 ? 'Fri to Sun' : 'Mon to Thur';
 }
 
-/** Infer day period from embarkation hour (evening if embark ≥ 16:00). */
+/** Infer day period from event start hour (evening if departure/embark ≥ 16:00). */
 export function inferDayPeriod(embarkation: string): string {
   const h = parseInt((embarkation || '12:00').split(':')[0] || '12', 10);
   return h >= 16 ? 'Evening' : 'Daytime';
@@ -264,13 +264,14 @@ export function buildRateParts(opts: {
   eventDate?: string;
   dateFlexible?: boolean;
   embarkation?: string;
+  departure?: string;
   guests?: number;
 }): RateKeyParts {
   const vessel = resolveCostMotherVessel(opts.vesselUi) || opts.vesselUi;
   const weekly =
     opts.weeklyPeriod ||
     inferWeeklyPeriod(opts.eventDate || '', opts.dateFlexible, vessel);
-  const day = opts.dayPeriod || inferDayPeriod(opts.embarkation || '12:00');
+  const day = opts.dayPeriod || inferDayPeriod(opts.departure || opts.embarkation || '12:00');
   const group =
     opts.groupBracket ||
     inferGroupBracket(opts.guests || 0, vessel);

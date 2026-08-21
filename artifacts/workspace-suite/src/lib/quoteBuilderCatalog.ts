@@ -142,6 +142,20 @@ export function resolveCostMotherVessel(uiVessel: string): string | null {
   return null;
 }
 
+/** Fixed table counts for WEOTT I–III. Other vessels are manual entry. */
+export const VESSEL_TABLE_DEFAULTS: Record<string, number> = {
+  Avontuur: 15,
+  'London Rose': 15,
+  'Golden Salamander': 8,
+};
+
+export function tablesForVessel(uiVessel?: string): string {
+  if (!uiVessel?.trim()) return '';
+  const resolved = resolveCostMotherVessel(uiVessel) || uiVessel;
+  const n = VESSEL_TABLE_DEFAULTS[resolved];
+  return n != null ? String(n) : '';
+}
+
 export function resolveCostMotherMenu(uiMenu: string): string | null {
   if (MENU_TO_COST_MOTHER[uiMenu]) return MENU_TO_COST_MOTHER[uiMenu];
   const lower = uiMenu.toLowerCase().replace(/\(all seasons?\)/gi, '').trim();
@@ -275,36 +289,23 @@ export function buildPackageWordingNotes(selectedLineIds: string[]): string {
   return lines.join('\n');
 }
 
+const OWN_FOOD_LABEL = 'Own Food Surcharge';
+const BG_MUSIC_LABEL = 'Background Music/Sound Equipment Hire';
+
 /**
- * Default YES lines for a new quote.
- * Sapphire: Section 11 + 12 always on (REP unchecks), plus photographer unless stated otherwise.
- * Photographers are mutually exclusive — corporate vs wedding by event type.
- * Structural defaultOn lines (vessel / delivery / decor / contingency) stay forced.
+ * Default YES lines for a new quote (no gold playbook).
+ * Structural defaultOn (vessel hire, catering delivery, event decor) stay on.
+ * Sapphire walkthrough: Own Food Surcharge + Background Music only extra defaults.
+ * Do not auto-tick catering menus, cocktail, Section 11 staff, Section 12 other, or photographer.
  */
 export function defaultSelectedLineIds(
-  menus: string[] = [],
-  opts?: { wedding?: boolean },
+  _menus: string[] = [],
+  _opts?: { wedding?: boolean },
 ): string[] {
   const ids = new Set<string>();
-  const wedding = Boolean(opts?.wedding);
   for (const line of getQuoteLines()) {
     if (line.defaultOn) ids.add(line.id);
-    if (line.autoWithMenu && menus.some((m) => line.autoWithMenu!.test(m))) ids.add(line.id);
-    // Section 12 — Other: always included in every quote
-    if (line.section === 'other') ids.add(line.id);
-    // Section 11 — Event Staff: always included except photographers (handled below)
-    if (line.section === 'staff' && !/^Photographer\s*-/i.test(line.label)) ids.add(line.id);
+    if (line.label === OWN_FOOD_LABEL || line.label === BG_MUSIC_LABEL) ids.add(line.id);
   }
-  // Force the correct photographer for this event type
-  const withPhoto = syncExclusivePhotographer([...ids], wedding, { force: true });
-
-  // Menus selected in Catering step → YES on matching catering lines
-  const set = new Set(withPhoto);
-  for (const menu of menus) {
-    const cm = resolveCostMotherMenu(menu);
-    if (!cm) continue;
-    const line = getQuoteLines().find((l) => l.section === 'catering' && l.label === cm);
-    if (line) set.add(line.id);
-  }
-  return [...set];
+  return [...ids];
 }

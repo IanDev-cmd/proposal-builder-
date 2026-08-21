@@ -61,7 +61,7 @@ PAGE_CONTACT = 15               # "Your Contact"
 # Cover fields — always near-white on the photo panels
 COVER_FIELDS = {
     "proposal_ref":  dict(bbox=(284.4, 39.3, 340, 45.7), origin=(284.4, 44.2), size=4.63, bold=False, color=COVER_TEXT_COLOR),
-    "prepared_by":   dict(bbox=(256.8, 48.4, 295.6, 55.0), origin=(256.8, 53.4), size=4.63, bold=True, color=COVER_TEXT_COLOR),
+    "prepared_by":   dict(bbox=(256.8, 48.4, 340, 55.0), origin=(256.8, 53.4), size=4.63, bold=True, color=COVER_TEXT_COLOR),
     "quote_date":    dict(bbox=(227.3, 67.1, 264.1, 73.7), origin=(227.3, 72.3), size=4.63, bold=True, color=COVER_TEXT_COLOR),
     "client_name":   dict(bbox=(260.0, 82.9, 320, 89.2), origin=(260.0, 87.8), size=4.63, bold=False, color=COVER_TEXT_COLOR),
     "organisation":  dict(bbox=(260.7, 92.2, 340, 98.5), origin=(260.7, 97.1), size=4.63, bold=False, color=COVER_TEXT_COLOR),
@@ -187,6 +187,7 @@ CONTACT_FIELDS = {
     "contact_name":  dict(bbox=(22.7, 243.1, 120, 249.2), origin=(22.7, 248.0), size=5.0, bold=True, page=PAGE_CONTACT),
     "contact_title": dict(bbox=(22.7, 251.7, 140, 257.8), origin=(22.7, 256.6), size=5.0, bold=True, page=PAGE_CONTACT, color=(0.89, 0.51, 0.21)),
     "contact_phone": dict(bbox=(274.4, 36.3, 340, 43.5), origin=(274.4, 42.1), size=6.0, bold=False, page=PAGE_CONTACT),
+    # M: is optional — only present on some staff inserts; measure.py fills geometry when found.
     # Email is split across three spans in the template; clear the whole value zone
     # after "E: " and redraw as one string.
     "contact_email": dict(bbox=(202.9, 44.8, 340, 53.0), origin=(202.9, 51.0), size=6.0, bold=False, page=PAGE_CONTACT, prefix="E: "),

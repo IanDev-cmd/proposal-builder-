@@ -42,6 +42,7 @@ class GenerateLead(BaseModel):
     contact_name: str | None = None
     contact_title: str | None = None
     contact_phone: str | None = None
+    contact_mobile: str | None = None
     contact_email: str | None = None
 
 

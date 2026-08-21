@@ -233,7 +233,7 @@ export function ProposalDoc() {
     if (active.kind === 'generated' && active.pdfDataUrl) {
       const a = document.createElement('a');
       a.href = active.pdfDataUrl;
-      a.download = `${active.title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+      a.download = active.title.toLowerCase().endsWith('.pdf') ? active.title : `${active.title}.pdf`;
       a.click();
       return;
     }

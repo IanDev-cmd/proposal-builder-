@@ -543,14 +543,32 @@ def measure_contact(page, page_index: int) -> dict:
                     break
             break
 
-    # Phone after 'T:'
-    for i, sp in enumerate(spans):
-        if sp["text"].strip() in ("T:", "T: ") or sp["text"].strip().startswith("T:"):
-            if sp["text"].strip() in ("T:", "T: ") and i + 1 < len(spans):
-                f = _span_field(spans[i + 1])
-                f["page"] = page_index
-                fields["contact_phone"] = f
-            break
+    def _field_after_label(labels, dest):
+        labels_u = tuple(lab.upper() for lab in labels)
+        for i, sp in enumerate(spans):
+            t = sp["text"].strip()
+            tu = t.upper()
+            if tu in labels_u or tu.rstrip() in labels_u:
+                if i + 1 < len(spans):
+                    f = _span_field(spans[i + 1])
+                    f["page"] = page_index
+                    fields[dest] = f
+                    return
+            for lab in labels:
+                if tu.startswith(lab.upper()):
+                    rest = t[len(lab):].strip()
+                    if rest:
+                        f = _span_field(sp)
+                        f["page"] = page_index
+                        fields[dest] = f
+                    elif i + 1 < len(spans):
+                        f = _span_field(spans[i + 1])
+                        f["page"] = page_index
+                        fields[dest] = f
+                    return
+
+    _field_after_label(("T:", "T: "), "contact_phone")
+    _field_after_label(("M:", "M: "), "contact_mobile")
 
     # Email: clear from 'E:' through domain
     for i, sp in enumerate(spans):

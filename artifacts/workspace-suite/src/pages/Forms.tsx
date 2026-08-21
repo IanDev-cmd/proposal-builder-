@@ -10,12 +10,13 @@ import { LeadReferenceCard } from '@/components/LeadReferenceCard';
 import { ScheduleTimingToasts } from '@/components/ScheduleTimingToasts';
 import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
+import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
+import { proposalFileStem } from '@/lib/proposalFilename';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
   buildStargtmPayload,
   CONTINGENCY_RATE,
-  resolveSelectedLineIds,
   type BespokeLine,
 } from '@/lib/quoteFinance';
 import {
@@ -24,11 +25,15 @@ import {
   GROUP_BRACKETS,
   QUOTE_VERSIONS,
   defaultSelectedLineIds,
-  syncExclusivePhotographer,
-  buildPackageWordingNotes,
+  tablesForVessel,
   setLiveCatalogLines,
 } from '@/lib/quoteBuilderCatalog';
 import { parseCostRatesPayload } from '@/lib/contracts';
+import {
+  parseCostMotherRows,
+  setLiveCostMotherRates,
+  getCostMotherMeta,
+} from '@/lib/costMotherLookup';
 import { QuoteCostLines } from '@/components/QuoteCostLines';
 import {
   templatesForCategory,
@@ -39,6 +44,8 @@ import {
 } from '@/lib/proposalAssets';
 import { appendProgressNote, writeQuoteStatus, getSheetsMode, fetchCostRates } from '@/lib/sheetsSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
+import { formatPhoneDisplay } from '@/lib/phoneFormat';
+import { formatEventTimingsPayload } from '@/lib/proposalTimings';
 import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
 import {
   buildLeadPrefill,
@@ -58,12 +65,13 @@ import {
   rateEventDateFromLead,
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
-import { goldPackageWordingForRef } from '@/lib/goldPackageWording';
+import { goldPackageWordingForRef, overlayItineraryOnPackageWording } from '@/lib/goldPackageWording';
 import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import {
   buildItineraryProposalText,
   parseItineraryProposalText,
   buildItineraryProposalBlock,
+  embarkationFromDeparture,
 } from '@/lib/proposalTimings';
 import { collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError } from '@/lib/notify';
@@ -123,6 +131,8 @@ type FormData = {
   groupBracket: string;
   noOfTables: string;
   keyItems: string;
+  /** Frozen original enquiry from the lead sheet — never overwritten by form edits. */
+  initialEnquiry: string;
   quoteVersion: string;
   /** corporate | wedding — drives template list only (manual pick). */
   proposalCategory: 'corporate' | 'wedding';
@@ -172,7 +182,7 @@ const INIT: FormData = {
   dateFlexible: false,
   guestCount: '',
   guestCountHigh: '',
-  embarkation: '10:00',
+  embarkation: '11:45',
   departure: '12:00',
   returnTime: '17:00',
   disembarkation: '18:00',
@@ -192,6 +202,7 @@ const INIT: FormData = {
   groupBracket: '',
   noOfTables: '',
   keyItems: '',
+  initialEnquiry: '',
   quoteVersion: 'V1',
   proposalCategory: 'corporate',
   templateId: '',
@@ -880,11 +891,7 @@ export function Forms() {
   const [ratesNote, setRatesNote] = useState<string>('');
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(true);
-
-  // Schedule Timings: collapse Lead Notes so timing toasts have the rail
-  useEffect(() => {
-    if (step === 3) setIsNotesOpen(false);
-  }, [step]);
+  const [draftReady, setDraftReady] = useState(false);
 
   // Gemini #2/#4 overlay only — guests and money stay local. Skip gold playbook leads.
   useEffect(() => {
@@ -945,6 +952,47 @@ export function Forms() {
       progressNotes: data.progressNotes,
     });
   }, [leadNotesKey, data.keyItems, data.progressNotes]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadQuoteDraft<FormData>(leadNotesKey)
+      .then((draft) => {
+        if (cancelled) return;
+        if (draft?.data) {
+          const leadInitial = String((leadInit.data as FormData).initialEnquiry || '');
+          setData({
+            ...draft.data,
+            initialEnquiry: draft.data.initialEnquiry || leadInitial,
+          });
+          if (Number(draft.step) >= 1 && Number(draft.step) <= LAST_CONTENT_STEP) {
+            setStep(draft.step);
+          }
+        }
+        setDraftReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setDraftReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Restore once per lead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadNotesKey]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const timer = window.setTimeout(() => {
+      void saveQuoteDraft({
+        leadKey: leadNotesKey,
+        step,
+        data,
+        leadName: quoteLead?.name,
+        referenceNumber: quoteLead?.referenceNumber,
+      });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [draftReady, leadNotesKey, step, data, quoteLead?.name, quoteLead?.referenceNumber]);
 
   useEffect(() => {
     if (!quoteDetailsOpen) return;
@@ -1053,17 +1101,14 @@ export function Forms() {
           key === 'returnTime' ||
           key === 'disembarkation')
       ) {
+        if (key === 'departure') {
+          next.embarkation = embarkationFromDeparture(String(val || next.departure));
+        }
         next.proposalTimingsNotes = buildItineraryProposalText(next);
       }
       if (key === 'eventType') {
         const wedding = /wedding|engagement/i.test(String(val || ''));
-        next.selectedLineIds = syncExclusivePhotographer(next.selectedLineIds, wedding, {
-          force: true,
-        });
         next.proposalCategory = wedding ? 'wedding' : next.proposalCategory;
-        if (!String(prev.packageWordingNotes || '').trim()) {
-          next.packageWordingNotes = buildPackageWordingNotes(next.selectedLineIds);
-        }
       }
       // Re-require Cost Approval when money-affecting fields change after approve
       if (
@@ -1072,6 +1117,8 @@ export function Forms() {
           'guestCount',
           'vesselType',
           'embarkation',
+          'departure',
+          'returnTime',
           'disembarkation',
           'menuType',
           'selectedLineIds',
@@ -1318,17 +1365,6 @@ export function Forms() {
     };
   }, []);
 
-  // Sync menu selections → Cost Mother catering YES lines
-  useEffect(() => {
-    setData((prev) => {
-      const merged = resolveSelectedLineIds(prev);
-      const same =
-        merged.length === prev.selectedLineIds.length &&
-        merged.every((id) => prev.selectedLineIds.includes(id));
-      return same ? prev : { ...prev, selectedLineIds: merged };
-    });
-  }, [data.menuType]);
-
   // Keep Base Cost synced to the formula while it's in "auto" mode.
   useEffect(() => {
     if (!baseCostAuto) return;
@@ -1343,6 +1379,8 @@ export function Forms() {
     data.eventDate,
     data.dateFlexible,
     data.embarkation,
+    data.departure,
+    data.returnTime,
     data.disembarkation,
     data.selectedUpgrades,
     data.selectedLineIds,
@@ -1432,21 +1470,17 @@ export function Forms() {
         returnTime: data.returnTime,
         disembarkation: data.disembarkation,
       });
-    const packageWording = goldWording
-      ? goldWording
-      : {
-          venue_and_management: [
-            timingBlock,
-            ...(data.packageWordingNotes.trim()
-              ? [
-                  {
-                    heading: 'Notes;',
-                    items: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean),
-                  },
-                ]
-              : []),
-          ],
-        };
+    const packageWording = overlayItineraryOnPackageWording(goldWording, timingBlock);
+    if (data.packageWordingNotes.trim()) {
+      const notesGroup = {
+        heading: 'Notes;',
+        items: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean),
+      };
+      packageWording.venue_and_management = [
+        ...(packageWording.venue_and_management || []),
+        notesGroup,
+      ];
+    }
 
     const payload = buildStargtmPayload({
       form: financeInput,
@@ -1455,7 +1489,7 @@ export function Forms() {
         ? {
             name: quoteLead.name,
             email: quoteLead.email,
-            phone: quoteLead.phone,
+            phone: formatPhoneDisplay(quoteLead.phone),
             company: quoteLead.company,
             referenceNumber: quoteLead.referenceNumber,
             designation: quoteLead.designation,
@@ -1489,7 +1523,7 @@ export function Forms() {
             companyName: quoteLead.company,
             companySector: quoteLead.companySector,
             email: quoteLead.email,
-            phone: quoteLead.phone,
+            phone: formatPhoneDisplay(quoteLead.phone),
             jobRole: quoteLead.designation,
             budget: data.budget || quoteLead.budget,
             repeatClient: data.repeatClient ? 'YES' : 'NO',
@@ -1510,7 +1544,7 @@ export function Forms() {
               eventDateDisplay: quoteLead.eventDateDisplay,
             }),
             requestedEventTimes:
-              `${data.embarkation} - ${data.disembarkation}` || quoteLead.requestedEventTimes,
+              formatEventTimingsPayload(data) || quoteLead.requestedEventTimes,
             groupSize: data.guestCount || quoteLead.groupSize,
             groupSizeQuote: parseFloat(data.guestCount) || quoteLead.groupSizeQuote,
             vessels: data.vesselType.join(', ') || quoteLead.vessels,
@@ -1523,6 +1557,7 @@ export function Forms() {
             contact_name: staffContact.name,
             contact_title: staffContact.title,
             contact_phone: staffContact.phone,
+            contact_mobile: staffContact.mobile,
             contact_email: staffContact.email,
           }
         : null,
@@ -1658,7 +1693,11 @@ export function Forms() {
         id: `proposal-${Date.now()}`,
         createdAt: new Date().toISOString(),
         eventDate: data.eventDate,
-        title: `${data.eventType || 'Event'} Proposal — ${data.vesselType.join(', ') || 'Vessel TBC'}`,
+        title: proposalFileStem({
+          contactName: quoteLead?.name,
+          companyName: quoteLead?.company,
+          referenceCode: quoteLead?.referenceNumber,
+        }),
         vesselType: data.vesselType.join(', '),
         eventType: data.eventType,
         guestCount: data.guestCount,
@@ -1837,9 +1876,11 @@ export function Forms() {
                     {...dropdownProps('vesselType')}
                     onChange={(v) => {
                       clearPrefill('vesselType');
+                      const tables = tablesForVessel(v[0] || '');
                       setData((prev) => ({
                         ...prev,
                         vesselType: v,
+                        noOfTables: tables,
                         weeklyPeriod: '',
                         dayPeriod: '',
                         groupBracket: '',
@@ -1919,7 +1960,7 @@ export function Forms() {
                       onChange={(e) => set('dayPeriod', e.target.value)}
                       className={fieldCls('dayPeriod')}
                     >
-                      <option value="">Auto from embark</option>
+                      <option value="">Auto from departure</option>
                       {DAY_PERIODS.map((v) => (
                         <option key={v} value={v}>
                           {v}
@@ -1944,7 +1985,7 @@ export function Forms() {
                   </div>
                 </div>
                 <div className="mb-7">
-                  <label className={fieldLabelCls}>Key Items</label>
+                  <label className={fieldLabelCls}>Initial Enquiry</label>
                   <input
                     type="text"
                     value={data.keyItems}
@@ -2120,7 +2161,7 @@ export function Forms() {
                     className={fieldCls('noOfTables')}
                   />
                   <p className="mt-1.5 text-[11.5px] text-gray-400">
-                    Used for table linen / centrepieces / event decor multipliers.
+                    Fixed by vessel: Avontuur 15, London Rose 15, Golden Salamander 8. Other boats are entered manually.
                   </p>
                 </div>
               </motion.div>
@@ -2178,10 +2219,10 @@ export function Forms() {
                 <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
                 <div className="mb-4 sticky top-0 z-10 rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 shadow-sm">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E22A12]">
-                    Key Items (from Lead / Progress Notes)
+                    Initial Enquiry (from Lead)
                   </p>
                   <p className="mt-1 text-[13px] font-semibold leading-snug text-gray-800">
-                    {data.keyItems?.trim() || 'No key items yet — add them on Event Details or keep referring to the lead sheet.'}
+                    {data.initialEnquiry?.trim() || data.keyItems?.trim() || 'No initial enquiry yet — add notes on Event Core or keep referring to the lead sheet.'}
                   </p>
                   {!data.keyItems?.trim() ? (
                     <button
@@ -2194,7 +2235,7 @@ export function Forms() {
                   ) : null}
                 </div>
                 <p className="mb-4 text-[12px] text-gray-500">
-                  Select YES lines for Sections 1–13 — catering menus are under Section 2, same as the Quote Sheet. Sections 11–12 and photographer start selected; uncheck what you don’t need. Grand total is on the next step.
+                  Tick YES lines for Sections 1–13. Catering menus start off except the delivery charge — select the menu manually. Background music and own-food surcharge start on; Section 11 staff starts off.
                 </p>
                 <QuoteCostLines
                   data={financeInput}
@@ -2225,7 +2266,7 @@ export function Forms() {
                 <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('repeatClient') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Repeat Client</p>
-                    <p className="text-[12px] text-gray-400">Reduces margin from 25% to 15%</p>
+                    <p className="text-[12px] text-gray-400">Reduces margin by 10%</p>
                   </div>
                   <button
                     type="button"
@@ -2328,7 +2369,10 @@ export function Forms() {
                       ['Beverages', baseCostBreakdown.sectionTotals.beverages || 0],
                       ['Entertainment', baseCostBreakdown.sectionTotals.entertainment || 0],
                       ['Decor (hours + tables)', moneySum(baseCostBreakdown.sectionTotals.decor, baseCostBreakdown.sectionTotals.decor_table)],
-                      ['Staff + in-house + other', moneySum(baseCostBreakdown.sectionTotals.staff, baseCostBreakdown.sectionTotals.in_house, baseCostBreakdown.sectionTotals.other, baseCostBreakdown.sectionTotals.financial)],
+                      ['Staffing', baseCostBreakdown.sectionTotals.staff || 0],
+                      ['In-house', baseCostBreakdown.sectionTotals.in_house || 0],
+                      ['Other', baseCostBreakdown.sectionTotals.other || 0],
+                      ['Financial admin', baseCostBreakdown.sectionTotals.financial || 0],
                       ['Bespoke', baseCostBreakdown.sectionTotals.bespoke || 0],
                       [`Contingency (${(CONTINGENCY_RATE * 100).toFixed(2)}%)`, baseCostBreakdown.contingency],
                     ] as [string, number][]
@@ -2628,11 +2672,6 @@ export function Forms() {
                         setData((prev) => ({
                           ...prev,
                           proposalCategory: cat,
-                          selectedLineIds: syncExclusivePhotographer(
-                            prev.selectedLineIds,
-                            cat === 'wedding',
-                            { force: true },
-                          ),
                         }));
                       }}
                       className={`flex-1 rounded-[10px] border px-4 py-3.5 text-[13px] font-semibold capitalize transition-colors ${
@@ -2977,16 +3016,17 @@ export function Forms() {
 
       {/* ── Right: docked Lead Notes (+ timing toasts on Schedule Timings only) ── */}
       <aside
-        className={`sticky top-16 flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-y-auto transition-[width] duration-300 ${
+        className={`sticky top-16 z-[110] flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-y-auto transition-[width] duration-300 ${
           isNotesOpen || step === 3 ? 'w-[min(380px,32vw)]' : 'w-14'
         }`}
       >
         <LeadReferenceCard
-          keyItems={data.keyItems}
+          initialEnquiry={data.initialEnquiry}
+          updatedEnquiry={data.keyItems}
           progressNotes={data.progressNotes}
           isOpen={isNotesOpen}
           onToggle={() => setIsNotesOpen((open) => !open)}
-          onKeyItemsChange={(value) => set('keyItems', value)}
+          onUpdatedEnquiryChange={(value) => set('keyItems', value)}
           onProgressNotesChange={(value) => set('progressNotes', value)}
         />
         {step === 3 ? (
@@ -3072,10 +3112,10 @@ export function Forms() {
                         (data.dayPeriod || fin.rateParts?.dayPeriod || '—')}
                     </p>
                   </div>
-                  {data.keyItems ? (
+                  {data.initialEnquiry || data.keyItems ? (
                     <div className="col-span-2 rounded-[10px] bg-[#fafafa] px-3 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Key items</p>
-                      <p className="font-semibold text-gray-800">{data.keyItems}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Initial enquiry</p>
+                      <p className="font-semibold text-gray-800">{data.initialEnquiry || data.keyItems}</p>
                     </div>
                   ) : null}
                 </div>
