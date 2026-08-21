@@ -2,7 +2,7 @@
   "WE.19092": {
     "sheetRef": "Quote Builder 2026!R3",
     "weott": 6903.41,
-    "grand": 10355.1,
+    "grand": 10355.11,
     "marginPercent": 25,
     "form": {
       "vesselType": ["London Rose"],
@@ -118,7 +118,7 @@
   "WE.19096": {
     "sheetRef": "Quote Builder 2026!C3",
     "weott": 7572.43,
-    "grand": 11358.6,
+    "grand": 11358.65,
     "marginPercent": 25,
     "form": {
       "vesselType": ["Avontuur"],
@@ -179,7 +179,7 @@
   "WE.19098": {
     "sheetRef": "Quote Builder 2026!O3",
     "weott": 7292.47,
-    "grand": 10938.7,
+    "grand": 10938.71,
     "marginPercent": 25,
     "form": {
       "vesselType": ["Avontuur"],

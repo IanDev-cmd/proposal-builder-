@@ -1,11 +1,17 @@
 /**
- * Quote finance — mirrors WEOTT Quote Builder 2026 + Cost Mother Sheet.
+ * Quote finance — Quote Builder 2026 formulas (live sheet, not guessed).
  *
- * Sections 1–13 line costs (YES × unit rate × multiplier)
- * Section 14 Contingency = Σ(1–13) × 2.25%
- * Margin % (editable) → Cost to client (exc VAT)
- * VAT 20% → Grand total
- * Optional discount % + agent commission % → updated profit / £ per guest
+ * Hours C12: typed departure→return; embark is not billed; team types min 4.
+ * YES line = Cost Mother SUMIFS(vessel, weekly, day, group) × multiplier:
+ *   vessel / BG music / CONTIGENCY STAFF → × billed hours
+ *   menus / cutlery / prosecco / disposable tableware → × guests
+ *   event decor / table linen → × tables
+ *   delivery, own food, WP Runner, in-house set fees, admin → set (no hours)
+ *   Event Manager (in house) → × (billed + 4)
+ *   Event Coordinator, chefs, catering assistants, wild CA → × (billed + 3)
+ * Contingency D182 = SUM(D21:D179) * 0.0225; WEOTT D184 = SUM(D21:D182).
+ * Margin C186 typed; D186 = C186*D184; D187 = D184+D186; VAT = 0.2*D187; Inc VAT = D187+D188.
+ * Sheet formulas use no ROUND(); 2dp is cell formatting only.
  *
  * Rates: Cost Mother (bundled snapshot or live CostRatesFetch overlay).
  * n8n Transform must NOT recalculate — pass-through only.
@@ -32,7 +38,7 @@ export const CONTINGENCY_RATE = 0.0225;
 export const VAT_RATE = 0.2;
 export const REPEAT_CLIENT_MARGIN = 0.15;
 export const NEW_CLIENT_MARGIN = 0.25;
-/** Staff billable hours = event hours + 3 (Quote Builder Section 11). */
+/** Default Section 11 hours = billed + 3. Event Manager in house uses staffBuffer 4; CONTIGENCY STAFF uses billed hours only. */
 export const STAFF_HOURS_BUFFER = 3;
 /** Quote Sheet minimum hire / entertainment / staff base hours. */
 export const MIN_BILLABLE_HOURS = 4;
@@ -214,7 +220,7 @@ export function calcSectionLines(data: QuoteFormInput): {
     }
     const overrideAmt = overrides[line.label];
     if (overrideAmt != null && Number.isFinite(overrideAmt)) {
-      const amount = money(Number(overrideAmt));
+      const amount = Number(overrideAmt);
       lines.push({
         id: line.id,
         section: line.section,
@@ -224,7 +230,7 @@ export function calcSectionLines(data: QuoteFormInput): {
         amount,
         note: 'Quote Sheet amount override',
       });
-      sectionTotals[line.section] = money((sectionTotals[line.section] || 0) + amount);
+      sectionTotals[line.section] = (sectionTotals[line.section] || 0) + amount;
       continue;
     }
     const looked = lookupUnitRate(line.label, rateParts);
@@ -244,7 +250,7 @@ export function calcSectionLines(data: QuoteFormInput): {
       continue;
     }
     const mult = multiplierValue(line, hours, guests, tables);
-    const amount = money(looked.rate * mult);
+    const amount = looked.rate * mult;
     lines.push({
       id: line.id,
       section: line.section,
@@ -254,13 +260,13 @@ export function calcSectionLines(data: QuoteFormInput): {
       amount,
       note: looked.note,
     });
-    sectionTotals[line.section] = money((sectionTotals[line.section] || 0) + amount);
+    sectionTotals[line.section] = (sectionTotals[line.section] || 0) + amount;
   }
 
   // Bespoke manual
   for (const b of data.bespokeLines || []) {
     if (!b.enabled || !b.amount) continue;
-    const amount = money(Number(b.amount) || 0);
+    const amount = Number(b.amount) || 0;
     lines.push({
       id: b.id,
       section: 'bespoke',
@@ -269,10 +275,10 @@ export function calcSectionLines(data: QuoteFormInput): {
       multiplier: 1,
       amount,
     });
-    sectionTotals.bespoke = money((sectionTotals.bespoke || 0) + amount);
+    sectionTotals.bespoke = (sectionTotals.bespoke || 0) + amount;
   }
 
-  const subtotalBeforeContingency = money(lines.reduce((s, l) => s + l.amount, 0));
+  const subtotalBeforeContingency = lines.reduce((s, l) => s + l.amount, 0);
   return {
     lines,
     hours,
@@ -287,8 +293,8 @@ export function calcSectionLines(data: QuoteFormInput): {
 
 export function calcBaseCostNumbers(data: QuoteFormInput) {
   const section = calcSectionLines(data);
-  const contingency = money(section.subtotalBeforeContingency * CONTINGENCY_RATE);
-  const total = money(section.subtotalBeforeContingency + contingency);
+  const contingency = section.subtotalBeforeContingency * CONTINGENCY_RATE;
+  const total = section.subtotalBeforeContingency + contingency;
   return { ...section, contingency, total };
 }
 
@@ -297,21 +303,19 @@ export function calcBaseCostBreakdown(data: QuoteFormInput) {
   const b = calcBaseCostNumbers(data);
   const vesselHire = b.sectionTotals.vessel || 0;
   const menuCost = b.sectionTotals.catering || 0;
-  const upgradesTotal = money(
+  const upgradesTotal =
     (b.sectionTotals.entertainment || 0) +
-      (b.sectionTotals.beverages || 0) +
-      (b.sectionTotals.decor || 0) +
-      (b.sectionTotals.decor_table || 0) +
-      (b.sectionTotals.bespoke || 0),
-  );
-  const fixedOps = money(
+    (b.sectionTotals.beverages || 0) +
+    (b.sectionTotals.decor || 0) +
+    (b.sectionTotals.decor_table || 0) +
+    (b.sectionTotals.bespoke || 0);
+  const fixedOps =
     (b.sectionTotals.in_house || 0) +
-      (b.sectionTotals.staff || 0) +
-      (b.sectionTotals.other || 0) +
-      (b.sectionTotals.financial || 0) +
-      (b.sectionTotals.catering_equipment || 0) +
-      (b.sectionTotals.catering_surcharge || 0),
-  );
+    (b.sectionTotals.staff || 0) +
+    (b.sectionTotals.other || 0) +
+    (b.sectionTotals.financial || 0) +
+    (b.sectionTotals.catering_equipment || 0) +
+    (b.sectionTotals.catering_surcharge || 0);
   return {
     vesselHire,
     hours: b.hours,
@@ -352,16 +356,16 @@ export function calcFinancials(data: QuoteFormInput) {
   // R184 Total Cost (to WEOTT) = Sections 1–13 + contingency. Manual totalCost overrides that total.
   const autoTotal = breakdown.total;
   const manual = parseFloat(data.totalCost);
-  const weottCost =
-    Number.isFinite(manual) && data.totalCost.trim() !== '' ? money(manual) : autoTotal;
+  const weottRaw =
+    Number.isFinite(manual) && data.totalCost.trim() !== '' ? Number(manual) : autoTotal;
 
   const margin = marginRateFor(data);
-  const marginAmount = money(weottCost * margin);
-  const costToClientPreDiscount = money(weottCost + marginAmount);
+  const marginRaw = weottRaw * margin;
+  const costToClientPreDiscount = weottRaw + marginRaw;
 
   const discountPct = Math.min(100, Math.max(0, parseFloat(data.discountPercent || '') || 0)) / 100;
-  const discountAmount = money(costToClientPreDiscount * discountPct);
-  const costToClient = money(costToClientPreDiscount - discountAmount);
+  const discountAmount = costToClientPreDiscount * discountPct;
+  const costToClientRaw = costToClientPreDiscount - discountAmount;
 
   // Commission = value lost from profit (QB). Agent toggle defaults to 10% when blank.
   const explicitCommission = data.commissionPercent?.trim()
@@ -369,30 +373,35 @@ export function calcFinancials(data: QuoteFormInput) {
     : null;
   const effectiveCommission =
     explicitCommission != null ? explicitCommission : data.agentReferral ? 0.1 : 0;
-  const commissionAmount = money(costToClient * effectiveCommission);
-  const updatedProfit = money(marginAmount - discountAmount - commissionAmount);
+  const commissionAmount = costToClientRaw * effectiveCommission;
+  const updatedProfit = marginRaw - discountAmount - commissionAmount;
 
-  const vat = money(costToClient * VAT_RATE);
-  const grand = money(costToClient + vat);
+  const vatRaw = costToClientRaw * VAT_RATE;
+  const grandRaw = costToClientRaw + vatRaw;
   const guests = parseFloat(data.guestCount) || 0;
-  const costPerGuestExc = guests > 0 ? money(costToClient / guests) : 0;
-  const costPerGuestInc = guests > 0 ? money(grand / guests) : 0;
+  const weottCost = money(weottRaw);
+  const marginAmount = money(marginRaw);
+  const costToClient = money(costToClientRaw);
+  const vat = money(vatRaw);
+  const grand = money(grandRaw);
+  const costPerGuestExc = guests > 0 ? money(costToClientRaw / guests) : 0;
+  const costPerGuestInc = guests > 0 ? money(grandRaw / guests) : 0;
 
   return {
     baseCost: weottCost,
-    autoBaseCost: autoTotal,
-    subtotalBeforeContingency: breakdown.subtotalBeforeContingency,
-    contingency: breakdown.contingency,
+    autoBaseCost: money(autoTotal),
+    subtotalBeforeContingency: money(breakdown.subtotalBeforeContingency),
+    contingency: money(breakdown.contingency),
     contingencyRate: CONTINGENCY_RATE,
     margin,
     marginAmount,
     costToClient,
-    costToClientBeforeDiscount: costToClientPreDiscount,
+    costToClientBeforeDiscount: money(costToClientPreDiscount),
     discountPercent: discountPct,
-    discountAmount,
+    discountAmount: money(discountAmount),
     commissionPercent: effectiveCommission,
-    commissionAmount,
-    updatedProfit,
+    commissionAmount: money(commissionAmount),
+    updatedProfit: money(updatedProfit),
     vat,
     vatRate: VAT_RATE,
     grand,
