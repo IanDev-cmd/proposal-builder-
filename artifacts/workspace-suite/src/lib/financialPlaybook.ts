@@ -16,6 +16,7 @@ import {
   findLineByAlias,
 } from '@/lib/quoteBuilderCatalog';
 import liveQbScenarios from '@/lib/assets/liveQb2026Scenarios.json';
+import extraQbColumns from '@/lib/assets/qb2026ExtraColumns.json';
 import { aliasFirst } from '@/lib/sapphireLead';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
@@ -40,6 +41,7 @@ type LiveQbScenario = {
   marginPercent: number;
   form: Record<string, unknown>;
   bespokeAmount?: number;
+  bespokeLines?: { label: string; amount: number; enabled: boolean }[];
   costLines: LiveQbLine[];
 };
 
@@ -105,12 +107,20 @@ export type LivePlaybookStep = { step: string; ok: boolean; detail: string };
 export type LiveLeadRun = {
   ref: string;
   name: string;
-  kind: 'qb2026' | 'skip';
+  kind: 'qb2026' | 'skip' | 'sample';
   ok: boolean;
   steps: LivePlaybookStep[];
   weott?: number;
   sheetWeott?: number;
+  grand?: number;
   hours?: number;
+  vessel?: string;
+  guests?: string;
+  weeklyPeriod?: string;
+  dayPeriod?: string;
+  departure?: string;
+  returnTime?: string;
+  marginPercent?: number;
   yesLabels: string[];
 };
 
@@ -189,6 +199,34 @@ function mapLead(raw: Record<string, unknown>, index: number): QuoteLead {
   };
 }
 
+function pickOtherLiveLeads(all: QuoteLead[], n: number): QuoteLead[] {
+  const skip = new Set([...QB2026_COMPLETE, ...Object.keys(SKIP_REFS)]);
+  const pool = all.filter((l) => {
+    const ref = l.referenceNumber.replace(/\s/g, '');
+    if (skip.has(ref) || !/^WE\.\d+/i.test(ref)) return false;
+    if (!String(l.liveDead || '').toLowerCase().startsWith('live')) return false;
+    if (!l.vessels?.trim()) return false;
+    if (/\d+\s*[-–]\s*\d+/.test(String(l.groupSize || ''))) return false;
+    const guests = Number(l.groupSizeQuote) || parseFloat(String(l.groupSize || ''));
+    return guests > 0;
+  });
+  const picked: QuoteLead[] = [];
+  const seenVessel = new Set<string>();
+  for (const l of pool) {
+    const key = (l.vessels || '').toLowerCase().replace(/\s+/g, ' ');
+    if (seenVessel.has(key)) continue;
+    seenVessel.add(key);
+    picked.push(l);
+    if (picked.length >= n) return picked;
+  }
+  for (const l of pool) {
+    if (picked.some((p) => p.referenceNumber === l.referenceNumber)) continue;
+    picked.push(l);
+    if (picked.length >= n) break;
+  }
+  return picked;
+}
+
 function pickLeads(all: QuoteLead[]): { complete: QuoteLead[]; skipped: { lead?: QuoteLead; ref: string; reason: string }[] } {
   const byRef = new Map(all.map((l) => [l.referenceNumber.replace(/\s/g, ''), l]));
   const complete = QB2026_COMPLETE.map((ref) => byRef.get(ref)).filter(Boolean) as QuoteLead[];
@@ -226,10 +264,13 @@ function applyLiveQb2026(
   const unmatched: string[] = [];
   const ids: string[] = [];
   for (const row of sc.costLines) {
+    if (/^bespoke\s*\(/i.test(row.label) || /blank section/i.test(row.label)) continue;
     const line = resolveQbLine(row.label);
     if (!line) unmatched.push(row.label);
     else ids.push(line.id);
   }
+  const vessel = getQuoteLines().find((l) => /^vessel\/venue hire$/i.test(l.label));
+  if (vessel) ids.push(vessel.id);
   const next: QuoteFormInput & Record<string, unknown> = {
     ...form,
     ...sc.form,
@@ -237,7 +278,9 @@ function applyLiveQb2026(
     marginOverride: sc.marginPercent / 100,
     marginPercent: String(sc.marginPercent),
   };
-  if (sc.bespokeAmount && sc.bespokeAmount > 0) {
+  if (sc.bespokeLines?.length) {
+    next.bespokeLines = normalizeBespokeLines(sc.bespokeLines);
+  } else if (sc.bespokeAmount && sc.bespokeAmount > 0) {
     next.bespokeLines = normalizeBespokeLines(undefined, {
       label: 'Bespoke (1)',
       amount: sc.bespokeAmount,
@@ -263,9 +306,9 @@ function qbLineDiffs(
   return diffs;
 }
 
-function runOneLead(lead: QuoteLead, kind: LiveLeadRun['kind']): LiveLeadRun {
+function runOneLead(lead: QuoteLead, kind: LiveLeadRun['kind'], scOverride?: LiveQbScenario): LiveLeadRun {
   const steps: LivePlaybookStep[] = [];
-  const sc = LIVE_QB[lead.referenceNumber];
+  const sc = scOverride ?? LIVE_QB[lead.referenceNumber];
   const prefill = buildLeadPrefill(lead, INIT, SOURCE_TYPES, { skipGoldPlaybook: true });
   const applied = sc
     ? applyLiveQb2026(prefill.data as QuoteFormInput & Record<string, unknown>, sc)
@@ -306,7 +349,7 @@ function runOneLead(lead: QuoteLead, kind: LiveLeadRun['kind']): LiveLeadRun {
     ),
     step(
       'Event hours from departure (not embark)',
-      hours > 0 && (!sc || hours === 4),
+      hours > 0 && (kind !== 'qb2026' || hours === 4),
       `${hours}h  embark ${form.embarkation} depart ${form.departure}`,
     ),
   );
@@ -359,7 +402,15 @@ function runOneLead(lead: QuoteLead, kind: LiveLeadRun['kind']): LiveLeadRun {
     steps,
     weott: fin.baseCost,
     sheetWeott: sc?.weott ?? targets?.weottCost,
+    grand: fin.grand,
     hours,
+    vessel: form.vesselType[0],
+    guests: form.guestCount,
+    weeklyPeriod: form.weeklyPeriod,
+    dayPeriod: form.dayPeriod,
+    departure: form.departure,
+    returnTime: form.returnTime,
+    marginPercent: Math.round((fin.margin || 0) * 1000) / 10,
     yesLabels,
   };
 }
@@ -450,6 +501,91 @@ export async function runLiveFinancialPlaybook(mode: 'demo' | 'live' = 'live'): 
   const runs = [...picked.complete.map((l) => runOneLead(l, 'qb2026')), ...skipRuns];
   const ok = steps.every((s) => s.ok) && runs.every((r) => r.ok);
   return { ok, mode, steps, leads: runs };
+}
+
+export async function runOtherLiveLeadSample(
+  n = 10,
+  mode: 'demo' | 'live' = 'live',
+): Promise<LivePlaybookReport> {
+  const steps: LivePlaybookStep[] = [];
+  try {
+    const rates = parseCostRatesPayload(await postWebhook('CostRatesFetch', mode));
+    const structured =
+      rates.costMother ||
+      parseCostMotherRows(
+        ((rates.costMotherItems || rates.cateringRates || []) as Record<string, unknown>[]),
+      );
+    if (structured?.items?.length) {
+      setLiveCostMotherRates(structured as Parameters<typeof setLiveCostMotherRates>[0]);
+    }
+    if (Array.isArray(rates.lines) && rates.lines.length) {
+      setLiveCatalogLines(rates.lines);
+    }
+    const meta = getCostMotherMeta();
+    steps.push(step(`CostRatesFetch (${mode})`, true, `${meta.source} · ${meta.itemCount} lines`));
+  } catch (err) {
+    steps.push(step('CostRatesFetch', false, err instanceof Error ? err.message : String(err)));
+    return { ok: false, mode, steps, leads: [] };
+  }
+
+  let leads: QuoteLead[] = [];
+  try {
+    const parsed = parseLeadDataFetch(await postWebhook('LeadDataFetch', mode));
+    leads = (parsed.leads || []).map((row, i) => mapLead(row as Record<string, unknown>, i));
+    steps.push(step(`LeadDataFetch (${mode})`, leads.length > 0, `${leads.length} enquiry rows`));
+  } catch (err) {
+    steps.push(step('LeadDataFetch', false, err instanceof Error ? err.message : String(err)));
+    return { ok: false, mode, steps, leads: [] };
+  }
+
+  const extra = pickOtherLiveLeads(leads, n);
+  steps.push(
+    step(
+      `${n} other LIVE leads (not the four filled Quote Builder quotes)`,
+      extra.length === n,
+      extra.map((l) => l.referenceNumber).join(', ') || 'none',
+    ),
+  );
+  const runs = extra.map((l) => runOneLead(l, 'sample'));
+  return { ok: steps.every((s) => s.ok) && runs.every((r) => r.ok), mode, steps, leads: runs };
+}
+
+export async function runExtraQbColumns(mode: 'demo' | 'live' = 'live'): Promise<LivePlaybookReport> {
+  const steps: LivePlaybookStep[] = [];
+  try {
+    const rates = parseCostRatesPayload(await postWebhook('CostRatesFetch', mode));
+    const structured =
+      rates.costMother ||
+      parseCostMotherRows(
+        ((rates.costMotherItems || rates.cateringRates || []) as Record<string, unknown>[]),
+      );
+    if (structured?.items?.length) {
+      setLiveCostMotherRates(structured as Parameters<typeof setLiveCostMotherRates>[0]);
+    }
+    if (Array.isArray(rates.lines) && rates.lines.length) setLiveCatalogLines(rates.lines);
+    steps.push(step(`CostRatesFetch (${mode})`, true, getCostMotherMeta().source));
+  } catch (err) {
+    steps.push(step('CostRatesFetch', false, err instanceof Error ? err.message : String(err)));
+    return { ok: false, mode, steps, leads: [] };
+  }
+
+  const extras = extraQbColumns as Record<string, LiveQbScenario & { enquiryRef?: string }>;
+  const dummy = (id: string, name: string): QuoteLead => ({
+    id: 0,
+    name,
+    email: '',
+    phone: '',
+    designation: '',
+    company: '',
+    referenceNumber: id,
+    initials: '',
+    color: '#FF5A45',
+  });
+  const runs = Object.entries(extras).map(([id, sc]) =>
+    runOneLead(dummy(id, sc.enquiryRef || id), 'qb2026', sc),
+  );
+  steps.push(step('Extra Quote Builder 2026 columns', runs.length > 0, Object.keys(extras).join(', ')));
+  return { ok: steps.every((s) => s.ok) && runs.every((r) => r.ok), mode, steps, leads: runs };
 }
 
 export function formatLivePlaybookReport(report: LivePlaybookReport): string {
