@@ -396,6 +396,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   lead: QuoteLead | null,
   init: T,
   sourceTypes: string[],
+  opts?: { skipGoldPlaybook?: boolean },
 ): LeadPrefillResult<T> {
   const prefilledKeys = new Set<string>();
   const prefilledLineIds = new Set<string>();
@@ -447,9 +448,10 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const goldEarly = goldTargetsFromRef(lead.referenceNumber);
   const goldForm = goldEarly?.form;
   const goldLabels = (goldForm?.costLineLabels as string[]) || [];
-  const selectedLineIds = goldLabels.length
-    ? lineIdsFromLabels(goldLabels)
-    : defaultSelectedLineIds();
+  const selectedLineIds =
+    !opts?.skipGoldPlaybook && goldLabels.length
+      ? lineIdsFromLabels(goldLabels)
+      : defaultSelectedLineIds();
 
   const bespokeLines = [...((init.bespokeLines as { id: string; label: string; amount: number; enabled: boolean }[]) || [])];
   if (bespoke && bespokeLines[0]) {
@@ -610,9 +612,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
 
   if (bespoke || goldForm?.bespokeAmount) prefilledKeys.add('bespokeLines');
 
-  const withGold = applyGoldScenarioPlaybook(lead.referenceNumber, data, prefilledKeys);
+  const withGold = opts?.skipGoldPlaybook
+    ? data
+    : applyGoldScenarioPlaybook(lead.referenceNumber, data, prefilledKeys);
 
-  if (goldLabels.length) {
+  if (!opts?.skipGoldPlaybook && goldLabels.length) {
     prefilledLineIds.clear();
     for (const id of lineIdsFromLabels(goldLabels)) prefilledLineIds.add(id);
   }

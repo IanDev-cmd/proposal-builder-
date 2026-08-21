@@ -43,6 +43,8 @@ export type CatalogLine = {
    * When set, used instead of the raw Cost Mother label in package wording.
    */
   proposalWording?: string;
+  /** Staff hours buffer override. Quote Builder Event Manager uses +4 (default staff is +3). */
+  staffBuffer?: number;
 };
 
 export const WEEKLY_PERIODS = ['Mon to Thur', 'Fri to Sun', 'Mon to Wed', 'Thur to Sun'] as const;
@@ -82,6 +84,7 @@ export type TaxonomyLine = {
   defaultOn?: boolean;
   autoWithMenu?: string;
   proposalWording?: string;
+  staffBuffer?: number;
 };
 
 export const CATALOGUE_TAXONOMY = taxonomyJson as {
@@ -103,6 +106,7 @@ function lineFromTaxonomy(raw: TaxonomyLine): CatalogLine {
     defaultOn: raw.defaultOn,
     autoWithMenu: raw.autoWithMenu ? new RegExp(raw.autoWithMenu, 'i') : undefined,
     proposalWording: raw.proposalWording,
+    staffBuffer: raw.staffBuffer,
   };
 }
 
@@ -293,10 +297,10 @@ const OWN_FOOD_LABEL = 'Own Food Surcharge';
 const BG_MUSIC_LABEL = 'Background Music/Sound Equipment Hire';
 
 /**
- * Default YES lines for a new quote (no gold playbook).
- * Structural defaultOn (vessel hire, catering delivery, event decor) stay on.
- * Sapphire walkthrough: Own Food Surcharge + Background Music only extra defaults.
- * Do not auto-tick catering menus, cocktail, Section 11 staff, Section 12 other, or photographer.
+ * Default YES lines for a new quote (Sapphire/Matt walkthrough 6–10).
+ * On: Cost Mother defaultOn (vessel hire, catering delivery, event decor)
+ *     + Own Food Surcharge + Background Music.
+ * Off: catering menus, cocktail, photographer, Section 11 staff, Section 12 other.
  */
 export function defaultSelectedLineIds(
   _menus: string[] = [],

@@ -225,7 +225,8 @@
       "label": "Own Food Surcharge",
       "multiplier": "set",
       "aliases": [
-        "Own Food Surcharge"
+        "Own Food Surcharge",
+        "WEOTT Providing"
       ]
     },
     {
@@ -352,6 +353,16 @@
       "multiplier": "guests",
       "aliases": [
         "Disposable Napkins"
+      ]
+    },
+    {
+      "id": "catering_equipment_delivery_charge_cutlery_linen",
+      "section": "catering_equipment",
+      "label": "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+      "multiplier": "guests",
+      "aliases": [
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Delivery charge for cutlery and linen (or contingency for lost/damage items)"
       ]
     },
     {
@@ -884,7 +895,7 @@
       "id": "decor_table_disposable_tableware_add_to_street_food_quotes_only",
       "section": "decor_table",
       "label": "Disposable tableware (Add to street food quotes ONLY)",
-      "multiplier": "tables",
+      "multiplier": "guests",
       "aliases": [
         "Disposable tableware (Add to street food quotes ONLY)"
       ],
@@ -931,6 +942,7 @@
       "section": "staff",
       "label": "Event Manager (In house member of team)",
       "multiplier": "staff_hours",
+      "staffBuffer": 4,
       "aliases": [
         "Event Manager (In house member of team)"
       ]
@@ -966,7 +978,7 @@
       "id": "staff_wp_runner",
       "section": "staff",
       "label": "WP Runner",
-      "multiplier": "staff_hours",
+      "multiplier": "set",
       "aliases": [
         "WP Runner"
       ]
@@ -1076,7 +1088,8 @@
       "label": "CONTIGENCY STAFF",
       "multiplier": "hours",
       "aliases": [
-        "CONTIGENCY STAFF"
+        "CONTIGENCY STAFF",
+        "CONTINGENCY STAFF"
       ]
     },
     {
@@ -1163,6 +1176,26 @@
         "Graphic Work (Design & Print) + Gift Vouchers"
       ],
       "proposalWording": "Bespoke graphic design, print, and gift vouchers"
+    },
+    {
+      "id": "other_catering_staff_food_contigency",
+      "section": "other",
+      "label": "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+      "multiplier": "set",
+      "aliases": [
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Catering/Staff Food Contingency (ADD TO ALL QUOTES)"
+      ]
+    },
+    {
+      "id": "other_event_manager_creative_kitty",
+      "section": "other",
+      "label": "Event Manager 'Creative Kitty'",
+      "multiplier": "set",
+      "aliases": [
+        "Event Manager 'Creative Kitty'",
+        "Event Manager Creative Kitty"
+      ]
     },
     {
       "id": "financial_financial_admin_fee_carly",

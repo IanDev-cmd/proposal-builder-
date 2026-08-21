@@ -140,7 +140,7 @@ function multiplierValue(line: CatalogLine, hours: number, guests: number, table
     case 'hours':
       return billable;
     case 'staff_hours':
-      return billable + STAFF_HOURS_BUFFER;
+      return billable + (line.staffBuffer ?? STAFF_HOURS_BUFFER);
     case 'guests':
       return guests;
     case 'tables':
