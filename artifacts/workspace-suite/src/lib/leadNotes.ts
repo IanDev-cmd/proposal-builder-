@@ -236,6 +236,10 @@ export function replaceProgressNoteEntry(raw: string, index: number, next: strin
   return joinProgressNoteEntries(entries);
 }
 
+export function removeProgressNoteEntry(raw: string, index: number): string {
+  return replaceProgressNoteEntry(raw, index, '');
+}
+
 export type PointKind =
   | 'budget'
   | 'calls'

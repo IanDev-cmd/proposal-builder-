@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Users, ClipboardList, GitBranch, Grid2x2, FileText, Settings, Check, ArrowRight } from 'lucide-react';
+import { Users, ClipboardList, GitBranch, Grid2x2, FileText, Settings, Check, ArrowRight, Bookmark } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type Tile = {
@@ -22,6 +22,12 @@ const TILES: Tile[] = [
     label: 'Quote Builder',
     icon: ClipboardList,
     features: ['Configure business info', 'Set modules & permissions', 'Import / export data', 'Map categories'],
+  },
+  {
+    href: '/saved-quotes',
+    label: 'Saved Quotes',
+    icon: Bookmark,
+    features: ['Resume a saved quote', 'Generate the PDF', 'Share by email or WhatsApp', 'Copy a persistent link'],
   },
   {
     href: '/timeline',

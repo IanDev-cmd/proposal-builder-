@@ -9,6 +9,7 @@ import {
   NOTE_CATEGORIES,
   pointsFromProgressNotes,
   replaceProgressNoteEntry,
+  removeProgressNoteEntry,
   type NotePoint,
   type NoteTag,
   type PointKind,
@@ -181,6 +182,19 @@ export function LeadReferenceCard({
     );
   }
 
+  function handleDeleteCard(card: TimelineCard) {
+    if (card.id === 'enquiry') return;
+    if (card.id === 'discovery') {
+      onUpdatedEnquiryChange('');
+      setActiveId('enquiry');
+      return;
+    }
+    if (card.sourceIndex == null) return;
+    onProgressNotesChange(removeProgressNoteEntry(progressNotes, card.sourceIndex));
+    setGeminiPoints(null);
+    setActiveId('enquiry');
+  }
+
   function handleSaveNote() {
     if (!draft.trim()) return;
     const tag = manualTag ?? detectTag(draft);
@@ -215,6 +229,7 @@ export function LeadReferenceCard({
       onSummarize={() => fetchSummary(true)}
       summarizing={summarizing}
       onEditBody={handleEditBody}
+      onDelete={handleDeleteCard}
     >
       {composer}
     </LeadNotesTimeline>

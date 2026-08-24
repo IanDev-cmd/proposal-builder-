@@ -7,6 +7,7 @@ import { ActiveLeadProvider } from '@/context/ActiveLeadContext';
 import { Home } from '@/pages/Home';
 import { Leads } from '@/pages/Leads';
 import { Forms as QuoteBuilder } from '@/pages/Forms';
+import { SavedQuotes } from '@/pages/SavedQuotes';
 import { ProposalDoc } from '@/pages/ProposalDoc';
 import { Timeline } from '@/pages/Timeline';
 import { Settings } from '@/pages/Settings';
@@ -23,6 +24,8 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/leads" component={Leads} />
         <Route path="/quote-builder" component={QuoteBuilder} />
+        <Route path="/saved-quotes/:id" component={SavedQuotes} />
+        <Route path="/saved-quotes" component={SavedQuotes} />
         <Route path="/proposal-doc" component={ProposalDoc} />
         <Route path="/timeline" component={Timeline} />
         <Route path="/settings" component={Settings} />

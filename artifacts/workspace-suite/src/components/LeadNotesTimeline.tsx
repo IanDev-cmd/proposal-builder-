@@ -14,6 +14,7 @@ import {
   Sparkles,
   StickyNote,
   Sun,
+  Trash2,
   Users,
   UtensilsCrossed,
 } from 'lucide-react';
@@ -76,6 +77,10 @@ type Props = {
   onSummarize: () => void;
   summarizing?: boolean;
   onEditBody?: (card: TimelineCard, value: string) => void;
+  onDelete?: (card: TimelineCard) => void;
+  footer?: (card: TimelineCard, active: boolean) => React.ReactNode;
+  columns?: 1 | 2;
+  emptyLabel?: string;
   children?: React.ReactNode;
 };
 
@@ -89,39 +94,50 @@ export function LeadNotesTimeline({
   onSummarize,
   summarizing,
   onEditBody,
+  onDelete,
+  footer,
+  columns = 1,
+  emptyLabel = 'No notes yet for this lead.',
   children,
 }: Props) {
+  const cols = columns === 2 && cards.length > 1 ? 2 : 1;
+  const mid = Math.ceil(cards.length / cols);
+  const groups = cols === 2 ? [cards.slice(0, mid), cards.slice(mid)] : [cards];
+
   return (
     <div
       className="relative flex min-h-0 flex-1 flex-col bg-white"
       data-testid="lead-notes-timeline"
     >
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-1 scrollbar-thin">
-        <div className="relative pl-8">
-          <div
-            className="absolute bottom-6 left-[11px] top-6 w-px"
-            style={{ backgroundColor: NOTES_LINE }}
-            aria-hidden
-          />
-          <div className="flex flex-col gap-4">
-            {cards.length === 0 ? (
-              <p className="py-10 text-center text-[13px] text-slate-400">No notes yet for this lead.</p>
-            ) : (
-              cards.map((card) => {
-                const active = card.id === activeId;
-                return (
-                  <TimelineNoteCard
-                    key={card.id}
-                    card={card}
-                    active={active}
-                    onSelect={() => onSelect(card.id)}
-                    onEditBody={onEditBody}
-                  />
-                );
-              })
-            )}
+        {cards.length === 0 ? (
+          <p className="py-10 text-center text-[13px] text-slate-400">{emptyLabel}</p>
+        ) : (
+          <div className={cols === 2 ? 'grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10' : ''}>
+            {groups.map((group, gi) => (
+              <div key={`col-${gi}`} className="relative pl-8">
+                <div
+                  className="absolute bottom-6 left-[11px] top-6 w-px"
+                  style={{ backgroundColor: NOTES_LINE }}
+                  aria-hidden
+                />
+                <div className="flex flex-col gap-4">
+                  {group.map((card) => (
+                    <TimelineNoteCard
+                      key={card.id}
+                      card={card}
+                      active={card.id === activeId}
+                      onSelect={() => onSelect(card.id)}
+                      onEditBody={onEditBody}
+                      onDelete={onDelete}
+                      footer={footer}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
       {children ? (
@@ -168,13 +184,18 @@ function TimelineNoteCard({
   active,
   onSelect,
   onEditBody,
+  onDelete,
+  footer,
 }: {
   card: TimelineCard;
   active: boolean;
   onSelect: () => void;
   onEditBody?: (card: TimelineCard, value: string) => void;
+  onDelete?: (card: TimelineCard) => void;
+  footer?: (card: TimelineCard, active: boolean) => React.ReactNode;
 }) {
   const kinds = (card.kinds.length ? card.kinds : [card.kind]).slice(0, 4);
+  const canDelete = Boolean(onDelete && card.id !== 'enquiry');
 
   return (
     <div className="relative">
@@ -274,15 +295,31 @@ function TimelineNoteCard({
                     />
                   ))}
                 </div>
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white shadow-sm"
-                  aria-hidden
-                >
-                  <Sun className="h-4 w-4 text-slate-400" strokeWidth={2} />
-                </span>
+                {canDelete ? (
+                  <button
+                    type="button"
+                    aria-label="Delete note"
+                    data-testid={`lead-note-delete-${card.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete?.(card);
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white shadow-sm text-slate-500 hover:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                ) : (
+                  <span
+                    className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white shadow-sm"
+                    aria-hidden
+                  >
+                    <Sun className="h-4 w-4 text-slate-400" strokeWidth={2} />
+                  </span>
+                )}
               </motion.div>
             ) : null}
           </AnimatePresence>
+          {footer ? <div onClick={(e) => e.stopPropagation()}>{footer(card, active)}</div> : null}
         </motion.article>
       </motion.div>
     </div>

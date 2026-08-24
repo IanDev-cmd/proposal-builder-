@@ -4,6 +4,7 @@ import {
   Home,
   Users,
   ClipboardList,
+  Bookmark,
   FileText,
   GitBranch,
   Settings,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: '/',             label: 'Home',         icon: Home           },
   { href: '/leads',        label: 'Leads',        icon: Users          },
   { href: '/quote-builder', label: 'Quote Builder', icon: ClipboardList  },
+  { href: '/saved-quotes', label: 'Saved Quotes', icon: Bookmark },
   { href: '/proposal-doc', label: 'Proposal Doc', icon: FileText       },
   { href: '/timeline',     label: 'Timeline',     icon: GitBranch      },
   { href: '/apps',         label: 'Apps',         icon: Grid2x2        },
@@ -55,7 +57,7 @@ export function AppNav() {
 
         <nav className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const isActive = location === href;
+            const isActive = href === '/saved-quotes' ? location.startsWith('/saved-quotes') : location === href;
             return (
               <Link
                 key={href}

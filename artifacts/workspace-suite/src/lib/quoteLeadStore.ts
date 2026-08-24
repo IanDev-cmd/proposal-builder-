@@ -1,9 +1,11 @@
 /**
  * QuoteLead — handed from Lead panel → Quote Builder.
  * Fields mirror n8n Structure all Leads1 Sapphire aliases.
+ * Dual-written to sessionStorage + localStorage so a refresh still restores the lead.
  */
 
 const STORAGE_KEY = 'nexus.quoteLead';
+const PERSIST_KEY = 'nexus.quoteLead.persistent';
 
 export type QuoteLead = {
   id: number;
@@ -55,7 +57,13 @@ export type QuoteLead = {
 
 export function setQuoteLead(lead: QuoteLead): boolean {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lead));
+    const raw = JSON.stringify(lead);
+    sessionStorage.setItem(STORAGE_KEY, raw);
+    try {
+      localStorage.setItem(PERSIST_KEY, raw);
+    } catch {
+      /* quota — session copy still works this tab */
+    }
     return true;
   } catch {
     return false;
@@ -64,16 +72,36 @@ export function setQuoteLead(lead: QuoteLead): boolean {
 
 export function getQuoteLead(): QuoteLead | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as QuoteLead) : null;
+    const session = sessionStorage.getItem(STORAGE_KEY);
+    if (session) return JSON.parse(session) as QuoteLead;
   } catch {
-    return null;
+    /* fall through */
   }
+  try {
+    const persisted = localStorage.getItem(PERSIST_KEY);
+    if (persisted) {
+      const lead = JSON.parse(persisted) as QuoteLead;
+      try {
+        sessionStorage.setItem(STORAGE_KEY, persisted);
+      } catch {
+        /* ignore */
+      }
+      return lead;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 export function clearQuoteLead(): void {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* no-op */
+  }
+  try {
+    localStorage.removeItem(PERSIST_KEY);
   } catch {
     /* no-op */
   }

@@ -8,9 +8,16 @@ import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGrou
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { LeadReferenceCard } from '@/components/LeadReferenceCard';
 import { ScheduleTimingToasts } from '@/components/ScheduleTimingToasts';
-import { getQuoteLead, clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
+import { getQuoteLead, clearQuoteLead, setQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
+import {
+  consumePendingGenerate,
+  getSavedQuote,
+  peekPendingGenerate,
+  upsertSavedQuote,
+} from '@/lib/savedQuotesStore';
+import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
 import { proposalFileStem } from '@/lib/proposalFilename';
 import {
   calcBaseCostBreakdown,
@@ -841,14 +848,21 @@ async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<b
 
 export function Forms() {
   const [, navigate] = useLocation();
-  const [step, setStep] = useState(1);
-  const [quoteLead] = useState<QuoteLead | null>(() => getQuoteLead());
-  const [leadInit] = useState(() => formFromLead(getQuoteLead()));
+  const pendingQuote = (() => {
+    const id = peekPendingGenerate();
+    return id ? getSavedQuote(id) : null;
+  })();
+  const [step, setStep] = useState(() => pendingQuote?.step || 1);
+  const [quoteLead] = useState<QuoteLead | null>(() => pendingQuote?.lead || getQuoteLead());
+  const [leadInit] = useState(() => formFromLead(getQuoteLead() || pendingQuote?.lead || null));
   const leadNotesKey =
     quoteLead?.referenceNumber ||
     quoteLead?.email ||
-    (quoteLead?.id != null ? `lead-${quoteLead.id}` : 'quote-draft');
+    (quoteLead?.id != null ? `lead-${quoteLead.id}` : pendingQuote?.leadKey || 'quote-draft');
   const [data, setData] = useState<FormData>(() => {
+    if (pendingQuote?.data) {
+      return { ...INIT, ...(pendingQuote.data as FormData) };
+    }
     const d = leadInit.data as FormData;
     const draft = loadQuoteNotesDraft(
       quoteLead?.referenceNumber ||
@@ -955,6 +969,10 @@ export function Forms() {
 
   useEffect(() => {
     let cancelled = false;
+    if (peekPendingGenerate()) {
+      setDraftReady(true);
+      return;
+    }
     loadQuoteDraft<FormData>(leadNotesKey)
       .then((draft) => {
         if (cancelled) return;
@@ -1748,6 +1766,49 @@ export function Forms() {
       });
     }
   };
+
+  const handleSaveQuote = async () => {
+    const saved = upsertSavedQuote({
+      id: `quote-${leadNotesKey}-${Date.now()}`,
+      leadKey: leadNotesKey,
+      leadName: quoteLead?.name,
+      referenceNumber: quoteLead?.referenceNumber,
+      title: proposalFileStem({
+        contactName: quoteLead?.name,
+        companyName: quoteLead?.company,
+        referenceCode: quoteLead?.referenceNumber,
+      }),
+      vesselType: data.vesselType.join(', '),
+      eventType: data.eventType,
+      guestCount: data.guestCount,
+      eventDate: data.eventDate,
+      grandTotal: fin.grand,
+      step,
+      data,
+      lead: quoteLead,
+    });
+    await saveQuoteDraft({
+      leadKey: leadNotesKey,
+      step,
+      data,
+      leadName: quoteLead?.name,
+      referenceNumber: quoteLead?.referenceNumber,
+    });
+    if (quoteLead) setQuoteLead(quoteLead);
+    navigate(`/saved-quotes/${saved.id}`);
+  };
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (!peekPendingGenerate()) return;
+    consumePendingGenerate();
+    const t = window.setTimeout(() => {
+      void handleGenerate();
+    }, 80);
+    return () => window.clearTimeout(t);
+    // Mount-once after pending saved quote is in state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftReady]);
 
   const pageVariants = {
     initial: { opacity: 0, x: 24 },
@@ -3002,11 +3063,12 @@ export function Forms() {
               </button>
             ) : (
               <button
-                onClick={handleGenerate}
-                data-testid="btn-generate"
-                className="flex items-center gap-2 rounded-full bg-[#FF5A45] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#F4412A]"
+                onClick={handleSaveQuote}
+                data-testid="btn-save-quote"
+                className="flex items-center gap-2 rounded-full px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:brightness-95"
+                style={{ backgroundColor: NOTES_BLUE }}
               >
-                Generate Proposal
+                Save Quote
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
@@ -3014,7 +3076,8 @@ export function Forms() {
         </div>
       </main>
 
-      {/* ── Right: docked Lead Notes (+ timing toasts on Schedule Timings only) ── */}
+      {/* ── Right: docked Lead Notes (hidden while a PDF is generating) ── */}
+      {stage === 'idle' ? (
       <aside
         className={`sticky top-16 z-[110] flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-hidden transition-[width] duration-300 ${
           isNotesOpen || step === 3 ? 'w-[min(380px,32vw)]' : 'w-14'
@@ -3061,6 +3124,7 @@ export function Forms() {
           </div>
         ) : null}
       </aside>
+      ) : null}
 
       {/* ── Quote details overlay (Cost Approval step) ── */}
       <AnimatePresence>
