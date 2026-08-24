@@ -2115,7 +2115,7 @@ export function Forms() {
                   </div>
                 </div>
                 <div className="mb-7">
-                  <label className={fieldLabelCls}>Initial Enquiry</label>
+                  <label className={fieldLabelCls}>Key items</label>
                   <input
                     type="text"
                     value={data.keyItems}
@@ -2345,10 +2345,10 @@ export function Forms() {
                 <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
                 <div className="mb-4 sticky top-0 z-10 rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 shadow-sm">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E22A12]">
-                    Initial Enquiry (from Lead)
+                    Key items (from Lead)
                   </p>
                   <p className="mt-1 text-[13px] font-semibold leading-snug text-gray-800">
-                    {data.initialEnquiry?.trim() || data.keyItems?.trim() || 'No initial enquiry yet — add notes on Event Core or keep referring to the lead sheet.'}
+                    {data.initialEnquiry?.trim() || data.keyItems?.trim() || 'No key items yet — add notes on Event Core or keep referring to the lead sheet.'}
                   </p>
                   {!data.keyItems?.trim() ? (
                     <button
@@ -3247,7 +3247,7 @@ export function Forms() {
                   </div>
                   {data.initialEnquiry || data.keyItems ? (
                     <div className="col-span-2 rounded-[10px] bg-[#fafafa] px-3 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Initial enquiry</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Key items</p>
                       <p className="font-semibold text-gray-800">{data.initialEnquiry || data.keyItems}</p>
                     </div>
                   ) : null}
