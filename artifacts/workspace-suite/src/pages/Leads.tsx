@@ -71,9 +71,12 @@ function mapRaw(raw: Record<string, unknown>, index: number): Lead {
     raw.eventDateFlexibleBool === true ||
     raw.eventDateFlexibleBool === 'true' ||
     /yes|tbc|flex/i.test(flexRaw);
+  const fullEventDate = aliasFirst(raw, 'fullEventDate', 'Full Event Date');
+  const displayAlias = aliasFirst(raw, 'eventDateDisplay');
   const eventDateDisplay =
-    aliasFirst(raw, 'eventDateDisplay') ||
-    (flexBool ? 'Date TBC' : aliasFirst(raw, 'fullEventDate', 'Full Event Date'));
+    displayAlias && !/^(date\s*)?tbc$/i.test(displayAlias)
+      ? displayAlias
+      : fullEventDate || (flexBool ? 'Date TBC' : '');
   const idRaw = raw.id ?? raw.row_number ?? index + 1;
   const id = typeof idRaw === 'number' ? idRaw : Number(idRaw) || index + 1;
 
@@ -99,7 +102,7 @@ function mapRaw(raw: Record<string, unknown>, index: number): Lead {
     assignedRep: assignedRep || undefined,
     liveDead: liveDead || undefined,
     eventType: aliasFirst(raw, 'eventType', 'Event Type') || undefined,
-    fullEventDate: aliasFirst(raw, 'fullEventDate', 'Full Event Date') || undefined,
+    fullEventDate: fullEventDate || undefined,
     eventDateFlexible: flexRaw || undefined,
     eventDateFlexibleBool: flexBool || undefined,
     eventDateDisplay: eventDateDisplay || undefined,

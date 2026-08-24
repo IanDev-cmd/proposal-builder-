@@ -2010,15 +2010,15 @@ export function Forms() {
                     className={fieldCls('eventDate')}
                   />
                   {data.dateFlexible && data.eventDate ? (
-                    <p className="mt-1.5 text-[12px] font-semibold text-[#E22A12]">
+                    <p className="mt-1.5 text-[12px] font-semibold text-emerald-700">
                       Proposal will show this date with TBC underneath
                     </p>
                   ) : null}
                 </div>
-                <div className={`mb-7 rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('dateFlexible') ? PREFILL_INPUT_CLS : ''}`}>
+                <div className="mb-7 rounded-[10px] border border-[#e3e6e4] p-4">
                   <p className="text-[13px] font-semibold text-gray-800">Date Flexibility</p>
                   <p className="mt-0.5 text-[12px] text-gray-400">
-                    Fixed shows the date alone; Flexible shows the date with TBC on the line below
+                    Pulled from the Lead Sheet. TBC selects Flexible; otherwise Fixed. Flexible still prints the date, with TBC on the line below.
                   </p>
                   <div
                     role="radiogroup"
@@ -2035,9 +2035,9 @@ export function Forms() {
                       }}
                       className={`rounded-[8px] border px-3 py-2.5 text-[13px] font-semibold transition-colors ${
                         !data.dateFlexible
-                          ? 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
+                          ? `${PREFILL_CONFIRMED_SURFACE} ${PREFILL_CONFIRMED_CLS}`
                           : 'border-[#e3e6e4] bg-white text-gray-700 hover:border-[#cfd6d2]'
-                      } ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
+                      }`}
                     >
                       Fixed
                     </button>
@@ -2051,9 +2051,9 @@ export function Forms() {
                       }}
                       className={`rounded-[8px] border px-3 py-2.5 text-[13px] font-semibold transition-colors ${
                         data.dateFlexible
-                          ? 'border-[#FF5A45] bg-[#FFF1F0] text-[#E22A12]'
+                          ? `${PREFILL_CONFIRMED_SURFACE} ${PREFILL_CONFIRMED_CLS}`
                           : 'border-[#e3e6e4] bg-white text-gray-700 hover:border-[#cfd6d2]'
-                      } ${prefilledKeys.has('dateFlexible') ? PREFILL_TOGGLE_CLS : ''}`}
+                      }`}
                     >
                       Flexible
                     </button>

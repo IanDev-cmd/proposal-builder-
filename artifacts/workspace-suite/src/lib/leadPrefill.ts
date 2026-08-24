@@ -165,7 +165,33 @@ export function isFlexibleDate(flexible?: string, flexibleBool?: boolean): boole
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+  if (!s) return false;
+  if (/^(no|n|false|fixed)$/.test(s)) return false;
   return s.includes('yes') || s.includes('tbc') || s.includes('flex');
+}
+
+function isTbcDateToken(raw?: string): boolean {
+  const s = String(raw || '').trim();
+  return !!s && /^(date\s*)?tbc$/i.test(s);
+}
+
+/** Lead Sheet → Quote Builder: TBC/YES/flex picks Flexible; otherwise Fixed. */
+export function leadSelectsFlexibleDate(lead: {
+  eventDateFlexible?: string;
+  eventDateFlexibleBool?: boolean | string;
+  eventDateDisplay?: string;
+  fullEventDate?: string;
+}): boolean {
+  const col = String(lead.eventDateFlexible || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (/^(no|n|false|fixed)$/.test(col)) {
+    return isTbcDateToken(lead.fullEventDate);
+  }
+  const boolTrue = lead.eventDateFlexibleBool === true || lead.eventDateFlexibleBool === 'true';
+  if (isFlexibleDate(lead.eventDateFlexible, boolTrue)) return true;
+  return isTbcDateToken(lead.fullEventDate) || isTbcDateToken(lead.eventDateDisplay);
 }
 
 export function isRepeatYes(raw?: string | boolean): boolean {
@@ -408,10 +434,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   }
 
   const notes = lead.progressNotes || '';
-  const flex =
-    lead.eventDateFlexibleBool === true ||
-    lead.eventDateDisplay === 'Date TBC' ||
-    isFlexibleDate(lead.eventDateFlexible, lead.eventDateFlexibleBool);
+  const flex = leadSelectsFlexibleDate(lead);
   const quoteVersion = parseQuoteVersionFromNotes(notes);
   const eventType = matchEventType(lead.eventType) || lead.eventType || '';
   const wedding = /wedding|engagement/i.test(lead.eventType || eventType);
