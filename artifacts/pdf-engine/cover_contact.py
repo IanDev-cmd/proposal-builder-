@@ -42,7 +42,7 @@ def _ordinal(n: int) -> str:
     return _ORDINAL.get(n % 10, "th")
 
 
-def format_event_date(value: str) -> str:
+def format_event_date(value: str, *, date_flexible: bool | None = None) -> str:
     if value is None:
         return ""
     raw = str(value).strip()
@@ -52,9 +52,12 @@ def format_event_date(value: str) -> str:
     if re.match(r"^(date\s*)?tbc$", raw, re.I):
         return "Date TBC"
 
-    flexible = bool(
-        re.search(r"(?i)(?:\n\s*tbc\s*$|\(date\s*tbc\)|\(tbc\)|\bflexible\b)", raw)
-    ) or bool(re.search(r"(?i)\btbc\b", raw))
+    if date_flexible is True:
+        flexible = True
+    elif date_flexible is False:
+        flexible = False
+    else:
+        flexible = bool(re.search(r"(?i)\n\s*tbc\s*$", raw))
 
     date_part = re.sub(r"(?i)\s*\n\s*tbc\s*$", "", raw)
     date_part = re.sub(r"(?i)\s*\(date\s*tbc\)\s*", "", date_part)
@@ -393,7 +396,10 @@ def normalize_cover_lead(lead: dict) -> dict:
             out["prepared_by"] = format_prepared_by_name(out if "prepared_by" in out else lead)
         out["prepared_by_role"] = format_prepared_by_role(out)
     if "event_date" in out:
-        out["event_date"] = format_event_date(out["event_date"])
+        out["event_date"] = format_event_date(
+            out["event_date"],
+            date_flexible=lead.get("date_flexible"),
+        )
     if "event_timings" in out:
         original = str(lead.get("event_timings", ""))
         formatted = format_event_timings(original, include_tbc=False)

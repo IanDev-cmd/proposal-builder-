@@ -22,7 +22,8 @@ import { requestLeadNotesSummary } from '@/lib/leadNotesSummary';
 import { LeadNotesTimeline, NoteKindAvatar, NOTES_BLUE, type TimelineCard } from '@/components/LeadNotesTimeline';
 import { soundClick } from '@/lib/sounds';
 import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
-import { setQuoteLead } from '@/lib/quoteLeadStore';
+import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
+import { consumePendingGenerate } from '@/lib/savedQuotesStore';
 import { toastError } from '@/lib/notify';
 import type { N8nSapphireLead } from '@/lib/sapphireLead';
 
@@ -687,6 +688,8 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
       });
       return;
     }
+    consumePendingGenerate();
+    markQuoteBuilderStartAt(1);
     soundClick();
     onClose();
     navigate('/quote-builder');

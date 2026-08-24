@@ -106,3 +106,24 @@ export function clearQuoteLead(): void {
     /* no-op */
   }
 }
+
+const START_STEP_KEY = 'nexus.quoteBuilder.startStep';
+
+export function markQuoteBuilderStartAt(step: number): void {
+  try {
+    sessionStorage.setItem(START_STEP_KEY, String(step));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeQuoteBuilderStartStep(): number | null {
+  try {
+    const raw = sessionStorage.getItem(START_STEP_KEY);
+    sessionStorage.removeItem(START_STEP_KEY);
+    const n = Number(raw);
+    return n >= 1 && n <= 7 ? n : null;
+  } catch {
+    return null;
+  }
+}

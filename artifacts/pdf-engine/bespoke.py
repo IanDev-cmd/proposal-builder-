@@ -81,20 +81,7 @@ def render_package_columns(doc: "fitz.Document", package_wording: dict, font_mgr
     if not any_groups:
         return False
 
-    # Only wipe columns we are rewriting so template copy stays in the others.
-    all_named = all(package_wording.get(col_cfg["name"]) for col_cfg in columns)
-    if all_named:
-        redact_zone(page13, clear_zone, clear_graphics=True)
-    else:
-        for col_cfg in columns:
-            groups = package_wording.get(col_cfg["name"], [])
-            if not groups:
-                continue
-            x0 = float(col_cfg["x"]) - 1.5
-            y0 = float(clear_zone[1])
-            x1 = float(col_cfg["x"]) + float(col_cfg["width"]) + 4.0
-            y1 = float(col_cfg["max_y"]) + 1.0
-            redact_zone(page13, (x0, y0, x1, y1), clear_graphics=True)
+    redact_zone(page13, clear_zone, clear_graphics=True)
 
     for col_cfg in columns:
         groups = package_wording.get(col_cfg["name"], [])

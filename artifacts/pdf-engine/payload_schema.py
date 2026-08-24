@@ -36,6 +36,7 @@ class GenerateLead(BaseModel):
     email: str | None = None
     event_type: str | None = None
     event_date: str | None = None  # ISO-8601 preferred (YYYY-MM-DD or full datetime)
+    date_flexible: bool | None = None
     event_timings: str | None = None
     guest_range: str | None = None
     guest_quote_n: str | int | float | None = None

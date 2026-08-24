@@ -8,7 +8,7 @@ import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGrou
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { LeadReferenceCard } from '@/components/LeadReferenceCard';
 import { ProposalTimingsCard } from '@/components/ProposalTimingsCard';
-import { getQuoteLead, clearQuoteLead, setQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
+import { getQuoteLead, clearQuoteLead, setQuoteLead, consumeQuoteBuilderStartStep, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
 import {
@@ -856,8 +856,13 @@ export function Forms() {
   })();
   const pendingGenerateIdRef = useRef<string | null>(peekPendingGenerate());
   const fromSavedGenerateRef = useRef(Boolean(pendingGenerateIdRef.current));
-  const [step, setStep] = useState(() => pendingQuote?.step || 1);
-  const [quoteLead] = useState<QuoteLead | null>(() => pendingQuote?.lead || getQuoteLead());
+  const openAtEventCoreRef = useRef(consumeQuoteBuilderStartStep() === 1);
+  const [step, setStep] = useState(() =>
+    openAtEventCoreRef.current ? 1 : pendingQuote?.step && pendingQuote.step >= 1 ? pendingQuote.step : 1,
+  );
+  const [quoteLead] = useState<QuoteLead | null>(() =>
+    openAtEventCoreRef.current ? getQuoteLead() : pendingQuote?.lead || getQuoteLead(),
+  );
   const [leadInit] = useState(() => formFromLead(getQuoteLead() || pendingQuote?.lead || null));
   const leadNotesKey =
     quoteLead?.referenceNumber ||
@@ -1006,12 +1011,18 @@ export function Forms() {
       .then((draft) => {
         if (cancelled) return;
         if (draft?.data) {
-          const leadInitial = String((leadInit.data as FormData).initialEnquiry || '');
+          const leadForm = leadInit.data as FormData;
           setData({
             ...draft.data,
-            initialEnquiry: draft.data.initialEnquiry || leadInitial,
+            initialEnquiry: draft.data.initialEnquiry || String(leadForm.initialEnquiry || ''),
+            progressNotes: draft.data.progressNotes || String(leadForm.progressNotes || ''),
+            keyItems: draft.data.keyItems || String(leadForm.keyItems || ''),
           });
-          if (Number(draft.step) >= 1 && Number(draft.step) <= LAST_CONTENT_STEP) {
+          if (
+            !openAtEventCoreRef.current &&
+            Number(draft.step) >= 1 &&
+            Number(draft.step) <= LAST_CONTENT_STEP
+          ) {
             setStep(draft.step);
           }
         }

@@ -141,7 +141,7 @@ export function matchEventType(raw?: string): string {
 export function parseRequestedTimes(
   raw?: string,
   quoteVersion?: string,
-): { embarkation?: string; disembarkation?: string } {
+): { departure?: string; returnTime?: string } {
   if (!raw?.trim()) return {};
   const norm = (t: string) => {
     const [h, min] = t.split(':');
@@ -152,11 +152,11 @@ export function parseRequestedTimes(
     const vm = raw.match(
       new RegExp(`V\\s*${verNum}\\s*[:\\-]?\\s*(\\d{1,2}:\\d{2})\\s*[-–—to]+\\s*(\\d{1,2}:\\d{2})`, 'i'),
     );
-    if (vm) return { embarkation: norm(vm[1]), disembarkation: norm(vm[2]) };
+    if (vm) return { departure: norm(vm[1]), returnTime: norm(vm[2]) };
   }
   const m = raw.match(/(\d{1,2}:\d{2})\s*[-–—to]+\s*(\d{1,2}:\d{2})/i);
   if (!m) return {};
-  return { embarkation: norm(m[1]), disembarkation: norm(m[2]) };
+  return { departure: norm(m[1]), returnTime: norm(m[2]) };
 }
 
 export function isFlexibleDate(flexible?: string, flexibleBool?: boolean): boolean {
@@ -450,8 +450,8 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (guestParsed.ambiguous) ambiguousFields.add('guestCount');
   const guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
-  const windowStart = times.embarkation || String(init.departure || '12:00');
-  const windowFinish = times.disembarkation || String(init.returnTime || init.disembarkation || '17:00');
+  const windowStart = times.departure || String(init.departure || '12:00');
+  const windowFinish = times.returnTime || String(init.returnTime || init.disembarkation || '17:00');
   const schedule = inferDepartureReturn(windowStart, windowFinish);
   const embarkation = schedule.embarkation;
   const disembarkation = schedule.disembarkation;
@@ -606,11 +606,11 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (eventDate) prefilledKeys.add('eventDate');
   if (guestCount) prefilledKeys.add('guestCount');
   if (guestCountHigh) prefilledKeys.add('guestCountHigh');
-  if (times.embarkation) prefilledKeys.add('embarkation');
-  if (times.disembarkation) prefilledKeys.add('disembarkation');
-  if (times.embarkation || times.disembarkation) {
-    prefilledKeys.add('departure');
-    prefilledKeys.add('returnTime');
+  if (times.departure) prefilledKeys.add('departure');
+  if (times.returnTime) prefilledKeys.add('returnTime');
+  if (times.departure || times.returnTime) {
+    prefilledKeys.add('embarkation');
+    prefilledKeys.add('disembarkation');
   }
   if (menuType.length) prefilledKeys.add('menuType');
   if (marginPercent) prefilledKeys.add('marginPercent');
@@ -679,10 +679,10 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
     patch.noOfTables = tablesForVessel(String(((current as { vesselType?: string[] }).vesselType || [])[0] || ''));
     if (patch.noOfTables) keys.push('noOfTables');
   }
-  if (times.embarkation || times.disembarkation) {
+  if (times.departure || times.returnTime) {
     const sch = inferDepartureReturn(
-      String(times.embarkation || current.departure || '12:00'),
-      String(times.disembarkation || current.returnTime || current.disembarkation || '17:00'),
+      String(times.departure || current.departure || '12:00'),
+      String(times.returnTime || current.returnTime || current.disembarkation || '17:00'),
     );
     patch.embarkation = sch.embarkation;
     patch.departure = sch.departure;

@@ -173,25 +173,36 @@ export function subscribeSavedQuotes(cb: () => void): () => void {
 
 export function markPendingGenerate(id: string) {
   try {
-    localStorage.setItem(PENDING_GENERATE_KEY, id);
+    sessionStorage.setItem(PENDING_GENERATE_KEY, id);
+  } catch {
+    /* ignore */
+  }
+  try {
+    localStorage.removeItem(PENDING_GENERATE_KEY);
   } catch {
     /* ignore */
   }
 }
 
 export function consumePendingGenerate(): string | null {
+  let id: string | null = null;
   try {
-    const id = localStorage.getItem(PENDING_GENERATE_KEY);
-    if (id) localStorage.removeItem(PENDING_GENERATE_KEY);
-    return id;
+    id = sessionStorage.getItem(PENDING_GENERATE_KEY);
+    if (id) sessionStorage.removeItem(PENDING_GENERATE_KEY);
   } catch {
-    return null;
+    /* ignore */
   }
+  try {
+    localStorage.removeItem(PENDING_GENERATE_KEY);
+  } catch {
+    /* ignore */
+  }
+  return id;
 }
 
 export function peekPendingGenerate(): string | null {
   try {
-    return localStorage.getItem(PENDING_GENERATE_KEY);
+    return sessionStorage.getItem(PENDING_GENERATE_KEY);
   } catch {
     return null;
   }

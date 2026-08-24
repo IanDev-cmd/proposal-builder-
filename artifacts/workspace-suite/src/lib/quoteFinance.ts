@@ -533,6 +533,7 @@ export function buildStargtmPayload(opts: {
       email: lead?.email,
       event_type: form.eventType,
       event_date: eventDate,
+      date_flexible: Boolean(form.dateFlexible),
       event_timings: formatEventTimingsPayload(form),
       guest_range: guestRange,
       guest_quote_n: String(guests || lead?.groupSizeQuote || ''),

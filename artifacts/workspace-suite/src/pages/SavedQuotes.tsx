@@ -8,6 +8,7 @@ import {
   type TimelineCard,
 } from '@/components/LeadNotesTimeline';
 import {
+  consumePendingGenerate,
   deleteSavedQuote,
   listSavedQuotes,
   markPendingGenerate,
@@ -19,7 +20,7 @@ import {
   getSavedQuoteAsync,
 } from '@/lib/savedQuotesStore';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
-import { setQuoteLead } from '@/lib/quoteLeadStore';
+import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { resolveQuoteShareFile, shareArtifact, shareCaption, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 import type { PointKind } from '@/lib/leadNotes';
@@ -76,11 +77,15 @@ function quoteToCard(q: SavedQuote): TimelineCard {
   };
 }
 
+function wizardStep(step?: number): number {
+  return Number(step) >= 1 && Number(step) <= 7 ? Number(step) : 1;
+}
+
 async function restoreQuote(quote: SavedQuote) {
   if (quote.lead) setQuoteLead(quote.lead);
   await saveQuoteDraft({
     leadKey: quote.leadKey,
-    step: quote.step || 7,
+    step: wizardStep(quote.step),
     data: quote.data,
     leadName: quote.leadName,
     referenceNumber: quote.referenceNumber,
@@ -286,8 +291,21 @@ export function SavedQuotes() {
         activeId={activeId}
         onSelect={(id) => setActiveId((cur) => (cur === id ? null : id))}
         fullscreen
-        onToggleFullscreen={() => navigate('/quote-builder')}
-        onAdd={() => navigate('/quote-builder')}
+        onToggleFullscreen={() => {
+          const quote = quotes.find((q) => q.id === activeId);
+          if (quote) {
+            void restoreQuote(quote).then(() => navigate('/quote-builder'));
+            return;
+          }
+          consumePendingGenerate();
+          markQuoteBuilderStartAt(1);
+          navigate('/quote-builder');
+        }}
+        onAdd={() => {
+          consumePendingGenerate();
+          markQuoteBuilderStartAt(1);
+          navigate('/quote-builder');
+        }}
         onSummarize={() => setQuotes(listSavedQuotes())}
         emptyLabel={
           loading
