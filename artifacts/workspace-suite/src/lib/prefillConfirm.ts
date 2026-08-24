@@ -47,3 +47,20 @@ export function collectPrefillConfirmKeys(opts: {
 export function hasPendingPrefillConfirms(opts: Parameters<typeof collectPrefillConfirmKeys>[0]): boolean {
   return collectPrefillConfirmKeys(opts).length > 0;
 }
+
+/** Mark template / inserts (and any other pending prefill) as already accepted. */
+export function autoConfirmPrefillKeys(opts: {
+  prefilledKeys: Iterable<string>;
+  requiresInserts: boolean;
+  selectedInserts: string[];
+}): Set<string> {
+  const prefilledKeys = new Set(opts.prefilledKeys);
+  const confirmed = new Set<string>(prefilledKeys);
+  if (opts.requiresInserts) {
+    confirmed.add('requiresInserts');
+    for (const id of opts.selectedInserts) confirmed.add(`insert:${id}`);
+  }
+  if (prefilledKeys.has('templateId') || confirmed.has('templateId')) confirmed.add('templateId');
+  for (const id of opts.selectedInserts) confirmed.add(`insert:${id}`);
+  return confirmed;
+}

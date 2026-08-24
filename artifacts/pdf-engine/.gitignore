@@ -10,6 +10,7 @@ _qa_*.png
 _qa/
 *.egg-info/
 .env
+data/workspace/
 assets/templates/_scratch/
 assets/templates/_analysis/
 assets/templates/catalog/.profile_cache/

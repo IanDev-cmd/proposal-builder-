@@ -5,6 +5,7 @@
  */
 
 import type { Lead } from '@/components/LeadPanel';
+import { fetchLeadsFromWebhook } from '@/lib/leadsNetwork';
 import { getSheetsMode, type SheetsMode } from '@/lib/sheetsSync';
 import { WORKSPACE_STORES, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
 
@@ -91,14 +92,15 @@ export async function hydrateLeadsDb(): Promise<void> {
         continue;
       }
       if (!fromDb?.leads?.length) continue;
-      if (!local || fromDb.fetchedAt >= (local.fetchedAt || 0)) {
+      const latest = readLeadsCache(mode);
+      if (!latest || fromDb.fetchedAt >= (latest.fetchedAt || 0)) {
         try {
           localStorage.setItem(cacheKey(mode), JSON.stringify(fromDb));
         } catch {
           /* ignore */
         }
       } else {
-        await workspacePut(STORE, local);
+        await workspacePut(STORE, latest);
       }
     } catch {
       /* localStorage still available */
@@ -108,5 +110,15 @@ export async function hydrateLeadsDb(): Promise<void> {
     window.dispatchEvent(new Event(LEADS_EVENT));
   } catch {
     /* ignore */
+  }
+}
+
+export async function refreshLeadsFromNetwork(): Promise<void> {
+  try {
+    const mode = getSheetsMode();
+    const leads = await fetchLeadsFromWebhook(mode);
+    if (leads.length) writeLeadsCache(leads, mode);
+  } catch {
+    /* IndexedDB / localStorage cache still used */
   }
 }

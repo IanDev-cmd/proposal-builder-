@@ -17,167 +17,9 @@ import {
   subscribeLeadsCache,
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
-import { N8N_BASE } from '@/lib/backendUrls';
-import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
-import { formatPhoneDisplay } from '@/lib/phoneFormat';
-import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
-import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
+import { fetchLeadsFromWebhook, fallbackDemoLeads } from '@/lib/leadsNetwork';
 import { toastError } from '@/lib/notify';
 import { errorMessage } from '@/lib/errors';
-import { parseLeadDataFetch } from '@/lib/contracts';
-
-const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
-
-function toInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('');
-}
-
-/**
- * Map n8n Structure all Leads1 → UI Lead.
- * Sapphire aliases are SoT; sheet headers only if aliases missing.
- *
- * Tab buckets (Live / Booked / Dead / Blacklisted) use liveDead
- * ("Live/Dead/ Blacklisted/Booked"), NOT the CRM Status column
- * (e.g. "Ongoing (No Decision made yet)").
- */
-function mapRaw(raw: Record<string, unknown>, index: number): Lead {
-  const name = aliasFirst(raw, 'name', 'Name') || '—';
-  const email = aliasFirst(raw, 'email', 'Main Contact - Email') || '—';
-  const ref = aliasFirst(raw, 'referenceNumber', 'Client Reference Number', 'code') || `#${index + 1}`;
-  const designation = aliasFirst(raw, 'jobRole', 'designation', 'Main Contact - Job Role') || '—';
-  const phone = formatPhoneDisplay(aliasFirst(raw, 'phone', 'Main Contact - Number')) || '—';
-  const joined = aliasFirst(raw, 'enquiryDate', 'Enquiry Date', 'joined') || '—';
-  const sector = aliasFirst(raw, 'companySector', 'sector', 'Company Sector') || '—';
-  const source = aliasFirst(raw, 'source', 'Source') || '—';
-  const company = aliasFirst(raw, 'companyName', 'company', 'Company Name') || '—';
-  const crmStatus = aliasFirst(raw, 'status', 'Status');
-  const liveDead = aliasFirst(raw, 'liveDead', 'Live/Dead', 'Live/Dead/ Blacklisted/Booked');
-  // Tab key from Live/Dead column (LIVE / BOOKED / DEAD / Blacklisted)
-  const status = tabStatusFromLiveDead(liveDead, crmStatus);
-  const preparedBy = aliasFirst(raw, 'preparedBy', 'Client Relationship Representative');
-  const assignedRep = aliasFirst(raw, 'assignedRep') || preparedBy;
-  const groupSize = aliasFirst(raw, 'groupSize', 'Group Size');
-  const groupParsed = parseGuestCountDetailed({
-    groupSizeQuote: raw.groupSizeQuote as number | string | null | undefined,
-    groupSize,
-  });
-  const groupSizeQuote = groupParsed.ambiguous ? '' : groupParsed.value;
-  const flexRaw = aliasFirst(raw, 'eventDateFlexible', 'Event Date - Flexible');
-  const flexBool =
-    raw.eventDateFlexibleBool === true ||
-    raw.eventDateFlexibleBool === 'true' ||
-    /yes|tbc|flex/i.test(flexRaw);
-  const fullEventDate = aliasFirst(raw, 'fullEventDate', 'Full Event Date');
-  const displayAlias = aliasFirst(raw, 'eventDateDisplay');
-  const eventDateDisplay =
-    displayAlias && !/^(date\s*)?tbc$/i.test(displayAlias)
-      ? displayAlias
-      : fullEventDate || (flexBool ? 'Date TBC' : '');
-  const idRaw = raw.id ?? raw.row_number ?? index + 1;
-  const id = typeof idRaw === 'number' ? idRaw : Number(idRaw) || index + 1;
-
-  return {
-    id,
-    name,
-    email,
-    code: ref,
-    designation,
-    phone,
-    joined,
-    color: '#FF5A45',
-    initials: toInitials(name === '—' ? '?' : name),
-    sector,
-    referenceNumber: ref,
-    source,
-    company,
-    status,
-    crmStatus: crmStatus || undefined,
-    budget: aliasFirst(raw, 'budget', 'Budget') || undefined,
-    repeatClient: aliasFirst(raw, 'repeatClient', 'Repeat Client') || undefined,
-    preparedBy: preparedBy || undefined,
-    assignedRep: assignedRep || undefined,
-    liveDead: liveDead || undefined,
-    eventType: aliasFirst(raw, 'eventType', 'Event Type') || undefined,
-    fullEventDate: fullEventDate || undefined,
-    eventDateFlexible: flexRaw || undefined,
-    eventDateFlexibleBool: flexBool || undefined,
-    eventDateDisplay: eventDateDisplay || undefined,
-    requestedEventTimes: aliasFirst(raw, 'requestedEventTimes', 'Requested Event Times') || undefined,
-    groupSize: groupSize || undefined,
-    groupSizeQuote: groupSizeQuote || undefined,
-    vessels: aliasFirst(raw, 'vessels', 'What vessel') || undefined,
-    market: aliasFirst(raw, 'market', 'Market') || undefined,
-    bestTimeToCall: aliasFirst(raw, 'bestTimeToCall', 'Best time to call') || undefined,
-    yearOfEvent: aliasFirst(raw, 'yearOfEvent', 'Year of Event') || undefined,
-    progressNotes: aliasFirst(raw, 'progressNotes') || undefined,
-    quoteWeottCost: raw.quoteWeottCost as number | string | undefined,
-    quotePackageCost: raw.quotePackageCost as number | string | undefined,
-    quoteMarginPercent: raw.quoteMarginPercent as number | string | undefined,
-    quoteWeeklyPeriod: aliasFirst(raw, 'quoteWeeklyPeriod', 'Weekly Period') || undefined,
-    quoteDayPeriod: aliasFirst(raw, 'quoteDayPeriod', 'Day Period') || undefined,
-    quoteGroupBracket: aliasFirst(raw, 'quoteGroupBracket', 'Group Bracket') || undefined,
-    sapphire: toNexusLeadPayload(raw),
-  };
-}
-
-/** Normalize Live/Dead sheet values → live | booked | dead | blacklisted */
-function tabStatusFromLiveDead(liveDead: string, crmStatus: string): string {
-  const ld = liveDead.replace(/\s+/g, ' ').trim().toLowerCase();
-  if (ld.startsWith('live')) return 'live';
-  if (ld.startsWith('book')) return 'booked';
-  if (ld.startsWith('dead')) return 'dead';
-  if (ld.includes('blacklist')) return 'blacklisted';
-  // Fallback: CRM Status only if Live/Dead blank
-  const s = crmStatus.replace(/\s+/g, ' ').trim().toLowerCase();
-  if (s.startsWith('book')) return 'booked';
-  if (s.startsWith('dead')) return 'dead';
-  if (s.includes('blacklist')) return 'blacklisted';
-  if (s.includes('ongoing') || s.includes('no decision') || s === 'live') return 'live';
-  return ld || s || 'live';
-}
-
-async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
-  let res: Response;
-  try {
-    res = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode }),
-    });
-  } catch (err) {
-    throw new Error(
-      `Could not reach LeadDataFetch: ${err instanceof Error ? err.message : 'network error'}`,
-    );
-  }
-  if (!res.ok) throw new Error(`LeadDataFetch failed (${res.status})`);
-  const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
-  if (contentType && !contentType.includes('application/json') && !contentType.includes('+json') && !contentType.includes('text/plain')) {
-    throw new Error(`LeadDataFetch returned ${contentType}; expected application/json.`);
-  }
-  const text = await res.text();
-  if (!text.trim()) {
-    throw new Error(
-      'LeadDataFetch returned an empty body (n8n Respond Leads must JSON.stringify the payload).',
-    );
-  }
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error('LeadDataFetch returned invalid JSON');
-  }
-  const parsed = parseLeadDataFetch(data);
-  const rows = parsed.leads;
-  if (rows.length) return rows.map((row, i) => mapRaw(row as Record<string, unknown>, i));
-  // Demo workbook has no Enquiry rows — ship gold scenarios so Quote Builder is usable.
-  if (mode === 'demo') return DEMO_LEAD_ROWS.map(mapRaw);
-  return [];
-}
 
 const TABS = ['Live', 'Booked', 'Dead', 'Blacklisted'] as const;
 
@@ -237,7 +79,7 @@ export function Leads() {
     } catch (err) {
       if (ac.signal.aborted) return;
       if (currentMode === 'demo' && !hasRowsRef.current) {
-        const demo = DEMO_LEAD_ROWS.map(mapRaw);
+        const demo = fallbackDemoLeads();
         setLeads(demo);
         writeLeadsCache(demo, currentMode);
         setLastSyncedAt(Date.now());

@@ -82,7 +82,7 @@ import {
   buildItineraryProposalBlock,
   embarkationFromDeparture,
 } from '@/lib/proposalTimings';
-import { collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
+import { autoConfirmPrefillKeys, collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError, toastSuccess } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
 
@@ -855,6 +855,7 @@ export function Forms() {
     return id ? getSavedQuote(id) : null;
   })();
   const pendingGenerateIdRef = useRef<string | null>(peekPendingGenerate());
+  const fromSavedGenerateRef = useRef(Boolean(pendingGenerateIdRef.current));
   const [step, setStep] = useState(() => pendingQuote?.step || 1);
   const [quoteLead] = useState<QuoteLead | null>(() => pendingQuote?.lead || getQuoteLead());
   const [leadInit] = useState(() => formFromLead(getQuoteLead() || pendingQuote?.lead || null));
@@ -864,7 +865,11 @@ export function Forms() {
     (quoteLead?.id != null ? `lead-${quoteLead.id}` : pendingQuote?.leadKey || 'quote-draft');
   const [data, setData] = useState<FormData>(() => {
     if (pendingQuote?.data) {
-      return { ...INIT, ...(pendingQuote.data as FormData) };
+      return {
+        ...INIT,
+        ...(pendingQuote.data as FormData),
+        ...(fromSavedGenerateRef.current ? { costApproved: true } : {}),
+      };
     }
     const d = leadInit.data as FormData;
     const draft = loadQuoteNotesDraft(
@@ -886,7 +891,15 @@ export function Forms() {
   const [prefilledLineIds, setPrefilledLineIds] = useState<Set<string>>(
     () => new Set(leadInit.prefilledLineIds),
   );
-  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(() => new Set());
+  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(() => {
+    if (!fromSavedGenerateRef.current) return new Set();
+    const saved = { ...INIT, ...((pendingQuote?.data as FormData) || {}) };
+    return autoConfirmPrefillKeys({
+      prefilledKeys: leadInit.prefilledKeys,
+      requiresInserts: saved.requiresInserts,
+      selectedInserts: saved.selectedInserts,
+    });
+  });
   const [lowConfidenceKeys, setLowConfidenceKeys] = useState<Set<string>>(
     () => new Set(leadInit.lowConfidenceKeys || []),
   );
@@ -896,7 +909,10 @@ export function Forms() {
   const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(() => new Set());
   const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [showAllInsertsPanel, setShowAllInsertsPanel] = useState(false);
-  const templateManualRef = useRef(false);
+  const templateManualRef = useRef(
+    Boolean(pendingGenerateIdRef.current) ||
+      Boolean((pendingQuote?.data as FormData | undefined)?.templateId),
+  );
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
@@ -1449,14 +1465,16 @@ export function Forms() {
     setErrorMessage('');
     setStage('preparing');
 
-    if (!data.costApproved) {
+    const fromSavedQuote = Boolean(fromSavedGenerateRef.current || pendingGenerateIdRef.current);
+
+    if (!data.costApproved && !fromSavedQuote) {
       setErrorMessage('Confirm cost cross-check approval before Proposal Pack / generate.');
       setStage('error');
       setStep(6);
       return;
     }
 
-    if (costApprovalBlocked(parity, sheetTargets)) {
+    if (!fromSavedQuote && costApprovalBlocked(parity, sheetTargets)) {
       setErrorMessage(
         parity.hints[0] ||
           'Financial cross-check failed — align WEOTT cost with Quote Sheet before generating.',
@@ -1466,7 +1484,8 @@ export function Forms() {
       return;
     }
 
-    if (!data.templateId) {
+    const templateId = data.templateId || templateResolution.templateId;
+    if (!templateId) {
       setErrorMessage('Select a proposal template in Proposal Pack before generating.');
       setStage('error');
       setStep(7);
@@ -1474,6 +1493,7 @@ export function Forms() {
     }
 
     if (
+      !fromSavedQuote &&
       hasPendingPrefillConfirms({
         prefilledKeys,
         confirmedKeys,
@@ -1592,7 +1612,7 @@ export function Forms() {
             contact_email: staffContact.email,
           }
         : null,
-      templateId: data.templateId,
+      templateId,
       category: data.proposalCategory,
       selectedInserts: data.requiresInserts ? data.selectedInserts : [],
       progressNotes: data.progressNotes,

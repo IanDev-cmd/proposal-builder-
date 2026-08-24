@@ -12,6 +12,7 @@ import {
   workspacePut,
   workspaceDelete,
 } from '@/lib/nexusWorkspaceDb';
+import { cloudDeleteQuote, cloudPutQuote } from '@/lib/workspaceCloud';
 
 export type SavedQuote = {
   id: string;
@@ -134,7 +135,19 @@ export async function persistSavedQuote(
 ): Promise<SavedQuote> {
   const next = upsertSavedQuote(input);
   await workspacePut(STORE, next);
+  void cloudPutQuote(next).catch(() => {
+    /* local copy remains; next hydrate retries the upload */
+  });
   return next;
+}
+
+export function ingestRemoteQuotes(rows: SavedQuote[]): void {
+  if (!rows.length) return;
+  const merged = mergeQuotes(ensureMemory(), rows);
+  setMemory(merged);
+  for (const q of merged) {
+    void workspacePut(STORE, q);
+  }
 }
 
 export function deleteSavedQuote(id: string): boolean {
@@ -143,6 +156,9 @@ export function deleteSavedQuote(id: string): boolean {
   if (next.length === list.length) return false;
   setMemory(next);
   void workspaceDelete(STORE, id);
+  void cloudDeleteQuote(id).catch(() => {
+    /* ignore */
+  });
   return true;
 }
 

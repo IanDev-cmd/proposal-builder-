@@ -12,6 +12,7 @@ import {
   workspaceMigrated,
   markWorkspaceMigrated,
 } from '@/lib/nexusWorkspaceDb';
+import { cloudDeleteProposal, cloudGetProposal, cloudPutProposal } from '@/lib/workspaceCloud';
 
 export type GeneratedProposal = {
   id: string;
@@ -85,7 +86,19 @@ async function ensureMigrated(): Promise<void> {
 export async function getProposal(id: string): Promise<GeneratedProposal | null> {
   if (!id) return null;
   await ensureMigrated();
-  return workspaceGet<GeneratedProposal>(STORE, id);
+  const local = await workspaceGet<GeneratedProposal>(STORE, id);
+  if (local?.pdfDataUrl) return local;
+  try {
+    const remote = await cloudGetProposal(id);
+    if (remote) {
+      await workspacePut(STORE, remote);
+      window.dispatchEvent(new Event(PROPOSALS_EVENT));
+      return remote;
+    }
+  } catch {
+    /* local row still usable for the card */
+  }
+  return local;
 }
 
 export async function loadProposals(): Promise<GeneratedProposal[]> {
@@ -100,6 +113,9 @@ export async function addProposal(proposal: GeneratedProposal): Promise<boolean>
     await ensureMigrated();
     await workspacePut(STORE, proposal);
     window.dispatchEvent(new Event(PROPOSALS_EVENT));
+    void cloudPutProposal(proposal).catch(() => {
+      /* local copy remains; next hydrate retries the upload */
+    });
     return true;
   } catch {
     return false;
@@ -116,10 +132,41 @@ export async function deleteProposal(id: string): Promise<boolean> {
     await ensureMigrated();
     await workspaceDelete(STORE, id);
     window.dispatchEvent(new Event(PROPOSALS_EVENT));
+    void cloudDeleteProposal(id).catch(() => {
+      /* ignore */
+    });
     return true;
   } catch {
     return false;
   }
+}
+
+export async function ingestRemoteProposals(rows: GeneratedProposal[]): Promise<void> {
+  let changed = false;
+  for (const row of rows) {
+    if (!row?.id) continue;
+    const existing = await workspaceGet<GeneratedProposal>(STORE, row.id);
+    const incomingHasPdf = Boolean(row.pdfDataUrl);
+    const existingHasPdf = Boolean(existing?.pdfDataUrl);
+    if (!existing) {
+      await workspacePut(STORE, row);
+      changed = true;
+      continue;
+    }
+    if (incomingHasPdf && !existingHasPdf) {
+      await workspacePut(STORE, { ...existing, ...row });
+      changed = true;
+      continue;
+    }
+    if ((row.createdAt || '') > (existing.createdAt || '')) {
+      await workspacePut(
+        STORE,
+        incomingHasPdf || !existingHasPdf ? row : { ...row, pdfDataUrl: existing.pdfDataUrl },
+      );
+      changed = true;
+    }
+  }
+  if (changed) window.dispatchEvent(new Event(PROPOSALS_EVENT));
 }
 
 export async function hydrateProposalsDb(): Promise<void> {
