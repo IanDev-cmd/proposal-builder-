@@ -64,7 +64,7 @@ export function Leads() {
     else setSyncing(true);
 
     try {
-      const data = await fetchLeadsFromWebhook(currentMode);
+      const data = await fetchLeadsFromWebhook(currentMode, { signal: ac.signal });
       if (ac.signal.aborted) return;
       setLeads(data);
       setLastSyncedAt(Date.now());

@@ -17,6 +17,14 @@ import {
 } from '@/lib/leadNotes';
 
 const cache = new Map<string, NotePoint[]>();
+const CACHE_MAX = 40;
+
+function cacheSet(key: string, value: NotePoint[]) {
+  cache.set(key, value);
+  if (cache.size <= CACHE_MAX) return;
+  const oldest = cache.keys().next().value;
+  if (oldest !== undefined) cache.delete(oldest);
+}
 
 function cacheKey(leadKey: string, notes: string): string {
   return `${leadKey}::${notes.length}:${notes.slice(0, 80)}:${notes.slice(-80)}`;
@@ -87,7 +95,7 @@ export async function requestLeadNotesSummary(opts: {
     const json = await res.json();
     const remote = parseLeadNotesSummaryResponse(json);
     const points = mergeSummaryPoints(notes, remote);
-    cache.set(key, points);
+    cacheSet(key, points);
     return points;
   } catch {
     return null;

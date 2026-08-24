@@ -4,8 +4,8 @@
  *    with the quote (never a proposal PDF). Copy link opens the overlay page.
  *  - Proposal Doc PDFs: `shareArtifact` still uses the OS share sheet, .eml, or download + app.
  */
-import { proposalFileStem, sanitizeFilenamePart } from '@/lib/proposalFilename';
 import { savedQuoteShareUrl, type SavedQuote } from '@/lib/savedQuotesStore';
+import { formatGbp } from '@/lib/utils';
 
 export type ShareChannel = 'email' | 'whatsapp' | 'dropbox' | 'drive' | 'link';
 
@@ -66,51 +66,6 @@ function downloadBlob(blob: Blob, filename: string) {
 
 function downloadFile(file: File) {
   downloadBlob(file, file.name);
-}
-
-function quoteStem(quote: SavedQuote): string {
-  return proposalFileStem({
-    contactName: quote.leadName || quote.lead?.name,
-    companyName: quote.lead?.company,
-    referenceCode: quote.referenceNumber || quote.leadKey,
-  });
-}
-
-function quoteHtml(quote: SavedQuote, shareUrl: string): string {
-  const rows: [string, string][] = [
-    ['Lead', quote.leadName || '—'],
-    ['Reference', quote.referenceNumber || quote.leadKey],
-    ['Vessel', quote.vesselType || '—'],
-    ['Event', quote.eventType || '—'],
-    ['Guests', quote.guestCount || '—'],
-    ['Event date', quote.eventDate || '—'],
-    ['Grand total', `£${Number(quote.grandTotal || 0).toFixed(2)}`],
-    ['Saved', quote.savedAt ? new Date(quote.savedAt).toLocaleString('en-GB') : '—'],
-    ['Open in Nexus', shareUrl],
-  ];
-  const body = rows
-    .map(
-      ([k, v]) =>
-        `<tr><th style="text-align:left;padding:8px 12px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.06em">${k}</th><td style="padding:8px 12px;font-weight:600;color:#0f172a">${String(v).replace(/</g, '&lt;')}</td></tr>`,
-    )
-    .join('');
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${quote.title}</title></head>
-<body style="font-family:Segoe UI,Helvetica,Arial,sans-serif;background:#f8fafc;margin:0;padding:32px">
-  <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:16px;padding:28px;box-shadow:0 8px 30px rgba(15,23,42,.08)">
-    <p style="margin:0 0 6px;color:#2F7CF6;font-size:11px;font-weight:700;letter-spacing:.12em">WEOTT QUOTE</p>
-    <h1 style="margin:0 0 18px;font-size:22px">${quote.title.replace(/</g, '&lt;')}</h1>
-    <table style="width:100%;border-collapse:collapse">${body}</table>
-  </div>
-</body></html>`;
-}
-
-export async function resolveQuoteShareFile(quote: SavedQuote): Promise<{ file: File; kind: 'pdf' | 'quote' }> {
-  const stem = sanitizeFilenamePart(quoteStem(quote)) || 'WEOTT-Quote';
-  const html = quoteHtml(quote, savedQuoteShareUrl(quote.id));
-  return {
-    file: new File([html], `${stem}.html`, { type: 'text/html' }),
-    kind: 'quote',
-  };
 }
 
 function buildEml(opts: {
@@ -248,7 +203,7 @@ export function quoteSharePlainText(quote: SavedQuote, shareUrl: string): string
     `Event: ${quote.eventType || '—'}`,
     `Guests: ${quote.guestCount || '—'}`,
     `Event date: ${quote.eventDate || '—'}`,
-    `Grand total: £${Number(quote.grandTotal || 0).toFixed(2)}`,
+    `Grand total: ${formatGbp(quote.grandTotal)}`,
     '',
     `Open quote: ${shareUrl}`,
     '',

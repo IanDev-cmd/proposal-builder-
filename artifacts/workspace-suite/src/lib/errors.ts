@@ -22,3 +22,17 @@ export class N8nWebhookError extends Error {
 export function isN8nWebhookError(err: unknown): err is N8nWebhookError {
   return err instanceof N8nWebhookError;
 }
+
+export class TimeoutError extends Error {
+  readonly timeoutMs?: number;
+
+  constructor(message = 'Request timed out', timeoutMs?: number) {
+    super(message);
+    this.name = 'TimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+export function isTimeoutError(err: unknown): err is TimeoutError {
+  return err instanceof TimeoutError;
+}

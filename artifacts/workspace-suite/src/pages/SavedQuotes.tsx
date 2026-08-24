@@ -22,6 +22,7 @@ import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
+import { formatGbp } from '@/lib/utils';
 import type { PointKind } from '@/lib/leadNotes';
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -68,7 +69,7 @@ function quoteToCard(q: SavedQuote): TimelineCard {
     summary: [q.leadName, q.vesselType, q.eventType, q.guestCount && `${q.guestCount} guests`]
       .filter(Boolean)
       .join(' · '),
-    body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total £${q.grandTotal.toFixed(2)}.`,
+    body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total ${formatGbp(q.grandTotal)}.`,
     kind: 'pipeline',
     kinds,
     when: formatWhen(q.savedAt),
@@ -384,7 +385,7 @@ export function SavedQuotes() {
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Grand total</dt>
-                  <dd className="font-bold text-[#00e676]">£{overlay.grandTotal.toFixed(2)}</dd>
+                  <dd className="font-bold text-[#00e676]">{formatGbp(overlay.grandTotal)}</dd>
                 </div>
               </dl>
               <div className="mt-6 flex flex-col gap-2 px-6">

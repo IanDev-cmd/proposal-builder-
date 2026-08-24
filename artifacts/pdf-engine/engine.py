@@ -28,7 +28,7 @@ from bespoke import (
 from vessel import swap_vessel_page
 from catalog import resolve_template, get_catalog
 from measure import get_profile
-from inserts import apply_inserts
+from inserts import apply_inserts, resolve_insert_paths
 from profile_validation import (
     ProfileValidationError,
     validate_profile_strict,
@@ -101,41 +101,53 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
     )
     t_measure = time.perf_counter()
 
+    insert_report = {"applied": [], "requested": [], "resolved": 0}
+    page_count = 0
     doc = fitz.open(template_path)
     font_mgr = get_font_manager()
     font_mgr.reset_doc_registry()
+    try:
+        resolved_inserts = resolve_insert_paths(list(selected_inserts)) if selected_inserts else []
+        has_vessel_insert = any(item.get("kind") == "vessel" for item in resolved_inserts)
 
-    # Vessel insert PDFs replace the vessel page; otherwise use legacy vessel swap.
-    if vessel_id and profile.page_vessel is not None and not selected_inserts:
-        if str(vessel_id).lower().replace(" ", "_") not in (
-            "weott_i",
-            "weott",
-            "weotti",
-            "weott1",
-            "",
-        ):
-            swap_vessel_page(doc, vessel_id, warnings, page_index=profile.page_vessel)
+        # Vessel insert PDFs replace the vessel page; otherwise use legacy vessel swap.
+        if vessel_id and profile.page_vessel is not None and not has_vessel_insert:
+            if str(vessel_id).lower().replace(" ", "_") not in (
+                "weott_i",
+                "weott",
+                "weotti",
+                "weott1",
+                "",
+            ):
+                swap_vessel_page(doc, vessel_id, warnings, page_index=profile.page_vessel)
 
-    fill_cover_page(doc, lead, font_mgr, warnings, profile=profile)
-    validate_render_warnings(warnings, lead=lead)
-    render_financials(doc, calculations, font_mgr, warnings, profile=profile)
-    render_upgrade_list(doc, selected_upgrades, font_mgr, warnings, profile=profile)
+        fill_cover_page(doc, lead, font_mgr, warnings, profile=profile)
+        validate_render_warnings(warnings, lead=lead)
+        render_financials(doc, calculations, font_mgr, warnings, profile=profile)
+        render_upgrade_list(doc, selected_upgrades, font_mgr, warnings, profile=profile)
 
-    if package_wording:
-        render_package_columns(doc, package_wording, font_mgr, warnings, profile=profile)
+        overflowed = False
+        if package_wording:
+            overflowed = bool(render_package_columns(doc, package_wording, font_mgr, warnings, profile=profile))
 
-    if menu_links:
-        apply_menu_links(doc, menu_links, warnings, profile=profile)
+        if menu_links:
+            apply_menu_links(doc, menu_links, warnings, profile=profile)
 
-    fill_contact_page(doc, lead, font_mgr, warnings, profile=profile)
+        # Overflow inserts a page at extras+1, shifting contact (index 15) by +1.
+        # Fill contact before map/staff inserts so the filled page travels with later shifts.
+        overflow_shift = 1 if overflowed else 0
+        fill_contact_page(doc, lead, font_mgr, warnings, profile=profile, page_shift=overflow_shift)
 
-    insert_report = {"applied": [], "requested": [], "resolved": 0}
-    if selected_inserts:
-        insert_report = apply_inserts(doc, list(selected_inserts), warnings)
+        insert_report = {"applied": [], "requested": [], "resolved": 0}
+        if selected_inserts:
+            insert_report = apply_inserts(
+                doc, list(selected_inserts), warnings, extra_page_shift=overflow_shift
+            )
 
-    doc.save(output_path, garbage=0, deflate=False)
-    page_count = doc.page_count
-    doc.close()
+        doc.save(output_path, garbage=0, deflate=False)
+        page_count = doc.page_count
+    finally:
+        doc.close()
     t1 = time.perf_counter()
 
     return {

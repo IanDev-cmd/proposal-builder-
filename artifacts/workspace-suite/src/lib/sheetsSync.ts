@@ -8,6 +8,7 @@
 
 import { N8N_BASE } from '@/lib/backendUrls';
 import { N8nWebhookError } from '@/lib/errors';
+import { fetchWithTimeout } from '@/lib/http';
 
 const STORAGE_KEY = 'nexus.sheetsMode';
 
@@ -60,10 +61,11 @@ async function postWebhook(path: string, payload: Record<string, unknown>) {
   const mode = (payload.mode as SheetsMode) || getSheetsMode();
   let res: Response;
   try {
-    res = await fetch(`${N8N_BASE}/${path}`, {
+    res = await fetchWithTimeout(`${N8N_BASE}/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, mode }),
+      timeoutMs: 45_000,
     });
   } catch (err) {
     throw new N8nWebhookError(

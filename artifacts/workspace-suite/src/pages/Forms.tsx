@@ -17,7 +17,6 @@ import {
   listSavedQuotes,
   peekPendingGenerate,
   persistSavedQuote,
-  upsertSavedQuote,
 } from '@/lib/savedQuotesStore';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
 import { proposalFileStem } from '@/lib/proposalFilename';
@@ -56,6 +55,7 @@ import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { formatEventTimingsPayload } from '@/lib/proposalTimings';
 import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
+import { blobToDataUrl, fetchWithTimeout } from '@/lib/http';
 import {
   buildLeadPrefill,
   prefillForQuoteVersion,
@@ -1703,10 +1703,11 @@ export function Forms() {
         }),
       );
 
-      const res = await fetch(QUOTE_WEBHOOK_URL, {
+      const res = await fetchWithTimeout(QUOTE_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(outbound),
+        timeoutMs: 120_000,
       });
 
       if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
@@ -1717,31 +1718,19 @@ export function Forms() {
       let pdfDataUrl = '';
 
       if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
-        const blob = await res.blob();
-        pdfDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        pdfDataUrl = await blobToDataUrl(await res.blob());
       } else if (contentType.includes('application/json') || contentType.includes('+json')) {
         const json = await res.json();
         const fileUrl: string | undefined = json?.fileUrl ?? json?.pdfUrl ?? json?.url;
         if (typeof json?.pdfBase64 === 'string' && json.pdfBase64.startsWith('data:application/pdf')) {
           pdfDataUrl = json.pdfBase64;
         } else if (typeof fileUrl === 'string' && /^https?:\/\//i.test(fileUrl)) {
-          const fileRes = await fetch(fileUrl);
+          const fileRes = await fetchWithTimeout(fileUrl, { timeoutMs: 45_000 });
           const fileType = (fileRes.headers.get('content-type') ?? '').toLowerCase();
           if (!fileType.includes('application/pdf') && !fileType.includes('octet-stream')) {
             throw new Error('QuoteBuilder JSON pointed at a non-PDF URL.');
           }
-          const blob = await fileRes.blob();
-          pdfDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+          pdfDataUrl = await blobToDataUrl(await fileRes.blob());
         } else {
           throw new Error('QuoteBuilder JSON did not include a PDF URL or data:application/pdf payload.');
         }
@@ -1782,7 +1771,7 @@ export function Forms() {
         null;
       if (savedQuoteId) {
         const q = getSavedQuote(savedQuoteId);
-        if (q) upsertSavedQuote({ ...q, proposalId });
+        if (q) await persistSavedQuote({ ...q, proposalId });
         pendingGenerateIdRef.current = null;
       }
 
@@ -1818,6 +1807,16 @@ export function Forms() {
         key: 'generate',
         title: 'Proposal generation failed',
         description: msg,
+      });
+      void writeQuoteStatus({
+        referenceNumber: quoteLead?.referenceNumber,
+        email: quoteLead?.email,
+        leadName: quoteLead?.name,
+        status: 'failed',
+        version: data.quoteVersion,
+        mode: sheetsMode,
+      }).catch(() => {
+        /* sheet write-back is best-effort */
       });
     }
   };

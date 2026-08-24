@@ -27,6 +27,7 @@ from workspace_store import (
     delete_proposal as workspace_delete_proposal,
     delete_quote as workspace_delete_quote,
     get_proposal as workspace_get_proposal,
+    get_quote as workspace_get_quote,
     list_proposals as workspace_list_proposals,
     list_quotes as workspace_list_quotes,
     put_proposal as workspace_put_proposal,
@@ -189,6 +190,14 @@ def generate():
 @app.get("/workspace/quotes")
 def workspace_quotes_list():
     return jsonify(quotes=workspace_list_quotes())
+
+
+@app.get("/workspace/quotes/<quote_id>")
+def workspace_quotes_get(quote_id):
+    row = workspace_get_quote(quote_id)
+    if not row:
+        return jsonify(error="Not found"), 404
+    return jsonify(row)
 
 
 @app.put("/workspace/quotes/<quote_id>")

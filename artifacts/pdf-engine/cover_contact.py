@@ -610,14 +610,27 @@ def _cover_ink_from_template(color) -> tuple:
     return (50 / 255, 50 / 255, 50 / 255)
 
 
-def fill_contact_page(doc, data: dict, font_mgr, warnings: list, profile=None):
+def fill_contact_page(doc, data: dict, font_mgr, warnings: list, profile=None, page_shift: int = 0):
     fields = profile.contact_fields if profile and profile.contact_fields else config.CONTACT_FIELDS
     # Group by page for batched apply
     by_page: dict[int, list] = {}
+    shift = int(page_shift or 0)
     for field_name, spec in fields.items():
         if field_name not in data or not spec:
             continue
-        page_i = spec.get("page", profile.page_contact if profile else config.PAGE_CONTACT)
+        page_i = int(spec.get("page", profile.page_contact if profile else config.PAGE_CONTACT)) + shift
+        if page_i < 0 or page_i >= doc.page_count:
+            warnings.append(
+                type(
+                    "ValidationWarning",
+                    (),
+                    {
+                        "field": field_name,
+                        "message": f"Contact page index {page_i} out of range after overflow shift {shift}",
+                    },
+                )()
+            )
+            continue
         value = str(data[field_name])
         if field_name == "contact_email":
             value = re.sub(r"^\s*E:\s*", "", value, flags=re.I)

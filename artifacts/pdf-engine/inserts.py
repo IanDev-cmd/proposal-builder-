@@ -129,7 +129,7 @@ def _insert_page_at(doc: fitz.Document, insert_path: str, start_at: int, warning
         src.close()
 
 
-def apply_inserts(doc: fitz.Document, selected_ids: list[str], warnings: list) -> dict:
+def apply_inserts(doc: fitz.Document, selected_ids: list[str], warnings: list, extra_page_shift: int = 0) -> dict:
     """
     Apply selected inserts to an open document.
     Returns a small report of what was applied.
@@ -178,8 +178,9 @@ def apply_inserts(doc: fitz.Document, selected_ids: list[str], warnings: list) -
         page = last.get("target_page")
         if page is None:
             page = 15
-        # After inserting N map pages at/after index 9, contact page shifts by N if original >= 9
-        shift = len(maps)  # maps inserted starting at 9
+        # After inserting N map pages at/after index 9, plus any overflow page
+        # inserted at extras+1, contact/staff target shifts by N + overflow.
+        shift = len(maps) + int(extra_page_shift or 0)
         adjusted = int(page) + shift if int(page) >= 9 else int(page)
         _replace_page(doc, last["abs_path"], adjusted, warnings)
         applied.append(

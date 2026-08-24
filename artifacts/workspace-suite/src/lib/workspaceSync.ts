@@ -13,7 +13,7 @@ import {
 export async function syncWorkspaceCloud(): Promise<void> {
   try {
     const remoteQuotes = await cloudListQuotes();
-    ingestRemoteQuotes(remoteQuotes);
+    await ingestRemoteQuotes(remoteQuotes);
     const remoteById = new Map(remoteQuotes.map((q) => [q.id, q]));
     for (const quote of listSavedQuotes()) {
       const remote = remoteById.get(quote.id);

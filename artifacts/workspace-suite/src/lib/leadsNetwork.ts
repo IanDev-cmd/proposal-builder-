@@ -2,6 +2,8 @@ import type { Lead } from '@/components/LeadPanel';
 import { N8N_BASE } from '@/lib/backendUrls';
 import { parseLeadDataFetch } from '@/lib/contracts';
 import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
+import { TimeoutError } from '@/lib/errors';
+import { fetchWithTimeout } from '@/lib/http';
 import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
@@ -111,15 +113,21 @@ function mapRaw(raw: Record<string, unknown>, index: number): Lead {
   };
 }
 
-export async function fetchLeadsFromWebhook(mode: SheetsMode): Promise<Lead[]> {
+export async function fetchLeadsFromWebhook(
+  mode: SheetsMode,
+  opts?: { signal?: AbortSignal },
+): Promise<Lead[]> {
   let res: Response;
   try {
-    res = await fetch(WEBHOOK_URL, {
+    res = await fetchWithTimeout(WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),
+      signal: opts?.signal,
+      timeoutMs: 45_000,
     });
   } catch (err) {
+    if (err instanceof TimeoutError) throw err;
     throw new Error(
       `Could not reach LeadDataFetch: ${err instanceof Error ? err.message : 'network error'}`,
     );

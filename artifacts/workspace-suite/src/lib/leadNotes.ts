@@ -113,7 +113,11 @@ function loadStore(): NotesStore {
 }
 
 function saveStore(store: NotesStore) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    /* quota — keep the in-memory update the caller already has */
+  }
 }
 
 export function loadNotes(leadKey: string): LeadNote[] {

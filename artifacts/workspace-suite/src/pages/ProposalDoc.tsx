@@ -12,6 +12,10 @@ import {
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
+import { saveQuoteDraft } from '@/lib/quoteDraftStore';
+import { setQuoteLead } from '@/lib/quoteLeadStore';
+import { listSavedQuotes } from '@/lib/savedQuotesStore';
+import { formatGbp } from '@/lib/utils';
 
 /* ─── Real document pages from the uploaded PDF ─── */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -40,7 +44,7 @@ function proposalToFile(p: GeneratedProposal): ProposalFile {
     title: p.title,
     kind: 'generated',
     sizeLabel: 'PDF',
-    description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total £${p.grandTotal.toFixed(2)}.`,
+    description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total ${formatGbp(p.grandTotal)}.`,
     pdfDataUrl: p.pdfDataUrl,
     leadName: p.leadName,
     leadEmail: p.leadEmail,
@@ -212,25 +216,32 @@ export function ProposalDoc() {
       setPdfBlobUrl(null);
       return;
     }
-    let objectUrl: string | null = null;
-    try {
-      const [, base64] = active.pdfDataUrl.split(',');
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      objectUrl = URL.createObjectURL(blob);
-      setPdfBlobUrl(objectUrl);
-    } catch {
-      setPdfBlobUrl(null);
-      toastError({
-        key: 'pdf-preview',
-        title: 'Could not preview PDF',
-        description: 'The stored file may be corrupt. Try downloading instead.',
-      });
-    }
+    const holder: { url: string | null } = { url: null };
+    let cancelled = false;
+    const ctrl = new AbortController();
+    void (async () => {
+      try {
+        const res = await fetch(active.pdfDataUrl!, { signal: ctrl.signal });
+        const blob = await res.blob();
+        if (cancelled) return;
+        holder.url = URL.createObjectURL(blob);
+        setPdfBlobUrl(holder.url);
+      } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return;
+        setPdfBlobUrl(null);
+        toastError({
+          key: 'pdf-preview',
+          title: 'Could not preview PDF',
+          description: 'The stored file may be corrupt. Try downloading instead.',
+        });
+      }
+    })();
     return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      cancelled = true;
+      ctrl.abort();
+      if (holder.url) URL.revokeObjectURL(holder.url);
     };
-  }, [active?.id]);
+  }, [active?.id, active?.pdfDataUrl]);
 
   const isNotesTab = railIndex === 4;
   const noteTiles = q
@@ -266,8 +277,19 @@ export function ProposalDoc() {
     gridRef.current?.scrollBy({ top: dir * 260, behavior: 'smooth' });
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!active) return;
+    const linked = listSavedQuotes().find((q) => q.proposalId === active.id);
+    if (linked) {
+      if (linked.lead) setQuoteLead(linked.lead);
+      await saveQuoteDraft({
+        leadKey: linked.leadKey,
+        step: Number(linked.step) >= 1 && Number(linked.step) <= 7 ? Number(linked.step) : 1,
+        data: linked.data || {},
+        leadName: linked.leadName,
+        referenceNumber: linked.referenceNumber,
+      });
+    }
     navigate('/quote-builder');
   };
 
@@ -620,7 +642,7 @@ export function ProposalDoc() {
                   <Share2 className="h-3.5 w-3.5" /> Share
                 </button>
                 <button
-                  onClick={handleEdit}
+                  onClick={() => void handleEdit()}
                   className="flex shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-black px-4 py-2.5 text-[11.5px] font-bold text-white hover:bg-black/80 transition-colors"
                 >
                   <PenSquare className="h-3.5 w-3.5" /> Edit

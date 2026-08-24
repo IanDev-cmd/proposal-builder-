@@ -30,6 +30,22 @@ def _ensure_dirs() -> None:
     PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _write_bytes(path: Path, raw: bytes) -> None:
+    _ensure_dirs()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=path.name, dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(raw)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def _write_json(path: Path, payload: dict) -> None:
     _ensure_dirs()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -90,8 +106,16 @@ def put_quote(payload: dict) -> dict:
     quote_id = str(payload.get("id") or "").strip()
     if not quote_id:
         raise ValueError("quote id is required")
+    try:
+        payload["grandTotal"] = float(payload.get("grandTotal") or 0)
+    except (TypeError, ValueError):
+        payload["grandTotal"] = 0.0
     _write_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json", payload)
     return payload
+
+
+def get_quote(quote_id: str) -> dict | None:
+    return _read_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json")
 
 
 def delete_quote(quote_id: str) -> bool:
@@ -157,7 +181,7 @@ def put_proposal(payload: dict) -> dict:
         raw = _decode_pdf(pdf_url)
         if raw:
             _ensure_dirs()
-            _proposal_pdf_path(proposal_id).write_bytes(raw)
+            _write_bytes(_proposal_pdf_path(proposal_id), raw)
             meta["hasPdf"] = True
         elif pdf_url.startswith("data:application/pdf"):
             meta["pdfDataUrl"] = pdf_url

@@ -35,6 +35,8 @@ function writeLocalDraft(draft: QuoteWizardDraft) {
   }
 }
 
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -49,10 +51,27 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+function getDraftDb(): Promise<IDBDatabase> {
+  if (!dbPromise) {
+    dbPromise = openDb()
+      .then((db) => {
+        db.onclose = () => {
+          dbPromise = null;
+        };
+        return db;
+      })
+      .catch((err) => {
+        dbPromise = null;
+        throw err;
+      });
+  }
+  return dbPromise;
+}
+
 export async function loadQuoteDraft<T>(leadKey: string): Promise<QuoteWizardDraft<T> | null> {
   if (!leadKey) return null;
   try {
-    const db = await openDb();
+    const db = await getDraftDb();
     const fromIdb = await new Promise<QuoteWizardDraft<T> | null>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const req = tx.objectStore(STORE_NAME).get(leadKey);
@@ -77,7 +96,7 @@ export async function saveQuoteDraft<T>(
   const row = { ...draft, savedAt: new Date().toISOString() } as QuoteWizardDraft<T>;
   writeLocalDraft(row as QuoteWizardDraft);
   try {
-    const db = await openDb();
+    const db = await getDraftDb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).put(row);

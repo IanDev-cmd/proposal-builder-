@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
@@ -14,9 +13,6 @@ import { Timeline } from '@/pages/Timeline';
 import { Settings } from '@/pages/Settings';
 import { Apps } from '@/pages/Apps';
 import NotFound from '@/pages/NotFound';
-import { hydrateWorkspace } from '@/lib/hydrateWorkspace';
-
-const queryClient = new QueryClient();
 
 function scrollPagesToTop() {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -57,21 +53,15 @@ function Router() {
 }
 
 function App() {
-  useEffect(() => {
-    void hydrateWorkspace();
-  }, []);
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <ActiveLeadProvider>
-            <Router />
-          </ActiveLeadProvider>
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <TooltipProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+        <ActiveLeadProvider>
+          <Router />
+        </ActiveLeadProvider>
+      </WouterRouter>
+      <Toaster />
+    </TooltipProvider>
   );
 }
 

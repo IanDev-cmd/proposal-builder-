@@ -10,9 +10,10 @@ import {
   workspaceGet,
   workspaceGetAll,
   workspacePut,
+  workspacePutAll,
   workspaceDelete,
 } from '@/lib/nexusWorkspaceDb';
-import { cloudDeleteQuote, cloudPutQuote } from '@/lib/workspaceCloud';
+import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote } from '@/lib/workspaceCloud';
 
 export type SavedQuote = {
   id: string;
@@ -141,12 +142,14 @@ export async function persistSavedQuote(
   return next;
 }
 
-export function ingestRemoteQuotes(rows: SavedQuote[]): void {
+export async function ingestRemoteQuotes(rows: SavedQuote[]): Promise<void> {
   if (!rows.length) return;
   const merged = mergeQuotes(ensureMemory(), rows);
   setMemory(merged);
-  for (const q of merged) {
-    void workspacePut(STORE, q);
+  try {
+    await workspacePutAll(STORE, merged);
+  } catch {
+    /* memory copy remains */
   }
 }
 
@@ -224,12 +227,24 @@ export async function getSavedQuoteAsync(id: string): Promise<SavedQuote | null>
   if (local?.data && Object.keys(local.data).length) return local;
   try {
     const row = await workspaceGet<SavedQuote>(STORE, id);
-    if (row) {
+    if (row?.data && Object.keys(row.data).length) {
       setMemory(mergeQuotes(ensureMemory(), [row]));
       return getSavedQuote(id);
     }
   } catch {
-    /* fall through */
+    /* fall through to shared workspace */
+  }
+  try {
+    const remote = await cloudGetQuote(id);
+    if (remote) {
+      setMemory(mergeQuotes(ensureMemory(), [remote]));
+      void workspacePut(STORE, remote).catch(() => {
+        /* overlay can still render from memory */
+      });
+      return getSavedQuote(id) || remote;
+    }
+  } catch {
+    /* engine offline */
   }
   return local;
 }

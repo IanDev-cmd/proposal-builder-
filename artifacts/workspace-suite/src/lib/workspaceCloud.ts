@@ -1,20 +1,12 @@
 import { PROPOSAL_ENGINE_URL } from '@/lib/backendUrls';
+import { fetchWithTimeout } from '@/lib/http';
 import type { GeneratedProposal } from '@/lib/proposalStore';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 
 const BASE = `${PROPOSAL_ENGINE_URL}/workspace`;
 
 async function cloudFetch(path: string, init?: RequestInit): Promise<Response> {
-  const ctrl = new AbortController();
-  const timer = window.setTimeout(() => ctrl.abort(), 45_000);
-  try {
-    return await fetch(`${BASE}${path}`, {
-      ...init,
-      signal: init?.signal || ctrl.signal,
-    });
-  } finally {
-    window.clearTimeout(timer);
-  }
+  return fetchWithTimeout(`${BASE}${path}`, { ...init, timeoutMs: 45_000 });
 }
 
 async function readJson(res: Response): Promise<unknown> {
@@ -44,7 +36,20 @@ export async function cloudPutQuote(quote: SavedQuote): Promise<void> {
 }
 
 export async function cloudDeleteQuote(id: string): Promise<void> {
-  await cloudFetch(`/quotes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const res = await cloudFetch(`/quotes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`Could not delete workspace quote (${res.status})`);
+}
+
+export async function cloudGetQuote(id: string): Promise<SavedQuote | null> {
+  const res = await cloudFetch(`/quotes/${encodeURIComponent(id)}`);
+  if (res.ok) {
+    const body = (await readJson(res)) as SavedQuote | { quote?: SavedQuote } | null;
+    const row = body && 'id' in body && body.id ? (body as SavedQuote) : (body as { quote?: SavedQuote } | null)?.quote;
+    if (row?.id) return row;
+  }
+  if (res.status !== 404 && !res.ok) throw new Error(`Workspace quote failed (${res.status})`);
+  const listed = await cloudListQuotes();
+  return listed.find((q) => q.id === id) || null;
 }
 
 export async function cloudListProposals(): Promise<GeneratedProposal[]> {
@@ -72,5 +77,6 @@ export async function cloudPutProposal(proposal: GeneratedProposal): Promise<voi
 }
 
 export async function cloudDeleteProposal(id: string): Promise<void> {
-  await cloudFetch(`/proposals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const res = await cloudFetch(`/proposals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`Could not delete workspace proposal (${res.status})`);
 }

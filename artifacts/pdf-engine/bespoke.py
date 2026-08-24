@@ -45,10 +45,13 @@ def render_financials(doc: "fitz.Document", calculations: dict, font_mgr, warnin
     draw_fields_batched(page, prepared, font_mgr, clear_graphics=False)
 
 
-def _money(value) -> str:
-    if value is None:
+def _money(value) -> str | None:
+    if value is None or value == "":
         return None
-    return f"{float(value):,.2f}"
+    try:
+        return f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return None
 
 
 def render_upgrade_list(doc: "fitz.Document", selected_upgrades, font_mgr, warnings: list, profile=None):

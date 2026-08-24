@@ -6,7 +6,7 @@
 import type { Lead } from '@/components/LeadPanel';
 import { fetchLeadsFromWebhook } from '@/lib/leadsNetwork';
 import { getSheetsMode, type SheetsMode } from '@/lib/sheetsSync';
-import { WORKSPACE_STORES, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
+import { WORKSPACE_STORES, workspaceDelete, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
 
 const CACHE_PREFIX = 'nexus.leadsCache.v1';
 const STORE = WORKSPACE_STORES.leads;
@@ -99,15 +99,14 @@ export function isLeadsCacheFresh(cache: LeadsCachePayload | null, maxAgeMs = LE
 }
 
 export function clearLeadsCache(mode?: SheetsMode): void {
-  try {
-    if (mode) {
-      localStorage.removeItem(cacheKey(mode));
-      return;
+  const modes = mode ? [mode] : (['demo', 'live'] as SheetsMode[]);
+  for (const m of modes) {
+    try {
+      localStorage.removeItem(cacheKey(m));
+    } catch {
+      /* ignore */
     }
-    localStorage.removeItem(cacheKey('demo'));
-    localStorage.removeItem(cacheKey('live'));
-  } catch {
-    /* ignore */
+    void workspaceDelete(STORE, m);
   }
 }
 
