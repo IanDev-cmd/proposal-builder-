@@ -12,9 +12,8 @@ import {
   type SheetsMode,
 } from '@/lib/sheetsSync';
 import {
-  readLeadsCache,
-  writeLeadsCache,
-  subscribeLeadsCache,
+  persistLeadsCache,
+  readLeadsFromDb,
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
 import { fetchLeadsFromWebhook, fallbackDemoLeads } from '@/lib/leadsNetwork';
@@ -27,15 +26,11 @@ export function Leads() {
   const { setActiveLead } = useActiveLead();
   const [activeTab, setActiveTab] = useState(0);
   const [mode, setMode] = useState<SheetsMode>(() => getSheetsMode());
-  const [leads, setLeads] = useState<Lead[]>(() => readLeadsCache(getSheetsMode())?.leads ?? []);
-  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>(() =>
-    readLeadsCache(getSheetsMode())?.leads?.length ? 'ok' : 'loading',
-  );
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [syncing, setSyncing] = useState(false);
   const [stale, setStale] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(
-    () => readLeadsCache(getSheetsMode())?.fetchedAt ?? null,
-  );
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [panelLead, setPanelLead] = useState<Lead | null>(null);
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -43,8 +38,8 @@ export function Leads() {
   const hasRowsRef = useRef(leads.length > 0);
   hasRowsRef.current = leads.length > 0;
 
-  const applyCacheForMode = useCallback((nextMode: SheetsMode) => {
-    const cached = readLeadsCache(nextMode);
+  const applyCacheForMode = useCallback(async (nextMode: SheetsMode) => {
+    const cached = await readLeadsFromDb(nextMode);
     if (cached?.leads?.length) {
       setLeads(cached.leads);
       setLastSyncedAt(cached.fetchedAt);
@@ -72,26 +67,34 @@ export function Leads() {
       const data = await fetchLeadsFromWebhook(currentMode);
       if (ac.signal.aborted) return;
       setLeads(data);
-      writeLeadsCache(data, currentMode);
       setLastSyncedAt(Date.now());
       setStatus('ok');
       setStale(false);
+      await persistLeadsCache(data, currentMode);
     } catch (err) {
       if (ac.signal.aborted) return;
       if (currentMode === 'demo' && !hasRowsRef.current) {
         const demo = fallbackDemoLeads();
         setLeads(demo);
-        writeLeadsCache(demo, currentMode);
         setLastSyncedAt(Date.now());
         setStatus('ok');
         setStale(false);
-      } else if (!hasRowsRef.current && !readLeadsCache(currentMode)?.leads?.length) {
-        setStatus('error');
-        toastError({
-          key: 'leads-fetch',
-          title: 'Could not load leads',
-          description: errorMessage(err, 'Check n8n connection and try again.'),
-        });
+        await persistLeadsCache(demo, currentMode);
+      } else if (!hasRowsRef.current) {
+        const cached = await readLeadsFromDb(currentMode);
+        if (cached?.leads?.length) {
+          setLeads(cached.leads);
+          setLastSyncedAt(cached.fetchedAt);
+          setStatus('ok');
+          setStale(true);
+        } else {
+          setStatus('error');
+          toastError({
+            key: 'leads-fetch',
+            title: 'Could not load leads',
+            description: errorMessage(err, 'Check n8n connection and try again.'),
+          });
+        }
       } else {
         setStale(true);
       }
@@ -101,13 +104,21 @@ export function Leads() {
     }
   }, []);
 
-  // Initial: paint from cache, then network. Re-apply when IndexedDB hydrates.
+  // Always fetch the live n8n list for this page, then persist it to IndexedDB.
   useEffect(() => {
-    applyCacheForMode(getSheetsMode());
-    void refresh({ silent: Boolean(readLeadsCache(getSheetsMode())?.leads?.length) });
-    return subscribeLeadsCache(() => {
-      applyCacheForMode(getSheetsMode());
-    });
+    let cancelled = false;
+    void (async () => {
+      const cached = await readLeadsFromDb(getSheetsMode());
+      if (!cancelled && cached?.leads?.length) {
+        setLeads(cached.leads);
+        setLastSyncedAt(cached.fetchedAt);
+        setStatus('ok');
+      }
+      if (!cancelled) await refresh({ silent: Boolean(cached?.leads?.length) });
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -123,8 +134,10 @@ export function Leads() {
   useEffect(() => {
     return subscribeSheetsMode((next) => {
       setMode(next);
-      applyCacheForMode(next);
-      void refresh({ silent: Boolean(readLeadsCache(next)?.leads?.length) });
+      void (async () => {
+        await applyCacheForMode(next);
+        await refresh({ silent: false });
+      })();
     });
   }, [applyCacheForMode, refresh]);
 

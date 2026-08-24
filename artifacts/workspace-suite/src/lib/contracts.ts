@@ -190,17 +190,34 @@ export function formatZodIssues(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
 }
 
+function extractLeadRows(input: unknown): unknown[] {
+  if (Array.isArray(input)) return input;
+  if (!input || typeof input !== 'object') return [];
+  const o = input as Record<string, unknown>;
+  if (Array.isArray(o.leads)) return o.leads;
+  if (Array.isArray(o.data)) return o.data;
+  if (Array.isArray(o.body)) return o.body;
+  if (o.body && typeof o.body === 'object' && Array.isArray((o.body as { leads?: unknown[] }).leads)) {
+    return (o.body as { leads: unknown[] }).leads;
+  }
+  return [];
+}
+
 export function parseLeadDataFetch(input: unknown): LeadDataFetchResponse {
   const parsed = leadDataFetchResponseSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new Error(`LeadDataFetch contract failed: ${formatZodIssues(parsed.error)}`);
+  if (parsed.success) {
+    if (parsed.data.failureEvent) {
+      throw new Error(
+        parsed.data.failureEvent.reason || `LeadDataFetch FailureEvent from ${parsed.data.failureEvent.source}`,
+      );
+    }
+    return parsed.data;
   }
-  if (parsed.data.failureEvent) {
-    throw new Error(
-      parsed.data.failureEvent.reason || `LeadDataFetch FailureEvent from ${parsed.data.failureEvent.source}`,
-    );
+  const rows = extractLeadRows(input).filter((row) => row && typeof row === 'object');
+  if (rows.length) {
+    return { ok: true, leads: rows as N8nLeadRow[] };
   }
-  return parsed.data;
+  throw new Error(`LeadDataFetch contract failed: ${formatZodIssues(parsed.error)}`);
 }
 
 export function parseCostRatesPayload(input: unknown): CostRatesContract {
