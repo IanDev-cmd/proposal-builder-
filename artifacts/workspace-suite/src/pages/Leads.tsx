@@ -14,6 +14,7 @@ import {
 import {
   readLeadsCache,
   writeLeadsCache,
+  subscribeLeadsCache,
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
 import { N8N_BASE } from '@/lib/backendUrls';
@@ -258,10 +259,13 @@ export function Leads() {
     }
   }, []);
 
-  // Initial: paint from cache, then network
+  // Initial: paint from cache, then network. Re-apply when IndexedDB hydrates.
   useEffect(() => {
     applyCacheForMode(getSheetsMode());
     void refresh({ silent: Boolean(readLeadsCache(getSheetsMode())?.leads?.length) });
+    return subscribeLeadsCache(() => {
+      applyCacheForMode(getSheetsMode());
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

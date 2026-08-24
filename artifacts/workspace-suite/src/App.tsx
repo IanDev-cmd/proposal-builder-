@@ -14,9 +14,7 @@ import { Timeline } from '@/pages/Timeline';
 import { Settings } from '@/pages/Settings';
 import { Apps } from '@/pages/Apps';
 import NotFound from '@/pages/NotFound';
-import { hydrateLeadsDb } from '@/lib/leadCache';
-import { hydrateSavedQuotesDb } from '@/lib/savedQuotesStore';
-import { hydrateProposalsDb } from '@/lib/proposalStore';
+import { hydrateWorkspace } from '@/lib/hydrateWorkspace';
 
 const queryClient = new QueryClient();
 
@@ -60,7 +58,7 @@ function Router() {
 
 function App() {
   useEffect(() => {
-    void Promise.all([hydrateLeadsDb(), hydrateSavedQuotesDb(), hydrateProposalsDb()]);
+    void hydrateWorkspace();
   }, []);
 
   return (

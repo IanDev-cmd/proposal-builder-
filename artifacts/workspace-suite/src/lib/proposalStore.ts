@@ -124,4 +124,5 @@ export async function deleteProposal(id: string): Promise<boolean> {
 
 export async function hydrateProposalsDb(): Promise<void> {
   await ensureMigrated();
+  window.dispatchEvent(new Event(PROPOSALS_EVENT));
 }

@@ -57,6 +57,12 @@ export function writeLeadsCache(leads: Lead[], mode: SheetsMode = getSheetsMode(
   }
 }
 
+export function subscribeLeadsCache(cb: () => void): () => void {
+  const handler = () => cb();
+  window.addEventListener(LEADS_EVENT, handler);
+  return () => window.removeEventListener(LEADS_EVENT, handler);
+}
+
 export function isLeadsCacheFresh(cache: LeadsCachePayload | null, maxAgeMs = LEADS_FRESH_MS): boolean {
   if (!cache?.fetchedAt) return false;
   return Date.now() - cache.fetchedAt < maxAgeMs;
@@ -97,5 +103,10 @@ export async function hydrateLeadsDb(): Promise<void> {
     } catch {
       /* localStorage still available */
     }
+  }
+  try {
+    window.dispatchEvent(new Event(LEADS_EVENT));
+  } catch {
+    /* ignore */
   }
 }
