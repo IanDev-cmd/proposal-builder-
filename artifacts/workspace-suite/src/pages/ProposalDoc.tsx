@@ -10,6 +10,7 @@ import {
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 
 /* ─── Real document pages from the uploaded PDF ─── */
@@ -269,7 +270,7 @@ export function ProposalDoc() {
     }
   };
 
-  /* ── Share targets: each opens the exact right destination in a new tab ── */
+  /* ── Share targets: each attaches the PDF (OS share sheet, .eml, or download + app) ── */
   const handleShareFullScreen = () => {
     if (!active) return;
     setShareOpen(false);
@@ -281,46 +282,46 @@ export function ProposalDoc() {
     }
   };
 
-  const handleShareGmail = () => {
+  const handleShareWithFile = async (channel: ShareChannel) => {
     if (!active) return;
     setShareOpen(false);
-    const subject = encodeURIComponent(`Proposal: ${active.title}`);
+    let file: File | null = null;
+    if (active.kind === 'generated' && active.pdfDataUrl) {
+      const name = active.title.toLowerCase().endsWith('.pdf') ? active.title : `${active.title}.pdf`;
+      file = dataUrlToFile(active.pdfDataUrl, name);
+    }
+    if (!file) {
+      toastError({
+        key: 'share-file',
+        title: 'No PDF to attach',
+        description: 'Generate a proposal first, then share it with the file attached.',
+      });
+      return;
+    }
     const greetingName = active.leadName ? active.leadName.split(' ')[0] : 'there';
-    const body = encodeURIComponent(
-      `Hi ${greetingName},\n\nPlease find attached the proposal "${active.title}".\n\n${active.description}\n\nBest regards`,
-    );
-    // to= addresses the compose window straight to this lead's exact inbox when known.
-    const to = active.leadEmail ? `&to=${encodeURIComponent(active.leadEmail)}` : '';
-    window.open(
-      `https://mail.google.com/mail/?view=cm&fs=1${to}&su=${subject}&body=${body}`,
-      '_blank',
-      'noopener,noreferrer',
-    );
-  };
-
-  const handleShareDrive = () => {
-    setShareOpen(false);
-    window.open('https://drive.google.com/drive/my-drive', '_blank', 'noopener,noreferrer');
-  };
-
-  const handleShareDropbox = () => {
-    setShareOpen(false);
-    window.open('https://www.dropbox.com/home', '_blank', 'noopener,noreferrer');
-  };
-
-  const handleShareWhatsapp = () => {
-    if (!active) return;
-    setShareOpen(false);
-    const text = encodeURIComponent(`Proposal: ${active.title} — ${active.description}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+    try {
+      await shareArtifact(channel, {
+        file,
+        title: `Proposal: ${active.title}`,
+        text: `Hi ${greetingName},\n\nPlease find attached the proposal "${active.title}".\n\n${active.description}\n\nBest regards`,
+        toEmail: active.leadEmail,
+        kind: 'pdf',
+      });
+    } catch {
+      toastError({
+        key: 'share-file',
+        title: 'Could not attach the PDF',
+        description: 'Try downloading the proposal and sharing it from your files.',
+      });
+    }
   };
 
   const SHARE_TARGETS = [
     { label: 'Full Screen', icon: Maximize2, color: '#1a1a1a', onClick: handleShareFullScreen },
-    { label: 'Gmail', icon: Mail, color: '#EA4335', onClick: handleShareGmail },
-    { label: 'Google Drive', icon: HardDrive, color: '#34A853', onClick: handleShareDrive },
-    { label: 'Dropbox', icon: Box, color: '#0061FF', onClick: handleShareDropbox },
-    { label: 'WhatsApp', icon: MessageCircle, color: '#25D366', onClick: handleShareWhatsapp },
+    { label: 'Gmail', icon: Mail, color: '#EA4335', onClick: () => void handleShareWithFile('email') },
+    { label: 'Google Drive', icon: HardDrive, color: '#34A853', onClick: () => void handleShareWithFile('drive') },
+    { label: 'Dropbox', icon: Box, color: '#0061FF', onClick: () => void handleShareWithFile('dropbox') },
+    { label: 'WhatsApp', icon: MessageCircle, color: '#25D366', onClick: () => void handleShareWithFile('whatsapp') },
   ];
 
   return (

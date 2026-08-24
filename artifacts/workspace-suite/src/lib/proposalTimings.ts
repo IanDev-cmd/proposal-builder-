@@ -39,6 +39,16 @@ function fmtHrs(t?: string): string {
   return `${String(Number(m[1])).padStart(2, '0')}:${m[2]}hrs`;
 }
 
+/** 12-hour clock label for timeline cards (e.g. "6:00 PM"). */
+export function formatClockLabel(t?: string): string {
+  const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return '';
+  const h = Number(m[1]);
+  const min = m[2];
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${min} ${suffix}`;
+}
+
 /**
  * Billable event hours: departure → finish (return, else disembark).
  * Never includes the 15-minute embarkation buffer.

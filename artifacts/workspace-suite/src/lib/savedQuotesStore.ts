@@ -19,6 +19,8 @@ export type SavedQuote = {
   step: number;
   data: Record<string, unknown>;
   lead: QuoteLead | null;
+  /** IndexedDB id of the generated PDF, when Generate Proposal has already run. */
+  proposalId?: string;
 };
 
 const STORAGE_KEY = 'nexus_saved_quotes';

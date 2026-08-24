@@ -18,6 +18,7 @@ import {
 } from '@/lib/savedQuotesStore';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
+import { resolveQuoteShareFile, shareArtifact, shareCaption, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 import type { PointKind } from '@/lib/leadNotes';
 
@@ -91,6 +92,8 @@ export function SavedQuotes() {
   const [activeId, setActiveId] = useState<string | null>(params.id || quotes[0]?.id || null);
   const [overlayId, setOverlayId] = useState<string | null>(params.id || null);
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareHint, setShareHint] = useState('');
 
   useEffect(() => subscribeSavedQuotes(() => setQuotes(listSavedQuotes())), []);
 
@@ -110,36 +113,51 @@ export function SavedQuotes() {
     navigate('/quote-builder');
   }
 
-  function shareEmail(quote: SavedQuote) {
-    const url = savedQuoteShareUrl(quote.id);
-    const subject = encodeURIComponent(`Quote: ${quote.title}`);
-    const body = encodeURIComponent(
-      `Hi${quote.leadName ? ` ${quote.leadName.split(' ')[0]}` : ''},\n\nHere is the saved quote "${quote.title}".\n${url}\n\nBest regards`,
-    );
-    const to = quote.lead?.email ? `&to=${encodeURIComponent(quote.lead.email)}` : '';
-    window.open(`https://mail.google.com/mail/?view=cm&fs=1${to}&su=${subject}&body=${body}`, '_blank', 'noopener,noreferrer');
-  }
-
-  function shareWhatsApp(quote: SavedQuote) {
-    const url = savedQuoteShareUrl(quote.id);
-    window.open(
-      `https://wa.me/?text=${encodeURIComponent(`Quote: ${quote.title}\n${url}`)}`,
-      '_blank',
-      'noopener,noreferrer',
-    );
-  }
-
-  async function copyLink(quote: SavedQuote) {
-    const url = savedQuoteShareUrl(quote.id);
+  async function share(channel: ShareChannel, quote: SavedQuote) {
+    if (sharing) return;
+    setSharing(true);
+    setShareHint(channel === 'link' ? 'Preparing quote file…' : 'Attaching file…');
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      const { file, kind } = await resolveQuoteShareFile(quote);
+      const url = savedQuoteShareUrl(quote.id);
+      const first = quote.leadName ? ` ${quote.leadName.split(' ')[0]}` : '';
+      const result = await shareArtifact(channel, {
+        file,
+        title: kind === 'pdf' ? `Proposal: ${quote.title}` : `Quote: ${quote.title}`,
+        text: `Hi${first},\n\n${shareCaption(quote, kind)}\n${url}\n\nBest regards`,
+        toEmail: quote.lead?.email,
+        shareUrl: url,
+        kind,
+      });
+      if (result === 'cancelled') {
+        setShareHint('');
+        return;
+      }
+      if (channel === 'link') {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+        setOverlayId(quote.id);
+        navigate(`/saved-quotes/${quote.id}`);
+      }
+      const attached = kind === 'pdf' ? 'PDF attached' : 'Quote file attached';
+      const extra =
+        result === 'email-eml-pdf' || result === 'email-eml-quote'
+          ? ' — open the .eml to send with the file attached'
+          : result === 'whatsapp-file' || result === 'dropbox-file' || result === 'drive-file'
+            ? ' — file downloaded, drop it into the tab that opened'
+            : '';
+      setShareHint(`${attached}${extra}`);
+      window.setTimeout(() => setShareHint(''), 4200);
     } catch {
-      toastError({ key: 'copy-link', title: 'Could not copy link' });
+      toastError({
+        key: 'share-quote',
+        title: 'Could not attach the quote file',
+        description: 'Try again, or generate the proposal PDF first.',
+      });
+      setShareHint('');
+    } finally {
+      setSharing(false);
     }
-    setOverlayId(quote.id);
-    navigate(`/saved-quotes/${quote.id}`);
   }
 
   function shareRow(quote: SavedQuote, onBlue: boolean) {
@@ -148,31 +166,31 @@ export function SavedQuotes() {
     const bg = onBlue ? 'bg-white/15 hover:bg-white/25' : 'bg-white shadow-sm hover:bg-slate-50';
     return (
       <div className="flex flex-wrap items-center gap-1.5">
-        <button type="button" title="Email" aria-label="Share via Email" className={`${btn} ${bg}`} onClick={() => shareEmail(quote)}>
+        <button type="button" title="Email" aria-label="Share via Email" className={`${btn} ${bg}`} onClick={() => share('email', quote)}>
           <Mail className={`h-4 w-4 ${onBlue ? 'text-white' : 'text-[#EA4335]'}`} />
         </button>
-        <button type="button" title="WhatsApp" aria-label="Share via WhatsApp" className={`${btn} ${bg}`} onClick={() => shareWhatsApp(quote)}>
+        <button type="button" title="WhatsApp" aria-label="Share via WhatsApp" className={`${btn} ${bg}`} onClick={() => share('whatsapp', quote)}>
           <WhatsAppIcon className={`h-4 w-4 ${onBlue ? 'text-white' : 'text-[#25D366]'}`} />
         </button>
         <button
           type="button"
           title="Dropbox"
-          aria-label="Open Dropbox"
+          aria-label="Save to Dropbox"
           className={`${btn} ${bg}`}
-          onClick={() => window.open('https://www.dropbox.com/home', '_blank', 'noopener,noreferrer')}
+          onClick={() => share('dropbox', quote)}
         >
           <DropboxIcon className={`h-4 w-4 ${onBlue ? 'text-white' : 'text-[#0061FF]'}`} />
         </button>
         <button
           type="button"
           title="Google Drive"
-          aria-label="Open Google Drive"
+          aria-label="Save to Google Drive"
           className={`${btn} ${bg}`}
-          onClick={() => window.open('https://drive.google.com/drive/my-drive', '_blank', 'noopener,noreferrer')}
+          onClick={() => share('drive', quote)}
         >
           <DriveIcon className="h-4 w-4" />
         </button>
-        <button type="button" title={copied ? 'Copied' : 'Copy link'} aria-label="Copy link" className={`${btn} ${bg}`} onClick={() => copyLink(quote)}>
+        <button type="button" title={copied ? 'Copied' : 'Copy link'} aria-label="Copy link" className={`${btn} ${bg}`} onClick={() => share('link', quote)}>
           <Link2 className={`h-4 w-4 ${iconCls}`} />
         </button>
       </div>
@@ -186,6 +204,11 @@ export function SavedQuotes() {
         <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase tracking-[0.08em] text-slate-800">
           Saved Quotes
         </span>
+        {shareHint ? (
+          <span className="max-w-[55%] truncate text-[11px] font-medium text-[#2F7CF6]" data-testid="saved-quotes-share-hint">
+            {sharing ? 'Attaching…' : shareHint}
+          </span>
+        ) : null}
       </div>
 
       <LeadNotesTimeline
@@ -287,8 +310,11 @@ export function SavedQuotes() {
                   <dd className="font-bold text-[#00e676]">£{overlay.grandTotal.toFixed(2)}</dd>
                 </div>
               </dl>
-              <div className="mt-6 flex items-center justify-between px-6">
+              <div className="mt-6 flex flex-col gap-2 px-6">
                 {shareRow(overlay, false)}
+                {shareHint ? (
+                  <p className="text-[11px] font-medium text-[#2F7CF6]">{shareHint}</p>
+                ) : null}
               </div>
               <div className="p-6 pt-4">
                 <button

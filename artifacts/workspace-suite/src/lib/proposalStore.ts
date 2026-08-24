@@ -82,6 +82,19 @@ async function ensureMigrated(db: IDBDatabase): Promise<void> {
   return migrated;
 }
 
+/** One generated proposal by id. */
+export async function getProposal(id: string): Promise<GeneratedProposal | null> {
+  if (!id) return null;
+  const db = await openDb();
+  await ensureMigrated(db);
+  return await new Promise<GeneratedProposal | null>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
+    req.onsuccess = () => resolve((req.result as GeneratedProposal) || null);
+    req.onerror = () => reject(req.error ?? new Error('Failed to read proposal'));
+  });
+}
+
 /** All generated proposals, newest first. Throws if IndexedDB is unavailable. */
 export async function loadProposals(): Promise<GeneratedProposal[]> {
   const db = await openDb();

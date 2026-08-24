@@ -7,13 +7,14 @@ import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { LeadReferenceCard } from '@/components/LeadReferenceCard';
-import { ScheduleTimingToasts } from '@/components/ScheduleTimingToasts';
+import { ProposalTimingsCard } from '@/components/ProposalTimingsCard';
 import { getQuoteLead, clearQuoteLead, setQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
 import {
   consumePendingGenerate,
   getSavedQuote,
+  listSavedQuotes,
   peekPendingGenerate,
   upsertSavedQuote,
 } from '@/lib/savedQuotesStore';
@@ -852,6 +853,7 @@ export function Forms() {
     const id = peekPendingGenerate();
     return id ? getSavedQuote(id) : null;
   })();
+  const pendingGenerateIdRef = useRef<string | null>(peekPendingGenerate());
   const [step, setStep] = useState(() => pendingQuote?.step || 1);
   const [quoteLead] = useState<QuoteLead | null>(() => pendingQuote?.lead || getQuoteLead());
   const [leadInit] = useState(() => formFromLead(getQuoteLead() || pendingQuote?.lead || null));
@@ -906,6 +908,10 @@ export function Forms() {
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(true);
   const [draftReady, setDraftReady] = useState(false);
+
+  useEffect(() => {
+    if (step === 3) setIsNotesOpen(true);
+  }, [step]);
 
   // Gemini #2/#4 overlay only — guests and money stay local. Skip gold playbook leads.
   useEffect(() => {
@@ -1707,8 +1713,9 @@ export function Forms() {
         );
       }
 
+      const proposalId = `proposal-${Date.now()}`;
       const saved = await addProposal({
-        id: `proposal-${Date.now()}`,
+        id: proposalId,
         createdAt: new Date().toISOString(),
         eventDate: data.eventDate,
         title: proposalFileStem({
@@ -1729,6 +1736,16 @@ export function Forms() {
         throw new Error(
           'The PDF was generated but is too large to store in this browser — clear some space (e.g. delete older proposals) and try again.',
         );
+      }
+
+      const savedQuoteId =
+        pendingGenerateIdRef.current ||
+        listSavedQuotes().find((q) => q.leadKey === leadNotesKey)?.id ||
+        null;
+      if (savedQuoteId) {
+        const q = getSavedQuote(savedQuoteId);
+        if (q) upsertSavedQuote({ ...q, proposalId });
+        pendingGenerateIdRef.current = null;
       }
 
       await sheetsWrite('Quote status (ready)', () =>
@@ -1768,34 +1785,44 @@ export function Forms() {
   };
 
   const handleSaveQuote = async () => {
-    const saved = upsertSavedQuote({
-      id: `quote-${leadNotesKey}-${Date.now()}`,
-      leadKey: leadNotesKey,
-      leadName: quoteLead?.name,
-      referenceNumber: quoteLead?.referenceNumber,
-      title: proposalFileStem({
-        contactName: quoteLead?.name,
-        companyName: quoteLead?.company,
-        referenceCode: quoteLead?.referenceNumber,
-      }),
-      vesselType: data.vesselType.join(', '),
-      eventType: data.eventType,
-      guestCount: data.guestCount,
-      eventDate: data.eventDate,
-      grandTotal: fin.grand,
-      step,
-      data,
-      lead: quoteLead,
-    });
-    await saveQuoteDraft({
-      leadKey: leadNotesKey,
-      step,
-      data,
-      leadName: quoteLead?.name,
-      referenceNumber: quoteLead?.referenceNumber,
-    });
-    if (quoteLead) setQuoteLead(quoteLead);
-    navigate(`/saved-quotes/${saved.id}`);
+    try {
+      const existing = listSavedQuotes().find((q) => q.leadKey === leadNotesKey);
+      const saved = upsertSavedQuote({
+        id: existing?.id || `quote-${leadNotesKey}-${Date.now()}`,
+        leadKey: leadNotesKey,
+        leadName: quoteLead?.name,
+        referenceNumber: quoteLead?.referenceNumber,
+        title: proposalFileStem({
+          contactName: quoteLead?.name,
+          companyName: quoteLead?.company,
+          referenceCode: quoteLead?.referenceNumber,
+        }),
+        vesselType: data.vesselType.join(', '),
+        eventType: data.eventType,
+        guestCount: data.guestCount,
+        eventDate: data.eventDate,
+        grandTotal: fin.grand,
+        step,
+        data,
+        lead: quoteLead,
+        proposalId: existing?.proposalId,
+      });
+      await saveQuoteDraft({
+        leadKey: leadNotesKey,
+        step,
+        data,
+        leadName: quoteLead?.name,
+        referenceNumber: quoteLead?.referenceNumber,
+      });
+      if (quoteLead) setQuoteLead(quoteLead);
+      navigate(`/saved-quotes/${saved.id}`);
+    } catch (err) {
+      toastError({
+        key: 'save-quote',
+        title: 'Could not save quote',
+        description: formatError(err, 'localStorage is blocked or full. Try clearing space and save again.'),
+      });
+    }
   };
 
   useEffect(() => {
@@ -2260,10 +2287,6 @@ export function Forms() {
                   disembarkation={data.disembarkation}
                   onChangeField={(key, value) => set(key, value)}
                 />
-
-                <p className="mt-7 text-[12.5px] text-gray-400">
-                  Proposal timing toasts appear on the right — they stay until you close each with ×.
-                </p>
               </motion.div>
             )}
 
@@ -3076,53 +3099,54 @@ export function Forms() {
         </div>
       </main>
 
-      {/* ── Right: docked Lead Notes (hidden while a PDF is generating) ── */}
+      {/* ── Right: docked Lead Notes (hidden while a PDF is generating).
+          Schedule Timings swaps the cards for proposal timings — same UX. ── */}
       {stage === 'idle' ? (
       <aside
         className={`sticky top-16 z-[110] flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-hidden transition-[width] duration-300 ${
           isNotesOpen || step === 3 ? 'w-[min(380px,32vw)]' : 'w-14'
         }`}
       >
-        <LeadReferenceCard
-          initialEnquiry={data.initialEnquiry}
-          updatedEnquiry={data.keyItems}
-          progressNotes={data.progressNotes}
-          isOpen={isNotesOpen}
-          onToggle={() => setIsNotesOpen((open) => !open)}
-          onUpdatedEnquiryChange={(value) => set('keyItems', value)}
-          onProgressNotesChange={(value) => set('progressNotes', value)}
-          leadKey={leadNotesKey}
-          leadName={quoteLead?.name}
-          referenceNumber={quoteLead?.referenceNumber}
-        />
         {step === 3 ? (
-          <div className="shrink-0 overflow-y-auto border-t border-sky-100/80 bg-white px-3 py-3">
-            <ScheduleTimingToasts
-              timings={{
-                embarkation: data.embarkation,
-                departure: data.departure,
-                returnTime: data.returnTime,
-                disembarkation: data.disembarkation,
-              }}
-              proposalTimingsNotes={data.proposalTimingsNotes}
-              proposalTimingsAuto={data.proposalTimingsAuto}
-              onResetAuto={() => {
-                setData((prev) => ({
-                  ...prev,
-                  proposalTimingsAuto: true,
-                  proposalTimingsNotes: buildItineraryProposalText(prev),
-                }));
-              }}
-              onNotesChange={(text) => {
-                setData((prev) => ({
-                  ...prev,
-                  proposalTimingsNotes: text,
-                  proposalTimingsAuto: false,
-                }));
-              }}
-            />
-          </div>
-        ) : null}
+          <ProposalTimingsCard
+            timings={{
+              embarkation: data.embarkation,
+              departure: data.departure,
+              returnTime: data.returnTime,
+              disembarkation: data.disembarkation,
+            }}
+            proposalTimingsNotes={data.proposalTimingsNotes}
+            isOpen={isNotesOpen || step === 3}
+            onToggle={() => setIsNotesOpen((open) => !open)}
+            onResetAuto={() => {
+              setData((prev) => ({
+                ...prev,
+                proposalTimingsAuto: true,
+                proposalTimingsNotes: buildItineraryProposalText(prev),
+              }));
+            }}
+            onNotesChange={(text) => {
+              setData((prev) => ({
+                ...prev,
+                proposalTimingsNotes: text,
+                proposalTimingsAuto: false,
+              }));
+            }}
+          />
+        ) : (
+          <LeadReferenceCard
+            initialEnquiry={data.initialEnquiry}
+            updatedEnquiry={data.keyItems}
+            progressNotes={data.progressNotes}
+            isOpen={isNotesOpen}
+            onToggle={() => setIsNotesOpen((open) => !open)}
+            onUpdatedEnquiryChange={(value) => set('keyItems', value)}
+            onProgressNotesChange={(value) => set('progressNotes', value)}
+            leadKey={leadNotesKey}
+            leadName={quoteLead?.name}
+            referenceNumber={quoteLead?.referenceNumber}
+          />
+        )}
       </aside>
       ) : null}
 
