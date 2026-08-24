@@ -1,12 +1,11 @@
 /**
- * Share a quote/PDF as a real file attachment.
- * Web compose URLs (Gmail, wa.me, Drive, Dropbox) cannot attach files, so we:
- *  1. Prefer the OS share sheet with `navigator.share({ files })` when the browser allows it
- *  2. Fall back to an .eml (email with MIME attachment), or download the file then open the app
+ * Two share paths:
+ *  - Saved Quotes: `openQuoteShareWeb` opens Gmail / WhatsApp / Drive / Dropbox in the browser
+ *    with the quote (never a proposal PDF). Copy link opens the overlay page.
+ *  - Proposal Doc PDFs: `shareArtifact` still uses the OS share sheet, .eml, or download + app.
  */
-import { loadProposals, getProposal, type GeneratedProposal } from '@/lib/proposalStore';
 import { proposalFileStem, sanitizeFilenamePart } from '@/lib/proposalFilename';
-import type { SavedQuote } from '@/lib/savedQuotesStore';
+import { savedQuoteShareUrl, type SavedQuote } from '@/lib/savedQuotesStore';
 
 export type ShareChannel = 'email' | 'whatsapp' | 'dropbox' | 'drive' | 'link';
 
@@ -105,34 +104,9 @@ function quoteHtml(quote: SavedQuote, shareUrl: string): string {
 </body></html>`;
 }
 
-function proposalFileFromRecord(p: GeneratedProposal): File | null {
-  const name = p.title.toLowerCase().endsWith('.pdf') ? p.title : `${p.title}.pdf`;
-  return dataUrlToFile(p.pdfDataUrl, name);
-}
-
 export async function resolveQuoteShareFile(quote: SavedQuote): Promise<{ file: File; kind: 'pdf' | 'quote' }> {
-  if (quote.proposalId) {
-    try {
-      const stored = await getProposal(quote.proposalId);
-      const file = stored ? proposalFileFromRecord(stored) : null;
-      if (file) return { file, kind: 'pdf' };
-    } catch {
-      /* fall through */
-    }
-  }
-  try {
-    const all = await loadProposals();
-    const match =
-      all.find((p) => quote.lead?.email && p.leadEmail === quote.lead.email) ||
-      all.find((p) => quote.title && p.title === quote.title) ||
-      all.find((p) => quote.leadName && p.leadName === quote.leadName);
-    const file = match ? proposalFileFromRecord(match) : null;
-    if (file) return { file, kind: 'pdf' };
-  } catch {
-    /* quote snapshot */
-  }
   const stem = sanitizeFilenamePart(quoteStem(quote)) || 'WEOTT-Quote';
-  const html = quoteHtml(quote, typeof window !== 'undefined' ? `${window.location.origin}/saved-quotes/${encodeURIComponent(quote.id)}` : '');
+  const html = quoteHtml(quote, savedQuoteShareUrl(quote.id));
   return {
     file: new File([html], `${stem}.html`, { type: 'text/html' }),
     kind: 'quote',
@@ -257,5 +231,84 @@ export function shareCaption(quote: SavedQuote, kind: 'pdf' | 'quote'): string {
   if (kind === 'pdf') {
     return `Please find attached the proposal PDF${who}: ${quote.title}.`;
   }
-  return `Please find attached the saved quote${who}: ${quote.title}.`;
+  return `Please find the saved quote${who}: ${quote.title}.`;
+}
+
+/** Plain-text quote for Gmail / WhatsApp compose — never a proposal PDF. */
+export function quoteSharePlainText(quote: SavedQuote, shareUrl: string): string {
+  const first = quote.leadName ? ` ${quote.leadName.split(' ')[0]}` : '';
+  return [
+    `Hi${first},`,
+    '',
+    shareCaption(quote, 'quote'),
+    '',
+    `Lead: ${quote.leadName || '—'}`,
+    `Reference: ${quote.referenceNumber || quote.leadKey}`,
+    `Vessel: ${quote.vesselType || '—'}`,
+    `Event: ${quote.eventType || '—'}`,
+    `Guests: ${quote.guestCount || '—'}`,
+    `Event date: ${quote.eventDate || '—'}`,
+    `Grand total: £${Number(quote.grandTotal || 0).toFixed(2)}`,
+    '',
+    `Open quote: ${shareUrl}`,
+    '',
+    'Best regards',
+  ].join('\n');
+}
+
+function clipShareText(text: string, shareUrl: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, Math.max(0, max - shareUrl.length - 8)).trim()}\n\n${shareUrl}`;
+}
+
+/** Web compose / app URLs. Gmail and WhatsApp cannot MIME-attach files via URL. */
+export function quoteShareWebUrl(
+  channel: Exclude<ShareChannel, 'link'>,
+  opts: { title: string; text: string; toEmail?: string; shareUrl: string },
+): string {
+  const { title, text, toEmail, shareUrl } = opts;
+  if (channel === 'email') {
+    const body = clipShareText(text, shareUrl, 1600);
+    const parts = ['view=cm', 'fs=1', 'tf=1', `su=${encodeURIComponent(title)}`, `body=${encodeURIComponent(body)}`];
+    const email = (toEmail || '').trim();
+    if (email && email !== '—') parts.push(`to=${encodeURIComponent(email)}`);
+    return `https://mail.google.com/mail/?${parts.join('&')}`;
+  }
+  if (channel === 'whatsapp') {
+    return `https://web.whatsapp.com/send?text=${encodeURIComponent(clipShareText(text, shareUrl, 1800))}`;
+  }
+  if (channel === 'dropbox') return 'https://www.dropbox.com/home';
+  return 'https://drive.google.com/drive/my-drive';
+}
+
+export type QuoteShareWebResult = 'overlay' | 'opened' | 'opened-copied';
+
+/**
+ * Saved Quotes share: open the web app with this quote (not a proposal PDF).
+ * Copy link opens the overlay URL only — no file download.
+ */
+export async function openQuoteShareWeb(channel: ShareChannel, quote: SavedQuote): Promise<QuoteShareWebResult> {
+  const shareUrl = savedQuoteShareUrl(quote.id);
+  const title = `Quote: ${quote.title}`;
+  const text = quoteSharePlainText(quote, shareUrl);
+
+  if (channel === 'link') {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      /* overlay still opens */
+    }
+    return 'overlay';
+  }
+
+  if (channel === 'dropbox' || channel === 'drive') {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      /* still open the app */
+    }
+  }
+
+  window.open(quoteShareWebUrl(channel, { title, text, toEmail: quote.lead?.email, shareUrl }), '_blank', 'noopener,noreferrer');
+  return channel === 'dropbox' || channel === 'drive' ? 'opened-copied' : 'opened';
 }

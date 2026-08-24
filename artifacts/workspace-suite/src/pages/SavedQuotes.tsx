@@ -12,7 +12,6 @@ import {
   deleteSavedQuote,
   listSavedQuotes,
   markPendingGenerate,
-  savedQuoteShareUrl,
   subscribeSavedQuotes,
   hydrateSavedQuotesDb,
   type SavedQuote,
@@ -21,7 +20,7 @@ import {
 } from '@/lib/savedQuotesStore';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
-import { resolveQuoteShareFile, shareArtifact, shareCaption, type ShareChannel } from '@/lib/quoteShare';
+import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 import type { PointKind } from '@/lib/leadNotes';
 
@@ -167,43 +166,27 @@ export function SavedQuotes() {
   async function share(channel: ShareChannel, quote: SavedQuote) {
     if (sharing) return;
     setSharing(true);
-    setShareHint(channel === 'link' ? 'Preparing quote file…' : 'Attaching file…');
     try {
-      const { file, kind } = await resolveQuoteShareFile(quote);
-      const url = savedQuoteShareUrl(quote.id);
-      const first = quote.leadName ? ` ${quote.leadName.split(' ')[0]}` : '';
-      const result = await shareArtifact(channel, {
-        file,
-        title: kind === 'pdf' ? `Proposal: ${quote.title}` : `Quote: ${quote.title}`,
-        text: `Hi${first},\n\n${shareCaption(quote, kind)}\n${url}\n\nBest regards`,
-        toEmail: quote.lead?.email,
-        shareUrl: url,
-        kind,
-      });
-      if (result === 'cancelled') {
-        setShareHint('');
-        return;
-      }
-      if (channel === 'link') {
+      const result = await openQuoteShareWeb(channel, quote);
+      if (channel === 'link' || result === 'overlay') {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1600);
         setOverlayId(quote.id);
         navigate(`/saved-quotes/${quote.id}`);
+        setShareHint('Quote overlay opened — link copied');
+      } else if (result === 'opened-copied') {
+        setShareHint(channel === 'dropbox' ? 'Opened Dropbox — quote link copied' : 'Opened Drive — quote link copied');
+      } else if (channel === 'email') {
+        setShareHint('Opened Gmail with this quote');
+      } else {
+        setShareHint('Opened WhatsApp with this quote');
       }
-      const attached = kind === 'pdf' ? 'PDF attached' : 'Quote file attached';
-      const extra =
-        result === 'email-eml-pdf' || result === 'email-eml-quote'
-          ? ' — open the .eml to send with the file attached'
-          : result === 'whatsapp-file' || result === 'dropbox-file' || result === 'drive-file'
-            ? ' — file downloaded, drop it into the tab that opened'
-            : '';
-      setShareHint(`${attached}${extra}`);
-      window.setTimeout(() => setShareHint(''), 4200);
+      window.setTimeout(() => setShareHint(''), 3500);
     } catch {
       toastError({
         key: 'share-quote',
-        title: 'Could not attach the quote file',
-        description: 'Try again, or generate the proposal PDF first.',
+        title: 'Could not open the share link',
+        description: 'Try again, or copy the quote overlay URL from the address bar.',
       });
       setShareHint('');
     } finally {
@@ -257,7 +240,7 @@ export function SavedQuotes() {
         </span>
         {shareHint ? (
           <span className="max-w-[55%] truncate text-[11px] font-medium text-[#2F7CF6]" data-testid="saved-quotes-share-hint">
-            {sharing ? 'Attaching…' : shareHint}
+            {sharing ? 'Opening…' : shareHint}
           </span>
         ) : null}
       </div>
