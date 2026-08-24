@@ -1,0 +1,118 @@
+{
+  "name": "WEOTT Nexus — Lead Notes Summary (Google Gemini Free)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "LeadNotesSummary",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "lns-webhook",
+      "name": "LeadNotesSummary Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "lead-notes-summary-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst notes = String(body.notes || body.progressNotes || '').slice(0, 8000);\nconst leadName = String(body.leadName || '');\nconst referenceNumber = String(body.referenceNumber || body.leadKey || '');\nif (!notes.trim()) {\n  return [{ json: {\n    points: [],\n    model: 'none',\n    failureEvent: { type: 'FailureEvent', source: 'LeadNotesSummary', reason: 'empty notes', httpStatus: 400 }\n  } }];\n}\nconst prompt = [\n  'You summarise WEOTT CRM progress notes for a sales lead.',\n  'NOTES are concatenated Progress 1…N entries, often joined with \" | \", newlines, or \"Progress N:\".',\n  'Split them into discrete scannable POINTS — one card per distinct fact, call, budget, guest, vessel, timing, catering, or pipeline update.',\n  'Return ONLY JSON: {\"points\":[{\"title\":\"2-4 word label\",\"summary\":\"one sentence\",\"kind\":\"budget|calls|research|logistics|pipeline|history|guests|timing|catering|enquiry|discovery|general\",\"kinds\":[\"budget\"],\"when\":\"short time or date label or empty\",\"evidence\":\"verbatim substring of NOTES\"}]}',\n  'kind must be one of those enums. Use budget for money/£/margin, guests for headcount, logistics for vessel, timing for dates/hours, catering for food/drink, calls for phone/voicemail, pipeline for proposal/handover status.',\n  'title examples: Budget, Guests, Vessel, Call, Timing, Catering, Pipeline.',\n  'Never invent £ amounts, dates, guest counts, or vessel names that are not in NOTES.',\n  'Never merge unrelated facts into one point. Keep 3–12 points when NOTES are long; 1–3 when short.',\n  'evidence must be copied from NOTES. summary may lightly compress but must stay faithful.',\n  referenceNumber ? ('LEAD: ' + referenceNumber + (leadName ? ' — ' + leadName : '')) : (leadName ? 'LEAD: ' + leadName : 'LEAD: unknown'),\n  'NOTES:',\n  notes\n].join('\\n');\nreturn [{ json: { notes, prompt, ok: true, leadName, referenceNumber } }];"
+      },
+      "id": "lns-prep",
+      "name": "Prepare Notes Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": { "temperature": 0.15, "maxOutputTokens": 2048 }
+      },
+      "id": "lns-gemini",
+      "name": "Google Gemini Chat Model (Free Tier)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [480, 200],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GOOGLE_GEMINI_FREE_TIER",
+          "name": "Google Gemini (Free Tier)"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API free tier. Bind googlePalmApi credential after import."
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"points\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": { \"type\": \"string\" },\n          \"summary\": { \"type\": \"string\" },\n          \"kind\": { \"type\": \"string\" },\n          \"kinds\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n          \"when\": { \"type\": \"string\" },\n          \"evidence\": { \"type\": \"string\" }\n        }\n      }\n    }\n  }\n}"
+      },
+      "id": "lns-parser",
+      "name": "Notes Summary Structured Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "lns-chain",
+      "name": "Gemini Notes Summary Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $json;\nconst points = Array.isArray(parsed.points) ? parsed.points : (parsed.output?.points || []);\nconst allowed = new Set(['budget','calls','research','logistics','pipeline','history','guests','timing','catering','enquiry','discovery','general']);\nreturn [{ json: {\n  points: points.map((p) => ({\n    title: String(p.title || 'Note').slice(0, 42),\n    summary: String(p.summary || '').slice(0, 280),\n    kind: allowed.has(String(p.kind || '')) ? p.kind : 'general',\n    kinds: Array.isArray(p.kinds) ? p.kinds.filter((k) => allowed.has(String(k))).slice(0, 4) : [],\n    when: String(p.when || '').slice(0, 24),\n    evidence: String(p.evidence || '').slice(0, 400)\n  })),\n  model: 'n8n Google Gemini Chat Model / models/gemini-2.0-flash (Free Tier)'\n} }];"
+      },
+      "id": "lns-norm",
+      "name": "Normalize Notes Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "lns-respond",
+      "name": "Respond Notes Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [960, 0]
+    }
+  ],
+  "connections": {
+    "LeadNotesSummary Webhook": {
+      "main": [[{ "node": "Prepare Notes Summary Prompt", "type": "main", "index": 0 }]]
+    },
+    "Prepare Notes Summary Prompt": {
+      "main": [[{ "node": "Gemini Notes Summary Chain", "type": "main", "index": 0 }]]
+    },
+    "Google Gemini Chat Model (Free Tier)": {
+      "ai_languageModel": [[{ "node": "Gemini Notes Summary Chain", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Notes Summary Structured Parser": {
+      "ai_outputParser": [[{ "node": "Gemini Notes Summary Chain", "type": "ai_outputParser", "index": 0 }]]
+    },
+    "Gemini Notes Summary Chain": {
+      "main": [[{ "node": "Normalize Notes Summary", "type": "main", "index": 0 }]]
+    },
+    "Normalize Notes Summary": {
+      "main": [[{ "node": "Respond Notes Summary", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "weott-nexus-gemini-lead-notes-summary"
+  }
+}

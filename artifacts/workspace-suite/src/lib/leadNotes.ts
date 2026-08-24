@@ -182,8 +182,260 @@ export function saveQuoteNotesDraft(leadKey: string, draft: Omit<QuoteNotesDraft
 export function splitProgressNoteEntries(raw: string): string[] {
   const text = String(raw || '').trim();
   if (!text) return [];
-  return text
+
+  let parts = text
     .split(/\s*\|\s*|\n{2,}|(?=Progress\s*\d+\s*[:.-])/i)
-    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .map(cleanNoteEntry)
     .filter(Boolean);
+
+  if (parts.length <= 1 && /\n/.test(text)) {
+    parts = text.split(/\n+/).map(cleanNoteEntry).filter(Boolean);
+  }
+
+  if (parts.length <= 1 && /(?:^|\n)\s*(?:[-•*]|\d+[.)])\s+/.test(text)) {
+    parts = text
+      .split(/(?:^|\n)\s*(?:[-•*]|\d+[.)])\s+/)
+      .map(cleanNoteEntry)
+      .filter(Boolean);
+  }
+
+  if (parts.length <= 1 && text.length > 180) {
+    parts = text
+      .split(/(?<=[.!?])\s+(?=[A-Z])/)
+      .map(cleanNoteEntry)
+      .filter((s) => s.length >= 24);
+    if (parts.length <= 1) parts = [cleanNoteEntry(text)].filter(Boolean);
+  }
+
+  return parts;
+}
+
+function cleanNoteEntry(s: string): string {
+  return s
+    .replace(/^Progress\s*\d+\s*[:.\-]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function joinProgressNoteEntries(entries: string[]): string {
+  return entries.map((s) => s.trim()).filter(Boolean).join('\n\n');
+}
+
+export function appendProgressNoteEntry(raw: string, next: string): string {
+  const trimmed = next.trim();
+  if (!trimmed) return String(raw || '');
+  return joinProgressNoteEntries([...splitProgressNoteEntries(raw), trimmed]);
+}
+
+export function replaceProgressNoteEntry(raw: string, index: number, next: string): string {
+  const entries = splitProgressNoteEntries(raw);
+  if (index < 0 || index >= entries.length) return String(raw || '');
+  const trimmed = next.trim();
+  if (!trimmed) entries.splice(index, 1);
+  else entries[index] = trimmed;
+  return joinProgressNoteEntries(entries);
+}
+
+export type PointKind =
+  | 'budget'
+  | 'calls'
+  | 'research'
+  | 'logistics'
+  | 'pipeline'
+  | 'history'
+  | 'guests'
+  | 'timing'
+  | 'catering'
+  | 'enquiry'
+  | 'discovery'
+  | 'general';
+
+export type PointKindMeta = {
+  kind: PointKind;
+  label: string;
+  iconName:
+    | 'CircleDollarSign'
+    | 'Phone'
+    | 'Search'
+    | 'Anchor'
+    | 'GitBranch'
+    | 'Clock'
+    | 'Users'
+    | 'Calendar'
+    | 'UtensilsCrossed'
+    | 'MessageSquareText'
+    | 'Sparkles'
+    | 'StickyNote';
+  color: string;
+  keywords: string[];
+};
+
+export const POINT_KINDS: PointKindMeta[] = [
+  {
+    kind: 'budget',
+    label: 'Budget',
+    iconName: 'CircleDollarSign',
+    color: '#16a34a',
+    keywords: ['budget', 'discount', 'margin', '£', 'price', 'pp', 'cost', 'quote', 'financial'],
+  },
+  {
+    kind: 'calls',
+    label: 'Call',
+    iconName: 'Phone',
+    color: '#0284c7',
+    keywords: ['call', 'phone', 'voicemail', 'spoke to', 'video intro', 'no answer', 'confirmed receipt'],
+  },
+  {
+    kind: 'research',
+    label: 'Research',
+    iconName: 'Search',
+    color: '#4f46e5',
+    keywords: ['linkedin', 'job title', 'sector', 'employees', 'research', 'profile'],
+  },
+  {
+    kind: 'logistics',
+    label: 'Logistics',
+    iconName: 'Anchor',
+    color: '#d97706',
+    keywords: ['vessel', 'avontuur', 'rose', 'elizabethan', 'timing', 'staffing', 'firm', 'negotiable', 'tbc'],
+  },
+  {
+    kind: 'pipeline',
+    label: 'Pipeline',
+    iconName: 'GitBranch',
+    color: '#db2777',
+    keywords: ['proposal created', 'handover', 'dropbox', 'cost still needs checking', 'pm handover', 'status', 'booked'],
+  },
+  {
+    kind: 'history',
+    label: 'History',
+    iconName: 'Clock',
+    color: '#7c3aed',
+    keywords: ['last year', 'repeat', 'previous', 'same as', 'final event brief'],
+  },
+  {
+    kind: 'guests',
+    label: 'Guests',
+    iconName: 'Users',
+    color: '#2563eb',
+    keywords: ['guest', 'pax', 'group', 'people', 'headcount', 'covers'],
+  },
+  {
+    kind: 'timing',
+    label: 'Timing',
+    iconName: 'Calendar',
+    color: '#ea580c',
+    keywords: ['date', 'embark', 'depart', 'return', 'disembark', 'am', 'pm', 'evening', 'daytime', 'flexible'],
+  },
+  {
+    kind: 'catering',
+    label: 'Catering',
+    iconName: 'UtensilsCrossed',
+    color: '#e11d48',
+    keywords: ['canap', 'menu', 'catering', 'drinks', 'hfb', 'csd', 'buffet', 'street food'],
+  },
+  {
+    kind: 'enquiry',
+    label: 'Enquiry',
+    iconName: 'MessageSquareText',
+    color: '#0f766e',
+    keywords: ['enquiry', 'initial', 'requested'],
+  },
+  {
+    kind: 'discovery',
+    label: 'Discovery',
+    iconName: 'Sparkles',
+    color: '#7c3aed',
+    keywords: ['discovery', 'key items', 'updated enquiry'],
+  },
+  {
+    kind: 'general',
+    label: 'Note',
+    iconName: 'StickyNote',
+    color: '#64748b',
+    keywords: [],
+  },
+];
+
+const KIND_BY_TAG: Record<NoteTag, PointKind> = {
+  research: 'research',
+  calls: 'calls',
+  financial: 'budget',
+  logistics: 'logistics',
+  pipeline: 'pipeline',
+  history: 'history',
+};
+
+export function pointKindMeta(kind: PointKind): PointKindMeta {
+  return POINT_KINDS.find((k) => k.kind === kind) ?? POINT_KINDS[POINT_KINDS.length - 1];
+}
+
+export function tagToPointKind(tag: NoteTag): PointKind {
+  return KIND_BY_TAG[tag];
+}
+
+export function detectPointKinds(text: string): PointKind[] {
+  const lower = text.toLowerCase();
+  const found: PointKind[] = [];
+  for (const cat of POINT_KINDS) {
+    if (cat.kind === 'general' || cat.kind === 'enquiry' || cat.kind === 'discovery') continue;
+    if (cat.keywords.some((kw) => lower.includes(kw))) found.push(cat.kind);
+  }
+  const tagged = detectTag(text);
+  if (tagged) {
+    const mapped = KIND_BY_TAG[tagged];
+    if (!found.includes(mapped)) found.unshift(mapped);
+  }
+  return found.length ? found : ['general'];
+}
+
+export type NotePoint = {
+  id: string;
+  title: string;
+  summary: string;
+  body: string;
+  kind: PointKind;
+  kinds: PointKind[];
+  when: string;
+  sourceIndex: number | null;
+};
+
+const TIME_RE = /\b(\d{1,2}:\d{2}\s*(?:AM|PM)?|\d{1,2}\s*(?:AM|PM))\b/i;
+const DATE_RE = /\b(\d{1,2}[\/.\-]\d{1,2}(?:[\/.\-]\d{2,4})?|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*)\b/i;
+
+export function timeLabelFromNote(text: string, fallback: string): string {
+  const time = text.match(TIME_RE);
+  if (time) return time[1].toUpperCase().replace(/\s+/g, ' ');
+  const date = text.match(DATE_RE);
+  if (date) return date[1];
+  return fallback;
+}
+
+function titleFromEntry(text: string, kinds: PointKind[]): string {
+  const primary = kinds[0];
+  if (primary && primary !== 'general') return pointKindMeta(primary).label;
+  const clause = text.split(/[.|]/)[0]?.trim() || text;
+  return clause.length > 28 ? `${clause.slice(0, 26).trim()}…` : clause || 'Note';
+}
+
+function summaryFromEntry(text: string): string {
+  const sentence = text.split(/(?<=[.!?])\s+/)[0] || text;
+  return sentence.length > 140 ? `${sentence.slice(0, 132).trim()}…` : sentence;
+}
+
+/** Local fallback: one scannable card per Progress 1…N / pipe / paragraph entry. */
+export function pointsFromProgressNotes(raw: string): NotePoint[] {
+  return splitProgressNoteEntries(raw).map((body, i) => {
+    const kinds = detectPointKinds(body);
+    return {
+      id: `progress-${i}`,
+      title: titleFromEntry(body, kinds),
+      summary: summaryFromEntry(body),
+      body,
+      kind: kinds[0],
+      kinds,
+      when: timeLabelFromNote(body, `Note ${i + 1}`),
+      sourceIndex: i,
+    };
+  });
 }

@@ -1,26 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import {
   X, Menu, Play, ChevronUp, ChevronDown, Mail, Phone, FileText, ArrowLeft, Send,
-  Search, CircleDollarSign, Anchor, GitBranch, Clock, Tag as TagIcon,
   Video, Calendar, Linkedin, ReceiptText,
 } from 'lucide-react';
-import { NOTE_CATEGORIES, detectTag, loadNotes, addNote, type NoteTag, type LeadNote } from '@/lib/leadNotes';
+import {
+  NOTE_CATEGORIES,
+  detectTag,
+  detectPointKinds,
+  loadNotes,
+  addNote,
+  pointsFromProgressNotes,
+  tagToPointKind,
+  type NoteTag,
+  type LeadNote,
+  type NotePoint,
+} from '@/lib/leadNotes';
+import { requestLeadNotesSummary } from '@/lib/leadNotesSummary';
+import { LeadNotesTimeline, NoteKindAvatar, NOTES_BLUE, type TimelineCard } from '@/components/LeadNotesTimeline';
 import { soundClick } from '@/lib/sounds';
 import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
 import { toastError } from '@/lib/notify';
 import type { N8nSapphireLead } from '@/lib/sapphireLead';
-
-const NOTE_ICONS: Record<NoteTag, typeof Search> = {
-  research: Search,
-  calls: Phone,
-  financial: CircleDollarSign,
-  logistics: Anchor,
-  pipeline: GitBranch,
-  history: Clock,
-};
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -405,15 +409,62 @@ function CompanyView({ lead }: { lead: Lead }) {
   );
 }
 
-/* ─── Note View: "Add a note" + tag categories + note history ─── */
+/* ─── Note View: composer + timeline of sheet progress notes and tagged history ─── */
 function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
   const leadKey = lead.referenceNumber !== '—' ? lead.referenceNumber : lead.email !== '—' ? lead.email : String(lead.id);
   const [text, setText] = useState('');
   const [manualTag, setManualTag] = useState<NoteTag | null>(null);
   const [notes, setNotes] = useState<LeadNote[]>(() => loadNotes(leadKey));
+  const [fullscreen, setFullscreen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [geminiPoints, setGeminiPoints] = useState<NotePoint[] | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
 
   const detectedTag = manualTag ?? (text.trim() ? detectTag(text) : null);
   const detectedCat = detectedTag ? NOTE_CATEGORIES.find((c) => c.tag === detectedTag) ?? null : null;
+  const sheetPoints = useMemo(
+    () => geminiPoints ?? pointsFromProgressNotes(lead.progressNotes || ''),
+    [geminiPoints, lead.progressNotes],
+  );
+
+  useEffect(() => {
+    const notesBlob = String(lead.progressNotes || '');
+    if (!notesBlob.trim()) {
+      setGeminiPoints(null);
+      return;
+    }
+    let cancelled = false;
+    requestLeadNotesSummary({
+      notes: notesBlob,
+      leadKey,
+      leadName: lead.name,
+      referenceNumber: lead.referenceNumber,
+    }).then((points) => {
+      if (!cancelled && points?.length) setGeminiPoints(points);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lead.id, lead.progressNotes, lead.name, lead.referenceNumber, leadKey]);
+
+  const cards: TimelineCard[] = useMemo(() => {
+    const progress: TimelineCard[] = sheetPoints.map((p) => ({ ...p, editable: false }));
+    const local: TimelineCard[] = notes.map((n) => {
+      const kinds = detectPointKinds(n.text);
+      const cat = n.tag ? NOTE_CATEGORIES.find((c) => c.tag === n.tag) : null;
+      return {
+        id: `local-${n.id}`,
+        title: cat?.label.split('&')[0].trim().split(' ')[0] || 'Note',
+        summary: n.text,
+        body: n.text,
+        kind: kinds[0],
+        kinds: kinds,
+        when: timeAgo(n.createdAt),
+        sourceIndex: null,
+      };
+    });
+    return [...progress, ...local];
+  }, [sheetPoints, notes]);
 
   function handleSave() {
     if (!text.trim()) return;
@@ -426,12 +477,45 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
     setNotes(addNote(leadKey, note));
     setText('');
     setManualTag(null);
+    setActiveId(`local-${note.id}`);
     soundClick();
   }
 
+  async function handleSummarize() {
+    const notesBlob = String(lead.progressNotes || '');
+    if (!notesBlob.trim()) return;
+    setSummarizing(true);
+    try {
+      const points = await requestLeadNotesSummary({
+        notes: notesBlob,
+        leadKey,
+        leadName: lead.name,
+        referenceNumber: lead.referenceNumber,
+      });
+      if (points?.length) setGeminiPoints(points);
+    } finally {
+      setSummarizing(false);
+    }
+  }
+
+  const timeline = (
+    <LeadNotesTimeline
+      cards={cards}
+      activeId={activeId}
+      onSelect={(id) => setActiveId((cur) => (cur === id ? null : id))}
+      fullscreen={fullscreen}
+      onToggleFullscreen={() => setFullscreen((v) => !v)}
+      onAdd={() => {
+        setFullscreen(false);
+        document.getElementById('lead-panel-note-draft')?.focus();
+      }}
+      onSummarize={handleSummarize}
+      summarizing={summarizing}
+    />
+  );
+
   return (
     <div className="flex h-full w-full bg-white">
-      {/* Left: composer */}
       <div className="flex w-1/2 flex-col border-r border-black/8 p-6 overflow-auto">
         <button
           onClick={onBack}
@@ -444,16 +528,17 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
         <p className="mt-0.5 text-[12px] text-black/40">{lead.name} · {lead.company}</p>
 
         <textarea
+          id="lead-panel-note-draft"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder='Type naturally — e.g. "Repeat client, wants same as last year, next action: send updated quote by Friday"'
-          className="mt-4 h-32 w-full resize-none border border-black/15 p-3 text-[12.5px] text-black/80 placeholder-black/30 outline-none transition-colors focus:border-[#FF5A45]"
+          className="mt-4 h-32 w-full resize-none rounded-[14px] border border-black/15 p-3 text-[12.5px] text-black/80 placeholder-black/30 outline-none transition-colors focus:border-[#2F7CF6]"
         />
 
         <div className="mt-2 flex min-h-[18px] items-center gap-1.5">
           {detectedCat ? (
             <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: detectedCat.color }}>
-              {(() => { const Icon = NOTE_ICONS[detectedCat.tag]; return <Icon className="h-3 w-3" />; })()}
+              <NoteKindAvatar kind={tagToPointKind(detectedCat.tag)} size={18} />
               Tagged as {detectedCat.hashtag}
             </span>
           ) : (
@@ -463,23 +548,22 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
           )}
         </div>
 
-        {/* Taggable categories — large icons */}
         <p className="mt-5 text-[10.5px] font-semibold uppercase tracking-wider text-black/35">Or tag it yourself</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {NOTE_CATEGORIES.map((cat) => {
-            const Icon = NOTE_ICONS[cat.tag];
             const active = manualTag === cat.tag;
+            const kind = tagToPointKind(cat.tag);
             return (
               <button
                 key={cat.tag}
                 onClick={() => { setManualTag(active ? null : cat.tag); soundClick(); }}
                 title={cat.description}
-                className={`flex flex-col items-center gap-1.5 border p-3 text-center transition-colors ${
+                className={`flex flex-col items-center gap-1.5 rounded-[14px] border p-3 text-center transition-colors ${
                   active ? 'border-current bg-current/8' : 'border-black/10 hover:border-black/25'
                 }`}
                 style={active ? { color: cat.color } : undefined}
               >
-                <Icon className="h-6 w-6" style={{ color: cat.color }} />
+                <NoteKindAvatar kind={kind} size={28} />
                 <span className="text-[10px] font-semibold text-black/60">{cat.hashtag}</span>
               </button>
             );
@@ -489,39 +573,43 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
         <button
           onClick={handleSave}
           disabled={!text.trim()}
-          className="mt-5 flex items-center justify-center gap-2 bg-[#FF5A45] py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#F4412A] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-5 flex items-center justify-center gap-2 py-2.5 text-[13px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ backgroundColor: NOTES_BLUE, borderRadius: 14 }}
         >
           <Send className="h-3.5 w-3.5" /> Save Note
         </button>
       </div>
 
-      {/* Right: note history */}
-      <div className="flex w-1/2 flex-col p-6 overflow-auto">
-        <h3 className="text-[10.5px] font-bold uppercase tracking-wider text-black/40">Note History</h3>
-
-        {notes.length === 0 ? (
-          <p className="mt-3 text-[12px] text-black/30">No notes yet for this lead.</p>
-        ) : (
-          <div className="mt-3 space-y-2.5">
-            {notes.map((n) => {
-              const cat = n.tag ? NOTE_CATEGORIES.find((c) => c.tag === n.tag) ?? null : null;
-              const Icon = cat ? NOTE_ICONS[cat.tag] : TagIcon;
-              return (
-                <div key={n.id} className="border border-black/8 p-3">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <Icon className="h-3 w-3" style={{ color: cat?.color ?? '#999' }} />
-                    <span className="text-[10px] font-semibold" style={{ color: cat?.color ?? '#999' }}>
-                      {cat?.hashtag ?? 'Untagged'}
-                    </span>
-                    <span className="ml-auto text-[10px] text-black/30">{timeAgo(n.createdAt)}</span>
-                  </div>
-                  <p className="text-[12px] leading-relaxed text-black/70">{n.text}</p>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <div className="flex w-1/2 min-h-0 flex-col bg-white">
+        {fullscreen ? null : timeline}
       </div>
+
+      {fullscreen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[320] flex flex-col bg-white"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Lead notes full screen"
+            >
+              <div className="flex shrink-0 items-center gap-2 px-6 py-4">
+                <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase tracking-[0.08em] text-slate-800">
+                  Lead Notes · {lead.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFullscreen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                  aria-label="Close full screen"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {timeline}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -534,6 +622,18 @@ export function LeadPanel({ lead, onClose }: { lead: Lead | null; onClose: () =>
   useEffect(() => {
     if (lead) setView('contact');
   }, [lead?.id]);
+
+  useEffect(() => {
+    if (!lead?.progressNotes?.trim()) return;
+    const leadKey =
+      lead.referenceNumber !== '—' ? lead.referenceNumber : lead.email !== '—' ? lead.email : String(lead.id);
+    requestLeadNotesSummary({
+      notes: lead.progressNotes,
+      leadKey,
+      leadName: lead.name,
+      referenceNumber: lead.referenceNumber,
+    });
+  }, [lead?.id, lead?.progressNotes, lead?.name, lead?.email, lead?.referenceNumber]);
 
   const showCompany = view === 'company';
 

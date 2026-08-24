@@ -11,3 +11,5 @@ export const QUOTE_WEBHOOK_URL = `${N8N_BASE}/QuoteBuilder`;
 export const PREFILL_HEALER_URL = `${N8N_BASE}/PrefillHealer`;
 /** Google Gemini (Free Tier) n8n webhook — quoteFinance vs Transform QuoteBuilder1. */
 export const CONTRACT_SYNC_URL = `${N8N_BASE}/ContractSync`;
+/** Google Gemini (Free Tier) n8n webhook — lead notes → titled point summary. */
+export const LEAD_NOTES_SUMMARY_URL = `${N8N_BASE}/LeadNotesSummary`;

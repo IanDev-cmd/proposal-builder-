@@ -3016,7 +3016,7 @@ export function Forms() {
 
       {/* ── Right: docked Lead Notes (+ timing toasts on Schedule Timings only) ── */}
       <aside
-        className={`sticky top-16 z-[110] flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-y-auto transition-[width] duration-300 ${
+        className={`sticky top-16 z-[110] flex h-[calc(100vh-4rem)] shrink-0 flex-col overflow-hidden transition-[width] duration-300 ${
           isNotesOpen || step === 3 ? 'w-[min(380px,32vw)]' : 'w-14'
         }`}
       >
@@ -3028,9 +3028,12 @@ export function Forms() {
           onToggle={() => setIsNotesOpen((open) => !open)}
           onUpdatedEnquiryChange={(value) => set('keyItems', value)}
           onProgressNotesChange={(value) => set('progressNotes', value)}
+          leadKey={leadNotesKey}
+          leadName={quoteLead?.name}
+          referenceNumber={quoteLead?.referenceNumber}
         />
         {step === 3 ? (
-          <div className="border-t border-sky-100/80 bg-white px-3 py-3">
+          <div className="shrink-0 overflow-y-auto border-t border-sky-100/80 bg-white px-3 py-3">
             <ScheduleTimingToasts
               timings={{
                 embarkation: data.embarkation,

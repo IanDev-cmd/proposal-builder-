@@ -146,6 +146,46 @@ export function parsePrefillHealerResponse(input: unknown): PrefillMatch[] {
 
 export type PrefillMatch = z.infer<typeof prefillMatchSchema>;
 
+const pointKindSchema = z.enum([
+  'budget',
+  'calls',
+  'research',
+  'logistics',
+  'pipeline',
+  'history',
+  'guests',
+  'timing',
+  'catering',
+  'enquiry',
+  'discovery',
+  'general',
+]);
+
+export const leadNotePointSchema = z.object({
+  title: z.string().default('Note'),
+  summary: z.string().default(''),
+  kind: pointKindSchema.default('general'),
+  kinds: z.array(pointKindSchema).optional(),
+  when: z.string().default(''),
+  evidence: z.string().default(''),
+});
+
+export const leadNotesSummaryResponseSchema = z.object({
+  points: z.array(leadNotePointSchema).default([]),
+  model: z.string().optional(),
+  failureEvent: failureEventSchema.optional(),
+});
+
+export type LeadNotePointPayload = z.infer<typeof leadNotePointSchema>;
+export type LeadNotesSummaryResponse = z.infer<typeof leadNotesSummaryResponseSchema>;
+
+export function parseLeadNotesSummaryResponse(input: unknown): LeadNotePointPayload[] {
+  const parsed = leadNotesSummaryResponseSchema.safeParse(input);
+  if (!parsed.success) return [];
+  if (parsed.data.failureEvent) return [];
+  return parsed.data.points.filter((p) => p.title || p.summary || p.evidence);
+}
+
 export function formatZodIssues(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
 }
