@@ -427,7 +427,7 @@ export function Leads() {
           })}
         </div>
 
-        <div className="flex-1 overflow-auto bg-white">
+        <div className="flex-1 overflow-auto bg-white" data-page-scroll>
           <AnimatePresence>
             {status === 'loading' && leads.length === 0 && (
               <motion.div

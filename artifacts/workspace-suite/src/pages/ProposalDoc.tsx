@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -140,6 +140,7 @@ export function ProposalDoc() {
   const [activeNoteTag, setActiveNoteTag] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedProposal[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -184,6 +185,19 @@ export function ProposalDoc() {
   }, [generated]);
 
   const generatedFiles = generated.map(proposalToFile);
+  const q = query.trim().toLowerCase();
+  const files = useMemo(() => {
+    if (!q) return generated.map(proposalToFile);
+    return generated
+      .filter((p) =>
+        [p.title, p.leadName, p.leadEmail, p.vesselType, p.eventType, p.guestCount, p.eventDate]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(q),
+      )
+      .map(proposalToFile);
+  }, [generated, q]);
   const allFilesWithGenerated: ProposalFile[] = generatedFiles;
 
   // One card per PDF document (one proposal per lead) — never one card per page.
@@ -219,8 +233,11 @@ export function ProposalDoc() {
   }, [active?.id]);
 
   const isNotesTab = railIndex === 4;
-
-  const files = allFilesWithGenerated; // All / Pricing / Drafts / Signed currently reuse the same document set
+  const noteTiles = q
+    ? NOTE_CATEGORIES.filter(
+        (c) => c.label.toLowerCase().includes(q) || c.tag.toLowerCase().includes(q),
+      )
+    : NOTE_CATEGORIES;
 
   const toggleStar = (id: string) =>
     setStarred((prev) => {
@@ -364,9 +381,23 @@ export function ProposalDoc() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-black transition-colors">
-              <Search className="h-4 w-4" />
-            </button>
+            <label className="flex h-9 w-[min(280px,42vw)] items-center gap-2 rounded-full border border-black/12 bg-black/[0.03] px-3 focus-within:border-[#FF5A45] focus-within:bg-white">
+              <Search className="h-4 w-4 shrink-0 text-black/30" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search proposals…"
+                aria-label="Search proposals"
+                data-testid="proposals-search"
+                className="w-full bg-transparent text-[13px] text-black/75 outline-none placeholder:text-black/30"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="text-black/25 hover:text-black/50">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </label>
             <button onClick={handleDownload} className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-[#FF5A45] transition-colors">
               <Download className="h-4 w-4" />
             </button>
@@ -386,7 +417,7 @@ export function ProposalDoc() {
             <ChevronRight className="h-3 w-3 text-black/25" />
             <span>{RAIL_ITEMS[railIndex].label}</span>
             <span className="ml-2 rounded-full bg-black/5 px-2 py-0.5 text-[10.5px] font-bold text-black/40">
-              {isNotesTab ? NOTE_CATEGORIES.length : files.length}
+              {isNotesTab ? noteTiles.length : files.length}
             </span>
           </div>
           {!isNotesTab && (
@@ -409,12 +440,12 @@ export function ProposalDoc() {
 
         {isNotesTab ? (
           /* ── Notes tab: taggable categories as large icon tiles ── */
-          <div className="flex-1 overflow-y-auto px-8 py-6">
+          <div className="flex-1 overflow-y-auto px-8 py-6" data-page-scroll>
             <p className="mb-5 text-[12px] text-black/40">
               Tag a note with a category below to organize it under that topic.
             </p>
             <div className="grid grid-cols-3 gap-4 xl:grid-cols-4">
-              {NOTE_CATEGORIES.map(({ tag, label, icon: Icon, color }) => {
+              {noteTiles.map(({ tag, label, icon: Icon, color }) => {
                 const isActive = activeNoteTag === tag;
                 return (
                   <button
@@ -448,7 +479,7 @@ export function ProposalDoc() {
           /* File grid / list — thin scrollbar + small up/down nav arrows instead of a bulky native scrollbar.
              No right-hand preview panel: content stretches all the way to the right edge. */
           <div className="relative flex-1 overflow-hidden pl-8 pr-11 py-5">
-            <div ref={gridRef} className="scrollbar-thin h-full overflow-y-auto pr-5">
+            <div ref={gridRef} className="scrollbar-thin h-full overflow-y-auto pr-5" data-page-scroll>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={railIndex + viewMode}
@@ -457,7 +488,11 @@ export function ProposalDoc() {
                   transition={{ duration: 0.18 }}
                   className={viewMode === 'grid' ? 'grid grid-cols-4 gap-4 xl:grid-cols-6' : 'flex flex-col gap-2'}
                 >
-                  {viewMode === 'grid'
+                  {files.length === 0 ? (
+                    <p className="col-span-full py-16 text-center text-[13px] text-black/40">
+                      {q ? `No proposals match “${query.trim()}”.` : 'Generated proposals appear here after Quote Builder'}
+                    </p>
+                  ) : viewMode === 'grid'
                     ? files.map((file) => (
                         <FileCard
                           key={file.id}

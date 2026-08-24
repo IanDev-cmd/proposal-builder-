@@ -1,7 +1,8 @@
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { AppNav } from '@/components/AppNav';
 import { ActiveLeadProvider } from '@/context/ActiveLeadContext';
 import { Home } from '@/pages/Home';
@@ -13,12 +14,33 @@ import { Timeline } from '@/pages/Timeline';
 import { Settings } from '@/pages/Settings';
 import { Apps } from '@/pages/Apps';
 import NotFound from '@/pages/NotFound';
+import { hydrateLeadsDb } from '@/lib/leadCache';
+import { hydrateSavedQuotesDb } from '@/lib/savedQuotesStore';
+import { hydrateProposalsDb } from '@/lib/proposalStore';
 
 const queryClient = new QueryClient();
+
+function scrollPagesToTop() {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  document.querySelectorAll('[data-page-scroll]').forEach((node) => {
+    (node as HTMLElement).scrollTop = 0;
+  });
+}
+
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    scrollPagesToTop();
+  }, [location]);
+  return null;
+}
 
 function Router() {
   return (
     <>
+      <ScrollToTop />
       <AppNav />
       <Switch>
         <Route path="/" component={Home} />
@@ -37,6 +59,10 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    void Promise.all([hydrateLeadsDb(), hydrateSavedQuotesDb(), hydrateProposalsDb()]);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

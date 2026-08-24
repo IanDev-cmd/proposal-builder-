@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
-import { Bookmark, Mail, Link2, X } from 'lucide-react';
+import { Bookmark, Mail, Link2, Search, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LeadNotesTimeline,
@@ -13,6 +13,7 @@ import {
   markPendingGenerate,
   savedQuoteShareUrl,
   subscribeSavedQuotes,
+  hydrateSavedQuotesDb,
   type SavedQuote,
   getSavedQuote,
 } from '@/lib/savedQuotesStore';
@@ -94,8 +95,13 @@ export function SavedQuotes() {
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareHint, setShareHint] = useState('');
+  const [query, setQuery] = useState('');
 
   useEffect(() => subscribeSavedQuotes(() => setQuotes(listSavedQuotes())), []);
+
+  useEffect(() => {
+    void hydrateSavedQuotesDb().then(() => setQuotes(listSavedQuotes()));
+  }, []);
 
   useEffect(() => {
     if (params.id) {
@@ -105,7 +111,29 @@ export function SavedQuotes() {
   }, [params.id]);
 
   const overlay = overlayId ? getSavedQuote(overlayId) : null;
-  const cards = useMemo(() => quotes.map(quoteToCard), [quotes]);
+  const filteredQuotes = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return quotes;
+    return quotes.filter((item) =>
+      [
+        item.title,
+        item.leadName,
+        item.referenceNumber,
+        item.leadKey,
+        item.vesselType,
+        item.eventType,
+        item.guestCount,
+        item.eventDate,
+        item.lead?.email,
+        item.lead?.company,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [quotes, query]);
+  const cards = useMemo(() => filteredQuotes.map(quoteToCard), [filteredQuotes]);
 
   async function generate(quote: SavedQuote) {
     await restoreQuote(quote);
@@ -210,6 +238,30 @@ export function SavedQuotes() {
           </span>
         ) : null}
       </div>
+      <div className="shrink-0 px-6 pb-3">
+        <label className="flex items-center gap-2 rounded-[12px] border border-slate-200 bg-[#F3F4F6] px-3 py-2.5 focus-within:border-[#2F7CF6] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2F7CF6]/20">
+          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search saved quotes by lead, vessel, event, reference…"
+            aria-label="Search saved quotes"
+            data-testid="saved-quotes-search"
+            className="w-full bg-transparent text-[13px] text-slate-800 outline-none placeholder:text-slate-400"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="text-slate-400 hover:text-slate-700"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </label>
+      </div>
 
       <LeadNotesTimeline
         cards={cards}
@@ -219,7 +271,11 @@ export function SavedQuotes() {
         onToggleFullscreen={() => navigate('/quote-builder')}
         onAdd={() => navigate('/quote-builder')}
         onSummarize={() => setQuotes(listSavedQuotes())}
-        emptyLabel="No saved quotes yet — finish a quote and tap Save Quote."
+        emptyLabel={
+          query.trim()
+            ? `No saved quotes match “${query.trim()}”.`
+            : 'No saved quotes yet — finish a quote and tap Save Quote.'
+        }
         columns={2}
         onDelete={(card) => {
           if (!window.confirm('Delete this saved quote?')) return;

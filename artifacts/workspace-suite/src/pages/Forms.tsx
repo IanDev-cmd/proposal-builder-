@@ -16,6 +16,7 @@ import {
   getSavedQuote,
   listSavedQuotes,
   peekPendingGenerate,
+  persistSavedQuote,
   upsertSavedQuote,
 } from '@/lib/savedQuotesStore';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
@@ -82,7 +83,7 @@ import {
   embarkationFromDeparture,
 } from '@/lib/proposalTimings';
 import { collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
-import { toastError } from '@/lib/notify';
+import { toastError, toastSuccess } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
 
 const SOURCE_TYPES = [
@@ -908,6 +909,12 @@ export function Forms() {
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(true);
   const [draftReady, setDraftReady] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [step]);
 
   useEffect(() => {
     if (step === 3) setIsNotesOpen(true);
@@ -1787,7 +1794,7 @@ export function Forms() {
   const handleSaveQuote = async () => {
     try {
       const existing = listSavedQuotes().find((q) => q.leadKey === leadNotesKey);
-      const saved = upsertSavedQuote({
+      const saved = await persistSavedQuote({
         id: existing?.id || `quote-${leadNotesKey}-${Date.now()}`,
         leadKey: leadNotesKey,
         leadName: quoteLead?.name,
@@ -1815,12 +1822,17 @@ export function Forms() {
         referenceNumber: quoteLead?.referenceNumber,
       });
       if (quoteLead) setQuoteLead(quoteLead);
+      toastSuccess({
+        key: 'save-quote',
+        title: 'Quote saved',
+        description: 'Opening Saved Quotes.',
+      });
       navigate(`/saved-quotes/${saved.id}`);
     } catch (err) {
       toastError({
         key: 'save-quote',
         title: 'Could not save quote',
-        description: formatError(err, 'localStorage is blocked or full. Try clearing space and save again.'),
+        description: formatError(err, 'Could not write the quote to the database. Try again.'),
       });
     }
   };
@@ -1927,7 +1939,7 @@ export function Forms() {
       </aside>
 
       {/* ── Center: form content ── */}
-      <main className="min-w-0 flex-1 overflow-y-auto bg-white">
+      <main ref={mainRef} data-page-scroll className="min-w-0 flex-1 overflow-y-auto bg-white">
         <div className="mx-auto max-w-[640px] px-12 py-14">
           <AnimatePresence mode="wait" initial={false}>
 

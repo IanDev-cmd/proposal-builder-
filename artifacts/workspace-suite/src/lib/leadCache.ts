@@ -1,12 +1,16 @@
 /**
- * Persistent lead cache — show cached rows instantly, refresh from n8n in the background.
+ * Persistent lead cache — IndexedDB `leads` table (nexus-workspace) plus localStorage
+ * so the Leads page paints instantly while n8n refreshes in the background.
  * Keyed by Demo/Live mode so the two Sheets never cross-contaminate.
  */
 
 import type { Lead } from '@/components/LeadPanel';
 import { getSheetsMode, type SheetsMode } from '@/lib/sheetsSync';
+import { WORKSPACE_STORES, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
 
 const CACHE_PREFIX = 'nexus.leadsCache.v1';
+const STORE = WORKSPACE_STORES.leads;
+const LEADS_EVENT = 'nexus:leads-updated';
 /** Background poll interval (regular fetch without blocking UI). */
 export const LEADS_REFRESH_MS = 90_000;
 /** Treat cache newer than this as "fresh" (still poll, but skip if user just loaded). */
@@ -35,15 +39,21 @@ export function readLeadsCache(mode: SheetsMode = getSheetsMode()): LeadsCachePa
 }
 
 export function writeLeadsCache(leads: Lead[], mode: SheetsMode = getSheetsMode()): void {
+  const payload: LeadsCachePayload = {
+    mode,
+    fetchedAt: Date.now(),
+    leads,
+  };
   try {
-    const payload: LeadsCachePayload = {
-      mode,
-      fetchedAt: Date.now(),
-      leads,
-    };
     localStorage.setItem(cacheKey(mode), JSON.stringify(payload));
   } catch {
-    // Quota / private mode — ignore; network path still works
+    // Quota / private mode — IndexedDB is the durable copy
+  }
+  void workspacePut(STORE, payload);
+  try {
+    window.dispatchEvent(new Event(LEADS_EVENT));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -62,5 +72,30 @@ export function clearLeadsCache(mode?: SheetsMode): void {
     localStorage.removeItem(cacheKey('live'));
   } catch {
     /* ignore */
+  }
+}
+
+export async function hydrateLeadsDb(): Promise<void> {
+  for (const mode of ['demo', 'live'] as SheetsMode[]) {
+    try {
+      const fromDb = await workspaceGet<LeadsCachePayload>(STORE, mode);
+      const local = readLeadsCache(mode);
+      if (!fromDb && local?.leads?.length) {
+        await workspacePut(STORE, local);
+        continue;
+      }
+      if (!fromDb?.leads?.length) continue;
+      if (!local || fromDb.fetchedAt >= (local.fetchedAt || 0)) {
+        try {
+          localStorage.setItem(cacheKey(mode), JSON.stringify(fromDb));
+        } catch {
+          /* ignore */
+        }
+      } else {
+        await workspacePut(STORE, local);
+      }
+    } catch {
+      /* localStorage still available */
+    }
   }
 }

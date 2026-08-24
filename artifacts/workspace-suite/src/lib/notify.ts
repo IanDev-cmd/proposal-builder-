@@ -1,5 +1,5 @@
 /**
- * Error-only toast notifications (Radix). Success / info stays inline in the UI.
+ * Toast notifications (Radix). Failures stay destructive; Save Quote uses a success card.
  */
 import { toast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/errors';
@@ -35,5 +35,23 @@ export function toastError(opts: ToastErrorOpts): void {
     variant: 'destructive',
     title: opts.title,
     description,
+  });
+}
+
+export type ToastSuccessOpts = {
+  key?: string;
+  title: string;
+  description?: string;
+};
+
+/** Success card — used after Save Quote so it is visible on Saved Quotes. */
+export function toastSuccess(opts: ToastSuccessOpts): void {
+  const dedupeKey = opts.key || `ok:${opts.title}:${opts.description || ''}`;
+  if (!shouldShow(dedupeKey)) return;
+  toast({
+    variant: 'success',
+    title: opts.title,
+    description: opts.description,
+    duration: 5200,
   });
 }

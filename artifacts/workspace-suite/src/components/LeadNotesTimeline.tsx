@@ -109,7 +109,7 @@ export function LeadNotesTimeline({
       className="relative flex min-h-0 flex-1 flex-col bg-white"
       data-testid="lead-notes-timeline"
     >
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-1 scrollbar-thin">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-1 scrollbar-thin" data-page-scroll>
         {cards.length === 0 ? (
           <p className="py-10 text-center text-[13px] text-slate-400">{emptyLabel}</p>
         ) : (
