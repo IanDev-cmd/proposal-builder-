@@ -1,6 +1,8 @@
 /**
- * Saved Quotes — IndexedDB table `savedQuotes` in nexus-workspace, mirrored to
- * localStorage so list/get stay synchronous for the wizard.
+ * Saved Quotes — IndexedDB `savedQuotes` in nexus-workspace is the source of
+ * truth. An in-memory list is updated on every write so the current tab always
+ * sees the quote. localStorage is a best-effort mirror (full payload, then a
+ * slim copy if quota is exceeded).
  */
 import type { QuoteLead } from '@/lib/quoteLeadStore';
 import {
@@ -34,11 +36,18 @@ const PENDING_GENERATE_KEY = 'nexus_pending_generate';
 const EVENT = 'nexus:saved-quotes-updated';
 const STORE = WORKSPACE_STORES.savedQuotes;
 
+let memory: SavedQuote[] | null = null;
+let hydratePromise: Promise<void> | null = null;
+
+function sortQuotes(list: SavedQuote[]): SavedQuote[] {
+  return [...list].sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+}
+
 function readLocal(): SavedQuote[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const list = raw ? (JSON.parse(raw) as SavedQuote[]) : [];
-    return Array.isArray(list) ? list : [];
+    return Array.isArray(list) ? list.filter((q) => q && q.id) : [];
   } catch {
     return [];
   }
@@ -47,50 +56,75 @@ function readLocal(): SavedQuote[] {
 function writeLocal(list: SavedQuote[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    return;
   } catch {
-    /* quota — IndexedDB copy is the durable store */
+    /* quota — drop bulky form snapshots and keep the list visible */
   }
-  window.dispatchEvent(new Event(EVENT));
+  try {
+    const slim = list.map(({ data: _data, ...rest }) => ({ ...rest, data: {} }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+  } catch {
+    /* IndexedDB + memory still hold the real rows */
+  }
 }
 
-function mergeQuotes(primary: SavedQuote[], secondary: SavedQuote[]): SavedQuote[] {
+function emit() {
+  try {
+    window.dispatchEvent(new Event(EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+function mergeQuotes(...groups: SavedQuote[][]): SavedQuote[] {
   const map = new Map<string, SavedQuote>();
-  for (const q of secondary) {
-    if (q?.id) map.set(q.id, q);
-  }
-  for (const q of primary) {
-    if (!q?.id) continue;
-    const prev = map.get(q.id);
-    if (!prev || (q.savedAt || '') >= (prev.savedAt || '')) map.set(q.id, q);
-  }
-  return [...map.values()].sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
-}
-
-async function putAllQuotes(list: SavedQuote[]) {
-  for (const q of list) {
-    try {
-      await workspacePut(STORE, q);
-    } catch {
-      /* keep local copy */
+  for (const group of groups) {
+    for (const q of group) {
+      if (!q?.id) continue;
+      const prev = map.get(q.id);
+      const prevHasData = prev && prev.data && Object.keys(prev.data).length > 0;
+      const nextHasData = q.data && Object.keys(q.data).length > 0;
+      if (!prev) {
+        map.set(q.id, q);
+        continue;
+      }
+      if ((q.savedAt || '') > (prev.savedAt || '')) {
+        map.set(q.id, nextHasData || !prevHasData ? q : { ...q, data: prev.data });
+        continue;
+      }
+      if (!prevHasData && nextHasData) map.set(q.id, { ...prev, data: q.data });
     }
   }
+  return sortQuotes([...map.values()]);
+}
+
+function setMemory(list: SavedQuote[]) {
+  memory = sortQuotes(list);
+  writeLocal(memory);
+  emit();
+}
+
+function ensureMemory(): SavedQuote[] {
+  if (memory) return memory;
+  memory = sortQuotes(readLocal());
+  return memory;
 }
 
 export function listSavedQuotes(): SavedQuote[] {
-  return readLocal().sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+  return [...ensureMemory()];
 }
 
 export function getSavedQuote(id: string): SavedQuote | null {
-  return readLocal().find((q) => q.id === id) || null;
+  return ensureMemory().find((q) => q.id === id) || readLocal().find((q) => q.id === id) || null;
 }
 
 export function upsertSavedQuote(
   input: Omit<SavedQuote, 'savedAt'> & { savedAt?: string },
 ): SavedQuote {
-  const next: SavedQuote = { ...input, savedAt: new Date().toISOString() };
-  const list = readLocal().filter((q) => q.id !== next.id);
+  const next: SavedQuote = { ...input, savedAt: input.savedAt || new Date().toISOString() };
+  const list = ensureMemory().filter((q) => q.id !== next.id);
   list.unshift(next);
-  writeLocal(list);
+  setMemory(list);
   void workspacePut(STORE, next);
   return next;
 }
@@ -99,19 +133,15 @@ export async function persistSavedQuote(
   input: Omit<SavedQuote, 'savedAt'> & { savedAt?: string },
 ): Promise<SavedQuote> {
   const next = upsertSavedQuote(input);
-  try {
-    await workspacePut(STORE, next);
-  } catch {
-    /* localStorage already holds the row */
-  }
+  await workspacePut(STORE, next);
   return next;
 }
 
 export function deleteSavedQuote(id: string): boolean {
-  const list = readLocal();
+  const list = ensureMemory();
   const next = list.filter((q) => q.id !== id);
   if (next.length === list.length) return false;
-  writeLocal(next);
+  setMemory(next);
   void workspaceDelete(STORE, id);
   return true;
 }
@@ -161,15 +191,49 @@ export function savedQuoteShareUrl(id: string): string {
   return `${window.location.origin}${savedQuoteSharePath(id)}`;
 }
 
-export async function hydrateSavedQuotesDb(): Promise<void> {
+export async function getSavedQuoteAsync(id: string): Promise<SavedQuote | null> {
+  if (!id) return null;
+  const local = getSavedQuote(id);
+  if (local?.data && Object.keys(local.data).length) return local;
   try {
-    const fromDb = await workspaceGetAll<SavedQuote>(STORE);
-    const merged = mergeQuotes(fromDb, readLocal());
-    if (merged.length) {
-      writeLocal(merged);
-      if (fromDb.length < merged.length) await putAllQuotes(merged);
+    const row = await workspaceGet<SavedQuote>(STORE, id);
+    if (row) {
+      setMemory(mergeQuotes(ensureMemory(), [row]));
+      return getSavedQuote(id);
     }
   } catch {
-    /* localStorage still available */
+    /* fall through */
   }
+  return local;
+}
+
+export async function hydrateSavedQuotesDb(): Promise<void> {
+  if (hydratePromise) return hydratePromise;
+  hydratePromise = (async () => {
+    let fromDb: SavedQuote[] = [];
+    try {
+      fromDb = await workspaceGetAll<SavedQuote>(STORE);
+    } catch {
+      fromDb = [];
+    }
+    const merged = mergeQuotes(fromDb, readLocal(), ensureMemory());
+    memory = merged;
+    writeLocal(merged);
+    const dbIds = new Set(fromDb.map((q) => q.id));
+    const missing = merged.filter((q) => !dbIds.has(q.id));
+    for (const q of missing) {
+      try {
+        await workspacePut(STORE, q);
+      } catch {
+        /* keep memory copy */
+      }
+    }
+    emit();
+  })().finally(() => {
+    /* allow a later refresh after a save */
+    window.setTimeout(() => {
+      hydratePromise = null;
+    }, 0);
+  });
+  return hydratePromise;
 }

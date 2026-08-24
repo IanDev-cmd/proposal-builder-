@@ -16,6 +16,7 @@ import {
   hydrateSavedQuotesDb,
   type SavedQuote,
   getSavedQuote,
+  getSavedQuoteAsync,
 } from '@/lib/savedQuotesStore';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
@@ -96,12 +97,27 @@ export function SavedQuotes() {
   const [sharing, setSharing] = useState(false);
   const [shareHint, setShareHint] = useState('');
   const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(() => listSavedQuotes().length === 0);
 
   useEffect(() => subscribeSavedQuotes(() => setQuotes(listSavedQuotes())), []);
 
   useEffect(() => {
-    void hydrateSavedQuotesDb().then(() => setQuotes(listSavedQuotes()));
-  }, []);
+    let cancelled = false;
+    void hydrateSavedQuotesDb()
+      .then(async () => {
+        if (params.id) await getSavedQuoteAsync(params.id);
+        if (!cancelled) {
+          setQuotes(listSavedQuotes());
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
 
   useEffect(() => {
     if (params.id) {
@@ -110,7 +126,9 @@ export function SavedQuotes() {
     }
   }, [params.id]);
 
-  const overlay = overlayId ? getSavedQuote(overlayId) : null;
+  const overlay = overlayId
+    ? quotes.find((q) => q.id === overlayId) || getSavedQuote(overlayId)
+    : null;
   const filteredQuotes = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return quotes;
@@ -272,9 +290,11 @@ export function SavedQuotes() {
         onAdd={() => navigate('/quote-builder')}
         onSummarize={() => setQuotes(listSavedQuotes())}
         emptyLabel={
-          query.trim()
-            ? `No saved quotes match “${query.trim()}”.`
-            : 'No saved quotes yet — finish a quote and tap Save Quote.'
+          loading
+            ? 'Loading saved quotes…'
+            : query.trim()
+              ? `No saved quotes match “${query.trim()}”.`
+              : 'No saved quotes yet — finish a quote and tap Save Quote.'
         }
         columns={2}
         onDelete={(card) => {
