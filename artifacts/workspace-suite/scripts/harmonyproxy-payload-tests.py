@@ -18,7 +18,7 @@ import urllib.request
 
 APPS_SCRIPT_URL = os.environ.get(
     "APPS_SCRIPT_WEBAPP_URL",
-    "https://script.google.com/macros/s/AKfycbx3fu-1x77Ft3gJ4DM72_inDQD8jabrZShFWrZjTVHC5NLE5ipXSYPmAG6gA2czDaWHSQ/exec",
+    "https://script.google.com/macros/s/AKfycbz5TEEIhivFUIzeMVOk34KUgnT6D0vWl5N5bFSMsKpnhNfgb05BNhLYkBoOyRmFwsv5Cg/exec",
 )
 N8N_BASE = "https://harmonyproxy.app.n8n.cloud/webhook"
 FLASK_GENERATE = "https://weott-proposal-engine.onrender.com/generate"

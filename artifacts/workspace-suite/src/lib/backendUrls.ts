@@ -17,7 +17,7 @@ export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
  * Example: https://script.google.com/macros/s/AKfycb.../exec
  */
 export const APPS_SCRIPT_WEBAPP_URL =
-  'https://script.google.com/macros/s/AKfycbx3fu-1x77Ft3gJ4DM72_inDQD8jabrZShFWrZjTVHC5NLE5ipXSYPmAG6gA2czDaWHSQ/exec';
+  'https://script.google.com/macros/s/AKfycbz5TEEIhivFUIzeMVOk34KUgnT6D0vWl5N5bFSMsKpnhNfgb05BNhLYkBoOyRmFwsv5Cg/exec';
 
 export function isAppsScriptConfigured(): boolean {
   const url = APPS_SCRIPT_WEBAPP_URL.trim();

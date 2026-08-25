@@ -213,6 +213,14 @@ function openWorkbook_() {
   return SpreadsheetApp.openById(NEXUS_WORKBOOK_ID);
 }
 
+/** Range.getDisplayValues — Sheet itself has no getDisplayValues(). */
+function sheetDisplayValues_(sheet) {
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 1 || lastCol < 1) return [];
+  return sheet.getRange(1, 1, lastRow, lastCol).getDisplayValues();
+}
+
 function newId_() {
   return Utilities.getUuid();
 }
@@ -250,7 +258,7 @@ function handleLeadDataFetch_(req) {
 
 /** Port of n8n Structure all Leads1 — do not rewrite Sapphire aliases. */
 function structureLeads_(sheet) {
-  var values = sheet.getDisplayValues();
+  var values = sheetDisplayValues_(sheet);
   if (!values || values.length < 2) return [];
   var headers = values[0];
   var leads = [];
@@ -655,7 +663,7 @@ function handleQuotesFetch_(req) {
 }
 
 function readMappedRows_(sheet) {
-  var values = sheet.getDisplayValues();
+  var values = sheetDisplayValues_(sheet);
   if (!values || values.length < 2) return [];
   var headers = values[0];
   var rows = [];
