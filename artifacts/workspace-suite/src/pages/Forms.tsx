@@ -18,7 +18,7 @@ import {
   persistSavedQuote,
 } from '@/lib/savedQuotesStore';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
-import { proposalFileStem } from '@/lib/proposalFilename';
+import { proposalFileStem, proposalFileStemFromLead } from '@/lib/proposalFilename';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
@@ -1749,15 +1749,13 @@ export function Forms() {
       }
 
       const proposalId = `proposal-${Date.now()}`;
+      const fileStem = proposalFileStemFromLead(quoteLead);
       const saved = await addProposal({
         id: proposalId,
         createdAt: new Date().toISOString(),
         eventDate: data.eventDate,
-        title: proposalFileStem({
-          contactName: quoteLead?.name,
-          companyName: quoteLead?.company,
-          referenceCode: quoteLead?.referenceNumber,
-        }),
+        title: fileStem,
+        filename: `${fileStem}.pdf`,
         vesselType: data.vesselType.join(', '),
         eventType: data.eventType,
         guestCount: data.guestCount,

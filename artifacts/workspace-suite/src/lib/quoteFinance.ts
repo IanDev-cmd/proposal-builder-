@@ -532,6 +532,7 @@ export function buildStargtmPayload(opts: {
     nexusLead: nexusOut,
     lead: {
       proposal_ref: formatProposalRef(lead?.referenceNumber, form.quoteVersion),
+      reference_number: lead?.referenceNumber || undefined,
       quote_date: quoteDate,
       client_name: lead?.name,
       organisation: lead?.company,

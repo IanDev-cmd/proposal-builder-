@@ -22,6 +22,10 @@ import {
   isLayoutOverflowOnly,
   layoutOverflowMessages,
 } from '../src/lib/engineWarnings.ts';
+import {
+  proposalDownloadFilenameFromLead,
+  proposalFileStemFromLead,
+} from '../src/lib/proposalFilename.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -121,6 +125,19 @@ check('unit TBC date string', isEventDateTbc('TBC') === true);
 check('unit formatGbp', formatGbp(3256.15) === '£3256.15' || formatGbp(3256.15) === '£3256.15');
 check('unit errorMessage from Error', errorMessage(new Error('boom')) === 'boom');
 check('unit errorMessage fallback', errorMessage(null) === 'Something went wrong');
+check(
+  'unit PDF name is Proposal - Name (Company) - REF',
+  proposalDownloadFilenameFromLead({
+    name: 'Lily Day',
+    company: 'OpusApeiro',
+    referenceNumber: 'WE.19108',
+  }) === 'Proposal - Lily Day (OpusApeiro) - WE.19108.pdf',
+);
+check(
+  'unit PDF name omits empty company',
+  proposalFileStemFromLead({ name: 'Lily Day', referenceNumber: 'WE.19108' }) ===
+    'Proposal - Lily Day - WE.19108',
+);
 
 check(
   'unit telephone shrink becomes a specific cover error',

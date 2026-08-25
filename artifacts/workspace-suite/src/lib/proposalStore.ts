@@ -19,6 +19,7 @@ export type GeneratedProposal = {
   createdAt: string;
   eventDate: string;
   title: string;
+  filename?: string;
   vesselType: string;
   eventType: string;
   guestCount: string;

@@ -6,9 +6,17 @@ export function sanitizeFilenamePart(raw: string): string {
     .trim();
 }
 
+export type LeadFilenameParts = {
+  name?: string;
+  company?: string;
+  companyName?: string;
+  referenceNumber?: string;
+};
+
 /**
- * Proposal - Contact Name (Company Name) - Reference Code
- * If company is missing: Proposal - Contact Name - Reference Code
+ * Exact house filename from the lead:
+ *   Proposal - Contact Name (Company Name) - Reference Code
+ * Company omitted when the lead has none. Reference is the lead code, not a quote version.
  */
 export function proposalFileStem(opts: {
   contactName?: string;
@@ -22,10 +30,22 @@ export function proposalFileStem(opts: {
   return `Proposal - ${who} - ${ref}`;
 }
 
+export function proposalFileStemFromLead(lead?: LeadFilenameParts | null): string {
+  return proposalFileStem({
+    contactName: lead?.name,
+    companyName: lead?.company || lead?.companyName,
+    referenceCode: lead?.referenceNumber,
+  });
+}
+
 export function proposalDownloadFilename(opts: {
   contactName?: string;
   companyName?: string;
   referenceCode?: string;
 }): string {
   return `${proposalFileStem(opts)}.pdf`;
+}
+
+export function proposalDownloadFilenameFromLead(lead?: LeadFilenameParts | null): string {
+  return `${proposalFileStemFromLead(lead)}.pdf`;
 }

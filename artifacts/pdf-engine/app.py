@@ -78,7 +78,7 @@ def _cors(resp):
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     resp.headers["Access-Control-Expose-Headers"] = (
         "Content-Disposition, Content-Type, X-Warnings, X-Using-Brand-Font, "
-        "X-Page-Count, X-Template-Id, X-Template-Matched-By, X-Inserts"
+        "X-Page-Count, X-Template-Id, X-Template-Matched-By, X-Inserts, X-Proposal-Filename"
     )
     resp.headers["Access-Control-Max-Age"] = "86400"
     return resp
@@ -134,17 +134,41 @@ def inserts_endpoint():
     })
 
 
+_REF_VERSION_TAIL = re.compile(r"\s+V\d+\s*$", re.I)
+
+
 def proposal_download_name(payload: dict, report: dict) -> str:
+    """Exact house name from the lead: Proposal - Name (Company) - REF.pdf"""
     lead = payload.get("lead") or {}
-    name = str(lead.get("client_name") or "").strip() or "Contact TBC"
-    company = str(lead.get("organisation") or "").strip()
-    ref = str(lead.get("proposal_ref") or report.get("proposal_ref") or "").strip() or "REF TBC"
+    nexus = payload.get("nexusLead") or {}
+    if not isinstance(lead, dict):
+        lead = {}
+    if not isinstance(nexus, dict):
+        nexus = {}
 
     def clean(s: str) -> str:
         s = re.sub(r'[<>:"/\\|?*]', "", s)
         return re.sub(r"\s+", " ", s).strip()
 
-    name, company, ref = clean(name), clean(company), clean(ref)
+    name = clean(
+        str(lead.get("client_name") or nexus.get("name") or "").strip()
+    ) or "Contact TBC"
+    company = clean(
+        str(
+            lead.get("organisation")
+            or nexus.get("companyName")
+            or nexus.get("company")
+            or ""
+        ).strip()
+    )
+    ref = clean(
+        str(nexus.get("referenceNumber") or lead.get("reference_number") or "").strip()
+    )
+    if not ref:
+        ref = clean(str(lead.get("proposal_ref") or report.get("proposal_ref") or "").strip())
+        ref = _REF_VERSION_TAIL.sub("", ref).strip()
+    if not ref:
+        ref = "REF TBC"
     who = f"{name} ({company})" if company else name
     return f"Proposal - {who} - {ref}.pdf"
 
@@ -176,12 +200,14 @@ def generate():
         with open(output_path, "rb") as f:
             pdf_bytes = f.read()
 
+    filename = proposal_download_name(payload, report)
     response = send_file(
         io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=proposal_download_name(payload, report),
+        download_name=filename,
     )
+    response.headers["X-Proposal-Filename"] = filename
     response.headers["X-Warnings"] = json.dumps(report["warnings"])
     response.headers["X-Using-Brand-Font"] = str(report["using_brand_font"])
     response.headers["X-Page-Count"] = str(report["page_count_final"])

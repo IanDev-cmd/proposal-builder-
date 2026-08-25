@@ -26,6 +26,7 @@ type FileKind = 'multipage' | 'generated';
 type ProposalFile = {
   id: string;
   title: string;
+  filename?: string;
   kind: FileKind;
   pageNums?: number[];
   sizeLabel: string;
@@ -37,11 +38,19 @@ type ProposalFile = {
   leadEmail?: string;
 };
 
+function proposalPdfFilename(file: Pick<ProposalFile, 'title' | 'filename'>): string {
+  const named = (file.filename || '').trim();
+  if (named) return named.toLowerCase().endsWith('.pdf') ? named : `${named}.pdf`;
+  const title = (file.title || 'Proposal').trim();
+  return title.toLowerCase().endsWith('.pdf') ? title : `${title}.pdf`;
+}
+
 /** Maps a webhook-generated proposal (from the Forms wizard) into a file card — one card per lead's PDF. */
 function proposalToFile(p: GeneratedProposal): ProposalFile {
   return {
     id: p.id,
     title: p.title,
+    filename: p.filename || (p.title.toLowerCase().endsWith('.pdf') ? p.title : `${p.title}.pdf`),
     kind: 'generated',
     sizeLabel: 'PDF',
     description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total ${formatGbp(p.grandTotal)}.`,
@@ -262,7 +271,7 @@ export function ProposalDoc() {
     if (active.kind === 'generated' && active.pdfDataUrl) {
       const a = document.createElement('a');
       a.href = active.pdfDataUrl;
-      a.download = active.title.toLowerCase().endsWith('.pdf') ? active.title : `${active.title}.pdf`;
+      a.download = proposalPdfFilename(active);
       a.click();
       return;
     }
@@ -326,7 +335,7 @@ export function ProposalDoc() {
     setShareOpen(false);
     let file: File | null = null;
     if (active.kind === 'generated' && active.pdfDataUrl) {
-      const name = active.title.toLowerCase().endsWith('.pdf') ? active.title : `${active.title}.pdf`;
+      const name = proposalPdfFilename(active);
       file = dataUrlToFile(active.pdfDataUrl, name);
     }
     if (!file) {
