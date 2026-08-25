@@ -5,6 +5,7 @@
  *  - Proposal Doc PDFs: `shareArtifact` still uses the OS share sheet, .eml, or download + app.
  */
 import { savedQuoteShareUrl, type SavedQuote } from '@/lib/savedQuotesStore';
+import { downloadSavedQuoteCostSheet, quoteFormFromSaved, costSheetPlainText } from '@/lib/costSheet';
 import { formatGbp } from '@/lib/utils';
 
 export type ShareChannel = 'email' | 'whatsapp' | 'dropbox' | 'drive' | 'link';
@@ -192,6 +193,8 @@ export function shareCaption(quote: SavedQuote, kind: 'pdf' | 'quote'): string {
 /** Plain-text quote for Gmail / WhatsApp compose — never a proposal PDF. */
 export function quoteSharePlainText(quote: SavedQuote, shareUrl: string): string {
   const first = quote.leadName ? ` ${quote.leadName.split(' ')[0]}` : '';
+  const form = quoteFormFromSaved(quote.data);
+  const sheet = form ? costSheetPlainText(form, quote.title) : '';
   return [
     `Hi${first},`,
     '',
@@ -204,8 +207,10 @@ export function quoteSharePlainText(quote: SavedQuote, shareUrl: string): string
     `Guests: ${quote.guestCount || '—'}`,
     `Event date: ${quote.eventDate || '—'}`,
     `Grand total: ${formatGbp(quote.grandTotal)}`,
+    sheet ? '' : '',
+    sheet,
     '',
-    `Open quote: ${shareUrl}`,
+    `Open cost sheet: ${shareUrl}`,
     '',
     'Best regards',
   ].join('\n');
@@ -246,6 +251,10 @@ export async function openQuoteShareWeb(channel: ShareChannel, quote: SavedQuote
   const shareUrl = savedQuoteShareUrl(quote.id);
   const title = `Quote: ${quote.title}`;
   const text = quoteSharePlainText(quote, shareUrl);
+
+  if (channel === 'email' || channel === 'dropbox' || channel === 'drive') {
+    downloadSavedQuoteCostSheet(quote);
+  }
 
   if (channel === 'link') {
     try {

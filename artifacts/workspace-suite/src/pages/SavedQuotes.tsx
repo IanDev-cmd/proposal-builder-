@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
-import { Bookmark, Mail, Link2, Search, X } from 'lucide-react';
+import { Bookmark, Mail, Link2, Search, X, Download } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LeadNotesTimeline,
@@ -21,6 +21,9 @@ import {
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
+import { downloadSavedQuoteCostSheet, quoteFormFromSaved } from '@/lib/costSheet';
+import { CostSectionAccordion } from '@/components/CostSectionAccordion';
+import { calcFinancials } from '@/lib/quoteFinance';
 import { toastError } from '@/lib/notify';
 import { formatGbp } from '@/lib/utils';
 import type { PointKind } from '@/lib/leadNotes';
@@ -81,15 +84,20 @@ function wizardStep(step?: number): number {
   return Number(step) >= 1 && Number(step) <= 7 ? Number(step) : 1;
 }
 
-async function restoreQuote(quote: SavedQuote) {
+async function restoreQuote(quote: SavedQuote, step?: number) {
   if (quote.lead) setQuoteLead(quote.lead);
   await saveQuoteDraft({
     leadKey: quote.leadKey,
-    step: wizardStep(quote.step),
+    step: step ?? wizardStep(quote.step),
     data: quote.data,
     leadName: quote.leadName,
     referenceNumber: quote.referenceNumber,
   });
+}
+
+function overlayFin(quote: SavedQuote) {
+  const form = quoteFormFromSaved(quote.data);
+  return form ? calcFinancials(form) : null;
 }
 
 export function SavedQuotes() {
@@ -347,7 +355,7 @@ export function SavedQuotes() {
               initial={{ opacity: 0, y: 16, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
-              className="relative w-full max-w-[480px] overflow-hidden rounded-[22px] bg-white shadow-2xl"
+              className="relative max-h-[88vh] w-full max-w-[560px] overflow-hidden rounded-[22px] bg-white shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between px-6 pt-5">
@@ -388,13 +396,41 @@ export function SavedQuotes() {
                   <dd className="font-bold text-[#00e676]">{formatGbp(overlay.grandTotal)}</dd>
                 </div>
               </dl>
+              <div className="mt-5 max-h-[38vh] overflow-y-auto px-6">
+                {(() => {
+                  const fin = overlayFin(overlay);
+                  if (!fin) return <p className="text-[12px] text-slate-400">Cost lines were not saved with this quote.</p>;
+                  return (
+                    <CostSectionAccordion
+                      lines={fin.lines || []}
+                      sectionTotals={fin.sectionTotals}
+                      defaultOpen={['catering', 'entertainment']}
+                    />
+                  );
+                })()}
+              </div>
               <div className="mt-6 flex flex-col gap-2 px-6">
                 {shareRow(overlay, false)}
                 {shareHint ? (
                   <p className="text-[11px] font-medium text-[#2F7CF6]">{shareHint}</p>
                 ) : null}
               </div>
-              <div className="p-6 pt-4">
+              <div className="flex flex-col gap-2 p-6 pt-4">
+                <button
+                  type="button"
+                  onClick={() => downloadSavedQuoteCostSheet(overlay)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-slate-200 py-3 text-[13px] font-bold text-slate-700"
+                >
+                  <Download className="h-4 w-4" />
+                  Download cost sheet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => restoreQuote(overlay, 4).then(() => navigate('/quote-builder'))}
+                  className="w-full rounded-[14px] border border-slate-200 py-3 text-[13px] font-bold text-slate-700"
+                >
+                  Open cost lines
+                </button>
                 <button
                   type="button"
                   onClick={() => generate(overlay)}

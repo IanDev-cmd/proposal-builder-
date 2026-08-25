@@ -9,7 +9,7 @@ export type BespokeLineInput = {
 
 const EMPTY_SLOTS: BespokeLine[] = [1, 2, 3, 4].map((n) => ({
   id: `bespoke_${n}`,
-  label: `Bespoke (${n})`,
+  label: '',
   amount: 0,
   enabled: false,
 }));
@@ -29,10 +29,7 @@ export function normalizeBespokeLines(
       const label = (g.label || '').trim();
       slots[i] = {
         id: `bespoke_${i + 1}`,
-        label:
-          label ||
-          (i === 0 && fallback?.label ? fallback.label : '') ||
-          `Bespoke (${i + 1})`,
+        label: label || (i === 0 && fallback?.label ? fallback.label : ''),
         amount,
         enabled,
       };

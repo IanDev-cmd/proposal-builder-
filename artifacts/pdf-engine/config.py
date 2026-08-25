@@ -72,6 +72,8 @@ COVER_FIELDS = {
     "event_timings": dict(bbox=(391.5, 113.1, 470, 119.4), origin=(391.5, 118.0), size=4.63, bold=False, color=COVER_TEXT_COLOR),
     "guest_range":   dict(bbox=(391.0, 134.4, 420, 140.7), origin=(391.0, 139.3), size=4.63, bold=False, color=COVER_TEXT_COLOR),
     "guest_quote_n": dict(bbox=(435.5, 141.3, 441, 147.9), origin=(435.5, 146.5), size=4.63, bold=True, max_width=6.5, color=COVER_TEXT_COLOR),
+    # Frosted right-panel copy — dark ink so it reads on the pale overlay.
+    "key_items":     dict(bbox=(385.6, 152.0, 470, 168.0), origin=(385.6, 157.0), size=4.0, bold=False, color=TEXT_COLOR, max_width=82),
 }
 
 # ---------------------------------------------------------------------------

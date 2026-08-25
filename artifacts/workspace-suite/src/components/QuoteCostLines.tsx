@@ -88,7 +88,7 @@ export function QuoteCostLines({
                   <span className="text-[13px] font-bold text-[#00e676]">£{secTotal.toFixed(2)}</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 border-t border-[#f0f0f0] p-3">
+              <div className="flex flex-col gap-2 border-t border-[#f0f0f0] p-3 relative z-[2]">
                 {bespokeLines.map((b, idx) => (
                   <div
                     key={b.id}
@@ -108,29 +108,48 @@ export function QuoteCostLines({
                       {b.enabled && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                     </button>
                     <input
+                      type="text"
                       value={b.label}
                       onChange={(e) => {
+                        const label = e.target.value;
                         const next = [...bespokeLines];
-                        next[idx] = { ...b, label: e.target.value };
+                        next[idx] = { ...b, label, enabled: Boolean(label.trim() || b.amount) };
                         onBespokeChange(next);
                       }}
-                      placeholder={`Bespoke (${idx + 1})`}
-                      className="flex-1 rounded-[8px] border border-[#e3e6e4] px-3 py-2 text-[12.5px]"
+                      placeholder="Type a description"
+                      className="relative z-[2] flex-1 rounded-[8px] border border-[#e3e6e4] bg-white px-3 py-2 text-[12.5px] text-gray-800"
                     />
                     <input
-                      type="number"
-                      min={0}
-                      value={b.amount || ''}
+                      type="text"
+                      inputMode="decimal"
+                      value={b.amount ? String(b.amount) : ''}
                       onChange={(e) => {
+                        const amount = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
                         const next = [...bespokeLines];
-                        next[idx] = { ...b, amount: parseFloat(e.target.value) || 0, enabled: true };
+                        next[idx] = {
+                          ...b,
+                          amount,
+                          enabled: amount > 0 || Boolean(String(b.label || '').trim()),
+                        };
                         onBespokeChange(next);
                       }}
                       placeholder="£"
-                      className="w-24 rounded-[8px] border border-[#e3e6e4] px-3 py-2 text-[12.5px] font-semibold text-[#00e676]"
+                      className="relative z-[2] w-24 rounded-[8px] border border-[#e3e6e4] bg-white px-3 py-2 text-[12.5px] font-semibold text-[#00e676]"
                     />
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onBespokeChange([
+                      ...bespokeLines,
+                      { id: `bespoke_${Date.now()}`, label: '', amount: 0, enabled: false },
+                    ])
+                  }
+                  className="mt-1 rounded-[8px] border border-dashed border-[#d0d0d0] px-3 py-2 text-left text-[12px] font-semibold text-gray-500 hover:border-[#FF5A45]/40 hover:text-gray-700"
+                >
+                  + Add a bespoke line
+                </button>
               </div>
             </div>
           );

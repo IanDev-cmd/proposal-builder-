@@ -423,6 +423,8 @@ def normalize_cover_lead(lead: dict) -> dict:
         out["guest_range"] = format_guest_range(out["guest_range"])
     if "guest_quote_n" in out:
         out["guest_quote_n"] = str(out["guest_quote_n"]).strip()
+    if out.get("key_items"):
+        out["key_items"] = " ".join(str(out["key_items"]).split())
     return out
 
 
@@ -436,6 +438,16 @@ def _fit_cover_value(field_name: str, value: str, spec: dict, font_mgr) -> str:
         return format_cover_email(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
     if field_name == "event_type":
         return format_event_type(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
+    if field_name == "key_items":
+        raw = " ".join(str(value).split())
+        if font_mgr.text_length(raw, base_size, False) <= max_w:
+            return raw
+        # Keep one line at designed size — ellipsis rather than shrinking cover type.
+        ell = "…"
+        cut = raw
+        while cut and font_mgr.text_length(cut + ell, base_size, False) > max_w:
+            cut = cut[:-1]
+        return (cut + ell) if cut else raw[:40]
     if field_name == "client_name" and " / " in value:
         parts = [p.strip() for p in value.split(" / ") if p.strip()]
         if len(parts) == 2 and font_mgr.text_length(value, base_size, False) > max_w:
@@ -531,7 +543,9 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
 
 def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
     page_index = profile.page_cover if profile else config.PAGE_COVER
-    fields = profile.cover_fields if profile and profile.cover_fields else config.COVER_FIELDS
+    fields = dict(profile.cover_fields) if profile and profile.cover_fields else dict(config.COVER_FIELDS)
+    if "key_items" not in fields and config.COVER_FIELDS.get("key_items"):
+        fields["key_items"] = dict(config.COVER_FIELDS["key_items"])
     page = doc[page_index]
     font_mgr.ensure_registered(page)
     data = normalize_cover_lead(data)
@@ -571,6 +585,8 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         # span colour + Century Gothic only. Page-13 pure-white / Fallback-Bold
         # styling must not leak onto the cover.
         spec = dict(spec)
+        if field_name == "key_items":
+            spec["color"] = config.TEXT_COLOR
         spec["color"] = _cover_ink_from_template(spec.get("color"))
         # Keep brand CG on cover even for "bold" fields (template-extracted CG
         # Bold subsets can't re-embed; Fallback Bold reads as a different face).

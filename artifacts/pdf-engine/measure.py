@@ -327,6 +327,7 @@ def measure_cover(page) -> dict:
         "event_date": (["Event date requested"], RIGHT_PANEL),
         "event_timings": (["Event timings"], RIGHT_PANEL),
         "guest_range": (["No. of guests", "f guests |", "guests |"], RIGHT_PANEL),
+        "key_items": (["Key items", "Key Items", "What's included"], RIGHT_PANEL),
     }
     for key, (labels, panel) in label_map.items():
         for label in labels:

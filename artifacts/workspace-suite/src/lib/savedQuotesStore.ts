@@ -217,8 +217,8 @@ export function savedQuoteSharePath(id: string): string {
 }
 
 export function savedQuoteShareUrl(id: string): string {
-  if (typeof window === 'undefined') return savedQuoteSharePath(id);
-  return `${window.location.origin}${savedQuoteSharePath(id)}`;
+  if (typeof window === 'undefined') return `${savedQuoteSharePath(id)}?view=cost`;
+  return `${window.location.origin}${savedQuoteSharePath(id)}?view=cost`;
 }
 
 export async function getSavedQuoteAsync(id: string): Promise<SavedQuote | null> {

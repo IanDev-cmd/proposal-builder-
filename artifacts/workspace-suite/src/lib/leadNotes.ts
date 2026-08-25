@@ -419,11 +419,8 @@ export function timeLabelFromNote(text: string, fallback: string): string {
   return fallback;
 }
 
-function titleFromEntry(text: string, kinds: PointKind[]): string {
-  const primary = kinds[0];
-  if (primary && primary !== 'general') return pointKindMeta(primary).label;
-  const clause = text.split(/[.|]/)[0]?.trim() || text;
-  return clause.length > 28 ? `${clause.slice(0, 26).trim()}…` : clause || 'Note';
+function titleFromEntry(_text: string, _kinds: PointKind[], index: number): string {
+  return `Progress ${index + 1}`;
 }
 
 function summaryFromEntry(text: string): string {
@@ -437,7 +434,7 @@ export function pointsFromProgressNotes(raw: string): NotePoint[] {
     const kinds = detectPointKinds(body);
     return {
       id: `progress-${i}`,
-      title: titleFromEntry(body, kinds),
+      title: titleFromEntry(body, kinds, i),
       summary: summaryFromEntry(body),
       body,
       kind: kinds[0],

@@ -51,9 +51,10 @@ export function mergeSummaryPoints(notes: string, remote: LeadNotePointPayload[]
     );
     const body = sourceIndex >= 0 ? local[sourceIndex].body : evidence || p.summary || p.title;
     const kinds = kindsFromPayload(p, body);
+    const idx = sourceIndex >= 0 ? sourceIndex : i;
     return {
       id: `gemini-${i}`,
-      title: (p.title || local[sourceIndex]?.title || 'Note').slice(0, 42),
+      title: `Progress ${idx + 1}`,
       summary: (p.summary || local[sourceIndex]?.summary || body).slice(0, 220),
       body,
       kind: kinds[0] || 'general',

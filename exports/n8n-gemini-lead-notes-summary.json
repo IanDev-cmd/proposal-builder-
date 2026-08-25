@@ -14,18 +14,24 @@
       "name": "LeadNotesSummary Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [-304, 64],
+      "position": [
+        -304,
+        64
+      ],
       "webhookId": "lead-notes-summary-gemini-free"
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\nconst notes = String(body.notes || body.progressNotes || '').slice(0, 8000);\nconst leadName = String(body.leadName || '');\nconst referenceNumber = String(body.referenceNumber || body.leadKey || '');\nif (!notes.trim()) {\n  return [{ json: {\n    points: [],\n    model: 'none',\n    failureEvent: { type: 'FailureEvent', source: 'LeadNotesSummary', reason: 'empty notes', httpStatus: 400 }\n  } }];\n}\nconst prompt = [\n  'You summarise WEOTT CRM progress notes for a sales lead.',\n  'NOTES are concatenated Progress 1…N entries, often joined with \" | \", newlines, or \"Progress N:\".',\n  'Split them into discrete scannable POINTS — one card per distinct fact, call, budget, guest, vessel, timing, catering, or pipeline update.',\n  'Return ONLY JSON: {\"points\":[{\"title\":\"2-4 word label\",\"summary\":\"one sentence\",\"kind\":\"budget|calls|research|logistics|pipeline|history|guests|timing|catering|enquiry|discovery|general\",\"kinds\":[\"budget\"],\"when\":\"short time or date label or empty\",\"evidence\":\"verbatim substring of NOTES\"}]}',\n  'kind must be one of those enums. Use budget for money/£/margin, guests for headcount, logistics for vessel, timing for dates/hours, catering for food/drink, calls for phone/voicemail, pipeline for proposal/handover status.',\n  'title examples: Budget, Guests, Vessel, Call, Timing, Catering, Pipeline.',\n  'Never invent £ amounts, dates, guest counts, or vessel names that are not in NOTES.',\n  'Never merge unrelated facts into one point. Keep 3–12 points when NOTES are long; 1–3 when short.',\n  'evidence must be copied from NOTES. summary may lightly compress but must stay faithful.',\n  referenceNumber ? ('LEAD: ' + referenceNumber + (leadName ? ' — ' + leadName : '')) : (leadName ? 'LEAD: ' + leadName : 'LEAD: unknown'),\n  'NOTES:',\n  notes\n].join('\\n');\nreturn [{ json: { notes, prompt, ok: true, leadName, referenceNumber } }];"
+        "jsCode": "const body = $json.body || $json;\nconst notes = String(body.notes || body.progressNotes || '').slice(0, 8000);\nconst leadName = String(body.leadName || '');\nconst referenceNumber = String(body.referenceNumber || body.leadKey || '');\nif (!notes.trim()) {\n  return [{ json: {\n    points: [],\n    model: 'none',\n    failureEvent: { type: 'FailureEvent', source: 'LeadNotesSummary', reason: 'empty notes', httpStatus: 400 }\n  } }];\n}\nconst prompt = [\n  'You summarise WEOTT CRM progress notes for a sales lead.',\n  'NOTES are concatenated Progress 1…N entries, often joined with \" | \", newlines, or \"Progress N:\".',\n  'Split them into discrete scannable POINTS — one card per distinct fact, call, budget, guest, vessel, timing, catering, or pipeline update.',\n  'Return ONLY JSON: {\"points\":[{\"title\":\"2-4 word label\",\"summary\":\"one sentence\",\"kind\":\"budget|calls|research|logistics|pipeline|history|guests|timing|catering|enquiry|discovery|general\",\"kinds\":[\"budget\"],\"when\":\"short time or date label or empty\",\"evidence\":\"verbatim substring of NOTES\"}]}',\n  'kind must be one of those enums. Use budget for money/£/margin, guests for headcount, logistics for vessel, timing for dates/hours, catering for food/drink, calls for phone/voicemail, pipeline for proposal/handover status.',\n  'Each point title MUST be exactly Progress N in source order (Progress 1, Progress 2, …). Do not use topic titles like Budget or Call.',\n  'Never invent £ amounts, dates, guest counts, or vessel names that are not in NOTES.',\n  'Never merge unrelated facts into one point. Keep 3–12 points when NOTES are long; 1–3 when short.',\n  'evidence must be copied from NOTES. summary may lightly compress but must stay faithful.',\n  referenceNumber ? ('LEAD: ' + referenceNumber + (leadName ? ' — ' + leadName : '')) : (leadName ? 'LEAD: ' + leadName : 'LEAD: unknown'),\n  'NOTES:',\n  notes\n].join('\\n');\nreturn [{ json: { notes, prompt, ok: true, leadName, referenceNumber } }];"
       },
       "id": "20a49021-5419-48df-abd6-743dca20464e",
       "name": "Prepare Notes Summary Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-80, 64]
+      "position": [
+        -80,
+        64
+      ]
     },
     {
       "parameters": {
@@ -37,7 +43,10 @@
       "name": "Gemini Notes Summary Chain",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
-      "position": [144, 64]
+      "position": [
+        144,
+        64
+      ]
     },
     {
       "parameters": {
@@ -51,7 +60,10 @@
       "name": "Google Gemini Chat Model (Free Tier)",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [224, 304],
+      "position": [
+        224,
+        304
+      ],
       "credentials": {
         "googlePalmApi": {
           "id": "zvFDkn9Cp7SqbA1q",
@@ -68,7 +80,10 @@
       "name": "Normalize Notes Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [496, 64]
+      "position": [
+        496,
+        64
+      ]
     },
     {
       "parameters": {
@@ -80,24 +95,67 @@
       "name": "Respond Notes Summary",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [720, 64]
+      "position": [
+        720,
+        64
+      ]
     }
   ],
   "connections": {
     "LeadNotesSummary Webhook": {
-      "main": [[{ "node": "Prepare Notes Summary Prompt", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Notes Summary Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Notes Summary Prompt": {
-      "main": [[{ "node": "Gemini Notes Summary Chain", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gemini Notes Summary Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gemini Notes Summary Chain": {
-      "main": [[{ "node": "Normalize Notes Summary", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Notes Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Gemini Chat Model (Free Tier)": {
-      "ai_languageModel": [[{ "node": "Gemini Notes Summary Chain", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Notes Summary Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize Notes Summary": {
-      "main": [[{ "node": "Respond Notes Summary", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Notes Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},

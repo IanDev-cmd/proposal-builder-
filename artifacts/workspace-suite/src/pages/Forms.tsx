@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye, Download } from 'lucide-react';
 import { SECTION_META } from '@/lib/quoteBuilderCatalog';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
@@ -43,6 +43,8 @@ import {
   getCostMotherMeta,
 } from '@/lib/costMotherLookup';
 import { QuoteCostLines } from '@/components/QuoteCostLines';
+import { CostSectionAccordion } from '@/components/CostSectionAccordion';
+import { downloadCostSheetCsv } from '@/lib/costSheet';
 import {
   templatesForCategory,
   templateLabel,
@@ -74,7 +76,7 @@ import {
   rateEventDateFromLead,
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
-import { goldPackageWordingForRef, overlayItineraryOnPackageWording } from '@/lib/goldPackageWording';
+import { buildLivePackageWording } from '@/lib/goldPackageWording';
 import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import {
   buildItineraryProposalText,
@@ -162,7 +164,7 @@ type FormData = {
 
 const EMPTY_BESPOKE: BespokeLine[] = [1, 2, 3, 4].map((n) => ({
   id: `bespoke_${n}`,
-  label: `Bespoke (${n})`,
+  label: '',
   amount: 0,
   enabled: false,
 }));
@@ -1523,7 +1525,6 @@ export function Forms() {
       PROPOSAL_INSERTS,
     );
 
-    const goldWording = goldPackageWordingForRef(quoteLead?.referenceNumber);
     const timingBlock =
       parseItineraryProposalText(data.proposalTimingsNotes) ||
       buildItineraryProposalBlock({
@@ -1532,17 +1533,13 @@ export function Forms() {
         returnTime: data.returnTime,
         disembarkation: data.disembarkation,
       });
-    const packageWording = overlayItineraryOnPackageWording(goldWording, timingBlock);
-    if (data.packageWordingNotes.trim()) {
-      const notesGroup = {
-        heading: 'Notes;',
-        items: data.packageWordingNotes.trim().split(/\n+/).filter(Boolean),
-      };
-      packageWording.venue_and_management = [
-        ...(packageWording.venue_and_management || []),
-        notesGroup,
-      ];
-    }
+    const packageWording = buildLivePackageWording({
+      selectedLineIds: data.selectedLineIds,
+      menuType: data.menuType,
+      bespokeLines: data.bespokeLines,
+      timingBlock,
+      extraNotes: data.packageWordingNotes,
+    });
 
     const payload = buildStargtmPayload({
       form: financeInput,
@@ -1823,17 +1820,23 @@ export function Forms() {
 
   const handleSaveQuote = async () => {
     try {
-      const existing = listSavedQuotes().find((q) => q.leadKey === leadNotesKey);
+      const version = data.quoteVersion || 'V1';
+      const existing = listSavedQuotes().find((q) => {
+        if (q.leadKey !== leadNotesKey) return false;
+        const savedVer = String((q.data as { quoteVersion?: string })?.quoteVersion || 'V1');
+        return savedVer === version;
+      });
+      const stem = proposalFileStem({
+        contactName: quoteLead?.name,
+        companyName: quoteLead?.company,
+        referenceCode: quoteLead?.referenceNumber,
+      });
       const saved = await persistSavedQuote({
-        id: existing?.id || `quote-${leadNotesKey}-${Date.now()}`,
+        id: existing?.id || `quote-${leadNotesKey}-${version}`,
         leadKey: leadNotesKey,
         leadName: quoteLead?.name,
         referenceNumber: quoteLead?.referenceNumber,
-        title: proposalFileStem({
-          contactName: quoteLead?.name,
-          companyName: quoteLead?.company,
-          referenceCode: quoteLead?.referenceNumber,
-        }),
+        title: `${stem} (${version})`,
         vesselType: data.vesselType.join(', '),
         eventType: data.eventType,
         guestCount: data.guestCount,
@@ -2038,6 +2041,22 @@ export function Forms() {
                       value={data.quoteVersion}
                       onChange={(e) => {
                         const quoteVersion = e.target.value;
+                        const saved = listSavedQuotes().find((q) => {
+                          if (q.leadKey !== leadNotesKey) return false;
+                          const savedVer = String(
+                            (q.data as { quoteVersion?: string })?.quoteVersion || 'V1',
+                          );
+                          return savedVer === quoteVersion;
+                        });
+                        if (saved?.data && Object.keys(saved.data).length) {
+                          setData((prev) => ({
+                            ...prev,
+                            ...(saved.data as Partial<FormData>),
+                            quoteVersion,
+                            costApproved: false,
+                          }));
+                          return;
+                        }
                         const patch = quoteLead
                           ? prefillForQuoteVersion(quoteLead, data, quoteVersion)
                           : { data: { quoteVersion }, prefilledKeys: ['quoteVersion'] as string[] };
@@ -2121,7 +2140,7 @@ export function Forms() {
                     value={data.keyItems}
                     onChange={(e) => set('keyItems', e.target.value)}
                     placeholder="e.g. Canapés, drink tokens, DJ — short headline for the pack"
-                    className={fieldCls('keyItems')}
+                    className={`${fieldCls('keyItems')} text-gray-800`}
                   />
                 </div>
 
@@ -2343,7 +2362,7 @@ export function Forms() {
                 transition={{ duration: 0.25 }}
               >
                 <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
-                <div className="mb-4 sticky top-0 z-10 rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 shadow-sm">
+                <div className="mb-4 sticky top-0 z-[1] rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 shadow-sm">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E22A12]">
                     Key items (from Lead)
                   </p>
@@ -2686,6 +2705,33 @@ export function Forms() {
                       <span className="font-semibold text-[#00e676]">£{val.toFixed(2)}</span>
                     </div>
                   ))}
+                </div>
+
+                <div className="mb-6">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#7c8a82]">
+                      Cost lines
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadCostSheetCsv({
+                          form: financeInput,
+                          title: `${data.eventType || 'Quote'} ${data.quoteVersion || 'V1'}`,
+                          filename: `${quoteLead?.referenceNumber || 'quote'}-${data.quoteVersion || 'V1'}`,
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e3e6e4] bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 hover:border-[#FF5A45]/40"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download cost sheet
+                    </button>
+                  </div>
+                  <CostSectionAccordion
+                    lines={fin.lines || []}
+                    sectionTotals={fin.sectionTotals}
+                    defaultOpen={['catering', 'entertainment']}
+                  />
                 </div>
 
                 <button
@@ -3279,22 +3325,14 @@ export function Forms() {
                 </div>
 
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7c8a82]">
-                  Active cost lines
+                  Cost lines
                 </p>
-                <div className="mb-5 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
-                  {(fin.lines || []).length === 0 ? (
-                    <p className="px-4 py-3 text-[12px] text-gray-400">No cost lines selected.</p>
-                  ) : (
-                    (fin.lines || []).map((l) => (
-                      <div
-                        key={l.id}
-                        className="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0"
-                      >
-                        <span className="min-w-0 flex-1 text-gray-700">{l.label}</span>
-                        <span className="shrink-0 font-semibold text-[#00e676]">£{l.amount.toFixed(2)}</span>
-                      </div>
-                    ))
-                  )}
+                <div className="mb-5">
+                  <CostSectionAccordion
+                    lines={fin.lines || []}
+                    sectionTotals={fin.sectionTotals}
+                    defaultOpen={['catering', 'entertainment']}
+                  />
                 </div>
 
                 <div className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
