@@ -11,6 +11,7 @@ import {
 import {
   detectPointKinds,
   pointsFromProgressNotes,
+  progressNoteTitle,
   timeLabelFromNote,
   type NotePoint,
   type PointKind,
@@ -54,7 +55,7 @@ export function mergeSummaryPoints(notes: string, remote: LeadNotePointPayload[]
     const idx = sourceIndex >= 0 ? sourceIndex : i;
     return {
       id: `gemini-${i}`,
-      title: `Progress ${idx + 1}`,
+      title: progressNoteTitle(idx),
       summary: (p.summary || local[sourceIndex]?.summary || body).slice(0, 220),
       body,
       kind: kinds[0] || 'general',

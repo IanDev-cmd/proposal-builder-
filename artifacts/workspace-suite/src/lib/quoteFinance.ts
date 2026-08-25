@@ -31,6 +31,7 @@ import {
 import { formatProposalRef, formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import type { PackageWordingColumns } from '@/lib/goldPackageWording';
 import { formatEventTimingsPayload, itineraryHours } from '@/lib/proposalTimings';
+import { isQuoteInstructionKeyItems } from '@/lib/quoteKeyItems';
 import { fullStaffName } from '@/lib/staffContacts';
 import { formatPhoneDisplay, staffPhoneSlots } from '@/lib/phoneFormat';
 
@@ -106,7 +107,8 @@ export type QuoteFormInput = {
 
 export function isEventDateTbc(eventDate: string, dateFlexible?: boolean): boolean {
   if (dateFlexible) return true;
-  return !eventDate.trim() || /tbc/i.test(eventDate);
+  const value = String(eventDate || '');
+  return !value.trim() || /tbc/i.test(value);
 }
 
 export function isWeekendOrPeak(eventDate: string, dateFlexible?: boolean): boolean {
@@ -539,6 +541,8 @@ export function buildStargtmPayload(opts: {
       event_date: eventDate,
       date_flexible: Boolean(form.dateFlexible),
       event_timings: formatEventTimingsPayload(form),
+      departure: form.departure || undefined,
+      returnTime: form.returnTime || undefined,
       guest_range: guestRange,
       guest_quote_n: String(guests || lead?.groupSizeQuote || ''),
       prepared_by: preparedBy,
@@ -554,7 +558,7 @@ export function buildStargtmPayload(opts: {
       year_of_event: lead?.yearOfEvent,
       repeat_client: form.repeatClient ? 'YES' : 'NO',
       agent: form.agentReferral ? 'YES' : undefined,
-      key_items: form.keyItems || undefined,
+      key_items: isQuoteInstructionKeyItems(form.keyItems || '') ? form.keyItems : undefined,
       quote_version: form.quoteVersion || undefined,
       weekly_period: form.weeklyPeriod || fin.rateParts?.weeklyPeriod,
       day_period: form.dayPeriod || fin.rateParts?.dayPeriod,

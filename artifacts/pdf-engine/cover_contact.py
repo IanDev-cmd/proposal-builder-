@@ -130,25 +130,32 @@ def format_event_date_compact(value: str) -> str:
     return raw
 
 
-def format_event_timings(value: str, *, include_tbc: bool = True) -> str:
+def format_event_timings(value: str, *, include_tbc: bool = True, departure: str | None = None, return_time: str | None = None) -> str:
     if value is None:
-        return ""
+        value = ""
     raw = str(value).strip()
-    if not raw:
-        return ""
-    times = re.findall(r"(\d{1,2}:\d{2})", raw)
-    if len(times) >= 2:
-        def norm(t):
-            h, m = t.split(":")
-            return f"{int(h):02d}:{m}"
-        out = f"{norm(times[0])}hrs – {norm(times[1])}hrs"
+    start = _norm_hhmm(departure)
+    end = _norm_hhmm(return_time)
+    if start and end:
+        out = f"{start}hrs – {end}hrs"
     else:
-        out = raw.replace("-", "–").replace(" - ", " – ")
-        out = re.sub(r"(\d{1,2}:\d{2})(?!\s*hrs)", r"\1hrs", out)
+        times = re.findall(r"(\d{1,2}:\d{2})", raw)
+        if len(times) >= 2:
+            out = f"{_norm_hhmm(times[0])}hrs – {_norm_hhmm(times[1])}hrs"
+        else:
+            out = raw.replace("-", "–").replace(" - ", " – ")
+            out = re.sub(r"(\d{1,2}:\d{2})(?!\s*hrs)", r"\1hrs", out)
     has_tbc = bool(re.search(r"\(?\s*TBC\s*\)?", raw, re.I))
-    if has_tbc and "(TBC)" not in out:
+    if include_tbc and has_tbc and "(TBC)" not in out:
         out = f"{out} (TBC)"
     return out
+
+
+def _norm_hhmm(value) -> str:
+    m = re.match(r"^\s*(\d{1,2}):(\d{2})", str(value or ""))
+    if not m:
+        return ""
+    return f"{int(m.group(1)):02d}:{m.group(2)}"
 
 
 def format_quote_date(value: str) -> str:
@@ -402,7 +409,12 @@ def normalize_cover_lead(lead: dict) -> dict:
         )
     if "event_timings" in out:
         original = str(lead.get("event_timings", ""))
-        formatted = format_event_timings(original, include_tbc=False)
+        formatted = format_event_timings(
+            original,
+            include_tbc=False,
+            departure=lead.get("departure") or lead.get("event_start"),
+            return_time=lead.get("returnTime") or lead.get("return_time") or lead.get("event_end"),
+        )
         if re.search(r"TBC", original, re.I) and "(TBC)" not in formatted:
             formatted = f"{formatted} (TBC)"
         out["event_timings"] = formatted
@@ -541,6 +553,27 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
     return items
 
 
+def _snap_quote_date_spec(spec: dict) -> dict:
+    """Keep the full template day number (e.g. leftover '27') inside the redact box."""
+    spec = dict(spec)
+    bbox = list(spec.get("bbox") or (227.3, 67.1, 268.0, 73.7))
+    origin = list(spec.get("origin") or (227.3, 72.3))
+    bbox[0] = min(float(bbox[0]), 227.3)
+    bbox[2] = max(float(bbox[2]), 268.0)
+    origin[0] = min(float(origin[0]), 227.3)
+    spec["bbox"] = tuple(bbox)
+    spec["origin"] = tuple(origin)
+    spec["max_width"] = max(float(spec.get("max_width") or 0), bbox[2] - bbox[0])
+    return spec
+
+
+def _cover_slot_is_location(page, spec: dict) -> bool:
+    bbox = spec.get("bbox") or (385.6, 152.0, 470, 168.0)
+    probe = fitz.Rect(350, float(bbox[1]) - 8, float(bbox[0]) + 8, float(bbox[3]) + 8)
+    clip = page.get_text("text", clip=probe) or ""
+    return bool(re.search(r"Location\s*\|", clip, re.I))
+
+
 def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
     page_index = profile.page_cover if profile else config.PAGE_COVER
     fields = dict(profile.cover_fields) if profile and profile.cover_fields else dict(config.COVER_FIELDS)
@@ -561,6 +594,11 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
             continue
         if field_name not in data:
             continue
+        if field_name == "key_items" and _cover_slot_is_location(page, spec):
+            continue
+        spec = dict(spec)
+        if field_name == "quote_date":
+            spec = _snap_quote_date_spec(spec)
         value = str(data[field_name])
         value = _fit_cover_value(field_name, value, spec, font_mgr)
         # If event_date won't fit at designed size, use compact form before shrink

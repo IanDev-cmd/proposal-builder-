@@ -71,7 +71,7 @@ export function buildItineraryProposalBlock(opts: TimingFields): {
     items: [
       `Embark will begin at ${fmtHrs(opts.embarkation)}`,
       `Boat departs at ${fmtHrs(opts.departure)}`,
-      `Returns to pier for ${fmtHrs(opts.returnTime)}`,
+      `Returns to pier at ${fmtHrs(opts.returnTime)}`,
       `Disembark completes at ${fmtHrs(opts.disembarkation)}`,
     ],
   };

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye, Download } from 'lucide-react';
-import { SECTION_META } from '@/lib/quoteBuilderCatalog';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
@@ -55,7 +54,13 @@ import {
 import { writeQuoteStatus, fetchCostRates } from '@/lib/sheetsSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
-import { formatEventTimingsPayload } from '@/lib/proposalTimings';
+import {
+  buildItineraryProposalText,
+  parseItineraryProposalText,
+  buildItineraryProposalBlock,
+  embarkationFromDeparture,
+  formatEventTimingsPayload,
+} from '@/lib/proposalTimings';
 import { PROPOSAL_ENGINE_GENERATE_URL } from '@/lib/backendUrls';
 import { blobToDataUrl, fetchWithTimeout } from '@/lib/http';
 import {
@@ -78,12 +83,7 @@ import {
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { itineraryOverlayWording } from '@/lib/goldPackageWording';
 import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
-import {
-  buildItineraryProposalText,
-  parseItineraryProposalText,
-  buildItineraryProposalBlock,
-  embarkationFromDeparture,
-} from '@/lib/proposalTimings';
+import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
 import { autoConfirmPrefillKeys, collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError, toastSuccess } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
@@ -2352,10 +2352,10 @@ export function Forms() {
                 <p className={sectionLabelCls}>Cost Lines (Quote Builder 2026)</p>
                 <div className="mb-4 sticky top-0 z-[1] rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3 shadow-sm">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E22A12]">
-                    Key items (from Lead)
+                    Key items
                   </p>
-                  <p className="mt-1 text-[13px] font-semibold leading-snug text-gray-800">
-                    {data.initialEnquiry?.trim() || data.keyItems?.trim() || 'No key items yet — add notes on Event Core or keep referring to the lead sheet.'}
+                  <p className="mt-1 text-[13px] font-semibold leading-snug text-gray-800" data-testid="cost-lines-key-items">
+                    {displayQuoteKeyItems(data) || 'No key items yet — add notes on Event Core or keep referring to the lead sheet.'}
                   </p>
                   {!data.keyItems?.trim() ? (
                     <button
@@ -2631,6 +2631,14 @@ export function Forms() {
                 transition={{ duration: 0.25 }}
               >
                 <p className={sectionLabelCls}>Cost Cross-Check</p>
+                {displayQuoteKeyItems(data) ? (
+                  <div className="mb-4 rounded-[10px] border border-[#FF5A45]/25 bg-[#FFF1F0] px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E22A12]">Key items</p>
+                    <p className="mt-1 text-[13px] font-semibold leading-snug text-gray-800" data-testid="cost-check-key-items">
+                      {displayQuoteKeyItems(data)}
+                    </p>
+                  </div>
+                ) : null}
                 <p className="mb-4 text-[13px] leading-relaxed text-gray-500">
                   Compare computed totals to Quote Sheet / progress-notes targets before Proposal Pack.
                   {sheetTargets?.source ? (
@@ -3280,47 +3288,22 @@ export function Forms() {
                         (data.dayPeriod || fin.rateParts?.dayPeriod || '—')}
                     </p>
                   </div>
-                  {data.initialEnquiry || data.keyItems ? (
+                  {displayQuoteKeyItems(data) ? (
                     <div className="col-span-2 rounded-[10px] bg-[#fafafa] px-3 py-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c8a82]">Key items</p>
-                      <p className="font-semibold text-gray-800">{data.initialEnquiry || data.keyItems}</p>
+                      <p className="font-semibold text-gray-800" data-testid="quote-details-key-items">{displayQuoteKeyItems(data)}</p>
                     </div>
                   ) : null}
                 </div>
 
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7c8a82]">
-                  Section totals
-                </p>
-                <div className="mb-5 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
-                  {SECTION_META.filter((s) => s.id !== 'contingency')
-                    .map((s) => ({
-                      label: s.title.replace(/^Section \d+ — /, ''),
-                      val: fin.sectionTotals?.[s.id] || 0,
-                    }))
-                    .filter((r) => r.val > 0)
-                    .map((r) => (
-                      <div
-                        key={r.label}
-                        className="flex items-center justify-between border-b border-[#f0f0f0] px-4 py-2.5 text-[12.5px] text-gray-600 last:border-b-0"
-                      >
-                        <span>{r.label}</span>
-                        <span className="font-semibold text-[#00e676]">£{r.val.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  <div className="flex items-center justify-between bg-[#f0fdf5] px-4 py-2.5 text-[12.5px] font-bold text-gray-700">
-                    <span>Contingency (2.25%)</span>
-                    <span className="text-[#00e676]">£{fin.contingency.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7c8a82]">
                   Cost lines
                 </p>
-                <div className="mb-5">
+                <div className="mb-5" data-testid="quote-details-cost-lines">
                   <CostSectionAccordion
                     lines={fin.lines || []}
                     sectionTotals={fin.sectionTotals}
-                    defaultOpen={['catering', 'entertainment']}
+                    defaultOpen={['catering', 'entertainment', 'beverages']}
                   />
                 </div>
 

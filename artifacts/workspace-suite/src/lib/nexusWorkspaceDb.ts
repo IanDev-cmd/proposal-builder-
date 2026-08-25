@@ -4,7 +4,7 @@
  */
 
 export const WORKSPACE_DB_NAME = 'nexus-workspace';
-export const WORKSPACE_DB_VERSION = 2;
+export const WORKSPACE_DB_VERSION = 3;
 
 export const WORKSPACE_STORES = {
   leads: 'leads',
@@ -34,6 +34,12 @@ function openDb(): Promise<IDBDatabase> {
         const quotes = db.createObjectStore(WORKSPACE_STORES.savedQuotes, { keyPath: 'id' });
         quotes.createIndex('leadKey', 'leadKey', { unique: false });
         quotes.createIndex('savedAt', 'savedAt', { unique: false });
+        quotes.createIndex('reviewStatus', 'reviewStatus', { unique: false });
+      } else if (oldVersion < 3) {
+        const quotes = req.transaction?.objectStore(WORKSPACE_STORES.savedQuotes);
+        if (quotes && !quotes.indexNames.contains('reviewStatus')) {
+          quotes.createIndex('reviewStatus', 'reviewStatus', { unique: false });
+        }
       }
       if (!db.objectStoreNames.contains(WORKSPACE_STORES.proposals)) {
         const proposals = db.createObjectStore(WORKSPACE_STORES.proposals, { keyPath: 'id' });

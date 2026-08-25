@@ -92,7 +92,7 @@ export function QuoteCostLines({
                 {bespokeLines.map((b, idx) => (
                   <div
                     key={b.id}
-                    className={`flex items-center gap-2 rounded-[8px] p-1 ${prefilledBespoke && b.enabled ? PREFILL_INPUT_CLS : ''}`}
+                    className={`flex items-center gap-2 rounded-[8px] p-1`}
                   >
                     <button
                       type="button"
@@ -117,7 +117,7 @@ export function QuoteCostLines({
                         onBespokeChange(next);
                       }}
                       placeholder="Type a description"
-                      className="relative z-[2] flex-1 rounded-[8px] border border-[#e3e6e4] bg-white px-3 py-2 text-[12.5px] text-gray-800"
+                      className="relative z-[2] flex-1 rounded-[8px] border border-[#e3e6e4] bg-white px-3 py-2 text-[12.5px] text-slate-900 caret-slate-900"
                     />
                     <input
                       type="text"

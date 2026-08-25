@@ -305,7 +305,7 @@ function collisionTvUnsafe_(scope: string): boolean {
 const KEY_ITEM_TOKEN_RE =
   /\b(AVON|RECEPTION|BG MUSIC|HFB|3CSD|2CSD|SUB CANS|STREET FOOD|CASINO|PHOTOBOOTH|BAR TAB|CANAP|DJ\b|PHOTOB|MUSIC|DECOR|BUFFET|CENTREPIECE|DRINK TOKEN|TOKENS|AWARDS?|MIC|TV\/MIC)\b/i;
 const CALL_LOG_RE =
-  /\b(proposal sent|spoke(\s+to)?|called|email(ed)?|video call|follow[- ]?up|left (a )?voicemail|voicemail|chased|no answer|ring(?:ing)?|whatsapp|texted)\b/i;
+  /\b(proposal sent|spoke(\s+to)?|called|email(ed)?|video call|follow[- ]?up|left (a )?voicemail|voicemail|chased|no answer|ring(?:ing)?|whatsapp|texted|lead received)\b/i;
 const VERSION_STAMP_RE = /^\s*V\s*\d+\b/i;
 const LEADING_REP_RE =
   /^\s*(?:REP\s+)?(?:Natasha|Katherine|Sapphire|Meera|Carly|Shilen|Ian|Amy|Sarah|Emma|Sophie|Laura|Jessica|Chloe|Olivia|Hannah|Megan|Rachel|Georgia|Ellie|Lucy|Alice|Katie|Rebecca)\b[\s:,-]*/i;
@@ -318,6 +318,16 @@ function cleanKeyItemsChunk(c: string): string {
     .replace(CALL_LOG_RE, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
+}
+
+function parseInitialEnquiryFromNotes(notes: string): string {
+  const first = String(notes || '')
+    .split(/\s*\|\s*|\n{2,}/)
+    .map((s) => s.trim())
+    .find(Boolean);
+  if (!first) return '';
+  const cleaned = cleanKeyItemsChunk(first);
+  return cleaned.slice(0, 220);
 }
 
 /** Prefer keyword-rich key-detail chunks over version-tagged call-log noise. */
@@ -466,6 +476,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const commissionPercent = inferCommissionPercent(agentReferral, notes);
   const menuType = parseMenusFromNotes(notes, quoteVersion);
   const keyItems = parseKeyItemsFromNotes(notes, quoteVersion);
+  const initialEnquiry = parseInitialEnquiryFromNotes(notes) || keyItems;
   const bespoke = parseBespokeFromNotes(notes);
 
   const goldEarly = goldTargetsFromRef(lead.referenceNumber);
@@ -576,7 +587,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
     bespokeLines,
     quoteVersion,
     keyItems,
-    initialEnquiry: keyItems,
+    initialEnquiry,
     progressNotes: notes,
     budget: lead.budget || '',
     proposalCategory,

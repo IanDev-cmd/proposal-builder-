@@ -91,13 +91,37 @@ def _encode_pdf(raw: bytes) -> str:
     return "data:application/pdf;base64," + base64.b64encode(raw).decode("ascii")
 
 
+REVIEW_STATUSES = {"pending", "approved", "disapproved"}
+
+
+def _normalize_review(payload: dict, existing: dict | None = None) -> dict:
+    quote_id = str(payload.get("id") or "").strip()
+    if existing is None and quote_id:
+        existing = get_quote(quote_id)
+    raw = payload.get("reviewStatus")
+    if raw is None and existing:
+        raw = existing.get("reviewStatus")
+    status = str(raw or "pending").strip().lower()
+    if status not in REVIEW_STATUSES:
+        status = "pending"
+    payload["reviewStatus"] = status
+    reviewed_at = payload.get("reviewedAt")
+    if reviewed_at in (None, "") and existing:
+        reviewed_at = existing.get("reviewedAt")
+    if reviewed_at:
+        payload["reviewedAt"] = reviewed_at
+    elif "reviewedAt" in payload and not payload.get("reviewedAt"):
+        payload.pop("reviewedAt", None)
+    return payload
+
+
 def list_quotes() -> list[dict]:
     _ensure_dirs()
     rows: list[dict] = []
     for path in QUOTES_DIR.glob("*.json"):
         row = _read_json(path)
         if row and row.get("id"):
-            rows.append(row)
+            rows.append(_normalize_review(row, existing=row))
     rows.sort(key=lambda r: str(r.get("savedAt") or ""), reverse=True)
     return rows
 
@@ -110,12 +134,16 @@ def put_quote(payload: dict) -> dict:
         payload["grandTotal"] = float(payload.get("grandTotal") or 0)
     except (TypeError, ValueError):
         payload["grandTotal"] = 0.0
+    payload = _normalize_review(payload)
     _write_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json", payload)
     return payload
 
 
 def get_quote(quote_id: str) -> dict | None:
-    return _read_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json")
+    row = _read_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json")
+    if not row:
+        return None
+    return _normalize_review(row, existing=row)
 
 
 def delete_quote(quote_id: str) -> bool:

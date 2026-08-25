@@ -135,7 +135,7 @@ def _itinerary_group(package_wording: dict) -> dict | None:
 
 
 def _find_itinerary_block(page, col_cfg) -> dict | None:
-    col_right = float(col_cfg.get("x", 24)) + float(col_cfg.get("width", 100)) + 6
+    col_right = float(col_cfg.get("x", 24)) + float(col_cfg.get("width", 100))
     rows = []
     for block in page.get_text("dict").get("blocks", []):
         if block.get("type") != 0:

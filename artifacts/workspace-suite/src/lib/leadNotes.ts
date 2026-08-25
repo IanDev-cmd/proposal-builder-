@@ -419,8 +419,12 @@ export function timeLabelFromNote(text: string, fallback: string): string {
   return fallback;
 }
 
-function titleFromEntry(_text: string, _kinds: PointKind[], index: number): string {
+export function progressNoteTitle(index: number): string {
   return `Progress ${index + 1}`;
+}
+
+function titleFromEntry(_text: string, _kinds: PointKind[], index: number): string {
+  return progressNoteTitle(index);
 }
 
 function summaryFromEntry(text: string): string {

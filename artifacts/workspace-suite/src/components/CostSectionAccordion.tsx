@@ -46,6 +46,8 @@ export function CostSectionAccordion({ lines, sectionTotals, defaultOpen }: Prop
               type="button"
               onClick={() => setOpen((p) => ({ ...p, [sec.id]: !p[sec.id] }))}
               className="flex w-full items-center justify-between bg-[#fafafa] px-4 py-3 text-left"
+              data-testid={`cost-section-${sec.id}`}
+              aria-expanded={isOpen}
             >
               <div>
                 <p className="text-[13px] font-semibold text-gray-800">{sec.title}</p>
@@ -64,7 +66,7 @@ export function CostSectionAccordion({ lines, sectionTotals, defaultOpen }: Prop
                       key={line.id}
                       className="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-2.5 text-[12px] last:border-b-0"
                     >
-                      <span className="min-w-0 flex-1 text-gray-700">{line.label}</span>
+                      <span className="min-w-0 flex-1 text-gray-700" data-testid={`cost-line-${line.id}`}>{line.label}</span>
                       <span className="shrink-0 font-semibold text-[#00e676]">£{line.amount.toFixed(2)}</span>
                     </div>
                   ))

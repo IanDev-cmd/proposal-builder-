@@ -102,7 +102,7 @@ export function LeadReferenceCard({
     if (showUpdated) {
       list.push({
         id: 'discovery',
-        title: 'Discovery',
+        title: 'Key items',
         summary: updatedEnquiry.trim(),
         body: updatedEnquiry.trim(),
         kind: 'discovery',

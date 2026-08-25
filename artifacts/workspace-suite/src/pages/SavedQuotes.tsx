@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useParams } from 'wouter';
-import { Bookmark, Mail, Link2, Search, X, Download } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useLocation } from 'wouter';
+import { Bookmark, Search, X } from 'lucide-react';
 import {
   LeadNotesTimeline,
   NOTES_BLUE,
   type TimelineCard,
 } from '@/components/LeadNotesTimeline';
+import { QuoteShareButtons } from '@/components/QuoteShareButtons';
 import {
   consumePendingGenerate,
   deleteSavedQuote,
@@ -15,46 +15,21 @@ import {
   subscribeSavedQuotes,
   hydrateSavedQuotesDb,
   type SavedQuote,
-  getSavedQuote,
-  getSavedQuoteAsync,
 } from '@/lib/savedQuotesStore';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
-import { downloadSavedQuoteCostSheet, quoteFormFromSaved } from '@/lib/costSheet';
-import { CostSectionAccordion } from '@/components/CostSectionAccordion';
-import { calcFinancials } from '@/lib/quoteFinance';
 import { toastError } from '@/lib/notify';
 import { formatGbp } from '@/lib/utils';
 import type { PointKind } from '@/lib/leadNotes';
 import { listOpsQuotes, type OpsQuote } from '@/lib/opsStore';
-
-function WhatsAppIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M12.04 2C6.58 2 2.15 6.4 2.15 11.84c0 1.74.46 3.44 1.33 4.94L2 22l5.37-1.4a10 10 0 0 0 4.67 1.18h.01c5.46 0 9.89-4.4 9.89-9.84C21.94 6.4 17.5 2 12.04 2zm5.75 14.12c-.24.68-1.4 1.3-1.94 1.34-.5.04-1.12.06-1.8-.11-.42-.1-.95-.3-1.64-.6-2.89-1.25-4.77-4.16-4.92-4.36-.14-.2-1.18-1.57-1.18-3 0-1.42.74-2.12 1.01-2.4.26-.28.58-.35.77-.35h.56c.18 0 .42-.07.66.5.24.6.82 2.06.9 2.2.07.15.12.32.02.51-.1.2-.14.32-.28.5-.14.17-.3.38-.42.51-.14.14-.28.3-.12.58.16.28.7 1.16 1.5 1.88 1.04.93 1.9 1.22 2.2 1.36.28.13.45.11.62-.07.16-.17.7-.81.88-1.09.18-.28.37-.23.62-.14.26.1 1.63.77 1.91.91.28.14.46.21.53.32.07.12.07.68-.17 1.36z" />
-    </svg>
-  );
-}
-
-function DropboxIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M7.04 3.4 2 6.7l5.04 3.3L12 6.7 7.04 3.4zm9.92 0L12 6.7l4.96 3.3L22 6.7l-5.04-3.3zM2 13.3l5.04 3.3L12 13.3 7.04 10 2 13.3zm20 0L16.96 10 12 13.3l4.96 3.3L22 13.3zM7.04 17.7 12 21l4.96-3.3L12 14.4l-4.96 3.3z" />
-    </svg>
-  );
-}
-
-function DriveIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <path fill="#0F9D58" d="M4.4 20.4 8.1 14h7.8l-3.7 6.4H4.4z" />
-      <path fill="#4285F4" d="m8.1 14 3.9-6.8h7.6L15.9 14H8.1z" />
-      <path fill="#F4B400" d="M4.4 20.4 8.1 14 12 7.2 8.3 13.6 4.4 20.4z" />
-      <path fill="#DD4B39" d="m12 7.2 3.7 6.8 3.9-6.8H12z" />
-    </svg>
-  );
-}
+import {
+  QUOTE_REVIEW_TABS,
+  filterQuotesByReviewTab,
+  quoteReviewLabel,
+  quoteReviewStatus,
+  type QuoteReviewStatus,
+} from '@/lib/quoteReview';
 
 function formatWhen(iso: string): string {
   const d = new Date(iso);
@@ -85,10 +60,11 @@ function quoteToCard(q: SavedQuote): TimelineCard {
   if (q.grandTotal) kinds.push('budget');
   if (q.guestCount) kinds.push('guests');
   if (q.vesselType) kinds.push('logistics');
+  const status = quoteReviewLabel(quoteReviewStatus(q));
   return {
     id: q.id,
     title: q.title || q.eventType || 'Saved quote',
-    summary: [q.leadName, q.vesselType, q.eventType, q.guestCount && `${q.guestCount} guests`]
+    summary: [status, q.leadName, q.vesselType, q.eventType, q.guestCount && `${q.guestCount} guests`]
       .filter(Boolean)
       .join(' · '),
     body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total ${formatGbp(q.grandTotal)}.`,
@@ -114,21 +90,15 @@ async function restoreQuote(quote: SavedQuote, step?: number) {
   });
 }
 
-function overlayFin(quote: SavedQuote) {
-  const form = quoteFormFromSaved(quote.data);
-  return form ? calcFinancials(form) : null;
-}
-
 export function SavedQuotes() {
-  const params = useParams<{ id?: string }>();
   const [, navigate] = useLocation();
   const [quotes, setQuotes] = useState<SavedQuote[]>(() => listSavedQuotes());
-  const [activeId, setActiveId] = useState<string | null>(params.id || quotes[0]?.id || null);
-  const [overlayId, setOverlayId] = useState<string | null>(params.id || null);
+  const [activeId, setActiveId] = useState<string | null>(quotes[0]?.id || null);
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareHint, setShareHint] = useState('');
   const [query, setQuery] = useState('');
+  const [reviewTab, setReviewTab] = useState<QuoteReviewStatus>('pending');
   const [loading, setLoading] = useState(() => listSavedQuotes().length === 0);
   const [opsQuotes, setOpsQuotes] = useState<OpsQuote[]>([]);
 
@@ -138,7 +108,6 @@ export function SavedQuotes() {
     let cancelled = false;
     void hydrateSavedQuotesDb()
       .then(async () => {
-        if (params.id) await getSavedQuoteAsync(params.id);
         const snaps = await listOpsQuotes();
         if (!cancelled) {
           setQuotes(listSavedQuotes());
@@ -152,22 +121,22 @@ export function SavedQuotes() {
     return () => {
       cancelled = true;
     };
-  }, [params.id]);
+  }, []);
 
-  useEffect(() => {
-    if (params.id) {
-      setOverlayId(params.id);
-      setActiveId(params.id);
-    }
-  }, [params.id]);
+  const tabCounts = useMemo(
+    () => ({
+      pending: filterQuotesByReviewTab(quotes, 'pending').length,
+      approved: filterQuotesByReviewTab(quotes, 'approved').length,
+      disapproved: filterQuotesByReviewTab(quotes, 'disapproved').length,
+    }),
+    [quotes],
+  );
 
-  const overlay = overlayId
-    ? quotes.find((q) => q.id === overlayId) || getSavedQuote(overlayId)
-    : null;
   const filteredQuotes = useMemo(() => {
+    const byStatus = filterQuotesByReviewTab(quotes, reviewTab);
     const q = query.trim().toLowerCase();
-    if (!q) return quotes;
-    return quotes.filter((item) =>
+    if (!q) return byStatus;
+    return byStatus.filter((item) =>
       [
         item.title,
         item.leadName,
@@ -177,17 +146,16 @@ export function SavedQuotes() {
         item.eventType,
         item.guestCount,
         item.eventDate,
-        item.lead?.email,
-        item.lead?.company,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(q),
     );
-  }, [quotes, query]);
+  }, [quotes, query, reviewTab]);
   const cards = useMemo(() => {
     const saved = filteredQuotes.map(quoteToCard);
+    if (reviewTab !== 'pending') return saved;
     const q = query.trim().toLowerCase();
     const extra = opsQuotes.filter((snap) => {
       if (quotes.some((item) => item.id === snap.id)) return false;
@@ -202,7 +170,7 @@ export function SavedQuotes() {
         .includes(q);
     });
     return [...saved, ...extra.map(opsQuoteToCard)];
-  }, [filteredQuotes, quotes, opsQuotes, query]);
+  }, [filteredQuotes, quotes, opsQuotes, query, reviewTab]);
 
   async function generate(quote: SavedQuote) {
     await restoreQuote(quote);
@@ -215,25 +183,25 @@ export function SavedQuotes() {
     setSharing(true);
     try {
       const result = await openQuoteShareWeb(channel, quote);
-      if (channel === 'link' || result === 'overlay') {
+      if (channel === 'link' || result === 'copied' || result === 'overlay') {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1600);
-        setOverlayId(quote.id);
-        navigate(`/saved-quotes/${quote.id}`);
-        setShareHint('Quote overlay opened — link copied');
+        setShareHint('Quote page link copied');
       } else if (result === 'opened-copied') {
-        setShareHint(channel === 'dropbox' ? 'Opened Dropbox — quote link copied' : 'Opened Drive — quote link copied');
+        setShareHint(
+          channel === 'dropbox' ? 'Quote page downloaded — opened Dropbox' : 'Quote page downloaded — opened Drive',
+        );
       } else if (channel === 'email') {
-        setShareHint('Opened Gmail with this quote');
+        setShareHint('Quote page downloaded — Gmail opened with To blank');
       } else {
-        setShareHint('Opened WhatsApp with this quote');
+        setShareHint('Quote page downloaded — opened WhatsApp');
       }
       window.setTimeout(() => setShareHint(''), 3500);
     } catch {
       toastError({
         key: 'share-quote',
-        title: 'Could not open the share link',
-        description: 'Try again, or copy the quote overlay URL from the address bar.',
+        title: 'Could not share this quote',
+        description: 'Try again, or copy the quote page URL from the address bar.',
       });
       setShareHint('');
     } finally {
@@ -241,42 +209,12 @@ export function SavedQuotes() {
     }
   }
 
-  function shareRow(quote: SavedQuote, onBlue: boolean) {
-    const iconCls = onBlue ? 'text-white' : 'text-slate-600';
-    const btn = 'flex h-9 w-9 items-center justify-center rounded-[10px] transition-transform hover:scale-105';
-    const bg = onBlue ? 'bg-white/15 hover:bg-white/25' : 'bg-white shadow-sm hover:bg-slate-50';
-    return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button type="button" title="Email" aria-label="Share via Email" className={`${btn} ${bg}`} onClick={() => share('email', quote)}>
-          <Mail className={`h-4 w-4 ${onBlue ? 'text-white' : 'text-[#EA4335]'}`} />
-        </button>
-        <button type="button" title="WhatsApp" aria-label="Share via WhatsApp" className={`${btn} ${bg}`} onClick={() => share('whatsapp', quote)}>
-          <WhatsAppIcon className={`h-4 w-4 ${onBlue ? 'text-white' : 'text-[#25D366]'}`} />
-        </button>
-        <button
-          type="button"
-          title="Dropbox"
-          aria-label="Save to Dropbox"
-          className={`${btn} ${bg}`}
-          onClick={() => share('dropbox', quote)}
-        >
-          <DropboxIcon className={`h-4 w-4 ${onBlue ? 'text-white' : 'text-[#0061FF]'}`} />
-        </button>
-        <button
-          type="button"
-          title="Google Drive"
-          aria-label="Save to Google Drive"
-          className={`${btn} ${bg}`}
-          onClick={() => share('drive', quote)}
-        >
-          <DriveIcon className="h-4 w-4" />
-        </button>
-        <button type="button" title={copied ? 'Copied' : 'Copy link'} aria-label="Copy link" className={`${btn} ${bg}`} onClick={() => share('link', quote)}>
-          <Link2 className={`h-4 w-4 ${iconCls}`} />
-        </button>
-      </div>
-    );
-  }
+  const emptyByTab =
+    reviewTab === 'approved'
+      ? 'No approved quotes yet.'
+      : reviewTab === 'disapproved'
+        ? 'No disapproved quotes yet.'
+        : 'No quotes waiting for review — finish a quote and tap Save Quote.';
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-white" data-testid="saved-quotes-page">
@@ -290,6 +228,29 @@ export function SavedQuotes() {
             {sharing ? 'Opening…' : shareHint}
           </span>
         ) : null}
+      </div>
+      <div className="shrink-0 px-6 pb-3" role="tablist" aria-label="Quote review filters">
+        <div className="flex gap-1 rounded-[12px] bg-[#F3F4F6] p-1">
+          {QUOTE_REVIEW_TABS.map((tab) => {
+            const active = reviewTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-testid={`quotes-tab-${tab.id}`}
+                onClick={() => setReviewTab(tab.id)}
+                className={`min-w-0 flex-1 rounded-[10px] px-2 py-2 text-[11px] font-bold sm:text-[12px] ${
+                  active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {tab.label}
+                <span className="ml-1 text-[10px] font-semibold text-slate-400">{tabCounts[tab.id]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="shrink-0 px-6 pb-3">
         <label className="flex items-center gap-2 rounded-[12px] border border-slate-200 bg-[#F3F4F6] px-3 py-2.5 focus-within:border-[#2F7CF6] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2F7CF6]/20">
@@ -343,7 +304,7 @@ export function SavedQuotes() {
             ? 'Loading saved quotes…'
             : query.trim()
               ? `No saved quotes match “${query.trim()}”.`
-              : 'No saved quotes yet — finish a quote and tap Save Quote.'
+              : emptyByTab
         }
         columns={2}
         onDelete={(card) => {
@@ -351,10 +312,6 @@ export function SavedQuotes() {
           if (!window.confirm('Delete this saved quote?')) return;
           deleteSavedQuote(card.id);
           setQuotes(listSavedQuotes());
-          if (overlayId === card.id) {
-            setOverlayId(null);
-            navigate('/saved-quotes');
-          }
         }}
         footer={(card, active) => {
           if (!active) return null;
@@ -362,11 +319,19 @@ export function SavedQuotes() {
           if (quote) {
             return (
               <div className="mt-3 flex flex-col gap-2.5">
-                {shareRow(quote, true)}
+                <QuoteShareButtons quote={quote} onBlue copied={copied} onShare={share} />
+                <button
+                  type="button"
+                  onClick={() => navigate(`/saved-quotes/${quote.id}`)}
+                  className="w-full rounded-[12px] bg-white py-2.5 text-[12.5px] font-bold text-[#2F7CF6] shadow-sm"
+                  data-testid={`saved-quote-open-${quote.id}`}
+                >
+                  Open quote
+                </button>
                 <button
                   type="button"
                   onClick={() => generate(quote)}
-                  className="w-full rounded-[12px] bg-white py-2.5 text-[12.5px] font-bold text-[#2F7CF6] shadow-sm"
+                  className="w-full rounded-[12px] bg-white/15 py-2.5 text-[12.5px] font-bold text-white"
                   data-testid={`saved-quote-generate-${quote.id}`}
                 >
                   Generate Proposal
@@ -386,115 +351,6 @@ export function SavedQuotes() {
           );
         }}
       />
-
-      <AnimatePresence>
-        {overlay ? (
-          <motion.div
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-[#0b0f0d]/55 p-4 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => {
-              setOverlayId(null);
-              navigate('/saved-quotes');
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={overlay.title}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.97 }}
-              className="relative max-h-[88vh] w-full max-w-[560px] overflow-hidden rounded-[22px] bg-white shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between px-6 pt-5">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Saved quote</p>
-                  <h2 className="mt-1 text-[18px] font-bold text-slate-900">{overlay.title}</h2>
-                  <p className="mt-1 text-[13px] text-slate-500">
-                    {overlay.leadName || 'No lead'} · {overlay.referenceNumber || overlay.leadKey}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close"
-                  onClick={() => {
-                    setOverlayId(null);
-                    navigate('/saved-quotes');
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <dl className="mt-5 grid grid-cols-2 gap-3 px-6 text-[13px]">
-                <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Vessel</dt>
-                  <dd className="font-semibold text-slate-800">{overlay.vesselType || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Event</dt>
-                  <dd className="font-semibold text-slate-800">{overlay.eventType || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Guests</dt>
-                  <dd className="font-semibold text-slate-800">{overlay.guestCount || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Grand total</dt>
-                  <dd className="font-bold text-[#00e676]">{formatGbp(overlay.grandTotal)}</dd>
-                </div>
-              </dl>
-              <div className="mt-5 max-h-[38vh] overflow-y-auto px-6">
-                {(() => {
-                  const fin = overlayFin(overlay);
-                  if (!fin) return <p className="text-[12px] text-slate-400">Cost lines were not saved with this quote.</p>;
-                  return (
-                    <CostSectionAccordion
-                      lines={fin.lines || []}
-                      sectionTotals={fin.sectionTotals}
-                      defaultOpen={['catering', 'entertainment']}
-                    />
-                  );
-                })()}
-              </div>
-              <div className="mt-6 flex flex-col gap-2 px-6">
-                {shareRow(overlay, false)}
-                {shareHint ? (
-                  <p className="text-[11px] font-medium text-[#2F7CF6]">{shareHint}</p>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-2 p-6 pt-4">
-                <button
-                  type="button"
-                  onClick={() => downloadSavedQuoteCostSheet(overlay)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-slate-200 py-3 text-[13px] font-bold text-slate-700"
-                >
-                  <Download className="h-4 w-4" />
-                  Download cost sheet
-                </button>
-                <button
-                  type="button"
-                  onClick={() => restoreQuote(overlay, 4).then(() => navigate('/quote-builder'))}
-                  className="w-full rounded-[14px] border border-slate-200 py-3 text-[13px] font-bold text-slate-700"
-                >
-                  Open cost lines
-                </button>
-                <button
-                  type="button"
-                  onClick={() => generate(overlay)}
-                  className="w-full rounded-[14px] py-3 text-[13px] font-bold text-white"
-                  style={{ backgroundColor: NOTES_BLUE }}
-                >
-                  Generate Proposal
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </div>
   );
 }

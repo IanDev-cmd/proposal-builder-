@@ -19,7 +19,13 @@ export async function syncWorkspaceCloud(): Promise<void> {
       const remote = remoteById.get(quote.id);
       const remoteHasData = Boolean(remote?.data && Object.keys(remote.data).length);
       const localHasData = Boolean(quote.data && Object.keys(quote.data).length);
-      if (!remote || (quote.savedAt || '') > (remote.savedAt || '') || (localHasData && !remoteHasData)) {
+      const localReviewNewer = (quote.reviewedAt || '') > (remote?.reviewedAt || '');
+      if (
+        !remote ||
+        (quote.savedAt || '') > (remote.savedAt || '') ||
+        localReviewNewer ||
+        (localHasData && !remoteHasData)
+      ) {
         void cloudPutQuote(quote).catch(() => {
           /* retry on next boot */
         });

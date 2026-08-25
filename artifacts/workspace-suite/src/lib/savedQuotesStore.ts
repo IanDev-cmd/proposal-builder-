@@ -14,6 +14,7 @@ import {
   workspaceDelete,
 } from '@/lib/nexusWorkspaceDb';
 import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote } from '@/lib/workspaceCloud';
+import { pickReviewFields, quoteReviewStatus, type QuoteReviewStatus } from '@/lib/quoteReview';
 
 export type SavedQuote = {
   id: string;
@@ -31,6 +32,9 @@ export type SavedQuote = {
   data: Record<string, unknown>;
   lead: QuoteLead | null;
   proposalId?: string;
+  /** pending = not yet approved or disapproved */
+  reviewStatus?: QuoteReviewStatus;
+  reviewedAt?: string;
 };
 
 const STORAGE_KEY = 'nexus_saved_quotes';
@@ -78,23 +82,30 @@ function emit() {
   }
 }
 
+function mergeQuotePair(prev: SavedQuote, next: SavedQuote): SavedQuote {
+  const prevHasData = Boolean(prev.data && Object.keys(prev.data).length);
+  const nextHasData = Boolean(next.data && Object.keys(next.data).length);
+  const nextNewerSave = (next.savedAt || '') > (prev.savedAt || '');
+  const base = nextNewerSave ? next : prev;
+  const other = nextNewerSave ? prev : next;
+  const data =
+    base.data && Object.keys(base.data).length ? base.data : other.data;
+  const review = pickReviewFields(prev, next);
+  return {
+    ...base,
+    data: prevHasData || nextHasData ? data : base.data,
+    reviewStatus: review.reviewStatus,
+    reviewedAt: review.reviewedAt,
+  };
+}
+
 function mergeQuotes(...groups: SavedQuote[][]): SavedQuote[] {
   const map = new Map<string, SavedQuote>();
   for (const group of groups) {
     for (const q of group) {
       if (!q?.id) continue;
       const prev = map.get(q.id);
-      const prevHasData = prev && prev.data && Object.keys(prev.data).length > 0;
-      const nextHasData = q.data && Object.keys(q.data).length > 0;
-      if (!prev) {
-        map.set(q.id, q);
-        continue;
-      }
-      if ((q.savedAt || '') > (prev.savedAt || '')) {
-        map.set(q.id, nextHasData || !prevHasData ? q : { ...q, data: prev.data });
-        continue;
-      }
-      if (!prevHasData && nextHasData) map.set(q.id, { ...prev, data: q.data });
+      map.set(q.id, prev ? mergeQuotePair(prev, q) : { ...q, reviewStatus: quoteReviewStatus(q) });
     }
   }
   return sortQuotes([...map.values()]);
@@ -123,12 +134,37 @@ export function getSavedQuote(id: string): SavedQuote | null {
 export function upsertSavedQuote(
   input: Omit<SavedQuote, 'savedAt'> & { savedAt?: string },
 ): SavedQuote {
-  const next: SavedQuote = { ...input, savedAt: input.savedAt || new Date().toISOString() };
+  const prev = getSavedQuote(input.id);
+  const reviewStatus = input.reviewStatus
+    ? quoteReviewStatus(input)
+    : prev
+      ? quoteReviewStatus(prev)
+      : 'pending';
+  const next: SavedQuote = {
+    ...input,
+    savedAt: input.savedAt || new Date().toISOString(),
+    reviewStatus,
+    reviewedAt: input.reviewedAt ?? prev?.reviewedAt,
+  };
   const list = ensureMemory().filter((q) => q.id !== next.id);
   list.unshift(next);
   setMemory(list);
   void workspacePut(STORE, next);
   return next;
+}
+
+export async function setQuoteReviewStatus(
+  id: string,
+  status: QuoteReviewStatus,
+): Promise<SavedQuote | null> {
+  const current = getSavedQuote(id) || (await getSavedQuoteAsync(id));
+  if (!current) return null;
+  return persistSavedQuote({
+    ...current,
+    savedAt: current.savedAt,
+    reviewStatus: status,
+    reviewedAt: new Date().toISOString(),
+  });
 }
 
 export async function persistSavedQuote(
@@ -212,13 +248,19 @@ export function peekPendingGenerate(): string | null {
 }
 
 export function savedQuoteSharePath(id: string): string {
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const env = (import.meta as ImportMeta & { env?: { BASE_URL?: string } }).env;
+  const base = (env?.BASE_URL || '/').replace(/\/$/, '');
   return `${base}/saved-quotes/${encodeURIComponent(id)}`;
 }
 
 export function savedQuoteShareUrl(id: string): string {
-  if (typeof window === 'undefined') return `${savedQuoteSharePath(id)}?view=cost`;
-  return `${window.location.origin}${savedQuoteSharePath(id)}?view=cost`;
+  if (typeof window === 'undefined') return savedQuoteSharePath(id);
+  return `${window.location.origin}${savedQuoteSharePath(id)}`;
+}
+
+export function savedQuoteIsCostView(search?: string): boolean {
+  const q = search ?? (typeof window !== 'undefined' ? window.location.search : '');
+  return new URLSearchParams(q).get('view') === 'cost';
 }
 
 export async function getSavedQuoteAsync(id: string): Promise<SavedQuote | null> {

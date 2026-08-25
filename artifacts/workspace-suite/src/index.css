@@ -360,6 +360,18 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  /* Quote Builder sits on white cards; body foreground is near-white so
+     unstyled inputs look blank until highlighted. Force readable ink. */
+  input,
+  textarea,
+  select {
+    color: #1a1d21;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+  }
 }
 
 /**
