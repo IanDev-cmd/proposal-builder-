@@ -10,7 +10,8 @@
  * 3. Triggers → onInstallableEdit → From spreadsheet → On edit.
  * 4. Optional: time trigger every 15 minutes on buildNexusCatalog.
  *
- * Writes tab "_Nexus Catalog". n8n CostRatesFetch reads that tab only.
+ * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab only.
+ * n8n no longer reads this tab — keep buildNexusCatalog as the sheet brain.
  * Extras.gs appends margin / cutlery_ratio / staff_ratio rows.
  * Does not call n8n. Does not dump the whole workbook.
  */

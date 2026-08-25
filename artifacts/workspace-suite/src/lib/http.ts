@@ -47,9 +47,7 @@ export async function readJsonResponse<T = unknown>(
 ): Promise<T> {
   const text = await res.text();
   if (!text.trim()) {
-    throw new Error(
-      `${label} returned an empty body. Confirm the WEOTT workflow is Published on harmonyproxy and the webhook path is ${label}.`,
-    );
+    throw new Error(`${label} returned an empty body.`);
   }
   try {
     return JSON.parse(text) as T;

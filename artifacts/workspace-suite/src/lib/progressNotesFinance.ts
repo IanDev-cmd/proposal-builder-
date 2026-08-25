@@ -5,7 +5,7 @@
  * 1. Split notes on `|` into chronological chunks.
  * 2. Prefer the chunk matching the active quote version (V2, V4, …).
  * 3. Apply ordered regex / keyword rules (indexed catalog below).
- * 4. Sheet columns from n8n override notes when present.
+ * 4. Sheet columns from LeadDataFetch override notes when present.
  *
  * This matches how REPs write shorthand (HFB, AVON, SAME MARGIN AS V1, bar tab £1500).
  */
@@ -264,7 +264,7 @@ function pickString(row: Record<string, unknown>, keys: string[]): string | unde
   return undefined;
 }
 
-/** Read future / optional Quote Sheet columns from n8n row (overrides progress notes). */
+/** Read optional Quote Sheet columns from a lead row (overrides progress notes). */
 export function extractSheetFinancialColumns(row: Record<string, unknown>): Partial<SheetFinancialColumns> {
   const out: Partial<SheetFinancialColumns> = {};
   const weott = pickNumber(row, SHEET_WEOTT_KEYS);

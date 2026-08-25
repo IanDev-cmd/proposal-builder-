@@ -5,35 +5,29 @@
 
 import type { Lead } from '@/components/LeadPanel';
 import { fetchLeadsFromWebhook } from '@/lib/leadsNetwork';
-import { getSheetsMode, type SheetsMode } from '@/lib/sheetsSync';
 import { WORKSPACE_STORES, workspaceDelete, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
 
-const CACHE_PREFIX = 'nexus.leadsCache.v1';
+const CACHE_KEY = 'nexus.leadsCache.v2';
 const STORE = WORKSPACE_STORES.leads;
+const LEADS_RECORD_ID = 'leads';
 const LEADS_EVENT = 'nexus:leads-updated';
-/** Background poll interval (regular fetch without blocking UI). */
 export const LEADS_REFRESH_MS = 90_000;
-/** Treat cache newer than this as "fresh" (still poll, but skip if user just loaded). */
 export const LEADS_FRESH_MS = 30_000;
 
 export type LeadsCachePayload = {
-  mode: SheetsMode;
+  id: typeof LEADS_RECORD_ID;
   fetchedAt: number;
   leads: Lead[];
 };
-
-function cacheKey(mode: SheetsMode = getSheetsMode()): string {
-  return `${CACHE_PREFIX}.${mode}`;
-}
 
 function slimLead(lead: Lead): Lead {
   const { sapphire: _sapphire, ...rest } = lead;
   return rest;
 }
 
-export function readLeadsCache(mode: SheetsMode = getSheetsMode()): LeadsCachePayload | null {
+export function readLeadsCache(): LeadsCachePayload | null {
   try {
-    const raw = localStorage.getItem(cacheKey(mode));
+    const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LeadsCachePayload;
     if (!parsed || !Array.isArray(parsed.leads)) return null;
@@ -43,35 +37,32 @@ export function readLeadsCache(mode: SheetsMode = getSheetsMode()): LeadsCachePa
   }
 }
 
-export async function readLeadsFromDb(mode: SheetsMode = getSheetsMode()): Promise<LeadsCachePayload | null> {
+export async function readLeadsFromDb(): Promise<LeadsCachePayload | null> {
   try {
-    const fromDb = await workspaceGet<LeadsCachePayload>(STORE, mode);
+    const fromDb = await workspaceGet<LeadsCachePayload>(STORE, LEADS_RECORD_ID);
     if (fromDb?.leads?.length) return fromDb;
   } catch {
     /* fall through */
   }
-  return readLeadsCache(mode);
+  return readLeadsCache();
 }
 
-export async function persistLeadsCache(
-  leads: Lead[],
-  mode: SheetsMode = getSheetsMode(),
-): Promise<void> {
+export async function persistLeadsCache(leads: Lead[]): Promise<void> {
   const payload: LeadsCachePayload = {
-    mode,
+    id: LEADS_RECORD_ID,
     fetchedAt: Date.now(),
     leads,
   };
   try {
     await workspacePut(STORE, payload);
   } catch {
-    /* keep going so the UI still holds the n8n list */
+    /* keep going so the UI still holds the Sheets list */
   }
   try {
-    localStorage.setItem(cacheKey(mode), JSON.stringify({ ...payload, leads: leads.map(slimLead) }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...payload, leads: leads.map(slimLead) }));
   } catch {
     try {
-      localStorage.removeItem(cacheKey(mode));
+      localStorage.removeItem(CACHE_KEY);
     } catch {
       /* quota */
     }
@@ -83,8 +74,8 @@ export async function persistLeadsCache(
   }
 }
 
-export function writeLeadsCache(leads: Lead[], mode: SheetsMode = getSheetsMode()): void {
-  void persistLeadsCache(leads, mode);
+export function writeLeadsCache(leads: Lead[]): void {
+  void persistLeadsCache(leads);
 }
 
 export function subscribeLeadsCache(cb: () => void): () => void {
@@ -98,37 +89,31 @@ export function isLeadsCacheFresh(cache: LeadsCachePayload | null, maxAgeMs = LE
   return Date.now() - cache.fetchedAt < maxAgeMs;
 }
 
-export function clearLeadsCache(mode?: SheetsMode): void {
-  const modes = mode ? [mode] : (['demo', 'live'] as SheetsMode[]);
-  for (const m of modes) {
-    try {
-      localStorage.removeItem(cacheKey(m));
-    } catch {
-      /* ignore */
-    }
-    void workspaceDelete(STORE, m);
+export function clearLeadsCache(): void {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* ignore */
   }
+  void workspaceDelete(STORE, LEADS_RECORD_ID);
 }
 
 export async function hydrateLeadsDb(): Promise<void> {
-  for (const mode of ['demo', 'live'] as SheetsMode[]) {
-    try {
-      const fromDb = await workspaceGet<LeadsCachePayload>(STORE, mode);
-      const local = readLeadsCache(mode);
-      if (!fromDb && local?.leads?.length) {
-        await workspacePut(STORE, local);
-      }
-    } catch {
-      /* ignore */
+  try {
+    const fromDb = await workspaceGet<LeadsCachePayload>(STORE, LEADS_RECORD_ID);
+    const local = readLeadsCache();
+    if (!fromDb && local?.leads?.length) {
+      await workspacePut(STORE, { ...local, id: LEADS_RECORD_ID });
     }
+  } catch {
+    /* ignore */
   }
 }
 
 export async function refreshLeadsFromNetwork(): Promise<void> {
   try {
-    const mode = getSheetsMode();
-    const leads = await fetchLeadsFromWebhook(mode);
-    if (leads.length) await persistLeadsCache(leads, mode);
+    const leads = await fetchLeadsFromWebhook();
+    if (leads.length) await persistLeadsCache(leads);
   } catch {
     /* IndexedDB cache still used elsewhere */
   }

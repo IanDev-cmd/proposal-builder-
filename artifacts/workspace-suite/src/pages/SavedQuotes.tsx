@@ -27,6 +27,7 @@ import { calcFinancials } from '@/lib/quoteFinance';
 import { toastError } from '@/lib/notify';
 import { formatGbp } from '@/lib/utils';
 import type { PointKind } from '@/lib/leadNotes';
+import { listOpsQuotes, type OpsQuote } from '@/lib/opsStore';
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -59,6 +60,24 @@ function formatWhen(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function opsQuoteToCard(q: OpsQuote): TimelineCard {
+  const kinds: PointKind[] = ['pipeline'];
+  if (q.grandTotal) kinds.push('budget');
+  if (q.guestCount) kinds.push('guests');
+  return {
+    id: q.id,
+    title: q.title || q.status || 'Quote snapshot',
+    summary: [q.leadName, q.eventType, q.status, q.guestCount && `${q.guestCount} guests`]
+      .filter(Boolean)
+      .join(' · '),
+    body: `${q.eventType || 'Event'} · ${q.status || 'snapshot'} · grand total ${formatGbp(Number(q.grandTotal) || 0)}.`,
+    kind: 'pipeline',
+    kinds,
+    when: formatWhen(q.updatedAt),
+    sourceIndex: null,
+  };
 }
 
 function quoteToCard(q: SavedQuote): TimelineCard {
@@ -111,6 +130,7 @@ export function SavedQuotes() {
   const [shareHint, setShareHint] = useState('');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(() => listSavedQuotes().length === 0);
+  const [opsQuotes, setOpsQuotes] = useState<OpsQuote[]>([]);
 
   useEffect(() => subscribeSavedQuotes(() => setQuotes(listSavedQuotes())), []);
 
@@ -119,8 +139,10 @@ export function SavedQuotes() {
     void hydrateSavedQuotesDb()
       .then(async () => {
         if (params.id) await getSavedQuoteAsync(params.id);
+        const snaps = await listOpsQuotes();
         if (!cancelled) {
           setQuotes(listSavedQuotes());
+          setOpsQuotes(snaps);
           setLoading(false);
         }
       })
@@ -164,7 +186,23 @@ export function SavedQuotes() {
         .includes(q),
     );
   }, [quotes, query]);
-  const cards = useMemo(() => filteredQuotes.map(quoteToCard), [filteredQuotes]);
+  const cards = useMemo(() => {
+    const saved = filteredQuotes.map(quoteToCard);
+    const q = query.trim().toLowerCase();
+    const extra = opsQuotes.filter((snap) => {
+      if (quotes.some((item) => item.id === snap.id)) return false;
+      if (snap.referenceNumber && quotes.some((item) => item.referenceNumber === snap.referenceNumber)) {
+        return false;
+      }
+      if (!q) return true;
+      return [snap.title, snap.leadName, snap.referenceNumber, snap.eventType, snap.status]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    });
+    return [...saved, ...extra.map(opsQuoteToCard)];
+  }, [filteredQuotes, quotes, opsQuotes, query]);
 
   async function generate(quote: SavedQuote) {
     await restoreQuote(quote);
@@ -289,6 +327,7 @@ export function SavedQuotes() {
             void restoreQuote(quote).then(() => navigate('/quote-builder'));
             return;
           }
+          if (opsQuotes.some((q) => q.id === activeId)) return;
           consumePendingGenerate();
           markQuoteBuilderStartAt(1);
           navigate('/quote-builder');
@@ -308,6 +347,7 @@ export function SavedQuotes() {
         }
         columns={2}
         onDelete={(card) => {
+          if (opsQuotes.some((q) => q.id === card.id) && !quotes.some((q) => q.id === card.id)) return;
           if (!window.confirm('Delete this saved quote?')) return;
           deleteSavedQuote(card.id);
           setQuotes(listSavedQuotes());
@@ -319,19 +359,30 @@ export function SavedQuotes() {
         footer={(card, active) => {
           if (!active) return null;
           const quote = quotes.find((q) => q.id === card.id);
-          if (!quote) return null;
+          if (quote) {
+            return (
+              <div className="mt-3 flex flex-col gap-2.5">
+                {shareRow(quote, true)}
+                <button
+                  type="button"
+                  onClick={() => generate(quote)}
+                  className="w-full rounded-[12px] bg-white py-2.5 text-[12.5px] font-bold text-[#2F7CF6] shadow-sm"
+                  data-testid={`saved-quote-generate-${quote.id}`}
+                >
+                  Generate Proposal
+                </button>
+              </div>
+            );
+          }
+          const snap = opsQuotes.find((q) => q.id === card.id);
+          if (!snap) return null;
           return (
-            <div className="mt-3 flex flex-col gap-2.5">
-              {shareRow(quote, true)}
-              <button
-                type="button"
-                onClick={() => generate(quote)}
-                className="w-full rounded-[12px] bg-white py-2.5 text-[12.5px] font-bold text-[#2F7CF6] shadow-sm"
-                data-testid={`saved-quote-generate-${quote.id}`}
-              >
-                Generate Proposal
-              </button>
-            </div>
+            <p className="mt-3 text-[12px] text-white/80">
+              Sheet snapshot{snap.status ? ` · ${snap.status}` : ''}
+              {snap.grandTotal != null && snap.grandTotal !== ''
+                ? ` · ${formatGbp(Number(snap.grandTotal) || 0)}`
+                : ''}
+            </p>
           );
         }}
       />

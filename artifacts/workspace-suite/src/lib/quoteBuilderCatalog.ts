@@ -210,7 +210,7 @@ function lineId(section: string, label: string): string {
 
 let liveCatalogLines: CatalogLine[] | null = null;
 
-/** Extra Cost Mother lines from n8n / Apps Script catalog (new rows appear as cards). */
+/** Extra Cost Mother lines from Apps Script catalog (new rows appear as cards). */
 export function setLiveCatalogLines(
   lines: Array<{ id?: string; section?: string; label?: string; multiplier?: string }> | null,
 ): void {

@@ -1,8 +1,8 @@
 /**
- * Live finance playbook — n8n webhooks → same prefill + calc the UI uses.
+ * Live finance playbook — Apps Script Sheets API → same prefill + calc the UI uses.
  * No AI. No frozen gold Quote Sheet JSON. No invented adversarial fixtures.
  */
-import { N8N_BASE } from '@/lib/backendUrls';
+import { callAppsScript } from '@/lib/appsScriptClient';
 import { parseCostRatesPayload, parseLeadDataFetch } from '@/lib/contracts';
 import {
   parseCostMotherRows,
@@ -126,7 +126,6 @@ export type LiveLeadRun = {
 
 export type LivePlaybookReport = {
   ok: boolean;
-  mode: 'demo' | 'live';
   steps: LivePlaybookStep[];
   leads: LiveLeadRun[];
 };
@@ -135,20 +134,8 @@ function step(name: string, ok: boolean, detail: string): LivePlaybookStep {
   return { step: name, ok, detail };
 }
 
-async function postWebhook(path: string, mode: 'demo' | 'live'): Promise<unknown> {
-  const res = await fetch(`${N8N_BASE}/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode }),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`${path} HTTP ${res.status}: ${text.slice(0, 180)}`);
-  if (!text.trim()) throw new Error(`${path} empty body`);
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(`${path} returned non-JSON`);
-  }
+async function postWebhook(path: string): Promise<unknown> {
+  return callAppsScript(path);
 }
 
 function mapLead(raw: Record<string, unknown>, index: number): QuoteLead {
@@ -415,7 +402,7 @@ function runOneLead(lead: QuoteLead, kind: LiveLeadRun['kind'], scOverride?: Liv
   };
 }
 
-export async function runLiveFinancialPlaybook(mode: 'demo' | 'live' = 'live'): Promise<LivePlaybookReport> {
+export async function runLiveFinancialPlaybook(): Promise<LivePlaybookReport> {
   const steps: LivePlaybookStep[] = [];
 
   const defaultLabels = getQuoteLines()
@@ -437,7 +424,7 @@ export async function runLiveFinancialPlaybook(mode: 'demo' | 'live' = 'live'): 
 
   let ratesRaw: unknown;
   try {
-    ratesRaw = await postWebhook('CostRatesFetch', mode);
+    ratesRaw = await postWebhook('CostRatesFetch');
     const rates = parseCostRatesPayload(ratesRaw);
     const structured =
       rates.costMother ||
@@ -453,25 +440,25 @@ export async function runLiveFinancialPlaybook(mode: 'demo' | 'live' = 'live'): 
     const meta = getCostMotherMeta();
     steps.push(
       step(
-        `CostRatesFetch (${mode})`,
+        `CostRatesFetch`,
         true,
         `${meta.source} · ${meta.itemCount} lines · live=${meta.live}`,
       ),
     );
   } catch (err) {
     steps.push(step('CostRatesFetch', false, err instanceof Error ? err.message : String(err)));
-    return { ok: false, mode, steps, leads: [] };
+    return { ok: false, steps, leads: [] };
   }
 
   let leads: QuoteLead[] = [];
   try {
-    const raw = await postWebhook('LeadDataFetch', mode);
+    const raw = await postWebhook('LeadDataFetch');
     const parsed = parseLeadDataFetch(raw);
     leads = (parsed.leads || []).map((row, i) => mapLead(row as Record<string, unknown>, i));
-    steps.push(step(`LeadDataFetch (${mode})`, leads.length > 0, `${leads.length} enquiry rows`));
+    steps.push(step('LeadDataFetch', leads.length > 0, `${leads.length} enquiry rows`));
   } catch (err) {
     steps.push(step('LeadDataFetch', false, err instanceof Error ? err.message : String(err)));
-    return { ok: false, mode, steps, leads: [] };
+    return { ok: false, steps, leads: [] };
   }
 
   const picked = pickLeads(leads);
@@ -500,16 +487,13 @@ export async function runLiveFinancialPlaybook(mode: 'demo' | 'live' = 'live'): 
 
   const runs = [...picked.complete.map((l) => runOneLead(l, 'qb2026')), ...skipRuns];
   const ok = steps.every((s) => s.ok) && runs.every((r) => r.ok);
-  return { ok, mode, steps, leads: runs };
+  return { ok, steps, leads: runs };
 }
 
-export async function runOtherLiveLeadSample(
-  n = 10,
-  mode: 'demo' | 'live' = 'live',
-): Promise<LivePlaybookReport> {
+export async function runOtherLiveLeadSample(n = 10): Promise<LivePlaybookReport> {
   const steps: LivePlaybookStep[] = [];
   try {
-    const rates = parseCostRatesPayload(await postWebhook('CostRatesFetch', mode));
+    const rates = parseCostRatesPayload(await postWebhook('CostRatesFetch'));
     const structured =
       rates.costMother ||
       parseCostMotherRows(
@@ -522,20 +506,20 @@ export async function runOtherLiveLeadSample(
       setLiveCatalogLines(rates.lines);
     }
     const meta = getCostMotherMeta();
-    steps.push(step(`CostRatesFetch (${mode})`, true, `${meta.source} · ${meta.itemCount} lines`));
+    steps.push(step('CostRatesFetch', true, `${meta.source} · ${meta.itemCount} lines`));
   } catch (err) {
     steps.push(step('CostRatesFetch', false, err instanceof Error ? err.message : String(err)));
-    return { ok: false, mode, steps, leads: [] };
+    return { ok: false, steps, leads: [] };
   }
 
   let leads: QuoteLead[] = [];
   try {
-    const parsed = parseLeadDataFetch(await postWebhook('LeadDataFetch', mode));
+    const parsed = parseLeadDataFetch(await postWebhook('LeadDataFetch'));
     leads = (parsed.leads || []).map((row, i) => mapLead(row as Record<string, unknown>, i));
-    steps.push(step(`LeadDataFetch (${mode})`, leads.length > 0, `${leads.length} enquiry rows`));
+    steps.push(step('LeadDataFetch', leads.length > 0, `${leads.length} enquiry rows`));
   } catch (err) {
     steps.push(step('LeadDataFetch', false, err instanceof Error ? err.message : String(err)));
-    return { ok: false, mode, steps, leads: [] };
+    return { ok: false, steps, leads: [] };
   }
 
   const extra = pickOtherLiveLeads(leads, n);
@@ -547,13 +531,13 @@ export async function runOtherLiveLeadSample(
     ),
   );
   const runs = extra.map((l) => runOneLead(l, 'sample'));
-  return { ok: steps.every((s) => s.ok) && runs.every((r) => r.ok), mode, steps, leads: runs };
+  return { ok: steps.every((s) => s.ok) && runs.every((r) => r.ok), steps, leads: runs };
 }
 
-export async function runExtraQbColumns(mode: 'demo' | 'live' = 'live'): Promise<LivePlaybookReport> {
+export async function runExtraQbColumns(): Promise<LivePlaybookReport> {
   const steps: LivePlaybookStep[] = [];
   try {
-    const rates = parseCostRatesPayload(await postWebhook('CostRatesFetch', mode));
+    const rates = parseCostRatesPayload(await postWebhook('CostRatesFetch'));
     const structured =
       rates.costMother ||
       parseCostMotherRows(
@@ -563,10 +547,10 @@ export async function runExtraQbColumns(mode: 'demo' | 'live' = 'live'): Promise
       setLiveCostMotherRates(structured as Parameters<typeof setLiveCostMotherRates>[0]);
     }
     if (Array.isArray(rates.lines) && rates.lines.length) setLiveCatalogLines(rates.lines);
-    steps.push(step(`CostRatesFetch (${mode})`, true, getCostMotherMeta().source));
+    steps.push(step('CostRatesFetch', true, getCostMotherMeta().source));
   } catch (err) {
     steps.push(step('CostRatesFetch', false, err instanceof Error ? err.message : String(err)));
-    return { ok: false, mode, steps, leads: [] };
+    return { ok: false, steps, leads: [] };
   }
 
   const extras = extraQbColumns as Record<string, LiveQbScenario & { enquiryRef?: string }>;
@@ -585,12 +569,12 @@ export async function runExtraQbColumns(mode: 'demo' | 'live' = 'live'): Promise
     runOneLead(dummy(id, sc.enquiryRef || id), 'qb2026', sc),
   );
   steps.push(step('Extra Quote Builder 2026 columns', runs.length > 0, Object.keys(extras).join(', ')));
-  return { ok: steps.every((s) => s.ok) && runs.every((r) => r.ok), mode, steps, leads: runs };
+  return { ok: steps.every((s) => s.ok) && runs.every((r) => r.ok), steps, leads: runs };
 }
 
 export function formatLivePlaybookReport(report: LivePlaybookReport): string {
   const lines: string[] = [
-    `WEOTT live finance playbook — mode=${report.mode} (UX + backend webhooks, no AI)`,
+    'WEOTT finance playbook — Apps Script Sheets + UX calc (no AI)',
     report.ok ? 'RESULT  PASS' : 'RESULT  FAIL',
     '',
     '== Pipeline ==',
@@ -615,7 +599,7 @@ export function formatLivePlaybookReport(report: LivePlaybookReport): string {
   }
   if (!report.leads.length) {
     lines.push('');
-    lines.push('No leads selected. Check LeadDataFetch mode=live and that LIVE rows have vessel / guests / notes.');
+    lines.push('No leads selected. Check LeadDataFetch and that enquiry rows have vessel / guests / notes.');
   }
   return lines.join('\n');
 }

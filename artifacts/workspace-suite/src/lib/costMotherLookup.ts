@@ -1,5 +1,5 @@
 /**
- * Cost Mother rate lookup — bundled snapshot + optional live overlay from n8n.
+ * Cost Mother rate lookup — bundled snapshot + optional live overlay from CostRatesFetch.
  * Keys: vessel|weeklyPeriod|dayPeriod|groupBracket
  */
 
@@ -326,7 +326,7 @@ export function lookupMinMargin(eventType: string, eventDate: string, market?: s
 }
 
 /**
- * Parse raw Cost Mother Google Sheets rows (n8n) into a CostMotherBundle.
+ * Parse raw Cost Mother Google Sheets rows into a CostMotherBundle.
  * Tolerates header-style columns from Sheets API.
  */
 export function parseCostMotherRows(rows: Record<string, unknown>[]): CostMotherBundle | null {

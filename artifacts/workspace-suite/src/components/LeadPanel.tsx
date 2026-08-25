@@ -10,8 +10,6 @@ import {
   NOTE_CATEGORIES,
   detectTag,
   detectPointKinds,
-  loadNotes,
-  addNote,
   pointsFromProgressNotes,
   tagToPointKind,
   type NoteTag,
@@ -19,6 +17,7 @@ import {
   type NotePoint,
 } from '@/lib/leadNotes';
 import { requestLeadNotesSummary } from '@/lib/leadNotesSummary';
+import { listOpsNotes, persistOpsNote, type OpsNote } from '@/lib/opsStore';
 import { LeadNotesTimeline, NoteKindAvatar, NOTES_BLUE, type TimelineCard } from '@/components/LeadNotesTimeline';
 import { soundClick } from '@/lib/sounds';
 import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
@@ -36,6 +35,16 @@ function timeAgo(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
+}
+
+function opsNoteToLeadNote(n: OpsNote): LeadNote {
+  const known = NOTE_CATEGORIES.some((c) => c.tag === n.tag);
+  return {
+    id: n.id,
+    text: n.note,
+    tag: known ? (n.tag as NoteTag) : detectTag(n.note),
+    createdAt: n.createdAt,
+  };
 }
 
 export type Lead = {
@@ -58,7 +67,7 @@ export type Lead = {
   status?: string;
   /** Raw Enquiry "Status" column (pipeline stage) — not used for Live/Booked tabs. */
   crmStatus?: string;
-  /** Sapphire aliases from n8n Structure all Leads1 */
+  /** Sapphire aliases from Structure all Leads1 */
   budget?: string;
   repeatClient?: string;
   preparedBy?: string;
@@ -83,7 +92,7 @@ export type Lead = {
   quoteWeeklyPeriod?: string;
   quoteDayPeriod?: string;
   quoteGroupBracket?: string;
-  /** Full n8n Structure all Leads1 alias bag — SoT for QuoteBuilder nexusLead. */
+  /** Full Structure all Leads1 alias bag — SoT for QuoteBuilder nexusLead. */
   sapphire?: N8nSapphireLead;
 };
 
@@ -140,7 +149,7 @@ function ContactView({ lead, onNotes }: { lead: Lead; onNotes: () => void }) {
           <p className="mt-3 max-w-[200px] text-[11px] leading-relaxed text-[#1a1a1a]/50">
             {lead.designation} — {lead.sector}.{lead.source ? ` Sourced via ${lead.source}.` : ''}
           </p>
-          {/* Sapphire aliases from n8n LeadDataFetch (Sheets SoT) */}
+          {/* Sapphire aliases from LeadDataFetch (Sheets SoT) */}
           <dl className="mt-4 max-w-[240px] space-y-1.5 text-[10.5px] text-[#1a1a1a]/55">
             {lead.preparedBy && (
               <div className="flex gap-2">
@@ -415,7 +424,7 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
   const leadKey = lead.referenceNumber !== '—' ? lead.referenceNumber : lead.email !== '—' ? lead.email : String(lead.id);
   const [text, setText] = useState('');
   const [manualTag, setManualTag] = useState<NoteTag | null>(null);
-  const [notes, setNotes] = useState<LeadNote[]>(() => loadNotes(leadKey));
+  const [notes, setNotes] = useState<LeadNote[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [geminiPoints, setGeminiPoints] = useState<NotePoint[] | null>(null);
@@ -427,6 +436,26 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
     () => geminiPoints ?? pointsFromProgressNotes(lead.progressNotes || ''),
     [geminiPoints, lead.progressNotes],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const ref = lead.referenceNumber !== '—' ? lead.referenceNumber : '';
+    void listOpsNotes(ref).then((rows) => {
+      if (cancelled) return;
+      const progress = String(lead.progressNotes || '').toLowerCase();
+      setNotes(
+        rows
+          .filter((n) => {
+            const needle = String(n.note || '').trim().slice(0, 48).toLowerCase();
+            return needle.length < 8 || !progress.includes(needle);
+          })
+          .map(opsNoteToLeadNote),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lead.referenceNumber, lead.progressNotes]);
 
   useEffect(() => {
     const notesBlob = String(lead.progressNotes || '');
@@ -467,18 +496,20 @@ function NoteView({ lead, onBack }: { lead: Lead; onBack: () => void }) {
     return [...progress, ...local];
   }, [sheetPoints, notes]);
 
-  function handleSave() {
+  async function handleSave() {
     if (!text.trim()) return;
-    const note: LeadNote = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      text: text.trim(),
-      tag: detectedTag,
-      createdAt: new Date().toISOString(),
-    };
-    setNotes(addNote(leadKey, note));
+    const tagged = detectedTag ? `${text.trim()} #${detectedTag}` : text.trim();
+    const saved = await persistOpsNote({
+      referenceNumber: lead.referenceNumber !== '—' ? lead.referenceNumber : '',
+      email: lead.email !== '—' ? lead.email : '',
+      leadName: lead.name,
+      note: tagged,
+      tag: detectedTag || undefined,
+    });
+    setNotes((prev) => [opsNoteToLeadNote(saved), ...prev.filter((n) => n.id !== saved.id)]);
     setText('');
     setManualTag(null);
-    setActiveId(`local-${note.id}`);
+    setActiveId(`local-${saved.id}`);
     soundClick();
   }
 

@@ -1,6 +1,6 @@
 /**
  * Enquiry / Sheets → Quote Builder prefill.
- * Parses n8n lead aliases + progressNotes hints; tracks auto-filled keys for blue UI styling.
+ * Parses Sapphire lead aliases + progressNotes hints; tracks auto-filled keys for blue UI styling.
  */
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES } from '@/lib/formOptions';
 import {

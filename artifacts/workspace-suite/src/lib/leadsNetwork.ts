@@ -1,15 +1,10 @@
 import type { Lead } from '@/components/LeadPanel';
-import { N8N_BASE } from '@/lib/backendUrls';
+import { callAppsScript } from '@/lib/appsScriptClient';
 import { parseLeadDataFetch } from '@/lib/contracts';
-import { DEMO_LEAD_ROWS } from '@/lib/demoLeads';
 import { TimeoutError } from '@/lib/errors';
-import { fetchWithTimeout } from '@/lib/http';
 import { parseGuestCountDetailed } from '@/lib/parseGuestCount';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { aliasFirst, toNexusLeadPayload } from '@/lib/sapphireLead';
-import type { SheetsMode } from '@/lib/sheetsSync';
-
-const WEBHOOK_URL = `${N8N_BASE}/LeadDataFetch`;
 
 function toInitials(name: string): string {
   return name
@@ -113,54 +108,16 @@ function mapRaw(raw: Record<string, unknown>, index: number): Lead {
   };
 }
 
-export async function fetchLeadsFromWebhook(
-  mode: SheetsMode,
-  opts?: { signal?: AbortSignal },
-): Promise<Lead[]> {
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode }),
-      signal: opts?.signal,
-      timeoutMs: 45_000,
-    });
-  } catch (err) {
-    if (err instanceof TimeoutError) throw err;
-    throw new Error(
-      `Could not reach LeadDataFetch: ${err instanceof Error ? err.message : 'network error'}`,
-    );
-  }
-  if (!res.ok) throw new Error(`LeadDataFetch failed (${res.status})`);
-  const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
-  if (
-    contentType &&
-    !contentType.includes('application/json') &&
-    !contentType.includes('+json') &&
-    !contentType.includes('text/plain')
-  ) {
-    throw new Error(`LeadDataFetch returned ${contentType}; expected application/json.`);
-  }
-  const text = await res.text();
-  if (!text.trim()) {
-    throw new Error(
-      'LeadDataFetch returned an empty body (n8n Respond Leads must JSON.stringify the payload).',
-    );
-  }
+export async function fetchLeadsFromWebhook(opts?: { signal?: AbortSignal }): Promise<Lead[]> {
   let data: unknown;
   try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error('LeadDataFetch returned invalid JSON');
+    data = await callAppsScript('LeadDataFetch', {}, { signal: opts?.signal, timeoutMs: 45_000 });
+  } catch (err) {
+    if (err instanceof TimeoutError) throw err;
+    throw err instanceof Error
+      ? err
+      : new Error(`Could not reach LeadDataFetch: ${String(err)}`);
   }
   const parsed = parseLeadDataFetch(data);
-  const rows = parsed.leads;
-  if (rows.length) return rows.map((row, i) => mapRaw(row as Record<string, unknown>, i));
-  if (mode === 'demo') return DEMO_LEAD_ROWS.map(mapRaw);
-  return [];
-}
-
-export function fallbackDemoLeads(): Lead[] {
-  return DEMO_LEAD_ROWS.map(mapRaw);
+  return parsed.leads.map((row, i) => mapRaw(row as Record<string, unknown>, i));
 }

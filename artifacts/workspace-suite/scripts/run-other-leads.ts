@@ -1,6 +1,6 @@
 import { formatLivePlaybookReport, runOtherLiveLeadSample } from '../src/lib/financialPlaybook.ts';
 
-const report = await runOtherLiveLeadSample(10, 'live');
+const report = await runOtherLiveLeadSample(10);
 console.log(formatLivePlaybookReport(report));
 console.log('\n== Compact for Gemini ==');
 for (const l of report.leads.filter((r) => r.kind === 'sample')) {

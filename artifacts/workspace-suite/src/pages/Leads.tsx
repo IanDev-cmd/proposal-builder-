@@ -7,16 +7,11 @@ import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
 import { personAvatarUrl } from '@/lib/avatar';
 import {
-  getSheetsMode,
-  subscribeSheetsMode,
-  type SheetsMode,
-} from '@/lib/sheetsSync';
-import {
   persistLeadsCache,
   readLeadsFromDb,
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
-import { fetchLeadsFromWebhook, fallbackDemoLeads } from '@/lib/leadsNetwork';
+import { fetchLeadsFromWebhook } from '@/lib/leadsNetwork';
 import { toastError } from '@/lib/notify';
 import { errorMessage } from '@/lib/errors';
 
@@ -25,7 +20,6 @@ const TABS = ['Live', 'Booked', 'Dead', 'Blacklisted'] as const;
 export function Leads() {
   const { setActiveLead } = useActiveLead();
   const [activeTab, setActiveTab] = useState(0);
-  const [mode, setMode] = useState<SheetsMode>(() => getSheetsMode());
   const [leads, setLeads] = useState<Lead[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [syncing, setSyncing] = useState(false);
@@ -38,23 +32,8 @@ export function Leads() {
   const hasRowsRef = useRef(leads.length > 0);
   hasRowsRef.current = leads.length > 0;
 
-  const applyCacheForMode = useCallback(async (nextMode: SheetsMode) => {
-    const cached = await readLeadsFromDb(nextMode);
-    if (cached?.leads?.length) {
-      setLeads(cached.leads);
-      setLastSyncedAt(cached.fetchedAt);
-      setStatus('ok');
-      return true;
-    }
-    setLeads([]);
-    setLastSyncedAt(null);
-    setStatus('loading');
-    return false;
-  }, []);
-
   const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent ?? false;
-    const currentMode = getSheetsMode();
 
     inflight.current?.abort();
     const ac = new AbortController();
@@ -64,24 +43,17 @@ export function Leads() {
     else setSyncing(true);
 
     try {
-      const data = await fetchLeadsFromWebhook(currentMode, { signal: ac.signal });
+      const data = await fetchLeadsFromWebhook({ signal: ac.signal });
       if (ac.signal.aborted) return;
       setLeads(data);
       setLastSyncedAt(Date.now());
       setStatus('ok');
       setStale(false);
-      await persistLeadsCache(data, currentMode);
+      await persistLeadsCache(data);
     } catch (err) {
       if (ac.signal.aborted) return;
-      if (currentMode === 'demo' && !hasRowsRef.current) {
-        const demo = fallbackDemoLeads();
-        setLeads(demo);
-        setLastSyncedAt(Date.now());
-        setStatus('ok');
-        setStale(false);
-        await persistLeadsCache(demo, currentMode);
-      } else if (!hasRowsRef.current) {
-        const cached = await readLeadsFromDb(currentMode);
+      if (!hasRowsRef.current) {
+        const cached = await readLeadsFromDb();
         if (cached?.leads?.length) {
           setLeads(cached.leads);
           setLastSyncedAt(cached.fetchedAt);
@@ -92,7 +64,7 @@ export function Leads() {
           toastError({
             key: 'leads-fetch',
             title: 'Could not load leads',
-            description: errorMessage(err, 'Check n8n connection and try again.'),
+            description: errorMessage(err, 'Check Apps Script deployment and try again.'),
           });
         }
       } else {
@@ -104,11 +76,10 @@ export function Leads() {
     }
   }, []);
 
-  // Always fetch the live n8n list for this page, then persist it to IndexedDB.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const cached = await readLeadsFromDb(getSheetsMode());
+      const cached = await readLeadsFromDb();
       if (!cancelled && cached?.leads?.length) {
         setLeads(cached.leads);
         setLastSyncedAt(cached.fetchedAt);
@@ -129,17 +100,6 @@ export function Leads() {
     }, LEADS_REFRESH_MS);
     return () => window.clearInterval(id);
   }, [refresh]);
-
-  // Re-cache when Demo/Live flips
-  useEffect(() => {
-    return subscribeSheetsMode((next) => {
-      setMode(next);
-      void (async () => {
-        await applyCacheForMode(next);
-        await refresh({ silent: false });
-      })();
-    });
-  }, [applyCacheForMode, refresh]);
 
   const tabKey = TABS[activeTab].toLowerCase();
   const tabFiltered: Lead[] = leads.filter((l) => {
@@ -194,7 +154,7 @@ export function Leads() {
 
           {(syncing || syncedLabel) && (
             <span className="hidden text-[11px] text-black/30 sm:inline">
-              {syncing ? `Updating ${mode}…` : syncedLabel}
+              {syncing ? 'Updating…' : syncedLabel}
             </span>
           )}
 
@@ -345,9 +305,7 @@ export function Leads() {
                 <div className="flex items-center justify-center py-16 text-[13px] text-black/30">
                   {query
                     ? `No leads match "${query}"`
-                    : mode === 'demo'
-                      ? 'No demo leads loaded — refresh, or open Quote Builder without a lead.'
-                      : `No ${TABS[activeTab].toLowerCase()} leads`}
+                    : `No ${TABS[activeTab].toLowerCase()} leads`}
                 </div>
               )}
 

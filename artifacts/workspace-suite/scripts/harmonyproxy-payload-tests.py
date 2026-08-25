@@ -1,19 +1,46 @@
-"""Smoke-test all live harmonyproxy n8n webhooks. Not imported by the app."""
+"""Smoke-test post-cutover backends. Not imported by the app.
+
+  1. Apps Script NexusApi.gs  — LeadDataFetch / CostRatesFetch / NoteAppend / QuoteStatus
+  2. n8n harmonyproxy         — PrefillHealer + LeadNotesSummary only
+  3. Flask /generate          — PDF (no QuoteBuilder hop)
+
+Set APPS_SCRIPT_WEBAPP_URL to the /exec URL after Deploy. Tests against
+PASTE_DEPLOYMENT_ID are skipped rather than faked.
+"""
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
-BASE = "https://harmonyproxy.app.n8n.cloud/webhook"
+APPS_SCRIPT_URL = os.environ.get(
+    "APPS_SCRIPT_WEBAPP_URL",
+    "https://script.google.com/macros/s/AKfycbx3fu-1x77Ft3gJ4DM72_inDQD8jabrZShFWrZjTVHC5NLE5ipXSYPmAG6gA2czDaWHSQ/exec",
+)
+N8N_BASE = "https://harmonyproxy.app.n8n.cloud/webhook"
+FLASK_GENERATE = "https://weott-proposal-engine.onrender.com/generate"
 
 
-def post(path: str, body: dict | None, timeout: int = 90, accept: str = "application/json") -> dict:
-    url = f"{BASE}/{path}"
-    data = b"" if body is None else json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Content-Type", "application/json")
+def _configured_apps() -> bool:
+    return "PASTE_DEPLOYMENT_ID" not in APPS_SCRIPT_URL and "script.google.com" in APPS_SCRIPT_URL
+
+
+def request_json(
+    url: str,
+    *,
+    method: str = "POST",
+    body: dict | None = None,
+    content_type: str = "application/json",
+    timeout: int = 90,
+    accept: str = "application/json",
+) -> dict:
+    data = None if body is None and method == "GET" else (b"" if body is None else json.dumps(body).encode("utf-8"))
+    req = urllib.request.Request(url, data=data, method=method)
+    if data is not None:
+        req.add_header("Content-Type", content_type)
     req.add_header("Accept", accept)
     t0 = time.time()
     try:
@@ -27,7 +54,6 @@ def post(path: str, body: dict | None, timeout: int = 90, accept: str = "applica
         status = e.code
     except Exception as e:
         return {
-            "path": path,
             "ok": False,
             "status": None,
             "ms": round((time.time() - t0) * 1000),
@@ -37,14 +63,12 @@ def post(path: str, body: dict | None, timeout: int = 90, accept: str = "applica
         }
     ms = round((time.time() - t0) * 1000)
     if "pdf" in (ct or "").lower() or raw[:4] == b"%PDF":
-        preview = f"PDF {len(raw)} bytes"
         return {
-            "path": path,
             "ok": 200 <= status < 300 and raw[:4] == b"%PDF",
             "status": status,
             "ms": ms,
             "error": "",
-            "preview": preview,
+            "preview": f"PDF {len(raw)} bytes",
             "parsed": None,
         }
     text = raw.decode("utf-8", errors="replace")
@@ -54,7 +78,6 @@ def post(path: str, body: dict | None, timeout: int = 90, accept: str = "applica
     except Exception:
         parsed = None
     return {
-        "path": path,
         "ok": 200 <= status < 300 and parsed is not None,
         "status": status,
         "ms": ms,
@@ -64,12 +87,38 @@ def post(path: str, body: dict | None, timeout: int = 90, accept: str = "applica
     }
 
 
+def apps_get(action: str, params: dict | None = None) -> dict:
+    q = {"action": action, **(params or {})}
+    url = APPS_SCRIPT_URL + "?" + urllib.parse.urlencode(q)
+    r = request_json(url, method="GET", body=None, timeout=60)
+    r["path"] = f"AppsScript GET {action}"
+    return r
+
+
+def apps_post(action: str, body: dict, timeout: int = 60) -> dict:
+    r = request_json(
+        APPS_SCRIPT_URL,
+        method="POST",
+        body={**body, "action": action},
+        content_type="text/plain;charset=utf-8",
+        timeout=timeout,
+    )
+    r["path"] = f"AppsScript POST {action}"
+    return r
+
+
+def n8n_post(path: str, body: dict | None, timeout: int = 90) -> dict:
+    r = request_json(f"{N8N_BASE}/{path}", body=body, timeout=timeout)
+    r["path"] = path
+    return r
+
+
 def extra(parsed) -> str:
     if not isinstance(parsed, dict):
         return ""
     bits = []
     if "count" in parsed:
-        bits.append(f"leads={parsed.get('count')} mode={parsed.get('mode')}")
+        bits.append(f"count={parsed.get('count')}")
     if "counts" in parsed:
         bits.append(f"catalog={parsed.get('counts')}")
     if "matches" in parsed:
@@ -84,45 +133,73 @@ def extra(parsed) -> str:
     return " " + " ".join(bits) if bits else ""
 
 
+def skip(name: str, reason: str) -> dict:
+    return {
+        "name": name,
+        "ok": True,
+        "status": "SKIP",
+        "ms": 0,
+        "error": "",
+        "preview": reason,
+        "parsed": None,
+        "skipped": True,
+    }
+
+
 def main() -> int:
     results: list[dict] = []
 
-    jobs = [
-        ("LeadDataFetch live", lambda: post("LeadDataFetch", {"mode": "live"})),
-        ("LeadDataFetch demo", lambda: post("LeadDataFetch", {"mode": "demo"})),
-        ("LeadDataFetch empty", lambda: post("LeadDataFetch", {})),
-        ("CostRatesFetch", lambda: post("CostRatesFetch", {"mode": "live"})),
-        (
-            "NoteAppend demo",
-            lambda: post(
+    if _configured_apps():
+        jobs = [
+            ("LeadDataFetch", lambda: apps_get("LeadDataFetch")),
+            ("LeadDataFetch empty POST", lambda: apps_post("LeadDataFetch", {})),
+            ("CostRatesFetch", lambda: apps_get("CostRatesFetch")),
+            (
                 "NoteAppend",
-                {
-                    "mode": "demo",
-                    "referenceNumber": "WE.PAYLOADTEST",
-                    "leadName": "Payload Test",
-                    "note": "harmonyproxy webhook smoke",
-                    "tag": "qa",
-                },
+                lambda: apps_post(
+                    "NoteAppend",
+                    {
+                        "referenceNumber": "WE.PAYLOADTEST",
+                        "leadName": "Payload Test",
+                        "note": "Apps Script smoke",
+                        "tag": "qa",
+                    },
+                ),
             ),
-        ),
-        (
-            "QuoteStatus demo",
-            lambda: post(
+            ("NotesFetch", lambda: apps_get("NotesFetch", {"referenceNumber": "WE.PAYLOADTEST"})),
+            (
                 "QuoteStatus",
-                {
-                    "mode": "demo",
-                    "referenceNumber": "WE.PAYLOADTEST",
-                    "status": "draft",
-                    "guestCount": 40,
-                    "costToClient": 1000,
-                    "vat": 200,
-                    "grandTotal": 1200,
-                },
+                lambda: apps_post(
+                    "QuoteStatus",
+                    {
+                        "referenceNumber": "WE.PAYLOADTEST",
+                        "status": "draft",
+                        "guestCount": 40,
+                        "costToClient": 1000,
+                        "vat": 200,
+                        "grandTotal": 1200,
+                    },
+                ),
             ),
-        ),
+            ("QuotesFetch", lambda: apps_get("QuotesFetch", {"referenceNumber": "WE.PAYLOADTEST"})),
+        ]
+        for name, fn in jobs:
+            print(">>", name, flush=True)
+            r = fn()
+            r["name"] = name
+            results.append(r)
+            print(
+                f"   status={r['status']} ok={r['ok']} {r['ms']}ms {r['error'] or r['preview'][:160]}",
+                flush=True,
+            )
+    else:
+        print(">> Apps Script skipped -- paste /exec URL into APPS_SCRIPT_WEBAPP_URL", flush=True)
+        results.append(skip("Apps Script suite", "PASTE_DEPLOYMENT_ID placeholder"))
+
+    gemini_jobs = [
         (
             "PrefillHealer",
-            lambda: post(
+            lambda: n8n_post(
                 "PrefillHealer",
                 {
                     "notes": "Progress 1: 40 guests on WEOTT II, canapes and prosecco. Progress 2: evening cruise.",
@@ -140,7 +217,7 @@ def main() -> int:
         ),
         (
             "LeadNotesSummary",
-            lambda: post(
+            lambda: n8n_post(
                 "LeadNotesSummary",
                 {
                     "notes": "Progress 1: Called client, 40 pax, budget 8k. Progress 2: Prefers WEOTT II evening.",
@@ -149,14 +226,8 @@ def main() -> int:
                 },
             ),
         ),
-        ("ContractSync missing", lambda: post("ContractSync", {})),
-        (
-            "PayloadContractCheck empty",
-            lambda: post("PayloadContractCheck", {"source": "LeadDataFetch", "raw": ""}),
-        ),
     ]
-
-    for name, fn in jobs:
+    for name, fn in gemini_jobs:
         print(">>", name, flush=True)
         r = fn()
         r["name"] = name
@@ -166,32 +237,10 @@ def main() -> int:
             flush=True,
         )
 
-    leads = next((r for r in results if r["name"] == "LeadDataFetch live"), None)
-    rates = next((r for r in results if r["name"] == "CostRatesFetch"), None)
-    if leads and leads.get("parsed"):
-        print(">> PayloadContractCheck LeadDataFetch", flush=True)
-        r = post("PayloadContractCheck", {"source": "LeadDataFetch", "payload": leads["parsed"]})
-        r["name"] = "PayloadContractCheck leads"
-        results.append(r)
-        print(
-            f"   status={r['status']} ok={r['ok']} {r['ms']}ms {r['error'] or r['preview'][:160]}",
-            flush=True,
-        )
-    if rates and rates.get("parsed"):
-        print(">> PayloadContractCheck CostRatesFetch", flush=True)
-        r = post("PayloadContractCheck", {"source": "CostRatesFetch", "payload": rates["parsed"]})
-        r["name"] = "PayloadContractCheck rates"
-        results.append(r)
-        print(
-            f"   status={r['status']} ok={r['ok']} {r['ms']}ms {r['error'] or r['preview'][:160]}",
-            flush=True,
-        )
-
-    print(">> QuoteBuilder PDF", flush=True)
-    qb = post(
-        "QuoteBuilder",
-        {
-            "mode": "demo",
+    print(">> Flask /generate PDF", flush=True)
+    qb = request_json(
+        FLASK_GENERATE,
+        body={
             "event_type": "Social Gathering",
             "category": "corporate",
             "template_id": "corporate/social_gathering/evening",
@@ -200,6 +249,7 @@ def main() -> int:
             "returnTime": "23:00",
             "lead": {
                 "proposal_ref": "WE.PAYLOADTEST",
+                "quote_date": "25 August 2026 | Quotation valid for 28 days",
                 "client_name": "Payload Test",
                 "organisation": "WEOTT",
                 "event_type": "Social Gathering",
@@ -231,7 +281,7 @@ def main() -> int:
         timeout=120,
         accept="application/pdf",
     )
-    qb["name"] = "QuoteBuilder"
+    qb["name"] = "Flask /generate"
     results.append(qb)
     print(
         f"   status={qb['status']} ok={qb['ok']} {qb['ms']}ms {qb['error'] or qb['preview'][:160]}",
@@ -241,8 +291,12 @@ def main() -> int:
     print("\n==== SUMMARY ====")
     fail = 0
     for r in results:
-        mark = "PASS" if r["ok"] else "FAIL"
-        if not r["ok"]:
+        if r.get("skipped"):
+            mark = "SKIP"
+        elif r["ok"]:
+            mark = "PASS"
+        else:
+            mark = "FAIL"
             fail += 1
         print(
             f"{mark:4} {r['name']:32} HTTP {r['status']} {r['ms']}ms{extra(r.get('parsed'))}"

@@ -2,6 +2,7 @@ import { N8N_INSTANCE_HOST } from '@/lib/backendUrls';
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
 import { personAvatarUrl } from '@/lib/avatar';
+import { getActiveSheetMeta } from '@/lib/sheetsSync';
 
 interface AppTile {
   name:    string;
@@ -22,7 +23,7 @@ const APP_TILES: AppTile[] = [
     name:   'Google Sheets',
     domain: 'docs.google.com',
     color:  '#34A853',
-    getUrl: () => 'https://docs.google.com/spreadsheets/',
+    getUrl: () => getActiveSheetMeta().url,
   },
   {
     name:   'Dropbox',
@@ -83,7 +84,7 @@ const APP_TILES: AppTile[] = [
       `https://www.google.com/search?q=${encodeURIComponent((company || '') + ' reviews')}`,
   },
   {
-    name:   'Chatbot Form',
+    name:   'n8n Gemini',
     domain: 'n8n.io',
     color:  '#EA5E00',
     getUrl: () => `${N8N_INSTANCE_HOST}/`,

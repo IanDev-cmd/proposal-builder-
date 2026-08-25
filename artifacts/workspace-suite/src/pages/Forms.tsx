@@ -52,12 +52,12 @@ import {
   INSERT_PLACEMENT_RULES,
   PROPOSAL_INSERTS,
 } from '@/lib/proposalAssets';
-import { appendProgressNote, writeQuoteStatus, getSheetsMode, fetchCostRates } from '@/lib/sheetsSync';
+import { writeQuoteStatus, fetchCostRates } from '@/lib/sheetsSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { formatEventTimingsPayload } from '@/lib/proposalTimings';
-import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
-import { blobToDataUrl, fetchWithTimeout, readJsonResponse } from '@/lib/http';
+import { PROPOSAL_ENGINE_GENERATE_URL } from '@/lib/backendUrls';
+import { blobToDataUrl, fetchWithTimeout } from '@/lib/http';
 import {
   buildLeadPrefill,
   prefillForQuoteVersion,
@@ -170,7 +170,7 @@ const EMPTY_BESPOKE: BespokeLine[] = [1, 2, 3, 4].map((n) => ({
 }));
 
 /**
- * The n8n lead fetch's "Source" column is a free-text tag like
+ * The enquiry "Source" column is a free-text tag like
  * "Repeat Client 1, 2" or "Build your event form 1-3" — the trailing
  * numbers are spreadsheet artifacts, not part of the tag.
  */
@@ -1570,7 +1570,7 @@ export function Forms() {
       nexusLead: quoteLead
         ? {
             ...(quoteLead.sapphire || {}),
-            // Form edits overlay n8n SoT for fields the REP changed in the wizard
+            // Form edits overlay Sheets SoT for fields the REP changed in the wizard
             referenceNumber: quoteLead.referenceNumber,
             name: quoteLead.name,
             companyName: quoteLead.company,
@@ -1605,7 +1605,7 @@ export function Forms() {
             yearOfEvent: quoteLead.yearOfEvent,
             progressNotes: data.progressNotes || quoteLead.progressNotes,
             agent: data.agentReferral ? 'YES' : '',
-            // Cover / page-16 contact — n8n Transform reads nexusLead first
+            // Cover / page-16 contact — Flask /generate reads nexusLead + lead
             contact_name: staffContact.name,
             contact_title: staffContact.title,
             contact_phone: staffContact.phone,
@@ -1622,27 +1622,13 @@ export function Forms() {
       fullEventDate: quoteLead?.fullEventDate,
     });
 
-    // Attach sheets mode so n8n routes demo→test sheet / live→production.
-    const sheetsMode = getSheetsMode();
-    const outbound = { ...payload, mode: sheetsMode };
+    const outbound = { ...payload };
 
     await new Promise((r) => setTimeout(r, 500));
     setStage('sending');
 
     try {
-      // Write progress notes + quote financials back to Sheets (SoT) before/alongside PDF.
-      if (data.progressNotes.trim()) {
-        await sheetsWrite('Progress note', () =>
-          appendProgressNote({
-            referenceNumber: quoteLead?.referenceNumber,
-            email: quoteLead?.email,
-            leadName: quoteLead?.name,
-            note: data.progressNotes.trim(),
-            tag: 'pipeline',
-            mode: sheetsMode,
-          }),
-        );
-      }
+      // Quote snapshot goes to IndexedDB + Nexus Ops Quotes. Notes persist when added.
       await sheetsWrite('Quote status (generating)', () =>
         writeQuoteStatus({
         referenceNumber: quoteLead?.referenceNumber,
@@ -1689,11 +1675,10 @@ export function Forms() {
         upgradeTotal: fin.upgradeTotal,
         grandTotal: fin.grand,
         sectionTotals: fin.sectionTotals,
-        mode: sheetsMode,
         }),
       );
 
-      const res = await fetchWithTimeout(QUOTE_WEBHOOK_URL, {
+      const res = await fetchWithTimeout(PROPOSAL_ENGINE_GENERATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(outbound),
@@ -1702,10 +1687,17 @@ export function Forms() {
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
+        let detail = errText.trim().slice(0, 240);
+        try {
+          const j = JSON.parse(errText) as { error?: string; validation_errors?: unknown };
+          if (j?.error) detail = j.error;
+        } catch {
+          /* keep raw text */
+        }
         throw new Error(
-          errText.trim()
-            ? `Webhook responded ${res.status}: ${errText.slice(0, 200).trim()}`
-            : `Webhook responded ${res.status} (empty body) from ${QUOTE_WEBHOOK_URL}`,
+          detail
+            ? `Proposal engine responded ${res.status}: ${detail}`
+            : `Proposal engine responded ${res.status} (empty body) from ${PROPOSAL_ENGINE_GENERATE_URL}`,
         );
       }
 
@@ -1716,30 +1708,22 @@ export function Forms() {
 
       if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
         pdfDataUrl = await blobToDataUrl(await res.blob());
-      } else if (contentType.includes('application/json') || contentType.includes('+json') || !contentType) {
-        const json = await readJsonResponse<{
-          fileUrl?: string;
-          pdfUrl?: string;
-          url?: string;
-          pdfBase64?: string;
-        }>(res, 'QuoteBuilder');
-        const fileUrl: string | undefined = json?.fileUrl ?? json?.pdfUrl ?? json?.url;
-        if (typeof json?.pdfBase64 === 'string' && json.pdfBase64.startsWith('data:application/pdf')) {
-          pdfDataUrl = json.pdfBase64;
-        } else if (typeof fileUrl === 'string' && /^https?:\/\//i.test(fileUrl)) {
-          const fileRes = await fetchWithTimeout(fileUrl, { timeoutMs: 45_000 });
-          const fileType = (fileRes.headers.get('content-type') ?? '').toLowerCase();
-          if (!fileType.includes('application/pdf') && !fileType.includes('octet-stream')) {
-            throw new Error('QuoteBuilder JSON pointed at a non-PDF URL.');
-          }
-          pdfDataUrl = await blobToDataUrl(await fileRes.blob());
-        } else {
-          throw new Error('QuoteBuilder JSON did not include a PDF URL or data:application/pdf payload.');
-        }
       } else {
-        throw new Error(
-          `QuoteBuilder returned ${contentType || 'no Content-Type'}; expected application/pdf.`,
-        );
+        const peek = await res.clone().arrayBuffer();
+        const bytes = new Uint8Array(peek.slice(0, 5));
+        const isPdf =
+          bytes.length >= 4 &&
+          bytes[0] === 0x25 &&
+          bytes[1] === 0x50 &&
+          bytes[2] === 0x44 &&
+          bytes[3] === 0x46;
+        if (isPdf) {
+          pdfDataUrl = await blobToDataUrl(new Blob([peek], { type: 'application/pdf' }));
+        } else {
+          throw new Error(
+            `Proposal engine returned ${contentType || 'no Content-Type'}; expected application/pdf.`,
+          );
+        }
       }
 
       const proposalId = `proposal-${Date.now()}`;
@@ -1816,7 +1800,6 @@ export function Forms() {
         leadName: quoteLead?.name,
         status: 'failed',
         version: data.quoteVersion,
-        mode: sheetsMode,
       }).catch(() => {
         /* sheet write-back is best-effort */
       });
@@ -2216,7 +2199,7 @@ export function Forms() {
 
                 {data.budget ? (
                   <div className="mb-7">
-                    <p className={sectionLabelCls}>Budget (from Enquiry / n8n)</p>
+                    <p className={sectionLabelCls}>Budget (from Enquiry)</p>
                     <p className={`rounded-[10px] border border-[#e3e6e4] px-4 py-3 text-[13px] font-semibold text-gray-800 ${prefilledKeys.has('budget') ? PREFILL_INPUT_CLS : 'bg-[#FFF1F0]'}`}>
                       {data.budget}
                     </p>
@@ -2226,7 +2209,7 @@ export function Forms() {
                 {quoteLead && (quoteLead.preparedBy || quoteLead.market || quoteLead.yearOfEvent || quoteLead.bestTimeToCall) ? (
                   <div className="mb-7 overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                     <p className="border-b border-[#f0f0f0] bg-[#fafafa] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#7c8a82]">
-                      Sheets SoT (n8n aliases)
+                      Sheets SoT (Sapphire aliases)
                     </p>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 text-[12px] text-gray-700">
                       {quoteLead.preparedBy && (
@@ -3238,6 +3221,7 @@ export function Forms() {
             leadKey={leadNotesKey}
             leadName={quoteLead?.name}
             referenceNumber={quoteLead?.referenceNumber}
+            email={quoteLead?.email}
           />
         )}
       </aside>

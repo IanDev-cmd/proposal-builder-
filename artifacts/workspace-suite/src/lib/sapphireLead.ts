@@ -1,7 +1,7 @@
 /**
- * Canonical Sapphire lead aliases emitted by n8n Structure all Leads1.
- * UI must prefer these keys over re-deriving from sheet headers.
- * Agent is intentionally absent (no Enquiry column).
+ * Canonical Sapphire lead aliases emitted by Structure all Leads1
+ * (now ported in NexusApi.gs). UI must prefer these keys over re-deriving
+ * from sheet headers. Agent is intentionally absent (no Enquiry column).
  */
 
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
@@ -47,7 +47,7 @@ export type N8nLeadAlias = (typeof N8N_LEAD_ALIASES)[number];
 
 export type N8nSapphireLead = Partial<Record<N8nLeadAlias, string | number | boolean>>;
 
-/** Pick alias first (n8n SoT), then optional sheet-header fallbacks. */
+/** Pick alias first (Sheets SoT), then optional sheet-header fallbacks. */
 export function aliasFirst(
   row: Record<string, unknown>,
   alias: N8nLeadAlias,
@@ -72,7 +72,7 @@ export function aliasFirst(
   return '';
 }
 
-/** Preserve the full n8n lead object for QuoteBuilder nexusLead pass-through. */
+/** Preserve the full lead object for QuoteBuilder nexusLead pass-through. */
 export function toNexusLeadPayload(row: Record<string, unknown>): N8nSapphireLead {
   const out: N8nSapphireLead = {};
   for (const key of N8N_LEAD_ALIASES) {

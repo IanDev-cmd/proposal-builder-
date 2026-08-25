@@ -1,6 +1,5 @@
 import { formatLivePlaybookReport, runLiveFinancialPlaybook } from '../src/lib/financialPlaybook.ts';
 
-const mode = process.env.PLAYBOOK_MODE === 'demo' ? 'demo' : 'live';
-const report = await runLiveFinancialPlaybook(mode);
+const report = await runLiveFinancialPlaybook();
 console.log(formatLivePlaybookReport(report));
 if (!report.ok) process.exit(1);

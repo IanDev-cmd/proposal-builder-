@@ -16,6 +16,11 @@ import {
 } from '@/lib/leadNotes';
 import { requestLeadNotesSummary } from '@/lib/leadNotesSummary';
 import {
+  listOpsNotes,
+  mergeOpsNotesIntoProgress,
+  persistOpsNote,
+} from '@/lib/opsStore';
+import {
   LeadNotesTimeline,
   NoteKindAvatar,
   NOTES_BLUE,
@@ -33,6 +38,7 @@ type Props = {
   leadKey?: string;
   leadName?: string;
   referenceNumber?: string;
+  email?: string;
 };
 
 /**
@@ -50,6 +56,7 @@ export function LeadReferenceCard({
   leadKey,
   leadName,
   referenceNumber,
+  email,
 }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>('enquiry');
@@ -58,6 +65,7 @@ export function LeadReferenceCard({
   const [manualTag, setManualTag] = useState<NoteTag | null>(null);
   const [geminiPoints, setGeminiPoints] = useState<NotePoint[] | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  const hydratedRef = useRef<string | null>(null);
 
   const showUpdated =
     updatedEnquiry.trim() &&
@@ -151,6 +159,25 @@ export function LeadReferenceCard({
   }, [leadKey, Boolean(progressNotes.trim())]);
 
   useEffect(() => {
+    const ref = String(referenceNumber || '').trim();
+    if (!ref || hydratedRef.current === ref) return;
+    let cancelled = false;
+    void listOpsNotes(ref).then((notes) => {
+      if (cancelled || !notes.length) {
+        if (!cancelled) hydratedRef.current = ref;
+        return;
+      }
+      hydratedRef.current = ref;
+      onProgressNotesChange(mergeOpsNotesIntoProgress(progressNotes, notes));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Hydrate once per lead so typing is not overwritten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referenceNumber]);
+
+  useEffect(() => {
     if (!fullscreen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setFullscreen(false);
@@ -200,6 +227,13 @@ export function LeadReferenceCard({
     const tag = manualTag ?? detectTag(draft);
     const tagged = tag ? `${draft.trim()} #${tag}` : draft.trim();
     onProgressNotesChange(appendProgressNoteEntry(progressNotes, tagged));
+    void persistOpsNote({
+      referenceNumber,
+      email,
+      leadName,
+      note: tagged,
+      tag: tag || undefined,
+    });
     setDraft('');
     setManualTag(null);
     setAdding(false);

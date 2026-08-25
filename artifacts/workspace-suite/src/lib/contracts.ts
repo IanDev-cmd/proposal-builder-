@@ -1,10 +1,10 @@
 /**
- * Runtime contracts for n8n ↔ UI payloads.
+ * Runtime contracts for Apps Script / Gemini / Flask ↔ UI payloads.
  * Wire validation only — does not change Sheets write-back behaviour.
+ * ContractSync / PayloadContractCheck n8n webhooks are deleted from the UX;
+ * this Zod file is the contract.
  */
 import { z } from 'zod';
-
-export const sheetsModeSchema = z.enum(['demo', 'live']);
 
 export const failureEventSchema = z.object({
   type: z.literal('FailureEvent'),
@@ -17,7 +17,7 @@ export type FailureEvent = z.infer<typeof failureEventSchema>;
 
 const scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]).optional();
 
-/** n8n Structure-all-Leads1 row. Extra sheet headers are allowed. */
+/** Structure-all-Leads1 row (Apps Script port). Extra sheet headers are allowed. */
 export const n8nLeadRowSchema = z
   .object({
     referenceNumber: scalar,
@@ -65,7 +65,6 @@ export const leadDataFetchResponseSchema = z
   .object({
     ok: z.boolean().optional(),
     count: z.number().optional(),
-    mode: sheetsModeSchema.optional(),
     leads: z.array(n8nLeadRowSchema).default([]),
     failureEvent: failureEventSchema.optional(),
   })
@@ -107,6 +106,7 @@ export const costRatesPayloadSchema = z
           )
           .optional(),
       })
+      .nullable()
       .optional(),
     lines: z.array(catalogLineSchema).optional(),
     vessels: z.array(z.string()).optional(),

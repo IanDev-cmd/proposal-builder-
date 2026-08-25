@@ -14,7 +14,7 @@
  * Sheet formulas use no ROUND(); 2dp is cell formatting only.
  *
  * Rates: Cost Mother (bundled snapshot or live CostRatesFetch overlay).
- * n8n Transform must NOT recalculate — pass-through only.
+ * Flask /generate must NOT recalculate — pass-through only.
  */
 
 import {
@@ -416,7 +416,7 @@ export function calcFinancials(data: QuoteFormInput) {
   };
 }
 
-/** Payload shape expected by n8n Transform → stargtm /generate. */
+/** Payload shape expected by Flask POST /generate. Money is UI-only (quoteFinance.ts). */
 export function buildStargtmPayload(opts: {
   form: QuoteFormInput;
   financials: ReturnType<typeof calcFinancials>;
@@ -487,7 +487,10 @@ export function buildStargtmPayload(opts: {
   const contactPhones = staffPhoneSlots(contact.phone, contact.mobile);
   const clientPhones = formatPhoneDisplay(lead?.phone);
 
-  const preparedBy = fullStaffName(lead?.preparedBy || lead?.assignedRep || contact.name);
+  const preparedRaw = String(lead?.preparedBy || lead?.assignedRep || contact.name || '');
+  const preparedBy = fullStaffName(preparedRaw.includes('|') ? preparedRaw.split('|')[0].trim() : preparedRaw);
+  const quoteDate =
+    `${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} | Quotation valid for 28 days`;
   const nexusOut = {
     ...(nexusLead || lead || {}),
     preparedBy,
@@ -527,6 +530,7 @@ export function buildStargtmPayload(opts: {
     nexusLead: nexusOut,
     lead: {
       proposal_ref: formatProposalRef(lead?.referenceNumber, form.quoteVersion),
+      quote_date: quoteDate,
       client_name: lead?.name,
       organisation: lead?.company,
       telephone: clientPhones || undefined,
@@ -549,6 +553,7 @@ export function buildStargtmPayload(opts: {
       source: lead?.source,
       year_of_event: lead?.yearOfEvent,
       repeat_client: form.repeatClient ? 'YES' : 'NO',
+      agent: form.agentReferral ? 'YES' : undefined,
       key_items: form.keyItems || undefined,
       quote_version: form.quoteVersion || undefined,
       weekly_period: form.weeklyPeriod || fin.rateParts?.weeklyPeriod,

@@ -4,12 +4,14 @@
  */
 
 export const WORKSPACE_DB_NAME = 'nexus-workspace';
-export const WORKSPACE_DB_VERSION = 1;
+export const WORKSPACE_DB_VERSION = 2;
 
 export const WORKSPACE_STORES = {
   leads: 'leads',
   savedQuotes: 'savedQuotes',
   proposals: 'proposals',
+  opsNotes: 'opsNotes',
+  opsQuotes: 'opsQuotes',
 } as const;
 
 export type WorkspaceStoreName = (typeof WORKSPACE_STORES)[keyof typeof WORKSPACE_STORES];
@@ -19,10 +21,14 @@ const MIGRATED_FLAG = 'nexus.workspace.migrated.v1';
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(WORKSPACE_DB_NAME, WORKSPACE_DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
+      const oldVersion = event.oldVersion || 0;
+      if (oldVersion < 2 && db.objectStoreNames.contains(WORKSPACE_STORES.leads)) {
+        db.deleteObjectStore(WORKSPACE_STORES.leads);
+      }
       if (!db.objectStoreNames.contains(WORKSPACE_STORES.leads)) {
-        db.createObjectStore(WORKSPACE_STORES.leads, { keyPath: 'mode' });
+        db.createObjectStore(WORKSPACE_STORES.leads, { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains(WORKSPACE_STORES.savedQuotes)) {
         const quotes = db.createObjectStore(WORKSPACE_STORES.savedQuotes, { keyPath: 'id' });
@@ -32,6 +38,14 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(WORKSPACE_STORES.proposals)) {
         const proposals = db.createObjectStore(WORKSPACE_STORES.proposals, { keyPath: 'id' });
         proposals.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(WORKSPACE_STORES.opsNotes)) {
+        const notes = db.createObjectStore(WORKSPACE_STORES.opsNotes, { keyPath: 'id' });
+        notes.createIndex('referenceNumber', 'referenceNumber', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(WORKSPACE_STORES.opsQuotes)) {
+        const opsQuotes = db.createObjectStore(WORKSPACE_STORES.opsQuotes, { keyPath: 'id' });
+        opsQuotes.createIndex('referenceNumber', 'referenceNumber', { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -58,6 +72,21 @@ export async function workspaceGetAll<T>(store: WorkspaceStoreName): Promise<T[]
     const req = tx.objectStore(store).getAll();
     req.onsuccess = () => resolve((req.result as T[]) || []);
     req.onerror = () => reject(req.error ?? new Error(`Failed to read ${store}`));
+  });
+}
+
+export async function workspaceGetAllByIndex<T>(
+  store: WorkspaceStoreName,
+  indexName: string,
+  key: IDBValidKey,
+): Promise<T[]> {
+  const db = await getWorkspaceDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const index = tx.objectStore(store).index(indexName);
+    const req = index.getAll(key);
+    req.onsuccess = () => resolve((req.result as T[]) || []);
+    req.onerror = () => reject(req.error ?? new Error(`Failed to read ${store}.${indexName}`));
   });
 }
 
