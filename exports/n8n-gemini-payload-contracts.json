@@ -54,7 +54,7 @@
       "position": [400, 272],
       "credentials": {
         "googlePalmApi": {
-          "id": "zvFDkn9Cp7SqbA1q",
+          "id": "dlay23hFXEWTtpXH",
           "name": "Google Gemini(PaLM) Api account"
         }
       },
@@ -102,6 +102,6 @@
   },
   "pinData": {},
   "meta": {
-    "instanceId": "7edf9dbd0dc2afcd47af5b8da39c5d58dbe322ad798898e460ad228e7ae73b4a"
+    "instanceId": "0b033e4dea3e06f7022fa976138770d89a94a569a45a7883de93bf9335d36920"
   }
 }

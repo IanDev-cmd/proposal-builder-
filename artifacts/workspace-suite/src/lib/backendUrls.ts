@@ -9,15 +9,16 @@ export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
 
 export const N8N_BASE = 'https://harmony9.app.n8n.cloud/webhook';
 export const N8N_INSTANCE_HOST = 'https://harmony9.app.n8n.cloud';
+export const N8N_INSTANCE_ID = '0b033e4dea3e06f7022fa976138770d89a94a569a45a7883de93bf9335d36920';
 
-/** Bound on the live n8n instance — match exports/n8n-*.json credentials. */
+/** Bound on harmony9 — match the live WEOTT canvas (exports/n8n-weott-all-in-one.json). */
 export const N8N_CREDENTIALS = {
   googlePalmApi: {
-    id: 'zvFDkn9Cp7SqbA1q',
+    id: 'dlay23hFXEWTtpXH',
     name: 'Google Gemini(PaLM) Api account',
   },
   googleSheetsOAuth2Api: {
-    id: '9DvsM5k7IUgWQ5Bf',
+    id: 'GZhF0w9mcVHkFaHo',
     name: 'Google Sheets account',
   },
 } as const;

@@ -1,6 +1,21 @@
 {
-  "name": "WEOTT Nexus MVP — Quote + Sheets (Demo/Live)",
+  "name": "WEOTT — all workflows (one canvas)",
   "nodes": [
+    {
+      "parameters": {
+        "content": "QUOTE + SHEETS\nQuoteBuilder · LeadDataFetch · NoteAppend\nQuoteStatus · CostRatesFetch",
+        "width": 320,
+        "color": 5
+      },
+      "id": "53c94383-b845-432b-ba67-7879ad81bcb2",
+      "name": "Note 335db365",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        32
+      ]
+    },
     {
       "parameters": {
         "httpMethod": "POST",
@@ -10,13 +25,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "5d0f90eb-0cec-4e8e-96c0-f9cb06b99ddf",
+      "id": "4f458eb8-ff49-42b7-a69a-b94dbbe3a959",
       "name": "GenerateProposal1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        0
+        240,
+        240
       ],
       "webhookId": "33f82467-6af2-4f4c-904f-c43e748a0541"
     },
@@ -24,13 +39,13 @@
       "parameters": {
         "jsCode": "/**\n * QuoteBuilder -> stargtm /generate\n * Does NOT recalculate finance - UI Quote Sheet is the source of truth.\n * Finance values are passed through, never invented.\n */\nconst raw = $json.body || $json;\nconst lead = raw.nexusLead || raw.lead || {};\nconst uiLead = raw.lead || {};\nconst fin = raw.financials || {};\nconst form = raw.form || raw;\n\nconst upgradeIdMap = {\n  'Live DJ': 'live_dj', Saxophonist: 'saxophonist', Karaoke: 'karaoke',\n  'Photo Booth': 'photo_booth', 'Close-up Magician': 'close_up_magician',\n  'Close up Magician': 'close_up_magician', 'Branded Vessel Flag': 'branded_vessel_flag',\n  'Acoustic Artist': 'acoustic_artist', 'Jazz and Sax Duo': 'jazz_sax_duo',\n  'Additional Hour on Board': 'extra_hour', 'Casino Table with Croupier': 'casino_table',\n  'Social Media Highlight Reel': 'social_highlight_reel', 'Mingling Tour Guide': 'mingling_guide',\n  'Bespoke Logo Bunting': 'logo_bunting', 'Unlimited Drinks (4 hrs)': 'unlimited_drinks',\n  'Unlimited Drinks': 'unlimited_drinks', 'Drink Tokens': 'drink_tokens',\n  'Street Food Upgrade': 'street_food_upgrade',\n};\n\nfunction addIfPresent(obj, key, value) {\n  if (value !== undefined && value !== null && String(value).trim() !== '') obj[key] = String(value);\n}\nfunction money(n) {\n  const v = Number(n);\n  if (!Number.isFinite(v)) return 0;\n  return Math.round((v + Number.EPSILON) * 100) / 100;\n}\nfunction mapUpgrades(selected) {\n  return (Array.isArray(selected) ? selected : [])\n    .map((u) => {\n      if (typeof u !== 'string') return null;\n      if (upgradeIdMap[u]) return upgradeIdMap[u];\n      if (u.includes('_')) return u;\n      return null;\n    })\n    .filter(Boolean);\n}\n\nconst prebuilt = raw.calculations || {};\nconst packageCost = money(prebuilt.package_cost ?? fin.costToClient ?? fin.package_cost ?? 0);\nconst vat = money(prebuilt.vat ?? fin.vat ?? 0);\nconst grandTotal = money(prebuilt.grand_total ?? fin.grandTotal ?? fin.grand ?? (packageCost + vat));\nconst guests = Number(prebuilt.guests ?? form.guestCount ?? raw.guestCount) || 0;\nconst eventType = form.eventType || raw.eventType || raw.event_type || lead.eventType || lead.event_type || '';\nconst selected = raw.selectedUpgradeLabels || form.selectedUpgrades || raw.selectedUpgrades || [];\nconst selectedInserts = Array.isArray(raw.selectedInserts) ? raw.selectedInserts\n  : (Array.isArray(form.selectedInserts) ? form.selectedInserts : []);\nconst templateId = raw.template_id || form.templateId || raw.templateId || '';\n\nconst leadOut = {\n  proposal_ref: uiLead.proposal_ref || lead.referenceNumber || lead.proposal_ref || ('WE.' + Math.floor(1000 + Math.random() * 9000)),\n  quote_date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) + ' | Quotation valid for 28 days',\n};\naddIfPresent(leadOut, 'client_name', uiLead.client_name || lead.name || lead.client_name);\naddIfPresent(leadOut, 'organisation', uiLead.organisation || lead.companyName || lead.company || lead.organisation);\naddIfPresent(leadOut, 'telephone', uiLead.telephone || lead.phone || lead.telephone);\naddIfPresent(leadOut, 'email', uiLead.email || lead.email);\naddIfPresent(leadOut, 'event_type', eventType);\n\n// Flexible date -> \"Date TBC\"\nconst flexibleFlag = lead.eventDateFlexibleBool === true || /(tbc|flexible|yes)/i.test(String(lead.eventDateFlexible || ''));\nconst eventDateVal = uiLead.event_date || form.eventDate || raw.eventDate || lead.eventDateDisplay || lead.fullEventDate;\nif (flexibleFlag) { leadOut.event_date = 'Date TBC'; } else { addIfPresent(leadOut, 'event_date', eventDateVal); }\n\nconst uiTimings = String(uiLead.event_timings || '').trim();\nconst dep = form.departure || raw.departure;\nconst ret = form.returnTime || form.return_time || raw.returnTime;\nconst embark = form.embarkation || raw.embarkation;\nconst disembark = form.disembarkation || raw.disembarkation;\nif (uiTimings) { leadOut.event_timings = uiTimings; }\nelse if (dep || ret) { leadOut.event_timings = (dep || '') + ' - ' + (ret || ''); }\nelse if (embark || disembark) { leadOut.event_timings = (embark || '') + ' - ' + (disembark || ''); }\nif (!leadOut.event_timings) addIfPresent(leadOut, 'event_timings', lead.requestedEventTimes);\n\nconst guestLow = form.guestCount || raw.guestCount || lead.groupSize;\nconst guestHigh = form.guestCountHigh || raw.guestCountHigh || '';\nconst guestRange = (guestHigh && String(guestHigh).trim())\n  ? (String(guestLow || '') + '-' + String(guestHigh))\n  : (uiLead.guest_range || guestLow || '');\naddIfPresent(leadOut, 'guest_range', guestRange);\naddIfPresent(leadOut, 'guest_quote_n', String(uiLead.guest_quote_n || guests || lead.groupSizeQuote || form.guestCount || raw.guestCount || ''));\n\n// Form / Quote Sheet fields (UI SoT) — pass through for engine + ops\naddIfPresent(leadOut, 'quote_version', form.quoteVersion || raw.quoteVersion || raw.version || uiLead.quote_version);\naddIfPresent(leadOut, 'key_items', form.keyItems || raw.keyItems || uiLead.key_items);\naddIfPresent(leadOut, 'weekly_period', form.weeklyPeriod || raw.weeklyPeriod || uiLead.weekly_period);\naddIfPresent(leadOut, 'day_period', form.dayPeriod || raw.dayPeriod || uiLead.day_period);\naddIfPresent(leadOut, 'group_bracket', form.groupBracket || raw.groupBracket || uiLead.group_bracket);\naddIfPresent(leadOut, 'no_of_tables', form.noOfTables || raw.noOfTables || uiLead.no_of_tables);\n\n// New business fields passed through cleanly\naddIfPresent(leadOut, 'budget', lead.budget || raw.budget || form.budget || uiLead.budget);\naddIfPresent(leadOut, 'vessels', lead.vessels || raw.vessels || form.vessels || uiLead.vessels);\naddIfPresent(leadOut, 'market', lead.market || raw.market || uiLead.market);\naddIfPresent(leadOut, 'source', lead.source || raw.source || uiLead.source);\naddIfPresent(leadOut, 'year_of_event', lead.yearOfEvent || raw.yearOfEvent || uiLead.year_of_event);\nconst repeatVal = lead.repeatClient ?? raw.repeatClient ?? form.repeatClient ?? uiLead.repeat_client;\naddIfPresent(leadOut, 'repeat_client', typeof repeatVal === 'boolean' ? (repeatVal ? 'YES' : 'NO') : repeatVal);\naddIfPresent(leadOut, 'agent', lead.agent || raw.agent || form.agent);\n\n// Staff / contact defaults (staff insert overrides Katherine). Prefer UI lead overlay.\nleadOut.contact_name = uiLead.contact_name || lead.contact_name || 'Katherine Bulaon';\nleadOut.contact_title = uiLead.contact_title || lead.contact_title || 'Client Relationship Manager';\nleadOut.contact_phone = uiLead.contact_phone || lead.contact_phone || '020 8323 5827';\nleadOut.contact_email = uiLead.contact_email || lead.contact_email || 'sales@westendonthethames.com';\n// prepared_by = REP name only (gold cover keeps \"| Client\" + role on template lines)\nlet preparedBy = uiLead.prepared_by || lead.preparedBy || lead.assignedRep || lead.prepared_by || leadOut.contact_name;\nif (preparedBy && String(preparedBy).includes('|')) preparedBy = String(preparedBy).split('|')[0].trim();\naddIfPresent(leadOut, 'prepared_by', preparedBy);\n\nconst lower = String(eventType).toLowerCase();\nconst category = raw.category || form.proposalCategory ||\n  (lower.includes('wedding') || lower.includes('engagement') ? 'wedding' : (eventType ? 'corporate' : undefined));\n\nconst mapped = mapUpgrades(selected);\nconst out = {\n  event_type: eventType,\n  ...(category ? { category } : {}),\n  ...(templateId ? { template_id: templateId, manual_template: true } : {}),\n  lead: leadOut,\n  calculations: { guests, package_cost: packageCost, vat, grand_total: grandTotal },\n  selectedUpgrades: mapped.length ? mapped : (Array.isArray(raw.selectedUpgrades) ? raw.selectedUpgrades.filter((u) => typeof u === 'string' && u.includes('_')) : []),\n  selectedInserts,\n  packageWording: raw.packageWording || {},\n  menuLinks: raw.menuLinks || form.menuLinks || {},\n  mode: raw.mode === 'live' ? 'live' : 'demo',\n};\nreturn [{ json: out }];\n"
       },
-      "id": "eeb2a750-55c3-4b87-b988-d566925f29c6",
+      "id": "e55b5cf2-0493-446d-81d6-194f2981c2b7",
       "name": "Transform QuoteBuilder1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        0
+        464,
+        240
       ]
     },
     {
@@ -48,13 +63,13 @@
           }
         }
       },
-      "id": "72414ba9-4fee-4245-8983-6fb87c92667e",
+      "id": "bb6f1986-c6d1-4446-8eaa-407c37a2f87c",
       "name": "HTTP Request stargtm1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        448,
-        0
+        688,
+        240
       ]
     },
     {
@@ -72,13 +87,13 @@
           }
         }
       },
-      "id": "bd07a152-c159-4463-85e8-d2b97798a5ff",
+      "id": "8825521b-b656-472d-8a19-bc4ae02577bd",
       "name": "Respond PDF1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        672,
-        0
+        912,
+        240
       ]
     },
     {
@@ -90,13 +105,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "0d66f98c-3b65-4980-9f1a-42cae97dee03",
+      "id": "46e77b26-e456-40d8-b46c-9be59b8cbb54",
       "name": "SearchForLeads1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        224
+        240,
+        464
       ],
       "webhookId": "08a7fd28-1914-495d-9553-51a873f195d8"
     },
@@ -104,13 +119,13 @@
       "parameters": {
         "jsCode": "const raw = $json.body || $json;\nif (raw == null || (typeof raw === 'string' && !String(raw).trim())) {\n  return [{ json: { ok: false, mode: 'demo', failureEvent: { type: 'FailureEvent', source: 'LeadDataFetch', reason: 'empty or non-JSON request body', httpStatus: 400 } } }];\n}\nconst body = typeof raw === 'object' ? raw : {};\nconst mode = body.mode === 'live' ? 'live' : 'demo';\nreturn [{ json: { mode, _fetch: true, ok: true } }];"
       },
-      "id": "f813d276-5a73-47f8-b6fa-45c9b3f28c45",
+      "id": "67e48181-18c4-4de3-8311-192fc0cc4fe2",
       "name": "Lead Fetch Mode1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        224
+        464,
+        464
       ]
     },
     {
@@ -137,13 +152,13 @@
         },
         "options": {}
       },
-      "id": "ccdba155-b5de-4a01-a113-34975537a983",
+      "id": "816e45ce-772b-4f24-8097-8ae0c91f5b3a",
       "name": "Leads Live?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        448,
-        224
+        688,
+        464
       ]
     },
     {
@@ -160,13 +175,13 @@
         },
         "options": {}
       },
-      "id": "31871ee8-4022-4f49-b4ef-354c26a30ae6",
+      "id": "e15680f3-e342-4dac-86bc-04749f8c8508",
       "name": "Get Leads LIVE1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        672,
-        224
+        912,
+        464
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -181,13 +196,13 @@
       "parameters": {
         "jsCode": "// Flexible header matching -> full Sapphire alias set. No presumption of exact headers.\nconst mode = ($('Lead Fetch Mode1').first().json.mode) === 'live' ? 'live' : 'demo';\n\nconst wanted = [\n  ['Client Reference Number', 'referenceNumber'],\n  ['Name', 'name'],\n  ['Company Name', 'companyName'],\n  ['Company Sector', 'companySector'],\n  ['Main Contact - Email', 'email'],\n  ['Main Contact - Number', 'phone'],\n  ['Main Contact - Job Role', 'jobRole'],\n  ['Budget', 'budget'],\n  ['Repeat Client', 'repeatClient'],\n  ['Client Relationship Representative', 'preparedBy'],\n  ['Status', 'status'],\n  ['Live/Dead', 'liveDead'],\n  ['Source', 'source'],\n  ['Enquiry Date', 'enquiryDate'],\n  ['Event Type', 'eventType'],\n  ['Full Event Date', 'fullEventDate'],\n  ['Event Date - Flexible', 'eventDateFlexible'],\n  ['Requested Event Times', 'requestedEventTimes'],\n  ['Group Size', 'groupSize'],\n  ['What vessel', 'vessels'],\n  ['Market', 'market'],\n  ['Best time to call', 'bestTimeToCall'],\n  ['Year of Event', 'yearOfEvent'],\n];\n\nfunction norm(s) { return String(s).replace(/\\s+/g, ' ').trim().toLowerCase(); }\nfunction pick(row, prefix) {\n  const target = norm(prefix);\n  for (const key of Object.keys(row)) {\n    if (norm(key).startsWith(target)) {\n      const v = row[key];\n      if (v !== undefined && v !== null && String(v).trim() !== '') return row[key];\n    }\n  }\n  return '';\n}\nfunction lowerBound(g) {\n  const m = String(g).match(/\\d+/);\n  return m ? Number(m[0]) : '';\n}\nfunction collectProgress(row) {\n  const entries = [];\n  for (const key of Object.keys(row)) {\n    const mm = norm(key).match(/^progress\\s+(\\d+)$/);\n    if (mm) {\n      const v = row[key];\n      if (v !== undefined && v !== null && String(v).trim() !== '') entries.push([Number(mm[1]), String(row[key]).trim()]);\n    }\n  }\n  entries.sort((a, b) => a[0] - b[0]);\n  return entries.map((e) => e[1]).join(' | ');\n}\nfunction isFlexible(v) {\n  const s = norm(v);\n  return s.includes('yes') || s.includes('tbc') || s.includes('flex');\n}\n\nconst leads = $input.all().map((item) => {\n  const row = item.json || {};\n  const out = {};\n  for (const [prefix, alias] of wanted) out[alias] = pick(row, prefix);\n  // derived\n  out.assignedRep = out.preparedBy;\n  out.groupSizeQuote = lowerBound(out.groupSize);\n  out.progressNotes = collectProgress(row);\n  out.eventDateFlexibleBool = isFlexible(out.eventDateFlexible);\n  out.eventDateDisplay = out.eventDateFlexibleBool ? 'Date TBC' : (out.fullEventDate || '');\n  return out;\n})\n.filter((l) => l.referenceNumber || l.name || l.email) // drop blank / alwaysOutputData placeholder rows\n.reverse(); // newest first\n\nreturn [{ json: { count: leads.length, mode, leads } }];"
       },
-      "id": "8faffa36-201c-4494-96b8-c78481990cc7",
+      "id": "c1409a49-f4f2-4c59-9023-5f2fd0bc7871",
       "name": "Structure all Leads1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        224
+        1136,
+        464
       ]
     },
     {
@@ -196,13 +211,13 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "a9ccb77e-067b-428c-bb72-fbf597cb2ffd",
+      "id": "d9520954-b6af-46b5-ac1b-067b376333d1",
       "name": "Respond Leads1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1120,
-        224
+        1360,
+        464
       ]
     },
     {
@@ -214,13 +229,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "f1a54583-c13b-400d-9426-7215ab0832f9",
+      "id": "dad75a83-fda7-4d9c-b84c-0c85d9027c57",
       "name": "NoteAppend Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        544
+        240,
+        784
       ],
       "webhookId": "note-append-webhook"
     },
@@ -228,13 +243,13 @@
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  mode: body.mode === 'live' ? 'live' : 'demo',\n  referenceNumber: body.referenceNumber || '',\n  email: body.email || '',\n  leadName: body.leadName || '',\n  note: body.note || '',\n  tag: body.tag || '',\n  createdAt: new Date().toISOString(),\n}}];"
       },
-      "id": "2e508ad6-c62e-4c85-a2ab-3bc3f1c2158c",
+      "id": "03507865-4d5c-47d3-ab1f-2fc8d4fbc70b",
       "name": "Normalize NoteAppend1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        544
+        464,
+        784
       ]
     },
     {
@@ -261,13 +276,13 @@
         },
         "options": {}
       },
-      "id": "c1ec6f70-f7bf-4df6-ae43-ac62b96b849b",
+      "id": "0579a918-ac66-4607-aa17-48f80f23aa7a",
       "name": "Note Live?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        448,
-        544
+        688,
+        784
       ]
     },
     {
@@ -297,13 +312,13 @@
         },
         "options": {}
       },
-      "id": "ade96d24-da1d-4e91-b9f3-0088ed2de70f",
+      "id": "3149bcd8-ecd2-4363-9454-02c395be0dd1",
       "name": "Append Note LIVE1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        672,
-        448
+        912,
+        688
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -319,13 +334,13 @@
         "responseBody": "={{ { ok: true, mode: $json.mode || 'demo' } }}",
         "options": {}
       },
-      "id": "8b4b913d-70c8-4d18-a90a-a49346fd9bab",
+      "id": "1880029f-fc83-4403-a75d-4548b2e138a9",
       "name": "Respond NoteAppend1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        896,
-        544
+        1136,
+        784
       ]
     },
     {
@@ -355,13 +370,13 @@
         },
         "options": {}
       },
-      "id": "0e021df9-de6d-4b1a-8f0e-2426c6c2068a",
+      "id": "2c8fc184-5e4a-4b51-ad7b-f476bed1ffd7",
       "name": "Append Note DEMO1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        672,
-        640
+        912,
+        880
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -380,13 +395,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "d2c18ed6-d58d-4b04-a822-5b165ae145f4",
+      "id": "39f4fe73-b612-444d-b3c8-cbc49b42c5f1",
       "name": "QuoteStatus Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        960
+        240,
+        1200
       ],
       "webhookId": "quote-status-webhook"
     },
@@ -394,13 +409,13 @@
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst upgrades = Array.isArray(body.selectedUpgrades) ? body.selectedUpgrades.join(', ') : (body.selectedUpgrades || '');\nconst inserts = Array.isArray(body.selectedInserts) ? body.selectedInserts.join(', ') : (body.selectedInserts || '');\nconst lineLabels = Array.isArray(body.selectedLineLabels) ? body.selectedLineLabels.join(' | ') : (body.selectedLineLabels || '');\nconst sectionTotals = body.sectionTotals && typeof body.sectionTotals === 'object' ? JSON.stringify(body.sectionTotals) : (body.sectionTotals || '');\nreturn [{ json: {\n  mode: body.mode === 'live' ? 'live' : 'demo',\n  referenceNumber: body.referenceNumber || '',\n  email: body.email || '',\n  leadName: body.leadName || '',\n  quoteId: body.quoteId || '',\n  status: body.status || '',\n  version: body.version || body.quoteVersion || '',\n  title: body.title || '',\n  eventType: body.eventType || '',\n  eventDate: body.eventDate || '',\n  guestCount: body.guestCount || body.guests || '',\n  guestCountHigh: body.guestCountHigh || '',\n  repeatClient: body.repeatClient === true ? 'YES' : (body.repeatClient === false ? 'NO' : ''),\n  agentReferral: body.agentReferral === true ? 'YES' : (body.agentReferral === false ? 'NO' : ''),\n  selectedUpgrades: upgrades,\n  selectedLineLabels: lineLabels,\n  keyItems: body.keyItems || '',\n  weeklyPeriod: body.weeklyPeriod || '',\n  dayPeriod: body.dayPeriod || '',\n  groupBracket: body.groupBracket || '',\n  noOfTables: body.noOfTables || '',\n  templateId: body.templateId || body.template_id || '',\n  selectedInserts: inserts,\n  staffContact: body.staffContact || '',\n  baseCost: body.baseCost ?? '',\n  subtotalBeforeContingency: body.subtotalBeforeContingency ?? '',\n  contingency: body.contingency ?? '',\n  margin: body.margin ?? '',\n  marginAmount: body.marginAmount ?? '',\n  discountPercent: body.discountPercent ?? '',\n  discountAmount: body.discountAmount ?? '',\n  commissionPercent: body.commissionPercent ?? '',\n  commissionAmount: body.commissionAmount ?? '',\n  updatedProfit: body.updatedProfit ?? '',\n  costPerGuestExc: body.costPerGuestExc ?? '',\n  costPerGuestInc: body.costPerGuestInc ?? '',\n  costToClient: body.costToClient ?? body.packageCost ?? '',\n  packageCost: body.packageCost ?? body.costToClient ?? '',\n  vat: body.vat ?? '',\n  upgradeTotal: body.upgradeTotal ?? '',\n  grandTotal: body.grandTotal ?? '',\n  sectionTotals,\n  updatedAt: new Date().toISOString(),\n}}];"
       },
-      "id": "90ad7cf2-9505-41d2-acac-f12cdc45e65a",
+      "id": "0b94ad75-c420-4a75-b8f0-71d4be4f6511",
       "name": "Normalize QuoteStatus1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        960
+        464,
+        1200
       ]
     },
     {
@@ -427,13 +442,13 @@
         },
         "options": {}
       },
-      "id": "893b9afb-b509-4590-81e7-441fc45be824",
+      "id": "b708dac8-6720-4767-a024-44ce329c5ee5",
       "name": "Quote Live?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        448,
-        960
+        688,
+        1200
       ]
     },
     {
@@ -499,13 +514,13 @@
         },
         "options": {}
       },
-      "id": "9546cb29-f68d-46bb-810c-65d94b3497fd",
+      "id": "67ab32ba-90dd-4456-889c-22227ad1f0f5",
       "name": "Append Quote LIVE1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        672,
-        864
+        912,
+        1104
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -521,13 +536,13 @@
         "responseBody": "={{ { ok: true, mode: $json.mode || 'demo' } }}",
         "options": {}
       },
-      "id": "da5303aa-f2d1-4b56-a794-38e6fba06eba",
+      "id": "2e38e3e6-cea8-4fa1-8910-33209d4c031c",
       "name": "Respond QuoteStatus1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        896,
-        960
+        1136,
+        1200
       ]
     },
     {
@@ -593,13 +608,13 @@
         },
         "options": {}
       },
-      "id": "2de51ff1-c087-41fd-8596-a255b15c5e67",
+      "id": "184394ac-3c7a-4c43-b3b1-b183623b3045",
       "name": "Append Quote DEMO1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        672,
-        1056
+        912,
+        1296
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -618,13 +633,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "4787c325-0e72-4eda-bbf3-bebb4ff9a105",
+      "id": "23b84fde-4c95-4d60-baaf-3632cef172cb",
       "name": "CostRatesFetch Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        1280
+        240,
+        1520
       ],
       "webhookId": "06d8799f-b23a-4b31-b057-0d29decbbb7b"
     },
@@ -634,13 +649,13 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "694fb3d3-1a1a-43ef-86b1-297eb2110a4e",
+      "id": "946561c5-f792-4cd1-9ea1-f0abed1c9b7f",
       "name": "Respond Rates",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        672,
-        1280
+        912,
+        1520
       ]
     },
     {
@@ -657,13 +672,13 @@
         },
         "options": {}
       },
-      "id": "6f63fb93-c0dd-4884-a381-8f4acb2528e7",
+      "id": "b96ce55c-98b2-47ba-b634-5f7af0a12b89",
       "name": "Catalog Tab",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        224,
-        1280
+        464,
+        1520
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
@@ -679,13 +694,470 @@
       "parameters": {
         "jsCode": "function cell(row, names) {\n  const keys = Object.keys(row || {});\n  for (const want of names) {\n    if (row[want] !== undefined && row[want] !== null && String(row[want]).trim() !== '') return row[want];\n    const hit = keys.find((k) => k.toLowerCase() === String(want).toLowerCase());\n    if (hit && row[hit] !== undefined && row[hit] !== null && String(row[hit]).trim() !== '') return row[hit];\n  }\n  return '';\n}\n\nconst rows = $input.all().map((i) => i.json || {}).filter((r) => Object.keys(r).length && Object.values(r).some((v) => String(v ?? '').trim() !== ''));\nconst itemsByLabel = new Map();\nconst lines = [];\nconst vessels = new Set();\nconst periods = { weekly: new Set(), day: new Set(), group: new Set() };\nconst marginCells = [];\nconst staffRatios = [];\nconst cutleryRatios = [];\n\nfor (const r of rows) {\n  const kind = String(cell(r, ['kind', 'Kind']) || 'rate').toLowerCase();\n  const label = String(cell(r, ['label', 'Label']) || '').trim();\n  if (kind === 'vessel') {\n    if (label) vessels.add(label);\n    continue;\n  }\n  if (kind === 'line') {\n    if (!label) continue;\n    const section = String(cell(r, ['section', 'Section']) || 'other');\n    const multiplier = String(cell(r, ['multiplier', 'Multiplier']) || 'set');\n    const id = (section + ':' + label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);\n    lines.push({ id, section, label, multiplier });\n    continue;\n  }\n  if (kind === 'margin') {\n    const market = String(cell(r, ['section', 'Section']) || '').trim();\n    const month = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim().toUpperCase().slice(0, 3);\n    const rate = Number(cell(r, ['rate', 'Rate']));\n    if (!label || !/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$/.test(month) || !Number.isFinite(rate)) continue;\n    marginCells.push({ eventService: label, market, month, rate });\n    continue;\n  }\n  if (kind === 'staff_ratio' || kind === 'cutlery_ratio') {\n    const rec = {\n      label,\n      group: String(cell(r, ['section', 'Section']) || '').trim(),\n      key: String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim(),\n      value: Number(cell(r, ['rate', 'Rate'])),\n    };\n    if (!label || !Number.isFinite(rec.value)) continue;\n    (kind === 'staff_ratio' ? staffRatios : cutleryRatios).push(rec);\n    continue;\n  }\n  const rateKey = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim();\n  const rate = Number(cell(r, ['rate', 'Rate']));\n  if (!label || !rateKey || !Number.isFinite(rate)) continue;\n  if (!itemsByLabel.has(label)) itemsByLabel.set(label, { row: itemsByLabel.size + 1, label, rates: {} });\n  itemsByLabel.get(label).rates[rateKey] = rate;\n  const parts = rateKey.split('|');\n  if (parts[0]) vessels.add(parts[0]);\n  if (parts[1]) periods.weekly.add(parts[1]);\n  if (parts[2]) periods.day.add(parts[2]);\n  if (parts[3]) periods.group.add(parts[3]);\n}\n\nconst marginMap = new Map();\nfor (const c of marginCells) {\n  const k = c.eventService + '||' + c.market;\n  if (!marginMap.has(k)) marginMap.set(k, { eventService: c.eventService, market: c.market, months: {} });\n  marginMap.get(k).months[c.month] = c.rate;\n}\nconst margins = Array.from(marginMap.values());\nconst items = Array.from(itemsByLabel.values());\nconst costMother = items.length ? { source: '_Nexus Catalog', items, ...(margins.length ? { margins } : {}) } : null;\n\nreturn [{ json: {\n  ok: Boolean(costMother),\n  source: 'live',\n  note: costMother\n    ? 'Catalog from Apps Script (_Nexus Catalog).'\n    : 'Catalog tab empty — run buildNexusCatalog in Apps Script.',\n  failureEvent: costMother ? undefined : { type: 'FailureEvent', source: 'CostRatesFetch', reason: 'Catalog tab empty', httpStatus: 422 },\n  costMother,\n  lines,\n  vessels: Array.from(vessels),\n  periods: {\n    weekly: Array.from(periods.weekly),\n    day: Array.from(periods.day),\n    group: Array.from(periods.group),\n  },\n  margins,\n  staffRatios,\n  cutleryRatios,\n  counts: {\n    costMotherItems: items.length,\n    lines: lines.length,\n    catalogRows: rows.length,\n    margins: margins.length,\n    staffRatios: staffRatios.length,\n    cutleryRatios: cutleryRatios.length,\n  },\n}}];\n"
       },
-      "id": "0d645639-c104-40fa-aed9-dca4254f70ad",
+      "id": "55fa54d3-9dcf-4b47-9e3e-32f7a828357d",
       "name": "Parse Catalog",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        448,
-        1280
+        688,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PrefillHealer",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "4d530d1e-2649-4547-852e-e1a3ef7035ea",
+      "name": "PrefillHealer Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        240
+      ],
+      "webhookId": "prefill-healer-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst notes = String(body.notes || body.progressNotes || '').slice(0, 8000);\nif (!notes.trim()) {\n  return [{ json: {\n    matches: [],\n    model: 'none',\n    failureEvent: { type: 'FailureEvent', source: 'PrefillHealer', reason: 'empty notes', httpStatus: 400 }\n  } }];\n}\nconst taxonomy = body.taxonomy || {};\nconst lines = Array.isArray(taxonomy.lines) ? taxonomy.lines : [];\nconst aliases = lines.flatMap((l) => (l.aliases || [l.label]).map((a) => `${a} => ${l.label} [${l.id}]`)).slice(0, 400);\nconst prompt = [\n  'You are the WEOTT Nexus catalogue matcher.',\n  'Match CRM progress notes to canonical Cost Mother catalogue labels.',\n  'Return ONLY raw JSON (no markdown, no code fences): {\"matches\":[{\"field\":\"menuType|lineLabel|vesselType\",\"value\":\"exact catalogue label or id\",\"confidence\":0-1,\"evidence_span\":\"short quote from notes\"}]}',\n  'Never invent a label that is not in the catalogue list.',\n  'confidence < 0.75 if the token is ambiguous (TV/MIC/AWARDS, generic RECEPTION).',\n  'CATALOGUE:',\n  aliases.join('\\n'),\n  'NOTES:',\n  notes\n].join('\\n');\nreturn [{ json: { notes, prompt, ok: true } }];"
+      },
+      "id": "29ace970-ecf1-4682-b8c3-875ffce13b17",
+      "name": "Prepare Prefill Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "batching": {}
+      },
+      "id": "8d0772a3-95a1-4e8e-878f-59e0956a7fb9",
+      "name": "Gemini Prefill Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2368,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxOutputTokens": 2048,
+          "temperature": 0.1
+        }
+      },
+      "id": "df799764-2992-4767-96bd-739f6c4f3489",
+      "name": "Gemini Prefill Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2448,
+        480
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "dlay23hFXEWTtpXH",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API free tier. Bind googlePalmApi credential after import."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = String($json.text ?? $json.response ?? '');\nlet parsed = {};\ntry {\n  const cleaned = raw.replace(/```(?:json)?/gi, '').trim();\n  const start = cleaned.indexOf('{');\n  const end = cleaned.lastIndexOf('}');\n  parsed = (start !== -1 && end !== -1) ? JSON.parse(cleaned.slice(start, end + 1)) : {};\n} catch (e) {\n  parsed = {};\n}\nconst matches = Array.isArray(parsed.matches) ? parsed.matches : (parsed.output?.matches || []);\nreturn [{ json: {\n  matches: matches.map((m) => ({\n    field: String(m.field || ''),\n    value: String(m.value || ''),\n    confidence: Math.max(0, Math.min(1, Number(m.confidence) || 0)),\n    evidence_span: String(m.evidence_span || '')\n  })),\n  model: 'n8n Google Gemini Chat Model / models/gemini-3-flash-preview (Free Tier)'\n} }];"
+      },
+      "id": "affe0e88-3c9c-47f0-97a1-9d25dd0dd3d8",
+      "name": "Normalize Prefill Matches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "8a6f093e-6cec-47f7-9002-cc853266b472",
+      "name": "Respond Prefill",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2944,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "content": "GEMINI — PrefillHealer\nPOST /webhook/PrefillHealer",
+        "width": 320,
+        "color": 5
+      },
+      "id": "f0b6a2b2-18a4-448a-914b-cfedbc78de42",
+      "name": "Note 23915854",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "LeadNotesSummary",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "aec77576-c0f2-4b9c-b56e-65bdfb3808f5",
+      "name": "LeadNotesSummary Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1616,
+        720
+      ],
+      "webhookId": "lead-notes-summary-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst notes = String(body.notes || body.progressNotes || '').slice(0, 8000);\nconst leadName = String(body.leadName || '');\nconst referenceNumber = String(body.referenceNumber || body.leadKey || '');\nif (!notes.trim()) {\n  return [{ json: {\n    points: [],\n    model: 'none',\n    failureEvent: { type: 'FailureEvent', source: 'LeadNotesSummary', reason: 'empty notes', httpStatus: 400 }\n  } }];\n}\nconst prompt = [\n  'You summarise WEOTT CRM progress notes for a sales lead.',\n  'NOTES are concatenated Progress 1…N entries, often joined with \" | \", newlines, or \"Progress N:\".',\n  'Split them into discrete scannable POINTS — one card per distinct fact, call, budget, guest, vessel, timing, catering, or pipeline update.',\n  'Return ONLY JSON: {\"points\":[{\"title\":\"2-4 word label\",\"summary\":\"one sentence\",\"kind\":\"budget|calls|research|logistics|pipeline|history|guests|timing|catering|enquiry|discovery|general\",\"kinds\":[\"budget\"],\"when\":\"short time or date label or empty\",\"evidence\":\"verbatim substring of NOTES\"}]}',\n  'kind must be one of those enums. Use budget for money/£/margin, guests for headcount, logistics for vessel, timing for dates/hours, catering for food/drink, calls for phone/voicemail, pipeline for proposal/handover status.',\n  'Each point title MUST be exactly Progress N in source order (Progress 1, Progress 2, …). Do not use topic titles like Budget or Call.',\n  'Never invent £ amounts, dates, guest counts, or vessel names that are not in NOTES.',\n  'Never merge unrelated facts into one point. Keep 3–12 points when NOTES are long; 1–3 when short.',\n  'evidence must be copied from NOTES. summary may lightly compress but must stay faithful.',\n  referenceNumber ? ('LEAD: ' + referenceNumber + (leadName ? ' — ' + leadName : '')) : (leadName ? 'LEAD: ' + leadName : 'LEAD: unknown'),\n  'NOTES:',\n  notes\n].join('\\n');\nreturn [{ json: { notes, prompt, ok: true, leadName, referenceNumber } }];"
+      },
+      "id": "1785724a-4e73-45a8-a683-a036663cc3a3",
+      "name": "Prepare Notes Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "batching": {}
+      },
+      "id": "b35145ab-13e9-4448-b579-b6fc4896e6b3",
+      "name": "Gemini Notes Summary Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2064,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 8192,
+          "temperature": 0.15
+        }
+      },
+      "id": "61410144-5799-4cf3-8e2d-3acadc983c6d",
+      "name": "Gemini Notes Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        960
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "dlay23hFXEWTtpXH",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API. Bind googlePalmApi credential after import."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json;\nlet parsed = raw;\nif (typeof raw.text === 'string' || typeof raw.response === 'string' || typeof raw.output === 'string') {\n  let t = String(raw.text || raw.response || raw.output || '').trim();\n  t = t.replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();\n  const s = t.indexOf('{');\n  const e = t.lastIndexOf('}');\n  if (s !== -1 && e !== -1) t = t.slice(s, e + 1);\n  try { parsed = JSON.parse(t); } catch (err) { parsed = { points: [] }; }\n}\nconst points = Array.isArray(parsed.points) ? parsed.points : (parsed.output?.points || []);\nconst allowed = new Set(['budget','calls','research','logistics','pipeline','history','guests','timing','catering','enquiry','discovery','general']);\nreturn [{ json: {\n  points: points.map((p) => ({\n    title: String(p.title || 'Note').slice(0, 42),\n    summary: String(p.summary || '').slice(0, 280),\n    kind: allowed.has(String(p.kind || '')) ? p.kind : 'general',\n    kinds: Array.isArray(p.kinds) ? p.kinds.filter((k) => allowed.has(String(k))).slice(0, 4) : [],\n    when: String(p.when || '').slice(0, 24),\n    evidence: String(p.evidence || '').slice(0, 400)\n  })),\n  model: 'n8n Google Gemini Chat Model / models/gemini-3.6-flash (Free Tier)'\n} }];"
+      },
+      "id": "69a936e3-da77-4150-b5c8-7488e977f91c",
+      "name": "Normalize Notes Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "cc653237-656f-4323-a1e3-a3083d1413f9",
+      "name": "Respond Notes Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2640,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "content": "GEMINI — LeadNotesSummary\nPOST /webhook/LeadNotesSummary",
+        "width": 320,
+        "color": 5
+      },
+      "id": "c7788817-fde9-4605-92e1-52d8bee9eb99",
+      "name": "Note bd77b49f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ContractSync",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "dab1b07b-8798-420e-84d4-12b54a1d3d5e",
+      "name": "ContractSync Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        1120
+      ],
+      "webhookId": "contract-sync-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst expected = {\n  source: 'quoteFinance.ts + Transform QuoteBuilder1',\n  recalculate_finance: false,\n  vat_rate: 0.2,\n  contingency_rate: 0.0225,\n  staff_hours_buffer: 3,\n  min_billable_hours: 4,\n  contact_defaults: {\n    contact_name: 'Katherine Bulaon',\n    contact_title: 'Client Relationship Manager',\n    contact_phone: '020 8323 5827',\n    contact_email: 'sales@westendonthethames.com'\n  },\n  upgradeIdMap: {\n    'Live DJ': 'live_dj', Saxophonist: 'saxophonist', Karaoke: 'karaoke',\n    'Photo Booth': 'photo_booth', 'Close-up Magician': 'close_up_magician',\n    'Branded Vessel Flag': 'branded_vessel_flag', 'Acoustic Artist': 'acoustic_artist',\n    'Jazz and Sax Duo': 'jazz_sax_duo', 'Additional Hour on Board': 'extra_hour',\n    'Casino Table with Croupier': 'casino_table', 'Social Media Highlight Reel': 'social_highlight_reel',\n    'Mingling Tour Guide': 'mingling_guide', 'Bespoke Logo Bunting': 'logo_bunting',\n    'Unlimited Drinks (4 hrs)': 'unlimited_drinks', 'Drink Tokens': 'drink_tokens',\n    'Street Food Upgrade': 'street_food_upgrade'\n  }\n};\nconst transformSource = String(body.transformSource || body.transformQuoteBuilder1 || '');\nif (!transformSource.trim()) {\n  return [{ json: {\n    ok: false,\n    drifts: [],\n    failureEvent: { type: 'FailureEvent', source: 'ContractSync', reason: 'missing transformSource', httpStatus: 400 },\n    expected\n  } }];\n}\nconst prompt = [\n  'Compare quoteFinance.ts contract vs n8n Transform QuoteBuilder1 source.',\n  'Flag drifts in: contact defaults, upgradeIdMap keys/ids, VAT/contingency, and any finance recalculation.',\n  'Never propose changing money formulas — only report parity.',\n  'Return JSON {\"ok\":boolean,\"drifts\":[{\"area\":\"string\",\"expected\":\"string\",\"found\":\"string\",\"severity\":\"low|medium|high\"}]}',\n  'EXPECTED CONTRACT:',\n  JSON.stringify(expected, null, 2),\n  'TRANSFORM SOURCE:',\n  transformSource.slice(0, 12000)\n].join('\\n');\nreturn [{ json: { prompt, expected, ok: true } }];"
+      },
+      "id": "8f784874-7332-43cf-a5a8-728249e42742",
+      "name": "Prepare Contract Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {
+          "maxOutputTokens": 2048,
+          "temperature": 0
+        }
+      },
+      "id": "ef861a4b-ed5c-47a2-bcd3-b8811862a355",
+      "name": "Gemini Contract Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2384,
+        1360
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "dlay23hFXEWTtpXH",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API free tier. Bind googlePalmApi credential after import."
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"ok\": { \"type\": \"boolean\" },\n    \"drifts\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"area\": { \"type\": \"string\" },\n          \"expected\": { \"type\": \"string\" },\n          \"found\": { \"type\": \"string\" },\n          \"severity\": { \"type\": \"string\" }\n        }\n      }\n    }\n  }\n}"
+      },
+      "id": "60caf123-72f1-4013-924a-08d2bca9dc9a",
+      "name": "Contract Structured Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        2512,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "id": "99aa9efe-8e12-4585-a159-539e32205254",
+      "name": "Gemini Contract Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2368,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "25e393d0-817b-415a-b208-dc8ef37ca3cb",
+      "name": "Respond Contract Sync",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2720,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "GEMINI — ContractSync\nPOST /webhook/ContractSync",
+        "width": 320,
+        "color": 5
+      },
+      "id": "48b8281f-78ab-41b4-ad5a-8868f883107e",
+      "name": "Note 4a956c37",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PayloadContractCheck",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "0fc3e689-9f48-492f-93e6-746ddfd01d14",
+      "name": "PayloadContractCheck Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1792,
+        1568
+      ],
+      "webhookId": "payload-contract-gemini-free"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst source = String(body.source || 'unknown');\nconst rawText = typeof body.raw === 'string' ? body.raw : JSON.stringify(body.payload ?? body);\nif (!rawText || !rawText.trim()) {\n  return [{ json: {\n    ok: false,\n    failureEvent: { type: 'FailureEvent', source, reason: 'empty or non-JSON body', httpStatus: 400 },\n    skipGemini: true\n  } }];\n}\nlet parsed = null;\ntry { parsed = JSON.parse(rawText); } catch (e) {\n  return [{ json: {\n    ok: false,\n    failureEvent: { type: 'FailureEvent', source, reason: 'invalid JSON: ' + e.message, httpStatus: 400 },\n    skipGemini: false,\n    prompt: 'Classify this malformed webhook body into a FailureEvent. Return JSON {\"reason\":\"...\",\"httpStatus\":400}. BODY:\\n' + rawText.slice(0, 4000)\n  } }];\n}\nconst prompt = [\n  'Validate this n8n webhook payload against WEOTT contracts.',\n  source === 'CostRatesFetch' ? 'Expect { ok, costMother?, lines?, counts? }.' : 'Expect { mode?, leads: array of sapphire alias rows }.',\n  'If valid return {\"ok\":true,\"issues\":[]}. If invalid return {\"ok\":false,\"reason\":\"...\",\"httpStatus\":422,\"issues\":[...]}',\n  'PAYLOAD:',\n  JSON.stringify(parsed).slice(0, 8000)\n].join('\\n');\nreturn [{ json: { prompt, parsed, source, skipGemini: false, ok: true } }];"
+      },
+      "id": "c89dc711-5f14-479b-b7cf-ebf963087a02",
+      "name": "Prepare Payload Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "batching": {}
+      },
+      "id": "b06be4b6-b00c-4649-b2dc-d182bbab9ac5",
+      "name": "Gemini Payload Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2240,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {
+          "maxOutputTokens": 1024,
+          "temperature": 0
+        }
+      },
+      "id": "795a2dae-1213-44b8-8720-c0d53332c0bf",
+      "name": "Gemini Payload Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        1808
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "dlay23hFXEWTtpXH",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "notes": "n8n Google Gemini Chat Model — Gemini API free tier."
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $json;\nif (j.skipGemini && j.failureEvent) return [{ json: j }];\nlet gemini = j;\ntry {\n  if (typeof j.text === 'string') gemini = JSON.parse(j.text);\n  else if (j.output) gemini = typeof j.output === 'string' ? JSON.parse(j.output) : j.output;\n} catch (e) { /* keep */ }\nconst ok = gemini.ok !== false;\nreturn [{ json: {\n  ok,\n  issues: gemini.issues || [],\n  failureEvent: ok ? undefined : {\n    type: 'FailureEvent',\n    source: j.source || 'PayloadContractCheck',\n    reason: gemini.reason || 'payload failed Gemini contract check',\n    httpStatus: gemini.httpStatus || 422,\n    details: gemini.issues || []\n  }\n} }];"
+      },
+      "id": "51d8b992-97fc-4a58-b0f8-efd821971c01",
+      "name": "Normalize FailureEvent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "14106a00-42f8-4c90-84c3-d03e27d445fe",
+      "name": "Respond Contract Check",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2816,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "content": "GEMINI — PayloadContractCheck\nPOST /webhook/PayloadContractCheck",
+        "width": 320,
+        "color": 5
+      },
+      "id": "01fe296b-4b2f-4683-b30e-7b00388faea7",
+      "name": "Note af55d12d",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        1344
       ]
     }
   ],
@@ -941,9 +1413,235 @@
           }
         ]
       ]
+    },
+    "PrefillHealer Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prefill Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prefill Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Prefill Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Prefill Chain": {
+      "main": [
+        [
+          {
+            "node": "Normalize Prefill Matches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Prefill Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Prefill Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Prefill Matches": {
+      "main": [
+        [
+          {
+            "node": "Respond Prefill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LeadNotesSummary Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Notes Summary Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Notes Summary Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Notes Summary Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Notes Summary Chain": {
+      "main": [
+        [
+          {
+            "node": "Normalize Notes Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Notes Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Notes Summary Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Notes Summary": {
+      "main": [
+        [
+          {
+            "node": "Respond Notes Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ContractSync Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Contract Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Contract Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Contract Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Contract Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Contract Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Structured Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Gemini Contract Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Contract Chain": {
+      "main": [
+        [
+          {
+            "node": "Respond Contract Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PayloadContractCheck Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Payload Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Payload Check": {
+      "main": [
+        [
+          {
+            "node": "Gemini Payload Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Payload Chain": {
+      "main": [
+        [
+          {
+            "node": "Normalize FailureEvent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Payload Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Payload Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize FailureEvent": {
+      "main": [
+        [
+          {
+            "node": "Respond Contract Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0b033e4dea3e06f7022fa976138770d89a94a569a45a7883de93bf9335d36920"
