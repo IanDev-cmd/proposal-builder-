@@ -138,6 +138,7 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
         # Fill contact before map/staff inserts so the filled page travels with later shifts.
         overflow_shift = 1 if overflowed else 0
         fill_contact_page(doc, lead, font_mgr, warnings, profile=profile, page_shift=overflow_shift)
+        validate_render_warnings(warnings, lead=lead)
 
         insert_report = {"applied": [], "requested": [], "resolved": 0}
         if selected_inserts:

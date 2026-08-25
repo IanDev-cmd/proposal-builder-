@@ -110,19 +110,56 @@ def validate_profile_strict(profile, *, template_id: str | None = None, category
         raise ProfileValidationError(errors)
 
 
-def validate_render_warnings(warnings: Iterable, *, lead: dict | None = None) -> None:
-    """
-    After render, fail on cover layout shrink or missing critical cover ink.
-    """
-    errors: list[str] = []
-    for w in warnings:
-        field = getattr(w, "field", "") or ""
-        msg = getattr(w, "message", str(w))
-        if field in MIN_COVER_MAX_WIDTH and "shrink from" in msg.lower():
-            errors.append(f"cover.{field}: {msg[:120]}")
-            continue
-        if field in MIN_COVER_MAX_WIDTH and "shrink" in msg.lower():
-            errors.append(f"cover.{field}: {msg[:120]}")
+COVER_FIELD_LABELS = {
+    "proposal_ref": "proposal reference",
+    "prepared_by": "prepared-by name",
+    "quote_date": "quote date",
+    "client_name": "client name",
+    "organisation": "organisation name",
+    "telephone": "telephone number",
+    "email": "email address",
+    "event_type": "event type",
+    "event_date": "event date",
+    "event_timings": "event timings",
+    "guest_range": "guest range",
+    "guest_quote_n": "guest quote number",
+    "contact_phone": "telephone number",
+    "contact_mobile": "mobile number",
+    "contact_email": "email address",
+    "contact_name": "contact name",
+}
 
-    if errors:
-        raise ProfileValidationError(errors)
+
+def humanize_cover_overflow(field: str) -> str:
+    label = COVER_FIELD_LABELS.get(field) or str(field or "value").replace("_", " ")
+    return f"The {label} is too long for the cover field."
+
+
+def _is_overflow_message(message: str) -> bool:
+    msg = (message or "").lower()
+    return "shrink" in msg or "too long" in msg or "will not fit" in msg or "does not fit" in msg
+
+
+def humanize_overflow_warnings(warnings: Iterable) -> list[str]:
+    """Rewrite shrink/fit warnings to a specific sentence. Generation continues."""
+    notices: list[str] = []
+    for warning in warnings:
+        field = getattr(warning, "field", "") or ""
+        message = getattr(warning, "message", str(warning))
+        if not field or not _is_overflow_message(message):
+            continue
+        human = humanize_cover_overflow(field)
+        if hasattr(warning, "message"):
+            warning.message = human
+        if human not in notices:
+            notices.append(human)
+    return notices
+
+
+def validate_render_warnings(warnings: Iterable, *, lead: dict | None = None) -> list[str]:
+    """
+    Cover/contact overflow is shown to the salesperson but does not block the PDF.
+    Template geometry issues still fail via validate_profile_strict.
+    """
+    del lead
+    return humanize_overflow_warnings(warnings)

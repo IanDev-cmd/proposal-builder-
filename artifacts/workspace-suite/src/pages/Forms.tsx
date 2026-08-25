@@ -87,6 +87,11 @@ import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
 import { autoConfirmPrefillKeys, collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError, toastSuccess } from '@/lib/notify';
 import { errorMessage as formatError } from '@/lib/errors';
+import {
+  humanizeEngineWarning,
+  layoutOverflowMessages,
+  parseEngineWarningHeader,
+} from '@/lib/engineWarnings';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -1690,7 +1695,14 @@ export function Forms() {
         let detail = errText.trim().slice(0, 240);
         try {
           const j = JSON.parse(errText) as { error?: string; validation_errors?: unknown };
-          if (j?.error) detail = j.error;
+          const overflow = layoutOverflowMessages(j?.validation_errors);
+          if (overflow.length) {
+            detail = overflow.join(' ');
+          } else if (Array.isArray(j?.validation_errors) && j.validation_errors.length) {
+            detail = j.validation_errors.map((item) => humanizeEngineWarning(String(item))).join('; ');
+          } else if (j?.error) {
+            detail = j.error;
+          }
         } catch {
           /* keep raw text */
         }
@@ -1699,6 +1711,16 @@ export function Forms() {
             ? `Proposal engine responded ${res.status}: ${detail}`
             : `Proposal engine responded ${res.status} (empty body) from ${PROPOSAL_ENGINE_GENERATE_URL}`,
         );
+      }
+
+      const overflowNotices = layoutOverflowMessages(parseEngineWarningHeader(res.headers.get('X-Warnings')));
+      if (overflowNotices.length) {
+        toastError({
+          key: 'layout-overflow',
+          title: overflowNotices[0],
+          description:
+            overflowNotices.slice(1).join(' ') || 'The proposal PDF was still generated.',
+        });
       }
 
       setStage('generating');

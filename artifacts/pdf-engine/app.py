@@ -76,6 +76,10 @@ def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, PUT, POST, DELETE, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Expose-Headers"] = (
+        "Content-Disposition, Content-Type, X-Warnings, X-Using-Brand-Font, "
+        "X-Page-Count, X-Template-Id, X-Template-Matched-By, X-Inserts"
+    )
     resp.headers["Access-Control-Max-Age"] = "86400"
     return resp
 

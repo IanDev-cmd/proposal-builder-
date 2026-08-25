@@ -17,6 +17,11 @@ import { formatEventTimingsPayload, itineraryHours } from '../src/lib/proposalTi
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
 import { errorMessage } from '../src/lib/errors.ts';
 import { formatGbp } from '../src/lib/utils.ts';
+import {
+  humanizeEngineWarning,
+  isLayoutOverflowOnly,
+  layoutOverflowMessages,
+} from '../src/lib/engineWarnings.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -116,6 +121,23 @@ check('unit TBC date string', isEventDateTbc('TBC') === true);
 check('unit formatGbp', formatGbp(3256.15) === '£3256.15' || formatGbp(3256.15) === '£3256.15');
 check('unit errorMessage from Error', errorMessage(new Error('boom')) === 'boom');
 check('unit errorMessage fallback', errorMessage(null) === 'Something went wrong');
+
+check(
+  'unit telephone shrink becomes a specific cover error',
+  humanizeEngineWarning(
+    "[telephone] '020 1234 5678 / 07700 900000' had to shrink from 7.5pt to 4.2pt to fit its box -- flagging for manual review.",
+  ) === 'The telephone number is too long for the cover field.',
+);
+check(
+  'unit overflow warnings are collected without the generic 422 copy',
+  layoutOverflowMessages([
+    "[email] 'ops@averylongorganisationname.co.uk' had to shrink from 7.5pt to 5.1pt",
+  ])[0] === 'The email address is too long for the cover field.',
+);
+check(
+  'unit layout overflow-only 422 can be distinguished',
+  isLayoutOverflowOnly(['cover.telephone: had to shrink from 7.5pt to 4pt']) === true,
+);
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);
