@@ -76,7 +76,7 @@ import {
   rateEventDateFromLead,
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
-import { buildLivePackageWording } from '@/lib/goldPackageWording';
+import { itineraryOverlayWording } from '@/lib/goldPackageWording';
 import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import {
   buildItineraryProposalText,
@@ -1533,13 +1533,7 @@ export function Forms() {
         returnTime: data.returnTime,
         disembarkation: data.disembarkation,
       });
-    const packageWording = buildLivePackageWording({
-      selectedLineIds: data.selectedLineIds,
-      menuType: data.menuType,
-      bespokeLines: data.bespokeLines,
-      timingBlock,
-      extraNotes: data.packageWordingNotes,
-    });
+    const packageWording = itineraryOverlayWording(timingBlock);
 
     const payload = buildStargtmPayload({
       form: financeInput,
@@ -1602,8 +1596,7 @@ export function Forms() {
               fullEventDate: quoteLead.fullEventDate,
               eventDateDisplay: quoteLead.eventDateDisplay,
             }),
-            requestedEventTimes:
-              formatEventTimingsPayload(data) || quoteLead.requestedEventTimes,
+            requestedEventTimes: formatEventTimingsPayload(data),
             groupSize: data.guestCount || quoteLead.groupSize,
             groupSizeQuote: parseFloat(data.guestCount) || quoteLead.groupSizeQuote,
             vessels: data.vesselType.join(', ') || quoteLead.vessels,

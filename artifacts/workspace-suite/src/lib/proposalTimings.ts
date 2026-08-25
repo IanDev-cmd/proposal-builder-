@@ -83,18 +83,22 @@ export function buildItineraryProposalText(opts: TimingFields): string {
   return [block.heading, ...block.items].join('\n');
 }
 
-/** Cover / payload event window: departure → finish. Never the 15-minute embark buffer. */
+/** Cover / payload event window: departure → return. Never embarkation. */
 export function eventWindowTimes(opts: TimingFields): { start: string; end: string } {
   return {
-    start: opts.departure || opts.embarkation || '',
-    end: opts.returnTime || opts.disembarkation || '',
+    start: opts.departure || '',
+    end: opts.returnTime || '',
   };
 }
 
+/**
+ * Cover event window as "HH:MM - HH:MM" from departure → return.
+ * Embarkation is not a cover timing.
+ */
 export function formatEventTimingsPayload(opts: TimingFields): string {
   const { start, end } = eventWindowTimes(opts);
   if (start && end) return `${start} - ${end}`;
-  return start || end || '';
+  return '';
 }
 
 export function parseItineraryProposalText(text: string): { heading: string; items: string[] } | null {

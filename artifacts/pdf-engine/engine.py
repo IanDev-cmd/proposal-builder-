@@ -126,6 +126,7 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
         render_financials(doc, calculations, font_mgr, warnings, profile=profile)
         render_upgrade_list(doc, selected_upgrades, font_mgr, warnings, profile=profile)
 
+        # Overlay itinerary timings only — template package columns stay intact.
         overflowed = False
         if package_wording:
             overflowed = bool(render_package_columns(doc, package_wording, font_mgr, warnings, profile=profile))

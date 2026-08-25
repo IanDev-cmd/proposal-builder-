@@ -566,6 +566,8 @@ export function buildStargtmPayload(opts: {
     selectedUpgradeLabels: form.selectedUpgrades,
     selectedLineIds: resolveSelectedLineIds(form),
     selectedLineLabels,
+    departure: form.departure,
+    returnTime: form.returnTime,
     packageWording: packageWording || {},
     menuLinks: menuLinks || {},
     financials: {

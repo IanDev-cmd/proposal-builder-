@@ -5,14 +5,24 @@ Everything about Page 13 ("Your Bespoke Package"), plus overflow onto Page 14:
 
 1. render_financials       -- guest count / cost / VAT / grand total
 2. render_upgrade_list     -- no-op: keep full template marketing catalogue
-3. render_package_columns  -- stacking algorithm + overflow continuation
+3. render_package_columns  -- overlay itinerary timings only; keep template columns
 4. apply_menu_links        -- rewrite / attach current-year menu URLs
 """
+
+import re
 
 import fitz
 
 import config
 from pdf_ops import redact_zone, draw_text, draw_field
+
+_HIRE_RE = re.compile(r"private venue hire|current itinerary|itinerary is as follows", re.I)
+_TIME_RE = re.compile(r"Embark will begin|Boat departs|Returns to pier|Disembark completes", re.I)
+_KEEP_RE = re.compile(r"Complimentary pier stop|Full event management", re.I)
+_SKIP_ITEM_RE = re.compile(
+    r"complimentary pier stop|assigned event planner|event coordinators|pier coordinator",
+    re.I,
+)
 
 
 def render_financials(doc: "fitz.Document", calculations: dict, font_mgr, warnings: list, profile=None):
@@ -68,57 +78,100 @@ def render_upgrade_list(doc: "fitz.Document", selected_upgrades, font_mgr, warni
 
 def render_package_columns(doc: "fitz.Document", package_wording: dict, font_mgr, warnings: list, profile=None):
     """
-    Flow each package column. Overflow continues onto a continuation page
-    inserted after Added Extras.
+    Keep the template's three package columns (entertainment, catering, event
+    management, upgrade sidebar). Only replace the itinerary heading + four
+    timing lines in the left column.
     """
-    overflow_by_column = {}
+    itinerary = _itinerary_group(package_wording)
+    if not itinerary:
+        return False
+
     page_bespoke = profile.page_bespoke if profile and profile.page_bespoke is not None else config.PAGE_BESPOKE_PACKAGE
-    page_extras = profile.page_extras if profile and profile.page_extras is not None else config.PAGE_ADDED_EXTRAS
     columns = profile.package_columns if profile and profile.package_columns else config.PACKAGE_COLUMNS
-    clear_zone = profile.package_clear_zone if profile and profile.package_clear_zone else config.PACKAGE_CLEAR_ZONE
+    col_cfg = next((c for c in columns if c["name"] == "venue_and_management"), columns[0])
 
     page13 = doc[page_bespoke]
     font_mgr.ensure_registered(page13)
 
-    any_groups = any(package_wording.get(col_cfg["name"]) for col_cfg in columns)
-    if not any_groups:
+    block = _find_itinerary_block(page13, col_cfg)
+    if not block:
+        warnings.append(
+            type("ValidationWarning", (), {
+                "field": "packageWording",
+                "message": "Page 13 itinerary block not found — left template column unchanged.",
+            })()
+        )
         return False
 
-    redact_zone(page13, clear_zone, clear_graphics=True)
+    redact_zone(page13, block["bbox"], clear_graphics=False)
+    flow_cfg = dict(
+        col_cfg,
+        top_y=block["top_y"],
+        max_y=block["max_y"],
+    )
+    lines = _flatten_groups([itinerary], font_mgr, col_cfg["width"] - 6)
+    overflow_index = _flow_lines(page13, flow_cfg, lines, font_mgr)
+    if overflow_index is not None:
+        warnings.append(
+            type("ValidationWarning", (), {
+                "field": "packageWording",
+                "message": "Itinerary timings did not fit the template itinerary slot.",
+            })()
+        )
+    return False
 
-    for col_cfg in columns:
-        groups = package_wording.get(col_cfg["name"], [])
-        if not groups:
+
+def _itinerary_group(package_wording: dict) -> dict | None:
+    groups = package_wording.get("venue_and_management") or package_wording.get("itinerary") or []
+    if isinstance(groups, dict):
+        groups = [groups]
+    for group in groups:
+        heading = str(group.get("heading") or "")
+        items = [str(i).strip() for i in (group.get("items") or []) if str(i).strip()]
+        items = [i for i in items if not _SKIP_ITEM_RE.search(i)]
+        if _HIRE_RE.search(heading) or any(_TIME_RE.search(i) for i in items):
+            return {"heading": heading, "items": items}
+    return None
+
+
+def _find_itinerary_block(page, col_cfg) -> dict | None:
+    col_right = float(col_cfg.get("x", 24)) + float(col_cfg.get("width", 100)) + 6
+    rows = []
+    for block in page.get_text("dict").get("blocks", []):
+        if block.get("type") != 0:
             continue
-
-        page13 = doc[page_bespoke]
-        font_mgr.ensure_registered(page13)
-
-        lines = _flatten_groups(groups, font_mgr, col_cfg["width"] - 6)
-
-        overflow_index = _flow_lines(page13, col_cfg, lines, font_mgr)
-        if overflow_index is not None:
-            overflow_by_column[col_cfg["name"]] = lines[overflow_index:]
-
-    if not overflow_by_column:
-        return False
-
-    continuation_page = _create_continuation_page(doc, page_bespoke=page_bespoke, page_extras=page_extras)
-    for col_cfg in columns:
-        remaining = overflow_by_column.get(col_cfg["name"])
-        if not remaining:
-            continue
-        cont_col_cfg = dict(col_cfg, top_y=40, max_y=continuation_page.rect.height - 20)
-        still_over = _flow_lines(continuation_page, cont_col_cfg, remaining, font_mgr)
-        if still_over is not None:
-            warnings.append(
-                type("ValidationWarning", (), {"field": col_cfg["name"], "message": (
-                    f"Column '{col_cfg['name']}' still overflows even after adding a "
-                    f"continuation page -- wording needs manual trimming."
-                )})()
-            )
-
-    return True
+        for line in block.get("lines", []):
+            text = "".join(s.get("text", "") for s in line.get("spans", [])).strip()
+            if not text:
+                continue
+            rect = fitz.Rect(line["bbox"])
+            if rect.x0 > col_right or rect.y0 < 150 or rect.y0 > 270:
+                continue
+            origin_y = line["spans"][0]["origin"][1] if line.get("spans") else rect.y1 - 1.2
+            rows.append((rect, text, origin_y))
+    rows.sort(key=lambda r: r[0].y0)
+    start = None
+    end = None
+    stop_y = None
+    for i, (rect, text, _origin_y) in enumerate(rows):
+        if _KEEP_RE.search(text):
+            stop_y = rect.y0 - 1.0
+            break
+        if start is None and (_HIRE_RE.search(text) or _TIME_RE.search(text)):
+            start = i
+        if start is not None:
+            end = i
+    if start is None or end is None:
+        return None
+    union = rows[start][0]
+    for rect, _text, _origin_y in rows[start : end + 1]:
+        union |= rect
+    union.x0 = min(union.x0, float(col_cfg.get("x", 24)) - 1)
+    union.x1 = max(union.x1, col_right)
+    union.y0 -= 1.2
+    union.y1 += 1.2
+    max_y = stop_y if stop_y is not None else union.y1
+    return {"bbox": union, "top_y": rows[start][2], "max_y": max_y}
 
 
 def apply_menu_links(doc: "fitz.Document", menu_links: dict, warnings: list, profile=None):
