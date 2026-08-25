@@ -6,64 +6,69 @@
         "httpMethod": "POST",
         "path": "PayloadContractCheck",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "pc-webhook",
+      "id": "2906e2bd-fd30-4cb0-9e82-f5267ba1dbe9",
       "name": "PayloadContractCheck Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
+      "position": [-128, 32],
       "webhookId": "payload-contract-gemini-free"
     },
     {
       "parameters": {
         "jsCode": "const body = $json.body || $json;\nconst source = String(body.source || 'unknown');\nconst rawText = typeof body.raw === 'string' ? body.raw : JSON.stringify(body.payload ?? body);\nif (!rawText || !rawText.trim()) {\n  return [{ json: {\n    ok: false,\n    failureEvent: { type: 'FailureEvent', source, reason: 'empty or non-JSON body', httpStatus: 400 },\n    skipGemini: true\n  } }];\n}\nlet parsed = null;\ntry { parsed = JSON.parse(rawText); } catch (e) {\n  return [{ json: {\n    ok: false,\n    failureEvent: { type: 'FailureEvent', source, reason: 'invalid JSON: ' + e.message, httpStatus: 400 },\n    skipGemini: false,\n    prompt: 'Classify this malformed webhook body into a FailureEvent. Return JSON {\"reason\":\"...\",\"httpStatus\":400}. BODY:\\n' + rawText.slice(0, 4000)\n  } }];\n}\nconst prompt = [\n  'Validate this n8n webhook payload against WEOTT contracts.',\n  source === 'CostRatesFetch' ? 'Expect { ok, costMother?, lines?, counts? }.' : 'Expect { mode?, leads: array of sapphire alias rows }.',\n  'If valid return {\"ok\":true,\"issues\":[]}. If invalid return {\"ok\":false,\"reason\":\"...\",\"httpStatus\":422,\"issues\":[...]}',\n  'PAYLOAD:',\n  JSON.stringify(parsed).slice(0, 8000)\n].join('\\n');\nreturn [{ json: { prompt, parsed, source, skipGemini: false, ok: true } }];"
       },
-      "id": "pc-prep",
+      "id": "728a771b-db4a-4a02-95d8-bb74e50aeb44",
       "name": "Prepare Payload Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [240, 0]
+      "position": [96, 32]
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.0-flash",
-        "options": { "temperature": 0, "maxOutputTokens": 1024 }
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "batching": {}
       },
-      "id": "pc-gemini",
+      "id": "3c19db74-5914-4854-a9c4-16dd6c1a81ac",
+      "name": "Gemini Payload Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [320, 32]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {
+          "maxOutputTokens": 1024,
+          "temperature": 0
+        }
+      },
+      "id": "843b8bab-b095-45a1-8d96-756835d6aa3b",
       "name": "Google Gemini Chat Model (Free Tier)",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [480, 200],
+      "position": [400, 272],
       "credentials": {
         "googlePalmApi": {
-          "id": "GOOGLE_GEMINI_FREE_TIER",
-          "name": "Google Gemini (Free Tier)"
+          "id": "zvFDkn9Cp7SqbA1q",
+          "name": "Google Gemini(PaLM) Api account"
         }
       },
       "notes": "n8n Google Gemini Chat Model — Gemini API free tier."
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.prompt }}",
-        "options": {}
-      },
-      "id": "pc-chain",
-      "name": "Gemini Payload Chain",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [480, 0]
-    },
-    {
-      "parameters": {
         "jsCode": "const j = $json;\nif (j.skipGemini && j.failureEvent) return [{ json: j }];\nlet gemini = j;\ntry {\n  if (typeof j.text === 'string') gemini = JSON.parse(j.text);\n  else if (j.output) gemini = typeof j.output === 'string' ? JSON.parse(j.output) : j.output;\n} catch (e) { /* keep */ }\nconst ok = gemini.ok !== false;\nreturn [{ json: {\n  ok,\n  issues: gemini.issues || [],\n  failureEvent: ok ? undefined : {\n    type: 'FailureEvent',\n    source: j.source || 'PayloadContractCheck',\n    reason: gemini.reason || 'payload failed Gemini contract check',\n    httpStatus: gemini.httpStatus || 422,\n    details: gemini.issues || []\n  }\n} }];"
       },
-      "id": "pc-norm",
+      "id": "daecd651-69c2-42d6-82cc-7583835c3182",
       "name": "Normalize FailureEvent",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 0]
+      "position": [672, 32]
     },
     {
       "parameters": {
@@ -71,11 +76,11 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "pc-respond",
+      "id": "66af1c42-f3f5-4ed3-964c-cf529c43c58e",
       "name": "Respond Contract Check",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [960, 0]
+      "position": [896, 32]
     }
   ],
   "connections": {
@@ -85,11 +90,11 @@
     "Prepare Payload Check": {
       "main": [[{ "node": "Gemini Payload Chain", "type": "main", "index": 0 }]]
     },
-    "Google Gemini Chat Model (Free Tier)": {
-      "ai_languageModel": [[{ "node": "Gemini Payload Chain", "type": "ai_languageModel", "index": 0 }]]
-    },
     "Gemini Payload Chain": {
       "main": [[{ "node": "Normalize FailureEvent", "type": "main", "index": 0 }]]
+    },
+    "Google Gemini Chat Model (Free Tier)": {
+      "ai_languageModel": [[{ "node": "Gemini Payload Chain", "type": "ai_languageModel", "index": 0 }]]
     },
     "Normalize FailureEvent": {
       "main": [[{ "node": "Respond Contract Check", "type": "main", "index": 0 }]]
@@ -97,7 +102,6 @@
   },
   "pinData": {},
   "meta": {
-    "templateCredsSetupCompleted": false,
-    "instanceId": "weott-nexus-gemini-payload-contracts"
+    "instanceId": "7edf9dbd0dc2afcd47af5b8da39c5d58dbe322ad798898e460ad228e7ae73b4a"
   }
 }

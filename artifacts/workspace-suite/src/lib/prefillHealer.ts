@@ -1,8 +1,7 @@
 /**
- * Optional n8n Gemini Prefill Healer.
- * #2 — quote a key-items span from messy notes when local regex returns empty.
- * #4 — veto TV / cocktail when MIC/SCREEN/AWARDS / generic RECEPTION are ambiguous.
- * Never guests. Never £ / margin / rates.
+ * Optional n8n Gemini Prefill Healer (models/gemini-3-flash-preview).
+ * Live webhook matches CRM notes to Cost Mother catalogue labels
+ * (menuType | lineLabel | vesselType). Never guests. Never £ / margin / rates.
  */
 import { PREFILL_HEALER_URL } from '@/lib/backendUrls';
 import {
@@ -21,12 +20,11 @@ export async function requestPrefillHealer(opts: {
   quoteVersion?: string;
   tasks: PrefillHealerTasks;
 }): Promise<PrefillMatch[] | null> {
-  if (!opts.tasks.keyItems && !opts.tasks.collisionVeto) return null;
   const notes = String(opts.notes || '').slice(0, 8000);
   if (!notes.trim()) return null;
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
+  const timer = setTimeout(() => ctrl.abort(), 15000);
   try {
     const res = await fetch(PREFILL_HEALER_URL, {
       method: 'POST',

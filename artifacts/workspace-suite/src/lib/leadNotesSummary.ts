@@ -1,5 +1,5 @@
 /**
- * Optional n8n Gemini Lead Notes Summary.
+ * Optional n8n Gemini Lead Notes Summary (models/gemini-3.6-flash).
  * Turns concatenated Progress 1…N notes into titled, kind-tagged cards.
  * Display-only — never writes Gemini output back onto the sheet string.
  */
@@ -78,7 +78,7 @@ export async function requestLeadNotesSummary(opts: {
   if (hit) return hit;
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 14000);
+  const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
     const res = await fetch(LEAD_NOTES_SUMMARY_URL, {
       method: 'POST',

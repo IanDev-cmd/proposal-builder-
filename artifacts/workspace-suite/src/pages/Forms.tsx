@@ -941,13 +941,13 @@ export function Forms() {
     if (step === 3) setIsNotesOpen(true);
   }, [step]);
 
-  // Gemini #2/#4 overlay only — guests and money stay local. Skip gold playbook leads.
+  // Gemini catalogue overlay — guests and money stay local. Skip gold playbook leads.
   useEffect(() => {
     const lead = getQuoteLead();
     if (goldTargetsFromRef(lead?.referenceNumber)) return;
     const notes = String(lead?.progressNotes || data.progressNotes || '');
+    if (!notes.trim()) return;
     const tasks = prefillHealerTasks(notes, String(data.quoteVersion || 'V1'), String(data.keyItems || ''));
-    if (!tasks.keyItems && !tasks.collisionVeto) return;
     let cancelled = false;
     requestPrefillHealer({ notes, quoteVersion: String(data.quoteVersion || ''), tasks })
       .then((matches) => {

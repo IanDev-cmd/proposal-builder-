@@ -4,6 +4,7 @@
  *
  * Demo → test workbook 1f67f2907cUnHbaXJOb8uf-QfUnPSfv9sQekjvLS8ITs
  * Live → production workbook 1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o
+ * n8n Google Sheets OAuth: 9DvsM5k7IUgWQ5Bf (Google Sheets account)
  */
 
 import { N8N_BASE } from '@/lib/backendUrls';

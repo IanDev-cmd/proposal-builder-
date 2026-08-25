@@ -717,7 +717,7 @@ function notesNeedKeyItemHealer_(notes: string, localKeyItems: string): boolean 
   return mixedSameChunk || paraphrase;
 }
 
-/** Gemini is only for leftover key-item notes (#2) and TV/MIC/AWARDS/reception vetoes (#4). */
+/** Local leftover flags still sent to PrefillHealer; live Gemini matches catalogue labels. */
 export function prefillHealerTasks(
   notes: string,
   _quoteVersion: string,

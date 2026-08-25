@@ -1,5 +1,5 @@
 {
-  "name": "WEOTT Nexus MVP — Quote + Sheets (Demo/Live)",
+  "name": "WEOTT Nexus MVP \u2014 Quote + Sheets (Demo/Live)",
   "nodes": [
     {
       "parameters": {
@@ -10,7 +10,7 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "3028084b-215a-43f3-9046-ab2facac13ac",
+      "id": "5d0f90eb-0cec-4e8e-96c0-f9cb06b99ddf",
       "name": "GenerateProposal1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -22,9 +22,9 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * QuoteBuilder -> stargtm /generate\n * Does NOT recalculate finance - UI Quote Sheet is the source of truth.\n * Finance values are passed through, never invented.\n */\nconst raw = $json.body || $json;\nconst lead = raw.nexusLead || raw.lead || {};\nconst uiLead = raw.lead || {};\nconst fin = raw.financials || {};\nconst form = raw.form || raw;\n\nconst upgradeIdMap = {\n  'Live DJ': 'live_dj', Saxophonist: 'saxophonist', Karaoke: 'karaoke',\n  'Photo Booth': 'photo_booth', 'Close-up Magician': 'close_up_magician',\n  'Close up Magician': 'close_up_magician', 'Branded Vessel Flag': 'branded_vessel_flag',\n  'Acoustic Artist': 'acoustic_artist', 'Jazz and Sax Duo': 'jazz_sax_duo',\n  'Additional Hour on Board': 'extra_hour', 'Casino Table with Croupier': 'casino_table',\n  'Social Media Highlight Reel': 'social_highlight_reel', 'Mingling Tour Guide': 'mingling_guide',\n  'Bespoke Logo Bunting': 'logo_bunting', 'Unlimited Drinks (4 hrs)': 'unlimited_drinks',\n  'Unlimited Drinks': 'unlimited_drinks', 'Drink Tokens': 'drink_tokens',\n  'Street Food Upgrade': 'street_food_upgrade',\n};\n\nfunction addIfPresent(obj, key, value) {\n  if (value !== undefined && value !== null && String(value).trim() !== '') obj[key] = String(value);\n}\nfunction money(n) {\n  const v = Number(n);\n  if (!Number.isFinite(v)) return 0;\n  return Math.round((v + Number.EPSILON) * 100) / 100;\n}\nfunction mapUpgrades(selected) {\n  return (Array.isArray(selected) ? selected : [])\n    .map((u) => {\n      if (typeof u !== 'string') return null;\n      if (upgradeIdMap[u]) return upgradeIdMap[u];\n      if (u.includes('_')) return u;\n      return null;\n    })\n    .filter(Boolean);\n}\n\nconst prebuilt = raw.calculations || {};\nconst packageCost = money(prebuilt.package_cost ?? fin.costToClient ?? fin.package_cost ?? 0);\nconst vat = money(prebuilt.vat ?? fin.vat ?? 0);\nconst grandTotal = money(prebuilt.grand_total ?? fin.grandTotal ?? fin.grand ?? (packageCost + vat));\nconst guests = Number(prebuilt.guests ?? form.guestCount ?? raw.guestCount) || 0;\nconst eventType = form.eventType || raw.eventType || raw.event_type || lead.eventType || lead.event_type || '';\nconst selected = raw.selectedUpgradeLabels || form.selectedUpgrades || raw.selectedUpgrades || [];\nconst selectedInserts = Array.isArray(raw.selectedInserts) ? raw.selectedInserts\n  : (Array.isArray(form.selectedInserts) ? form.selectedInserts : []);\nconst templateId = raw.template_id || form.templateId || raw.templateId || '';\n\nconst leadOut = {\n  proposal_ref: uiLead.proposal_ref || lead.referenceNumber || lead.proposal_ref || ('WE.' + Math.floor(1000 + Math.random() * 9000)),\n  quote_date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) + ' | Quotation valid for 28 days',\n};\naddIfPresent(leadOut, 'client_name', uiLead.client_name || lead.name || lead.client_name);\naddIfPresent(leadOut, 'organisation', uiLead.organisation || lead.companyName || lead.company || lead.organisation);\naddIfPresent(leadOut, 'telephone', uiLead.telephone || lead.phone || lead.telephone);\naddIfPresent(leadOut, 'email', uiLead.email || lead.email);\naddIfPresent(leadOut, 'event_type', eventType);\n\n// Flexible date -> \"Date TBC\"\nconst flexibleFlag = lead.eventDateFlexibleBool === true || /(tbc|flexible|yes)/i.test(String(lead.eventDateFlexible || ''));\nconst eventDateVal = uiLead.event_date || form.eventDate || raw.eventDate || lead.eventDateDisplay || lead.fullEventDate;\nif (flexibleFlag) { leadOut.event_date = 'Date TBC'; } else { addIfPresent(leadOut, 'event_date', eventDateVal); }\n\nconst embark = form.embarkation || raw.embarkation;\nconst disembark = form.disembarkation || raw.disembarkation;\nif (embark || disembark) { leadOut.event_timings = (embark || '') + ' - ' + (disembark || ''); }\nif (!leadOut.event_timings) addIfPresent(leadOut, 'event_timings', uiLead.event_timings || lead.requestedEventTimes);\n\nconst guestLow = form.guestCount || raw.guestCount || lead.groupSize;\nconst guestHigh = form.guestCountHigh || raw.guestCountHigh || '';\nconst guestRange = (guestHigh && String(guestHigh).trim())\n  ? (String(guestLow || '') + '-' + String(guestHigh))\n  : (uiLead.guest_range || guestLow || '');\naddIfPresent(leadOut, 'guest_range', guestRange);\naddIfPresent(leadOut, 'guest_quote_n', String(uiLead.guest_quote_n || guests || lead.groupSizeQuote || form.guestCount || raw.guestCount || ''));\n\n// Form / Quote Sheet fields (UI SoT) — pass through for engine + ops\naddIfPresent(leadOut, 'quote_version', form.quoteVersion || raw.quoteVersion || raw.version || uiLead.quote_version);\naddIfPresent(leadOut, 'key_items', form.keyItems || raw.keyItems || uiLead.key_items);\naddIfPresent(leadOut, 'weekly_period', form.weeklyPeriod || raw.weeklyPeriod || uiLead.weekly_period);\naddIfPresent(leadOut, 'day_period', form.dayPeriod || raw.dayPeriod || uiLead.day_period);\naddIfPresent(leadOut, 'group_bracket', form.groupBracket || raw.groupBracket || uiLead.group_bracket);\naddIfPresent(leadOut, 'no_of_tables', form.noOfTables || raw.noOfTables || uiLead.no_of_tables);\n\n// New business fields passed through cleanly\naddIfPresent(leadOut, 'budget', lead.budget || raw.budget || form.budget || uiLead.budget);\naddIfPresent(leadOut, 'vessels', lead.vessels || raw.vessels || form.vessels || uiLead.vessels);\naddIfPresent(leadOut, 'market', lead.market || raw.market || uiLead.market);\naddIfPresent(leadOut, 'source', lead.source || raw.source || uiLead.source);\naddIfPresent(leadOut, 'year_of_event', lead.yearOfEvent || raw.yearOfEvent || uiLead.year_of_event);\nconst repeatVal = lead.repeatClient ?? raw.repeatClient ?? form.repeatClient ?? uiLead.repeat_client;\naddIfPresent(leadOut, 'repeat_client', typeof repeatVal === 'boolean' ? (repeatVal ? 'YES' : 'NO') : repeatVal);\naddIfPresent(leadOut, 'agent', lead.agent || raw.agent || form.agent);\n\n// Staff / contact defaults (staff insert overrides Katherine). Prefer UI lead overlay.\nleadOut.contact_name = uiLead.contact_name || lead.contact_name || 'Katherine Bulaon';\nleadOut.contact_title = uiLead.contact_title || lead.contact_title || 'Client Relationship Manager';\nleadOut.contact_phone = uiLead.contact_phone || lead.contact_phone || '020 8323 5827';\nleadOut.contact_email = uiLead.contact_email || lead.contact_email || 'sales@westendonthethames.com';\n// prepared_by = REP name only (gold cover keeps \"| Client\" + role on template lines)\nlet preparedBy = uiLead.prepared_by || lead.preparedBy || lead.assignedRep || lead.prepared_by || leadOut.contact_name;\nif (preparedBy && String(preparedBy).includes('|')) preparedBy = String(preparedBy).split('|')[0].trim();\naddIfPresent(leadOut, 'prepared_by', preparedBy);\n\nconst lower = String(eventType).toLowerCase();\nconst category = raw.category || form.proposalCategory ||\n  (lower.includes('wedding') || lower.includes('engagement') ? 'wedding' : (eventType ? 'corporate' : undefined));\n\nconst mapped = mapUpgrades(selected);\nconst out = {\n  event_type: eventType,\n  ...(category ? { category } : {}),\n  ...(templateId ? { template_id: templateId, manual_template: true } : {}),\n  lead: leadOut,\n  calculations: { guests, package_cost: packageCost, vat, grand_total: grandTotal },\n  selectedUpgrades: mapped.length ? mapped : (Array.isArray(raw.selectedUpgrades) ? raw.selectedUpgrades.filter((u) => typeof u === 'string' && u.includes('_')) : []),\n  selectedInserts,\n  packageWording: raw.packageWording || {},\n  menuLinks: raw.menuLinks || form.menuLinks || {},\n  mode: raw.mode === 'live' ? 'live' : 'demo',\n};\nreturn [{ json: out }];\n"
+        "jsCode": "/**\n * QuoteBuilder -> stargtm /generate\n * Does NOT recalculate finance - UI Quote Sheet is the source of truth.\n * Finance values are passed through, never invented.\n */\nconst raw = $json.body || $json;\nconst lead = raw.nexusLead || raw.lead || {};\nconst uiLead = raw.lead || {};\nconst fin = raw.financials || {};\nconst form = raw.form || raw;\n\nconst upgradeIdMap = {\n  'Live DJ': 'live_dj', Saxophonist: 'saxophonist', Karaoke: 'karaoke',\n  'Photo Booth': 'photo_booth', 'Close-up Magician': 'close_up_magician',\n  'Close up Magician': 'close_up_magician', 'Branded Vessel Flag': 'branded_vessel_flag',\n  'Acoustic Artist': 'acoustic_artist', 'Jazz and Sax Duo': 'jazz_sax_duo',\n  'Additional Hour on Board': 'extra_hour', 'Casino Table with Croupier': 'casino_table',\n  'Social Media Highlight Reel': 'social_highlight_reel', 'Mingling Tour Guide': 'mingling_guide',\n  'Bespoke Logo Bunting': 'logo_bunting', 'Unlimited Drinks (4 hrs)': 'unlimited_drinks',\n  'Unlimited Drinks': 'unlimited_drinks', 'Drink Tokens': 'drink_tokens',\n  'Street Food Upgrade': 'street_food_upgrade',\n};\n\nfunction addIfPresent(obj, key, value) {\n  if (value !== undefined && value !== null && String(value).trim() !== '') obj[key] = String(value);\n}\nfunction money(n) {\n  const v = Number(n);\n  if (!Number.isFinite(v)) return 0;\n  return Math.round((v + Number.EPSILON) * 100) / 100;\n}\nfunction mapUpgrades(selected) {\n  return (Array.isArray(selected) ? selected : [])\n    .map((u) => {\n      if (typeof u !== 'string') return null;\n      if (upgradeIdMap[u]) return upgradeIdMap[u];\n      if (u.includes('_')) return u;\n      return null;\n    })\n    .filter(Boolean);\n}\n\nconst prebuilt = raw.calculations || {};\nconst packageCost = money(prebuilt.package_cost ?? fin.costToClient ?? fin.package_cost ?? 0);\nconst vat = money(prebuilt.vat ?? fin.vat ?? 0);\nconst grandTotal = money(prebuilt.grand_total ?? fin.grandTotal ?? fin.grand ?? (packageCost + vat));\nconst guests = Number(prebuilt.guests ?? form.guestCount ?? raw.guestCount) || 0;\nconst eventType = form.eventType || raw.eventType || raw.event_type || lead.eventType || lead.event_type || '';\nconst selected = raw.selectedUpgradeLabels || form.selectedUpgrades || raw.selectedUpgrades || [];\nconst selectedInserts = Array.isArray(raw.selectedInserts) ? raw.selectedInserts\n  : (Array.isArray(form.selectedInserts) ? form.selectedInserts : []);\nconst templateId = raw.template_id || form.templateId || raw.templateId || '';\n\nconst leadOut = {\n  proposal_ref: uiLead.proposal_ref || lead.referenceNumber || lead.proposal_ref || ('WE.' + Math.floor(1000 + Math.random() * 9000)),\n  quote_date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) + ' | Quotation valid for 28 days',\n};\naddIfPresent(leadOut, 'client_name', uiLead.client_name || lead.name || lead.client_name);\naddIfPresent(leadOut, 'organisation', uiLead.organisation || lead.companyName || lead.company || lead.organisation);\naddIfPresent(leadOut, 'telephone', uiLead.telephone || lead.phone || lead.telephone);\naddIfPresent(leadOut, 'email', uiLead.email || lead.email);\naddIfPresent(leadOut, 'event_type', eventType);\n\n// Flexible date -> \"Date TBC\"\nconst flexibleFlag = lead.eventDateFlexibleBool === true || /(tbc|flexible|yes)/i.test(String(lead.eventDateFlexible || ''));\nconst eventDateVal = uiLead.event_date || form.eventDate || raw.eventDate || lead.eventDateDisplay || lead.fullEventDate;\nif (flexibleFlag) { leadOut.event_date = 'Date TBC'; } else { addIfPresent(leadOut, 'event_date', eventDateVal); }\n\nconst embark = form.embarkation || raw.embarkation;\nconst disembark = form.disembarkation || raw.disembarkation;\nif (embark || disembark) { leadOut.event_timings = (embark || '') + ' - ' + (disembark || ''); }\nif (!leadOut.event_timings) addIfPresent(leadOut, 'event_timings', uiLead.event_timings || lead.requestedEventTimes);\n\nconst guestLow = form.guestCount || raw.guestCount || lead.groupSize;\nconst guestHigh = form.guestCountHigh || raw.guestCountHigh || '';\nconst guestRange = (guestHigh && String(guestHigh).trim())\n  ? (String(guestLow || '') + '-' + String(guestHigh))\n  : (uiLead.guest_range || guestLow || '');\naddIfPresent(leadOut, 'guest_range', guestRange);\naddIfPresent(leadOut, 'guest_quote_n', String(uiLead.guest_quote_n || guests || lead.groupSizeQuote || form.guestCount || raw.guestCount || ''));\n\n// Form / Quote Sheet fields (UI SoT) \u2014 pass through for engine + ops\naddIfPresent(leadOut, 'quote_version', form.quoteVersion || raw.quoteVersion || raw.version || uiLead.quote_version);\naddIfPresent(leadOut, 'key_items', form.keyItems || raw.keyItems || uiLead.key_items);\naddIfPresent(leadOut, 'weekly_period', form.weeklyPeriod || raw.weeklyPeriod || uiLead.weekly_period);\naddIfPresent(leadOut, 'day_period', form.dayPeriod || raw.dayPeriod || uiLead.day_period);\naddIfPresent(leadOut, 'group_bracket', form.groupBracket || raw.groupBracket || uiLead.group_bracket);\naddIfPresent(leadOut, 'no_of_tables', form.noOfTables || raw.noOfTables || uiLead.no_of_tables);\n\n// New business fields passed through cleanly\naddIfPresent(leadOut, 'budget', lead.budget || raw.budget || form.budget || uiLead.budget);\naddIfPresent(leadOut, 'vessels', lead.vessels || raw.vessels || form.vessels || uiLead.vessels);\naddIfPresent(leadOut, 'market', lead.market || raw.market || uiLead.market);\naddIfPresent(leadOut, 'source', lead.source || raw.source || uiLead.source);\naddIfPresent(leadOut, 'year_of_event', lead.yearOfEvent || raw.yearOfEvent || uiLead.year_of_event);\nconst repeatVal = lead.repeatClient ?? raw.repeatClient ?? form.repeatClient ?? uiLead.repeat_client;\naddIfPresent(leadOut, 'repeat_client', typeof repeatVal === 'boolean' ? (repeatVal ? 'YES' : 'NO') : repeatVal);\naddIfPresent(leadOut, 'agent', lead.agent || raw.agent || form.agent);\n\n// Staff / contact defaults (staff insert overrides Katherine). Prefer UI lead overlay.\nleadOut.contact_name = uiLead.contact_name || lead.contact_name || 'Katherine Bulaon';\nleadOut.contact_title = uiLead.contact_title || lead.contact_title || 'Client Relationship Manager';\nleadOut.contact_phone = uiLead.contact_phone || lead.contact_phone || '020 8323 5827';\nleadOut.contact_email = uiLead.contact_email || lead.contact_email || 'sales@westendonthethames.com';\n// prepared_by = REP name only (gold cover keeps \"| Client\" + role on template lines)\nlet preparedBy = uiLead.prepared_by || lead.preparedBy || lead.assignedRep || lead.prepared_by || leadOut.contact_name;\nif (preparedBy && String(preparedBy).includes('|')) preparedBy = String(preparedBy).split('|')[0].trim();\naddIfPresent(leadOut, 'prepared_by', preparedBy);\n\nconst lower = String(eventType).toLowerCase();\nconst category = raw.category || form.proposalCategory ||\n  (lower.includes('wedding') || lower.includes('engagement') ? 'wedding' : (eventType ? 'corporate' : undefined));\n\nconst mapped = mapUpgrades(selected);\nconst out = {\n  event_type: eventType,\n  ...(category ? { category } : {}),\n  ...(templateId ? { template_id: templateId, manual_template: true } : {}),\n  lead: leadOut,\n  calculations: { guests, package_cost: packageCost, vat, grand_total: grandTotal },\n  selectedUpgrades: mapped.length ? mapped : (Array.isArray(raw.selectedUpgrades) ? raw.selectedUpgrades.filter((u) => typeof u === 'string' && u.includes('_')) : []),\n  selectedInserts,\n  packageWording: raw.packageWording || {},\n  menuLinks: raw.menuLinks || form.menuLinks || {},\n  mode: raw.mode === 'live' ? 'live' : 'demo',\n};\nreturn [{ json: out }];\n"
       },
-      "id": "b30b9821-89be-496e-a939-b6d807e15d00",
+      "id": "eeb2a750-55c3-4b87-b988-d566925f29c6",
       "name": "Transform QuoteBuilder1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -48,7 +48,7 @@
           }
         }
       },
-      "id": "0b4227cd-90f8-44b9-81db-41aa9bd93455",
+      "id": "72414ba9-4fee-4245-8983-6fb87c92667e",
       "name": "HTTP Request stargtm1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -72,7 +72,7 @@
           }
         }
       },
-      "id": "c28beccc-d037-4c9f-bb1b-ba15a77de97f",
+      "id": "bd07a152-c159-4463-85e8-d2b97798a5ff",
       "name": "Respond PDF1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -90,13 +90,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "3511fb4a-c959-4c5f-b6a5-7ee0c5b08c9d",
+      "id": "0d66f98c-3b65-4980-9f1a-42cae97dee03",
       "name": "SearchForLeads1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
         0,
-        320
+        224
       ],
       "webhookId": "08a7fd28-1914-495d-9553-51a873f195d8"
     },
@@ -104,13 +104,13 @@
       "parameters": {
         "jsCode": "const raw = $json.body || $json;\nif (raw == null || (typeof raw === 'string' && !String(raw).trim())) {\n  return [{ json: { ok: false, mode: 'demo', failureEvent: { type: 'FailureEvent', source: 'LeadDataFetch', reason: 'empty or non-JSON request body', httpStatus: 400 } } }];\n}\nconst body = typeof raw === 'object' ? raw : {};\nconst mode = body.mode === 'live' ? 'live' : 'demo';\nreturn [{ json: { mode, _fetch: true, ok: true } }];"
       },
-      "id": "bc0bf616-352f-4d6f-8d75-bbecd5f42c96",
+      "id": "f813d276-5a73-47f8-b6fa-45c9b3f28c45",
       "name": "Lead Fetch Mode1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         224,
-        320
+        224
       ]
     },
     {
@@ -137,13 +137,13 @@
         },
         "options": {}
       },
-      "id": "4375a3a2-614c-4c55-ab18-15d892259e7f",
+      "id": "ccdba155-b5de-4a01-a113-34975537a983",
       "name": "Leads Live?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         448,
-        320
+        224
       ]
     },
     {
@@ -160,7 +160,7 @@
         },
         "options": {}
       },
-      "id": "f96c74a1-8080-49ca-abe3-302810f33e56",
+      "id": "31871ee8-4022-4f49-b4ef-354c26a30ae6",
       "name": "Get Leads LIVE1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -171,7 +171,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "98W6XYJASUxhiNHs",
+          "id": "9DvsM5k7IUgWQ5Bf",
           "name": "Google Sheets account"
         }
       },
@@ -181,13 +181,13 @@
       "parameters": {
         "jsCode": "// Flexible header matching -> full Sapphire alias set. No presumption of exact headers.\nconst mode = ($('Lead Fetch Mode1').first().json.mode) === 'live' ? 'live' : 'demo';\n\nconst wanted = [\n  ['Client Reference Number', 'referenceNumber'],\n  ['Name', 'name'],\n  ['Company Name', 'companyName'],\n  ['Company Sector', 'companySector'],\n  ['Main Contact - Email', 'email'],\n  ['Main Contact - Number', 'phone'],\n  ['Main Contact - Job Role', 'jobRole'],\n  ['Budget', 'budget'],\n  ['Repeat Client', 'repeatClient'],\n  ['Client Relationship Representative', 'preparedBy'],\n  ['Status', 'status'],\n  ['Live/Dead', 'liveDead'],\n  ['Source', 'source'],\n  ['Enquiry Date', 'enquiryDate'],\n  ['Event Type', 'eventType'],\n  ['Full Event Date', 'fullEventDate'],\n  ['Event Date - Flexible', 'eventDateFlexible'],\n  ['Requested Event Times', 'requestedEventTimes'],\n  ['Group Size', 'groupSize'],\n  ['What vessel', 'vessels'],\n  ['Market', 'market'],\n  ['Best time to call', 'bestTimeToCall'],\n  ['Year of Event', 'yearOfEvent'],\n];\n\nfunction norm(s) { return String(s).replace(/\\s+/g, ' ').trim().toLowerCase(); }\nfunction pick(row, prefix) {\n  const target = norm(prefix);\n  for (const key of Object.keys(row)) {\n    if (norm(key).startsWith(target)) {\n      const v = row[key];\n      if (v !== undefined && v !== null && String(v).trim() !== '') return row[key];\n    }\n  }\n  return '';\n}\nfunction lowerBound(g) {\n  const m = String(g).match(/\\d+/);\n  return m ? Number(m[0]) : '';\n}\nfunction collectProgress(row) {\n  const entries = [];\n  for (const key of Object.keys(row)) {\n    const mm = norm(key).match(/^progress\\s+(\\d+)$/);\n    if (mm) {\n      const v = row[key];\n      if (v !== undefined && v !== null && String(v).trim() !== '') entries.push([Number(mm[1]), String(row[key]).trim()]);\n    }\n  }\n  entries.sort((a, b) => a[0] - b[0]);\n  return entries.map((e) => e[1]).join(' | ');\n}\nfunction isFlexible(v) {\n  const s = norm(v);\n  return s.includes('yes') || s.includes('tbc') || s.includes('flex');\n}\n\nconst leads = $input.all().map((item) => {\n  const row = item.json || {};\n  const out = {};\n  for (const [prefix, alias] of wanted) out[alias] = pick(row, prefix);\n  // derived\n  out.assignedRep = out.preparedBy;\n  out.groupSizeQuote = lowerBound(out.groupSize);\n  out.progressNotes = collectProgress(row);\n  out.eventDateFlexibleBool = isFlexible(out.eventDateFlexible);\n  out.eventDateDisplay = out.eventDateFlexibleBool ? 'Date TBC' : (out.fullEventDate || '');\n  return out;\n})\n.filter((l) => l.referenceNumber || l.name || l.email) // drop blank / alwaysOutputData placeholder rows\n.reverse(); // newest first\n\nreturn [{ json: { count: leads.length, mode, leads } }];"
       },
-      "id": "866c7e14-3683-4535-b261-27942c530679",
+      "id": "8faffa36-201c-4494-96b8-c78481990cc7",
       "name": "Structure all Leads1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         896,
-        320
+        224
       ]
     },
     {
@@ -196,13 +196,13 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "c068562b-eb1a-4d81-aad4-692f545ef5b3",
+      "id": "a9ccb77e-067b-428c-bb72-fbf597cb2ffd",
       "name": "Respond Leads1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         1120,
-        320
+        224
       ]
     },
     {
@@ -214,13 +214,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "8c222d8a-a46d-4c8e-a8b1-a561261a16a2",
+      "id": "f1a54583-c13b-400d-9426-7215ab0832f9",
       "name": "NoteAppend Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
         0,
-        736
+        544
       ],
       "webhookId": "note-append-webhook"
     },
@@ -228,13 +228,13 @@
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  mode: body.mode === 'live' ? 'live' : 'demo',\n  referenceNumber: body.referenceNumber || '',\n  email: body.email || '',\n  leadName: body.leadName || '',\n  note: body.note || '',\n  tag: body.tag || '',\n  createdAt: new Date().toISOString(),\n}}];"
       },
-      "id": "c58e79fd-b259-4d0c-a631-8d537406fa9a",
+      "id": "2e508ad6-c62e-4c85-a2ab-3bc3f1c2158c",
       "name": "Normalize NoteAppend1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         224,
-        736
+        544
       ]
     },
     {
@@ -261,13 +261,13 @@
         },
         "options": {}
       },
-      "id": "57109475-5fbc-44db-aa9d-dc239f3518d6",
+      "id": "c1ec6f70-f7bf-4df6-ae43-ac62b96b849b",
       "name": "Note Live?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         448,
-        736
+        544
       ]
     },
     {
@@ -297,17 +297,17 @@
         },
         "options": {}
       },
-      "id": "fe2d83f6-bc13-4a9f-992c-07374db6f601",
+      "id": "ade96d24-da1d-4e91-b9f3-0088ed2de70f",
       "name": "Append Note LIVE1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
         672,
-        640
+        448
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "98W6XYJASUxhiNHs",
+          "id": "9DvsM5k7IUgWQ5Bf",
           "name": "Google Sheets account"
         }
       },
@@ -319,13 +319,13 @@
         "responseBody": "={{ { ok: true, mode: $json.mode || 'demo' } }}",
         "options": {}
       },
-      "id": "5bc07492-1eaa-4b3f-9da3-d4a0091cf482",
+      "id": "8b4b913d-70c8-4d18-a90a-a49346fd9bab",
       "name": "Respond NoteAppend1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         896,
-        736
+        544
       ]
     },
     {
@@ -355,17 +355,17 @@
         },
         "options": {}
       },
-      "id": "0579d42b-84db-4b00-bd8b-4e2528f16617",
+      "id": "0e021df9-de6d-4b1a-8f0e-2426c6c2068a",
       "name": "Append Note DEMO1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
         672,
-        832
+        640
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "98W6XYJASUxhiNHs",
+          "id": "9DvsM5k7IUgWQ5Bf",
           "name": "Google Sheets account"
         }
       },
@@ -380,13 +380,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "428bb3b0-c9d3-4750-bcf5-be9854f9acf0",
+      "id": "d2c18ed6-d58d-4b04-a822-5b165ae145f4",
       "name": "QuoteStatus Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
         0,
-        1152
+        960
       ],
       "webhookId": "quote-status-webhook"
     },
@@ -394,13 +394,13 @@
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst upgrades = Array.isArray(body.selectedUpgrades) ? body.selectedUpgrades.join(', ') : (body.selectedUpgrades || '');\nconst inserts = Array.isArray(body.selectedInserts) ? body.selectedInserts.join(', ') : (body.selectedInserts || '');\nconst lineLabels = Array.isArray(body.selectedLineLabels) ? body.selectedLineLabels.join(' | ') : (body.selectedLineLabels || '');\nconst sectionTotals = body.sectionTotals && typeof body.sectionTotals === 'object' ? JSON.stringify(body.sectionTotals) : (body.sectionTotals || '');\nreturn [{ json: {\n  mode: body.mode === 'live' ? 'live' : 'demo',\n  referenceNumber: body.referenceNumber || '',\n  email: body.email || '',\n  leadName: body.leadName || '',\n  quoteId: body.quoteId || '',\n  status: body.status || '',\n  version: body.version || body.quoteVersion || '',\n  title: body.title || '',\n  eventType: body.eventType || '',\n  eventDate: body.eventDate || '',\n  guestCount: body.guestCount || body.guests || '',\n  guestCountHigh: body.guestCountHigh || '',\n  repeatClient: body.repeatClient === true ? 'YES' : (body.repeatClient === false ? 'NO' : ''),\n  agentReferral: body.agentReferral === true ? 'YES' : (body.agentReferral === false ? 'NO' : ''),\n  selectedUpgrades: upgrades,\n  selectedLineLabels: lineLabels,\n  keyItems: body.keyItems || '',\n  weeklyPeriod: body.weeklyPeriod || '',\n  dayPeriod: body.dayPeriod || '',\n  groupBracket: body.groupBracket || '',\n  noOfTables: body.noOfTables || '',\n  templateId: body.templateId || body.template_id || '',\n  selectedInserts: inserts,\n  staffContact: body.staffContact || '',\n  baseCost: body.baseCost ?? '',\n  subtotalBeforeContingency: body.subtotalBeforeContingency ?? '',\n  contingency: body.contingency ?? '',\n  margin: body.margin ?? '',\n  marginAmount: body.marginAmount ?? '',\n  discountPercent: body.discountPercent ?? '',\n  discountAmount: body.discountAmount ?? '',\n  commissionPercent: body.commissionPercent ?? '',\n  commissionAmount: body.commissionAmount ?? '',\n  updatedProfit: body.updatedProfit ?? '',\n  costPerGuestExc: body.costPerGuestExc ?? '',\n  costPerGuestInc: body.costPerGuestInc ?? '',\n  costToClient: body.costToClient ?? body.packageCost ?? '',\n  packageCost: body.packageCost ?? body.costToClient ?? '',\n  vat: body.vat ?? '',\n  upgradeTotal: body.upgradeTotal ?? '',\n  grandTotal: body.grandTotal ?? '',\n  sectionTotals,\n  updatedAt: new Date().toISOString(),\n}}];"
       },
-      "id": "3ac43d48-f100-4df9-97e6-787e17a7598f",
+      "id": "90ad7cf2-9505-41d2-acac-f12cdc45e65a",
       "name": "Normalize QuoteStatus1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         224,
-        1152
+        960
       ]
     },
     {
@@ -427,13 +427,13 @@
         },
         "options": {}
       },
-      "id": "e5f6033e-ef75-4d7b-b579-61b524436ae2",
+      "id": "893b9afb-b509-4590-81e7-441fc45be824",
       "name": "Quote Live?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         448,
-        1152
+        960
       ]
     },
     {
@@ -499,17 +499,17 @@
         },
         "options": {}
       },
-      "id": "be3a1e2d-49a7-48c1-9620-55b692413dd5",
+      "id": "9546cb29-f68d-46bb-810c-65d94b3497fd",
       "name": "Append Quote LIVE1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
         672,
-        1056
+        864
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "98W6XYJASUxhiNHs",
+          "id": "9DvsM5k7IUgWQ5Bf",
           "name": "Google Sheets account"
         }
       },
@@ -521,13 +521,13 @@
         "responseBody": "={{ { ok: true, mode: $json.mode || 'demo' } }}",
         "options": {}
       },
-      "id": "6c3e4c1e-a2b6-4f7a-8085-52c4de47e243",
+      "id": "da5303aa-f2d1-4b56-a794-38e6fba06eba",
       "name": "Respond QuoteStatus1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         896,
-        1152
+        960
       ]
     },
     {
@@ -593,17 +593,17 @@
         },
         "options": {}
       },
-      "id": "6cb8baa3-29ee-4c01-9486-64827352ee30",
+      "id": "2de51ff1-c087-41fd-8596-a255b15c5e67",
       "name": "Append Quote DEMO1",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
         672,
-        1248
+        1056
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "98W6XYJASUxhiNHs",
+          "id": "9DvsM5k7IUgWQ5Bf",
           "name": "Google Sheets account"
         }
       },
@@ -618,13 +618,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "f4ecb67e-5ffa-4063-9041-4bee785d64db",
+      "id": "4787c325-0e72-4eda-bbf3-bebb4ff9a105",
       "name": "CostRatesFetch Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
         0,
-        1472
+        1280
       ],
       "webhookId": "06d8799f-b23a-4b31-b057-0d29decbbb7b"
     },
@@ -634,13 +634,13 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "137a5348-591c-434b-8db4-687d54d5e48f",
+      "id": "694fb3d3-1a1a-43ef-86b1-297eb2110a4e",
       "name": "Respond Rates",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1792,
-        1472
+        672,
+        1280
       ]
     },
     {
@@ -657,19 +657,19 @@
         },
         "options": {}
       },
-      "id": "c8e4d1a0-9b2f-4e11-8a77-0c1a7a10c001",
+      "id": "6f63fb93-c0dd-4884-a381-8f4acb2528e7",
       "name": "Catalog Tab",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
         224,
-        1472
+        1280
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "98W6XYJASUxhiNHs",
+          "id": "9DvsM5k7IUgWQ5Bf",
           "name": "Google Sheets account"
         }
       },
@@ -677,15 +677,15 @@
     },
     {
       "parameters": {
-        "jsCode": "function cell(row, names) {\n  const keys = Object.keys(row || {});\n  for (const want of names) {\n    if (row[want] !== undefined && row[want] !== null && String(row[want]).trim() !== '') return row[want];\n    const hit = keys.find((k) => k.toLowerCase() === String(want).toLowerCase());\n    if (hit && row[hit] !== undefined && row[hit] !== null && String(row[hit]).trim() !== '') return row[hit];\n  }\n  return '';\n}\n\nconst rows = $input.all().map((i) => i.json || {}).filter((r) => Object.keys(r).length && Object.values(r).some((v) => String(v ?? '').trim() !== ''));\nconst itemsByLabel = new Map();\nconst lines = [];\nconst vessels = new Set();\nconst periods = { weekly: new Set(), day: new Set(), group: new Set() };\nconst marginCells = [];\nconst staffRatios = [];\nconst cutleryRatios = [];\n\nfor (const r of rows) {\n  const kind = String(cell(r, ['kind', 'Kind']) || 'rate').toLowerCase();\n  const label = String(cell(r, ['label', 'Label']) || '').trim();\n  if (kind === 'vessel') {\n    if (label) vessels.add(label);\n    continue;\n  }\n  if (kind === 'line') {\n    if (!label) continue;\n    const section = String(cell(r, ['section', 'Section']) || 'other');\n    const multiplier = String(cell(r, ['multiplier', 'Multiplier']) || 'set');\n    const id = (section + ':' + label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);\n    lines.push({ id, section, label, multiplier });\n    continue;\n  }\n  if (kind === 'margin') {\n    const market = String(cell(r, ['section', 'Section']) || '').trim();\n    const month = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim().toUpperCase().slice(0, 3);\n    const rate = Number(cell(r, ['rate', 'Rate']));\n    if (!label || !/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$/.test(month) || !Number.isFinite(rate)) continue;\n    marginCells.push({ eventService: label, market, month, rate });\n    continue;\n  }\n  if (kind === 'staff_ratio' || kind === 'cutlery_ratio') {\n    const rec = {\n      label,\n      group: String(cell(r, ['section', 'Section']) || '').trim(),\n      key: String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim(),\n      value: Number(cell(r, ['rate', 'Rate'])),\n    };\n    if (!label || !Number.isFinite(rec.value)) continue;\n    (kind === 'staff_ratio' ? staffRatios : cutleryRatios).push(rec);\n    continue;\n  }\n  const rateKey = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim();\n  const rate = Number(cell(r, ['rate', 'Rate']));\n  if (!label || !rateKey || !Number.isFinite(rate)) continue;\n  if (!itemsByLabel.has(label)) itemsByLabel.set(label, { row: itemsByLabel.size + 1, label, rates: {} });\n  itemsByLabel.get(label).rates[rateKey] = rate;\n  const parts = rateKey.split('|');\n  if (parts[0]) vessels.add(parts[0]);\n  if (parts[1]) periods.weekly.add(parts[1]);\n  if (parts[2]) periods.day.add(parts[2]);\n  if (parts[3]) periods.group.add(parts[3]);\n}\n\nconst marginMap = new Map();\nfor (const c of marginCells) {\n  const k = c.eventService + '||' + c.market;\n  if (!marginMap.has(k)) marginMap.set(k, { eventService: c.eventService, market: c.market, months: {} });\n  marginMap.get(k).months[c.month] = c.rate;\n}\nconst margins = Array.from(marginMap.values());\nconst items = Array.from(itemsByLabel.values());\nconst costMother = items.length ? { source: '_Nexus Catalog', items, ...(margins.length ? { margins } : {}) } : null;\n\nreturn [{ json: {\n  ok: Boolean(costMother),\n  source: 'live',\n  note: costMother\n    ? 'Catalog from Apps Script (_Nexus Catalog).'\n    : 'Catalog tab empty — run buildNexusCatalog in Apps Script.',\n  failureEvent: costMother ? undefined : { type: 'FailureEvent', source: 'CostRatesFetch', reason: 'Catalog tab empty', httpStatus: 422 },\n  costMother,\n  lines,\n  vessels: Array.from(vessels),\n  periods: {\n    weekly: Array.from(periods.weekly),\n    day: Array.from(periods.day),\n    group: Array.from(periods.group),\n  },\n  margins,\n  staffRatios,\n  cutleryRatios,\n  counts: {\n    costMotherItems: items.length,\n    lines: lines.length,\n    catalogRows: rows.length,\n    margins: margins.length,\n    staffRatios: staffRatios.length,\n    cutleryRatios: cutleryRatios.length,\n  },\n}}];\n"
+        "jsCode": "function cell(row, names) {\n  const keys = Object.keys(row || {});\n  for (const want of names) {\n    if (row[want] !== undefined && row[want] !== null && String(row[want]).trim() !== '') return row[want];\n    const hit = keys.find((k) => k.toLowerCase() === String(want).toLowerCase());\n    if (hit && row[hit] !== undefined && row[hit] !== null && String(row[hit]).trim() !== '') return row[hit];\n  }\n  return '';\n}\n\nconst rows = $input.all().map((i) => i.json || {}).filter((r) => Object.keys(r).length && Object.values(r).some((v) => String(v ?? '').trim() !== ''));\nconst itemsByLabel = new Map();\nconst lines = [];\nconst vessels = new Set();\nconst periods = { weekly: new Set(), day: new Set(), group: new Set() };\nconst marginCells = [];\nconst staffRatios = [];\nconst cutleryRatios = [];\n\nfor (const r of rows) {\n  const kind = String(cell(r, ['kind', 'Kind']) || 'rate').toLowerCase();\n  const label = String(cell(r, ['label', 'Label']) || '').trim();\n  if (kind === 'vessel') {\n    if (label) vessels.add(label);\n    continue;\n  }\n  if (kind === 'line') {\n    if (!label) continue;\n    const section = String(cell(r, ['section', 'Section']) || 'other');\n    const multiplier = String(cell(r, ['multiplier', 'Multiplier']) || 'set');\n    const id = (section + ':' + label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);\n    lines.push({ id, section, label, multiplier });\n    continue;\n  }\n  if (kind === 'margin') {\n    const market = String(cell(r, ['section', 'Section']) || '').trim();\n    const month = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim().toUpperCase().slice(0, 3);\n    const rate = Number(cell(r, ['rate', 'Rate']));\n    if (!label || !/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$/.test(month) || !Number.isFinite(rate)) continue;\n    marginCells.push({ eventService: label, market, month, rate });\n    continue;\n  }\n  if (kind === 'staff_ratio' || kind === 'cutlery_ratio') {\n    const rec = {\n      label,\n      group: String(cell(r, ['section', 'Section']) || '').trim(),\n      key: String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim(),\n      value: Number(cell(r, ['rate', 'Rate'])),\n    };\n    if (!label || !Number.isFinite(rec.value)) continue;\n    (kind === 'staff_ratio' ? staffRatios : cutleryRatios).push(rec);\n    continue;\n  }\n  const rateKey = String(cell(r, ['rateKey', 'Rate Key', 'rate_key']) || '').trim();\n  const rate = Number(cell(r, ['rate', 'Rate']));\n  if (!label || !rateKey || !Number.isFinite(rate)) continue;\n  if (!itemsByLabel.has(label)) itemsByLabel.set(label, { row: itemsByLabel.size + 1, label, rates: {} });\n  itemsByLabel.get(label).rates[rateKey] = rate;\n  const parts = rateKey.split('|');\n  if (parts[0]) vessels.add(parts[0]);\n  if (parts[1]) periods.weekly.add(parts[1]);\n  if (parts[2]) periods.day.add(parts[2]);\n  if (parts[3]) periods.group.add(parts[3]);\n}\n\nconst marginMap = new Map();\nfor (const c of marginCells) {\n  const k = c.eventService + '||' + c.market;\n  if (!marginMap.has(k)) marginMap.set(k, { eventService: c.eventService, market: c.market, months: {} });\n  marginMap.get(k).months[c.month] = c.rate;\n}\nconst margins = Array.from(marginMap.values());\nconst items = Array.from(itemsByLabel.values());\nconst costMother = items.length ? { source: '_Nexus Catalog', items, ...(margins.length ? { margins } : {}) } : null;\n\nreturn [{ json: {\n  ok: Boolean(costMother),\n  source: 'live',\n  note: costMother\n    ? 'Catalog from Apps Script (_Nexus Catalog).'\n    : 'Catalog tab empty \u2014 run buildNexusCatalog in Apps Script.',\n  failureEvent: costMother ? undefined : { type: 'FailureEvent', source: 'CostRatesFetch', reason: 'Catalog tab empty', httpStatus: 422 },\n  costMother,\n  lines,\n  vessels: Array.from(vessels),\n  periods: {\n    weekly: Array.from(periods.weekly),\n    day: Array.from(periods.day),\n    group: Array.from(periods.group),\n  },\n  margins,\n  staffRatios,\n  cutleryRatios,\n  counts: {\n    costMotherItems: items.length,\n    lines: lines.length,\n    catalogRows: rows.length,\n    margins: margins.length,\n    staffRatios: staffRatios.length,\n    cutleryRatios: cutleryRatios.length,\n  },\n}}];\n"
       },
-      "id": "a9f3c6e1-4d22-4b80-91aa-0c1a7a10c002",
+      "id": "0d645639-c104-40fa-aed9-dca4254f70ad",
       "name": "Parse Catalog",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         448,
-        1472
+        1280
       ]
     }
   ],
@@ -946,6 +946,6 @@
   "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "fddc87ae31f027b3f282ad2af0426aca0648e322195fce511d982fdc2d6ccfa7"
+    "instanceId": "7edf9dbd0dc2afcd47af5b8da39c5d58dbe322ad798898e460ad228e7ae73b4a"
   }
 }
