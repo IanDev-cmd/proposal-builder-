@@ -9,6 +9,8 @@ from datetime import datetime
 import logging
 import re
 
+import fitz
+
 import config
 from pdf_ops import prepare_field_draw, draw_fields_batched
 from fonts import ValidationWarning

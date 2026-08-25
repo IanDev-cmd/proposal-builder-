@@ -1,0 +1,22 @@
+---
+description: Canonical WEOTT repo — one GitHub, no duplicate engine trees
+alwaysApply: true
+---
+
+# Canonical repo
+
+Work only in this workspace: `proposal-builder-main` → https://github.com/IanDev-cmd/proposal-builder-
+
+Do not open, edit, clone, or deploy from `ProductionENV-Proposal_engine-`, `IanDev-cmd/ProductionENV-Proposal_engine-`, or any second copy of the Flask engine.
+
+| Layer | Path |
+| --- | --- |
+| UX (Nexus SPA) | `artifacts/workspace-suite` |
+| Backend (Flask PDF + workspace JSON) | `artifacts/pdf-engine` |
+| PDF templates, inserts, fonts, vessels | `artifacts/pdf-engine/assets` |
+| Browser DB | IndexedDB `nexus-workspace` (SPA) |
+| Engine DB | `artifacts/pdf-engine/data/workspace` |
+
+Render: both `weott-quote-builder` and `weott-proposal-engine` deploy from this repo (`render.yaml`). Never keep a separate engine GitHub as source of truth.
+
+Do not rebuild multi-package PDFs or swap inserts. Overlay-only proposals.
