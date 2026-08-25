@@ -57,10 +57,3 @@ export async function readJsonResponse<T = unknown>(
     throw new Error(`${label} returned invalid JSON (${text.slice(0, 160).trim()}).`);
   }
 }
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(reader.error || new Error('Could not read file'));
-    reader.readAsDataURL(blob);
-  });
-}
