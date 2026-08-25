@@ -44,7 +44,7 @@
           "name": "Google Sheets account"
         }
       },
-      "notes": "Subset of CostRatesFetch from exports/n8n-weott-all-in-one.json. Do not import this file onto harmony9 if the one-canvas WEOTT workflow is already live."
+      "notes": "Subset of CostRatesFetch from exports/n8n-weott-all-in-one.json. Do not import this file onto harmonyproxy if the one-canvas WEOTT workflow is already live."
     },
     {
       "parameters": {

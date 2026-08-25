@@ -2,16 +2,16 @@
  * Backend URLs for WEOTT proposal generation.
  * UI talks to n8n; n8n calls the proposal engine /generate endpoint.
  *
- * Live n8n: harmony9.app.n8n.cloud (WEOTT workflow)
+ * Live n8n: harmonyproxy.app.n8n.cloud (WEOTT workflow)
  */
 export const PROPOSAL_ENGINE_URL = 'https://weott-proposal-engine.onrender.com';
 export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
 
-export const N8N_BASE = 'https://harmony9.app.n8n.cloud/webhook';
-export const N8N_INSTANCE_HOST = 'https://harmony9.app.n8n.cloud';
+export const N8N_BASE = 'https://harmonyproxy.app.n8n.cloud/webhook';
+export const N8N_INSTANCE_HOST = 'https://harmonyproxy.app.n8n.cloud';
 export const N8N_INSTANCE_ID = '0b033e4dea3e06f7022fa976138770d89a94a569a45a7883de93bf9335d36920';
 
-/** Bound on harmony9 — match the live WEOTT canvas (exports/n8n-weott-all-in-one.json). */
+/** Bound on harmonyproxy — match the live WEOTT canvas (exports/n8n-weott-all-in-one.json). */
 export const N8N_CREDENTIALS = {
   googlePalmApi: {
     id: 'dlay23hFXEWTtpXH',
