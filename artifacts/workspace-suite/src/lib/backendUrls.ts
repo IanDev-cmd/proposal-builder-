@@ -2,14 +2,13 @@
  * Backend URLs for WEOTT proposal generation.
  * UI talks to n8n; n8n calls the proposal engine /generate endpoint.
  *
- * Live n8n: prometheus5.app.n8n.cloud
- * instanceId: 7edf9dbd0dc2afcd47af5b8da39c5d58dbe322ad798898e460ad228e7ae73b4a
+ * Live n8n: harmony9.app.n8n.cloud (WEOTT workflow)
  */
 export const PROPOSAL_ENGINE_URL = 'https://weott-proposal-engine.onrender.com';
 export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
 
-export const N8N_BASE = 'https://prometheus5.app.n8n.cloud/webhook';
-export const N8N_INSTANCE_ID = '7edf9dbd0dc2afcd47af5b8da39c5d58dbe322ad798898e460ad228e7ae73b4a';
+export const N8N_BASE = 'https://harmony9.app.n8n.cloud/webhook';
+export const N8N_INSTANCE_HOST = 'https://harmony9.app.n8n.cloud';
 
 /** Bound on the live n8n instance — match exports/n8n-*.json credentials. */
 export const N8N_CREDENTIALS = {

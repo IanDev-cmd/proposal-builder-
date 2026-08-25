@@ -1,3 +1,4 @@
+import { N8N_INSTANCE_HOST } from '@/lib/backendUrls';
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
 import { personAvatarUrl } from '@/lib/avatar';
@@ -85,7 +86,7 @@ const APP_TILES: AppTile[] = [
     name:   'Chatbot Form',
     domain: 'n8n.io',
     color:  '#EA5E00',
-    getUrl: () => 'https://prometheus5.app.n8n.cloud/',
+    getUrl: () => `${N8N_INSTANCE_HOST}/`,
   },
 ];
 

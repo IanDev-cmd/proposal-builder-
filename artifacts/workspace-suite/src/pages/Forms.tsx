@@ -57,7 +57,7 @@ import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import { formatEventTimingsPayload } from '@/lib/proposalTimings';
 import { QUOTE_WEBHOOK_URL } from '@/lib/backendUrls';
-import { blobToDataUrl, fetchWithTimeout } from '@/lib/http';
+import { blobToDataUrl, fetchWithTimeout, readJsonResponse } from '@/lib/http';
 import {
   buildLeadPrefill,
   prefillForQuoteVersion,
@@ -1707,7 +1707,14 @@ export function Forms() {
         timeoutMs: 120_000,
       });
 
-      if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(
+          errText.trim()
+            ? `Webhook responded ${res.status}: ${errText.slice(0, 200).trim()}`
+            : `Webhook responded ${res.status} (empty body) from ${QUOTE_WEBHOOK_URL}`,
+        );
+      }
 
       setStage('generating');
 
@@ -1716,8 +1723,13 @@ export function Forms() {
 
       if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
         pdfDataUrl = await blobToDataUrl(await res.blob());
-      } else if (contentType.includes('application/json') || contentType.includes('+json')) {
-        const json = await res.json();
+      } else if (contentType.includes('application/json') || contentType.includes('+json') || !contentType) {
+        const json = await readJsonResponse<{
+          fileUrl?: string;
+          pdfUrl?: string;
+          url?: string;
+          pdfBase64?: string;
+        }>(res, 'QuoteBuilder');
         const fileUrl: string | undefined = json?.fileUrl ?? json?.pdfUrl ?? json?.url;
         if (typeof json?.pdfBase64 === 'string' && json.pdfBase64.startsWith('data:application/pdf')) {
           pdfDataUrl = json.pdfBase64;

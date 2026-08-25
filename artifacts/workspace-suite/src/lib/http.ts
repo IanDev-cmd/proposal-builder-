@@ -39,3 +39,28 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
+
+/** Read a JSON body without throwing the browser's empty-input SyntaxError. */
+export async function readJsonResponse<T = unknown>(
+  res: Response,
+  label: string,
+): Promise<T> {
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(
+      `${label} returned an empty body. Confirm the WEOTT workflow is Published on harmony9 and the webhook path is ${label}.`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`${label} returned invalid JSON (${text.slice(0, 160).trim()}).`);
+  }
+}
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Could not read file'));
+    reader.readAsDataURL(blob);
+  });
+}
