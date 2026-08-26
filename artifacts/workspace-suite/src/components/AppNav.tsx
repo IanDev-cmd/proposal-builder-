@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { Home, Users, ClipboardList, Bookmark, FileText } from 'lucide-react';
+import { isSavedQuoteReviewPath } from '@/lib/savedQuotesStore';
 
 const NAV_ITEMS = [
   { href: '/',              label: 'Home',          icon: Home           },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
 
 export function AppNav() {
   const [location] = useLocation();
+  if (isSavedQuoteReviewPath(location)) return null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-black/8 bg-white">

@@ -11,7 +11,7 @@ import {
 } from '../src/lib/quoteReview.ts';
 import { quoteSharePlainText, quoteShareWebUrl } from '../src/lib/quoteShare.ts';
 import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
-import { savedQuoteSharePath } from '../src/lib/savedQuotesStore.ts';
+import { savedQuoteSharePath, isSavedQuoteReviewPath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
 import { formatEventTimingsPayload, itineraryHours } from '../src/lib/proposalTimings.ts';
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
@@ -117,6 +117,12 @@ check('unit quote page HTML includes share URL', html.includes(shareUrl));
 check('unit quote page HTML includes key items', html.includes('DJ + bar tab'));
 check('unit quote page file stem', quotePageFileStem(pending) === 'WE.19108-quote');
 check('unit share path is /saved-quotes/:id', savedQuoteSharePath('q-lily').endsWith('/saved-quotes/q-lily'));
+check(
+  'unit quote review path hides app nav',
+  isSavedQuoteReviewPath('/saved-quotes/quote-WE.19076-V3') === true &&
+    isSavedQuoteReviewPath('/saved-quotes') === false &&
+    isSavedQuoteReviewPath('/saved-quotes/') === false,
+);
 
 check('unit guest range without quote number is ambiguous', parseGuestCountDetailed({ groupSize: '50 - 65' }).ambiguous === true);
 check('unit single guest number parses', parseGuestCountDetailed({ groupSize: '40 guests' }).value === '40');

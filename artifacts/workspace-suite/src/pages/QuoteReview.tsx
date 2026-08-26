@@ -96,7 +96,7 @@ export function QuoteReview() {
   const status = quoteReviewStatus(quote);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#F3F4F6]" data-testid="quote-review-page">
+    <div className="min-h-screen bg-[#F3F4F6]" data-testid="quote-review-page">
       <div className="mx-auto flex max-w-[760px] flex-col gap-4 px-4 py-5 sm:px-6">
         <button
           type="button"

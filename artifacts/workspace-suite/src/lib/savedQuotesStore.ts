@@ -253,6 +253,12 @@ export function savedQuoteSharePath(id: string): string {
   return `${base}/saved-quotes/${encodeURIComponent(id)}`;
 }
 
+/** True for `/saved-quotes/:id` share/review URLs — not the Saved Quotes list. */
+export function isSavedQuoteReviewPath(pathname: string): boolean {
+  const path = String(pathname || '').split('?')[0].replace(/\/+$/, '') || '/';
+  return /^\/saved-quotes\/[^/]+$/.test(path);
+}
+
 export function savedQuoteShareUrl(id: string): string {
   if (typeof window === 'undefined') return savedQuoteSharePath(id);
   return `${window.location.origin}${savedQuoteSharePath(id)}`;
