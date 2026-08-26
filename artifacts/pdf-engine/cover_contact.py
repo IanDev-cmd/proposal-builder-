@@ -185,6 +185,29 @@ def format_quote_date(value: str) -> str:
     return raw
 
 
+_MONTH_SHORT = (
+    ("January", "Jan"),
+    ("February", "Feb"),
+    ("September", "Sept"),
+    ("October", "Oct"),
+    ("November", "Nov"),
+    ("December", "Dec"),
+    ("August", "Aug"),
+    ("March", "Mar"),
+    ("April", "Apr"),
+    ("July", "Jul"),
+    ("June", "Jun"),
+)
+
+
+def format_quote_date_compact(value: str) -> str:
+    s = format_quote_date(value)
+    for full, short in _MONTH_SHORT:
+        if full in s:
+            return s.replace(full, short)
+    return s
+
+
 def format_guest_range(value) -> str:
     if value is None:
         return ""
@@ -569,18 +592,51 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
     return items
 
 
-def _snap_quote_date_spec(spec: dict) -> dict:
-    """Keep the full template day number (e.g. leftover '27') inside the redact box."""
+def _quotation_valid_left(page, bbox) -> float | None:
+    """Left edge of '| Quotation valid for 28 days' on the quote-date line."""
+    y0 = float(bbox[1]) - 3.0
+    y1 = float(bbox[3]) + 3.0
+    left = None
+    for needle in ("Quotation valid", "quotation valid", "Valid for", "valid for"):
+        for rect in page.search_for(needle) or []:
+            if rect.y1 < y0 or rect.y0 > y1:
+                continue
+            left = rect.x0 if left is None else min(left, rect.x0)
+    if left is None:
+        return None
+    for rect in page.search_for("|") or []:
+        if rect.y1 < y0 or rect.y0 > y1:
+            continue
+        if float(bbox[0]) < rect.x0 < left:
+            left = min(left, rect.x0)
+    return left
+
+
+def _snap_quote_date_spec(page, spec: dict, value: str, font_mgr) -> tuple:
+    """
+    Redact only the date. Never paint over template
+    '| Quotation valid for 28 days'.
+    """
     spec = dict(spec)
-    bbox = list(spec.get("bbox") or (227.3, 67.1, 268.0, 73.7))
+    bbox = list(spec.get("bbox") or (227.3, 67.1, 264.1, 73.7))
     origin = list(spec.get("origin") or (227.3, 72.3))
-    bbox[0] = min(float(bbox[0]), 227.3)
-    bbox[2] = max(float(bbox[2]), 268.0)
-    origin[0] = min(float(origin[0]), 227.3)
+    size = float(spec.get("size") or 4.63)
+    cap = _quotation_valid_left(page, bbox)
+    if cap is not None:
+        bbox[2] = cap - 0.7
+    else:
+        bbox[2] = min(float(bbox[2]), origin[0] + 38.0)
+    max_w = max(8.0, float(bbox[2]) - float(origin[0]))
+    text = format_quote_date(value)
+    bold = bool(spec.get("bold"))
+    if font_mgr is not None and font_mgr.text_length(text, size, bold) > max_w:
+        compact = format_quote_date_compact(text)
+        if font_mgr.text_length(compact, size, bold) <= max_w:
+            text = compact
     spec["bbox"] = tuple(bbox)
     spec["origin"] = tuple(origin)
-    spec["max_width"] = max(float(spec.get("max_width") or 0), bbox[2] - bbox[0])
-    return spec
+    spec["max_width"] = max_w
+    return spec, text
 
 
 def _cover_slot_is_location(page, spec: dict) -> bool:
@@ -613,9 +669,9 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         if field_name == "key_items" and _cover_slot_is_location(page, spec):
             continue
         spec = dict(spec)
-        if field_name == "quote_date":
-            spec = _snap_quote_date_spec(spec)
         value = str(data[field_name])
+        if field_name == "quote_date":
+            spec, value = _snap_quote_date_spec(page, spec, value, font_mgr)
         value = _fit_cover_value(field_name, value, spec, font_mgr)
         if field_name == "event_date":
             flexible = bool(data.get("date_flexible"))

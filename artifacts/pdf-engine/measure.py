@@ -491,11 +491,8 @@ def measure_cover(page) -> dict:
         fields["proposal_ref"] = _expand_cover_field(
             fields["proposal_ref"], LEFT_PANEL, min_width=48.0, max_width_cap=56.0,
         )
-    # prepared_by already spans nearly full panel (name + title on one line)
-    if "quote_date" in fields:
-        fields["quote_date"] = _expand_cover_field(
-            fields["quote_date"], LEFT_PANEL, min_width=36.0, max_width_cap=72.0,
-        )
+    # quote_date is already capped before "| Quotation valid..." — expanding
+    # toward the panel edge wipes that template line.
 
     right_expand = {
         "event_type": 78.0,
