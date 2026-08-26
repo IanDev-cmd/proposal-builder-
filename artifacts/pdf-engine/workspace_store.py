@@ -154,6 +154,15 @@ def delete_quote(quote_id: str) -> bool:
     return True
 
 
+def clear_quotes() -> int:
+    _ensure_dirs()
+    count = 0
+    for path in QUOTES_DIR.glob("*.json"):
+        path.unlink()
+        count += 1
+    return count
+
+
 def _proposal_meta_path(proposal_id: str) -> Path:
     return PROPOSALS_DIR / f"{_safe_id(proposal_id)}.json"
 
@@ -229,3 +238,14 @@ def delete_proposal(proposal_id: str) -> bool:
         pdf.unlink()
         found = True
     return found
+
+
+def clear_proposals() -> int:
+    _ensure_dirs()
+    count = 0
+    for path in PROPOSALS_DIR.glob("*.json"):
+        path.unlink()
+        count += 1
+    for path in PROPOSALS_DIR.glob("*.pdf"):
+        path.unlink()
+    return count

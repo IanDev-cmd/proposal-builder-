@@ -71,7 +71,7 @@ function proposalToFile(p: GeneratedProposal): ProposalFile {
 
 const KIND_COLORS: Record<FileKind, string> = {
   multipage: '#2ecc71',
-  generated: '#e8b93f',
+  generated: '#2F7CF6',
 };
 
 function FileIcon({ file }: { file: ProposalFile }) {

@@ -64,6 +64,20 @@ class QuoteReviewStoreTest(unittest.TestCase):
         saved = self.ws.put_quote({"id": "q1", "reviewStatus": "maybe"})
         self.assertEqual(saved["reviewStatus"], "pending")
 
+    def test_clear_quotes_leaves_proposals(self) -> None:
+        self.ws.put_quote({"id": "q1", "title": "Quote"})
+        self.ws.put_proposal({"id": "p1", "title": "Proposal"})
+        self.assertEqual(self.ws.clear_quotes(), 1)
+        self.assertIsNone(self.ws.get_quote("q1"))
+        self.assertIsNotNone(self.ws.get_proposal("p1"))
+
+    def test_clear_proposals_leaves_quotes(self) -> None:
+        self.ws.put_quote({"id": "q1", "title": "Quote"})
+        self.ws.put_proposal({"id": "p1", "title": "Proposal"})
+        self.assertEqual(self.ws.clear_proposals(), 1)
+        self.assertIsNone(self.ws.get_proposal("p1"))
+        self.assertIsNotNone(self.ws.get_quote("q1"))
+
 
 if __name__ == "__main__":
     unittest.main()

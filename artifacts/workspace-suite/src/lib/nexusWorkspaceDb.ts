@@ -138,6 +138,16 @@ export async function workspaceDelete(store: WorkspaceStoreName, key: IDBValidKe
   });
 }
 
+export async function workspaceClear(store: WorkspaceStoreName): Promise<void> {
+  const db = await getWorkspaceDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error(`Failed to clear ${store}`));
+  });
+}
+
 export function workspaceMigrated(): boolean {
   try {
     return localStorage.getItem(MIGRATED_FLAG) === '1';

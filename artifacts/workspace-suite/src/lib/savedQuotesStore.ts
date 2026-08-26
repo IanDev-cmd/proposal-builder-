@@ -12,8 +12,9 @@ import {
   workspacePut,
   workspacePutAll,
   workspaceDelete,
+  workspaceClear,
 } from '@/lib/nexusWorkspaceDb';
-import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote } from '@/lib/workspaceCloud';
+import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote, cloudClearQuotes } from '@/lib/workspaceCloud';
 import { pickReviewFields, quoteReviewStatus, type QuoteReviewStatus } from '@/lib/quoteReview';
 
 export type SavedQuote = {
@@ -199,6 +200,29 @@ export function deleteSavedQuote(id: string): boolean {
     /* ignore */
   });
   return true;
+}
+
+export async function clearAllSavedQuotes(): Promise<void> {
+  try {
+    await cloudClearQuotes();
+  } catch {
+    /* still wipe the local copy */
+  }
+  hydratePromise = null;
+  memory = [];
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(PENDING_GENERATE_KEY);
+  } catch {
+    /* ignore */
+  }
+  try {
+    sessionStorage.removeItem(PENDING_GENERATE_KEY);
+  } catch {
+    /* ignore */
+  }
+  await workspaceClear(STORE);
+  emit();
 }
 
 export function subscribeSavedQuotes(cb: () => void): () => void {

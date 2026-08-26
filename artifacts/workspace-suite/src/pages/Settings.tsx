@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, X, Check } from 'lucide-react';
+import { Upload, X, Check, Trash2 } from 'lucide-react';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES, loadFieldPhotos, saveFieldPhotos, photoKey, type PhotoMap } from '@/lib/formOptions';
-import { toastError } from '@/lib/notify';
+import { toastError, toastSuccess } from '@/lib/notify';
+import { clearAllSavedQuotes } from '@/lib/savedQuotesStore';
+import { clearAllProposals } from '@/lib/proposalStore';
 
 /* ─── Categories that support hover preview photos — one photo per individual item ─── */
 const PHOTO_CATEGORIES = [
@@ -29,6 +31,7 @@ const PHOTO_CATEGORIES = [
 export function Settings() {
   const [photos, setPhotos] = useState<PhotoMap>(loadFieldPhotos);
   const [saved, setSaved]   = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
   const inputRefs           = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleUpload = (key: string, file: File) => {
@@ -71,18 +74,60 @@ export function Settings() {
     });
   };
 
+  const handleClearQuotesAndProposals = async () => {
+    if (clearing) return;
+    const ok = window.confirm(
+      'Delete every saved quote and generated proposal from this browser and the shared workspace?\n\nLeads and notes are not touched.',
+    );
+    if (!ok) return;
+    setClearing(true);
+    try {
+      await Promise.all([clearAllSavedQuotes(), clearAllProposals()]);
+      toastSuccess({
+        key: 'workspace-clear',
+        title: 'Quotes and proposals cleared',
+        description: 'Saved Quotes and Proposal Doc are empty. Leads and notes were left as they are.',
+      });
+    } catch (err) {
+      toastError({
+        key: 'workspace-clear',
+        title: 'Could not clear quotes and proposals',
+        err,
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white">
       {/* Header */}
       <div className="border-b border-black/8 px-10 py-8">
         <h1 className="text-[22px] font-black tracking-tight text-gray-900">Settings</h1>
         <p className="mt-1 text-[13px] text-black/40">
-          Upload a hover preview photo for every individual item below. Photos appear on the
-          right edge when you hover that specific item in the Forms wizard.
+          Workspace data and hover preview photos for the Quote Builder.
         </p>
       </div>
 
       <div className="mx-auto max-w-[900px] px-10 py-10">
+        <div className="mb-12 rounded-[16px] border border-black/10 p-6">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">Workspace</p>
+          <h2 className="mt-1 text-[16px] font-bold text-gray-900">Clear quotes and proposals</h2>
+          <p className="mt-2 max-w-[52ch] text-[13px] leading-relaxed text-black/50">
+            Removes every saved quote and generated proposal PDF from this browser and the shared
+            workspace database. Leads and notes are not changed.
+          </p>
+          <button
+            type="button"
+            onClick={() => void handleClearQuotesAndProposals()}
+            disabled={clearing}
+            data-testid="clear-quotes-proposals"
+            className="mt-5 inline-flex items-center gap-2 rounded-[12px] bg-[#b91c1c] px-4 py-2.5 text-[13px] font-bold text-white hover:bg-[#991b1b] disabled:opacity-60"
+          >
+            <Trash2 className="h-4 w-4" />
+            {clearing ? 'Clearing…' : 'Clear all quotes and proposals'}
+          </button>
+        </div>
         <div className="flex flex-col gap-12">
           {PHOTO_CATEGORIES.map((category) => (
             <div key={category.key}>

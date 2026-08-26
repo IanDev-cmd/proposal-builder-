@@ -40,6 +40,17 @@ export async function cloudDeleteQuote(id: string): Promise<void> {
   if (!res.ok && res.status !== 404) throw new Error(`Could not delete workspace quote (${res.status})`);
 }
 
+export async function cloudClearQuotes(): Promise<number> {
+  const res = await cloudFetch('/quotes', { method: 'DELETE' });
+  if (res.ok) {
+    const body = (await readJson(res)) as { deleted?: number } | null;
+    return Number(body?.deleted) || 0;
+  }
+  const listed = await cloudListQuotes();
+  await Promise.all(listed.map((q) => cloudDeleteQuote(q.id)));
+  return listed.length;
+}
+
 export async function cloudGetQuote(id: string): Promise<SavedQuote | null> {
   const res = await cloudFetch(`/quotes/${encodeURIComponent(id)}`);
   if (res.ok) {
@@ -79,4 +90,15 @@ export async function cloudPutProposal(proposal: GeneratedProposal): Promise<voi
 export async function cloudDeleteProposal(id: string): Promise<void> {
   const res = await cloudFetch(`/proposals/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) throw new Error(`Could not delete workspace proposal (${res.status})`);
+}
+
+export async function cloudClearProposals(): Promise<number> {
+  const res = await cloudFetch('/proposals', { method: 'DELETE' });
+  if (res.ok) {
+    const body = (await readJson(res)) as { deleted?: number } | null;
+    return Number(body?.deleted) || 0;
+  }
+  const listed = await cloudListProposals();
+  await Promise.all(listed.map((p) => cloudDeleteProposal(p.id)));
+  return listed.length;
 }

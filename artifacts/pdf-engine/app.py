@@ -23,6 +23,8 @@ from flask import Flask, request, send_file, jsonify
 
 from engine import build_proposal
 from workspace_store import (
+    clear_proposals as workspace_clear_proposals,
+    clear_quotes as workspace_clear_quotes,
     delete_proposal as workspace_delete_proposal,
     delete_quote as workspace_delete_quote,
     get_proposal as workspace_get_proposal,
@@ -238,6 +240,11 @@ def workspace_quotes_put(quote_id):
     return jsonify(ok=True, quote=saved)
 
 
+@app.delete("/workspace/quotes")
+def workspace_quotes_clear():
+    return jsonify(ok=True, deleted=workspace_clear_quotes())
+
+
 @app.delete("/workspace/quotes/<quote_id>")
 def workspace_quotes_delete(quote_id):
     return jsonify(ok=workspace_delete_quote(quote_id))
@@ -267,6 +274,11 @@ def workspace_proposals_put(proposal_id):
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
     return jsonify(ok=True, proposal={k: v for k, v in saved.items() if k != "pdfDataUrl"})
+
+
+@app.delete("/workspace/proposals")
+def workspace_proposals_clear():
+    return jsonify(ok=True, deleted=workspace_clear_proposals())
 
 
 @app.delete("/workspace/proposals/<proposal_id>")

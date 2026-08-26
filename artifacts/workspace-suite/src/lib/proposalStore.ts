@@ -8,11 +8,12 @@ import {
   workspaceGetAll,
   workspacePut,
   workspaceDelete,
+  workspaceClear,
   copyLegacyIdbStore,
   workspaceMigrated,
   markWorkspaceMigrated,
 } from '@/lib/nexusWorkspaceDb';
-import { cloudDeleteProposal, cloudGetProposal, cloudPutProposal } from '@/lib/workspaceCloud';
+import { cloudDeleteProposal, cloudGetProposal, cloudPutProposal, cloudClearProposals } from '@/lib/workspaceCloud';
 import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
 
 export type GeneratedProposal = {
@@ -157,6 +158,22 @@ export async function deleteProposal(id: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function clearAllProposals(): Promise<void> {
+  await ensureMigrated();
+  try {
+    await cloudClearProposals();
+  } catch {
+    /* still wipe the local copy */
+  }
+  try {
+    localStorage.removeItem(LEGACY_LOCALSTORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  await workspaceClear(STORE);
+  window.dispatchEvent(new Event(PROPOSALS_EVENT));
 }
 
 export async function ingestRemoteProposals(rows: GeneratedProposal[]): Promise<void> {

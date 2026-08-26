@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Home, Users, ClipboardList, Bookmark, FileText } from 'lucide-react';
+import { Home, Users, ClipboardList, Bookmark, FileText, Settings } from 'lucide-react';
 import { isSavedQuoteReviewPath } from '@/lib/savedQuotesStore';
 
 const NAV_ITEMS = [
@@ -43,6 +43,20 @@ export function AppNav() {
             );
           })}
         </nav>
+
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          title="Settings"
+          data-testid="nav-settings"
+          className={`ml-auto flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+            location === '/settings' || location.startsWith('/settings/')
+              ? 'bg-[#FF5A45] text-white'
+              : 'text-black/40 hover:bg-black/5 hover:text-black'
+          }`}
+        >
+          <Settings className="h-4 w-4" />
+        </Link>
       </div>
     </header>
   );
