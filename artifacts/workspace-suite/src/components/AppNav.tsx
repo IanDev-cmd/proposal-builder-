@@ -1,14 +1,12 @@
 import { Link, useLocation } from 'wouter';
-import { Home, Users, ClipboardList, Bookmark, FileText, GitBranch, Settings, Grid2x2 } from 'lucide-react';
+import { Home, Users, ClipboardList, Bookmark, FileText } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/',             label: 'Home',         icon: Home           },
-  { href: '/leads',        label: 'Leads',        icon: Users          },
+  { href: '/',              label: 'Home',          icon: Home           },
+  { href: '/leads',         label: 'Leads',         icon: Users          },
   { href: '/quote-builder', label: 'Quote Builder', icon: ClipboardList  },
-  { href: '/saved-quotes', label: 'Saved Quotes', icon: Bookmark },
-  { href: '/proposal-doc', label: 'Proposal Doc', icon: FileText       },
-  { href: '/timeline',     label: 'Timeline',     icon: GitBranch      },
-  { href: '/apps',         label: 'Apps',         icon: Grid2x2        },
+  { href: '/saved-quotes',  label: 'Saved Quotes',  icon: Bookmark       },
+  { href: '/proposal-doc',  label: 'Proposal Doc',  icon: FileText       },
 ] as const;
 
 export function AppNav() {
@@ -43,20 +41,6 @@ export function AppNav() {
             );
           })}
         </nav>
-
-        <div className="ml-auto flex shrink-0 items-center gap-3">
-          <Link
-            href="/settings"
-            className={`flex h-8 w-8 items-center justify-center transition-colors ${
-              location === '/settings'
-                ? 'bg-[#FF5A45] text-white'
-                : 'text-black/35 hover:text-black hover:bg-black/4'
-            }`}
-            title="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
-        </div>
       </div>
     </header>
   );

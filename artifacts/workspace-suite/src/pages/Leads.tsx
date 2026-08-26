@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { soundClick, soundOpen, soundClose, soundTab, soundRefresh } from '@/lib/sounds';
-import { Search, Bell, ChevronDown, MoreVertical, Plus, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, MoreVertical, Plus, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { LeadPanel, type Lead } from '@/components/LeadPanel';
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
@@ -182,24 +182,6 @@ export function Leads() {
               <Plus className="h-3.5 w-3.5" />
               Add Lead
             </motion.button>
-
-            <div className="h-5 w-px bg-black/10" />
-
-            <div className="relative">
-              <Bell className="h-[17px] w-[17px] text-black/35" />
-              <span className="absolute -top-0.5 -right-0.5 h-[6px] w-[6px] bg-[#FF5A45]" />
-            </div>
-
-            <div className="flex items-center gap-2 cursor-pointer">
-              <Avatar
-                src={personAvatarUrl({ name: 'Alief Vinicius' })}
-                alt="Alief Vinicius"
-                fallbackText="AV"
-                className="h-8 w-8 text-[11px] shrink-0"
-              />
-              <span className="text-[13px] font-medium text-black/70 whitespace-nowrap">Alief Vinicius</span>
-              <ChevronDown className="h-3.5 w-3.5 text-black/30" />
-            </div>
           </div>
         </div>
 

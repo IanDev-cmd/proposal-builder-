@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Users, ClipboardList, GitBranch, Grid2x2, FileText, Settings, Check, ArrowRight, Bookmark } from 'lucide-react';
+import { Users, ClipboardList, FileText, Check, ArrowRight, Bookmark } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type Tile = {
@@ -30,28 +30,10 @@ const TILES: Tile[] = [
     features: ['Resume a saved quote', 'Generate the PDF', 'Share by email or WhatsApp', 'Copy a persistent link'],
   },
   {
-    href: '/timeline',
-    label: 'Timeline',
-    icon: GitBranch,
-    features: ['View process steps', 'Track milestones', 'Monitor progress', 'See completed stages'],
-  },
-  {
-    href: '/apps',
-    label: 'Apps',
-    icon: Grid2x2,
-    features: ['Connect Gmail & Drive', 'Message on WhatsApp', 'Launch Slack & LinkedIn', 'Open with lead context'],
-  },
-  {
     href: '/proposal-doc',
     label: 'Proposal Doc',
     icon: FileText,
-    features: ['Browse proposal pages', 'Preview & share drafts', 'Track signed status', 'Publish to clients'],
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    icon: Settings,
-    features: ['Manage account details', 'Configure preferences', 'Set field photos', 'Control integrations'],
+    features: ['Open generated PDFs', 'Search the proposal list', 'Preview, share or download', 'Edit from the linked quote'],
   },
 ];
 
