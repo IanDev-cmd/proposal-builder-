@@ -1370,11 +1370,15 @@ export function Forms() {
   const [insertPanelOpen, setInsertPanelOpen] = useState(false);
   const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff' | 'map'>('all');
 
-  // Fetch Cost Mother / margins from live Sheets; overlay when Assemble Rates is structured.
+  // Live Cost Mother from `_Nexus Catalog` (Apps Script rebuilds it every 5 minutes + on edit).
   useEffect(() => {
     let cancelled = false;
-    fetchCostRates()
-      .then((r) => {
+    const CATALOG_REFRESH_MS = 5 * 60 * 1000;
+    const CATALOG_STALE_MS = 12 * 60 * 1000;
+
+    const pull = async () => {
+      try {
+        const r = await fetchCostRates();
         if (cancelled) return;
         const rates = parseCostRatesPayload(r);
         const structured =
@@ -1407,26 +1411,47 @@ export function Forms() {
           rates.counts?.staffRatios ? `${rates.counts.staffRatios} staff ratios` : '',
           rates.counts?.cutleryRatios ? `${rates.counts.cutleryRatios} cutlery ratios` : '',
         ].filter(Boolean);
+        const builtAt = Date.parse(String(rates.catalogBuiltAt || ''));
+        const stale =
+          Number.isFinite(builtAt) && Date.now() - builtAt > CATALOG_STALE_MS;
         setRatesNote(
           meta.live
-            ? `Live catalog (${n} Cost Mother lines${extra ? ` · ${extra} sheet cards` : ''}${extraKinds.length ? ` · ${extraKinds.join(' · ')}` : ''}).`
+            ? `Live catalog (${n} Cost Mother lines${extra ? ` · ${extra} sheet cards` : ''}${extraKinds.length ? ` · ${extraKinds.join(' · ')}` : ''}${stale ? ' · catalog save overdue' : ''}).`
             : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
         );
-      })
-      .catch((err) => {
-        if (!cancelled) {
+        if (stale) {
+          toastError({
+            key: 'catalog-stale',
+            title: 'Cost Mother catalog is stale',
+            description:
+              'The 5-minute _Nexus Catalog save did not run. Check the buildNexusCatalog time trigger.',
+          });
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        const saveMissed = /catalog tab empty|catalog tab missing/i.test(msg);
+        if (saveMissed) {
           const meta = getCostMotherMeta();
           setRatesNote(`Using bundled Cost Mother snapshot (${meta.itemCount} lines).`);
           toastError({
-            key: 'cost-rates',
-            title: 'Live Cost Mother unavailable',
-            description: 'Using bundled rate snapshot. Totals may differ from the live sheet.',
+            key: 'catalog-missing',
+            title: 'Cost Mother catalog not saved',
+            description:
+              'The 5-minute _Nexus Catalog rebuild did not write rates. Run buildNexusCatalog in Apps Script.',
             err,
           });
         }
-      });
+      }
+    };
+
+    void pull();
+    const timer = window.setInterval(() => {
+      void pull();
+    }, CATALOG_REFRESH_MS);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, []);
 

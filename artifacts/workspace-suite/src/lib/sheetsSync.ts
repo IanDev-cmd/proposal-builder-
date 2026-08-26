@@ -65,8 +65,10 @@ export type CostRatesPayload = {
   quoteBuilder2026?: Record<string, unknown>[];
   margins?: Record<string, unknown>[];
   staffRatios?: Record<string, unknown>[];
-  cutleryRatios?: Record<string, unknown>[];
+    cutleryRatios?: Record<string, unknown>[];
   counts?: Record<string, number>;
+  /** ISO time of the last buildNexusCatalog write. */
+  catalogBuiltAt?: string;
 };
 
 export async function fetchCostRates(): Promise<CostRatesPayload> {

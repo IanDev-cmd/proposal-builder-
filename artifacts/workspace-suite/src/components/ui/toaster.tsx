@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import {
   Toast,
   ToastClose,
@@ -20,6 +20,8 @@ export function Toaster() {
             <div className="flex items-start gap-3">
               {variant === 'success' ? (
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#2F7CF6]" strokeWidth={2.2} />
+              ) : variant === 'destructive' ? (
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-white" strokeWidth={2.2} />
               ) : null}
               <div className="grid gap-1">
                 {title && <ToastTitle>{title}</ToastTitle>}

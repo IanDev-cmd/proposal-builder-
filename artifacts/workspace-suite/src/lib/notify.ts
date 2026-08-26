@@ -1,5 +1,5 @@
 /**
- * Toast notifications (Radix). Failures stay destructive; Save Quote uses a success card.
+ * Toast notifications (Radix). Failures are blue error cards; Save Quote uses a success card.
  */
 import { toast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/errors';
@@ -23,7 +23,7 @@ export type ToastErrorOpts = {
   err?: unknown;
 };
 
-/** Show a destructive toast for failures. Errors only — no success toasts. */
+/** Show a blue toast for failures. Errors only — no success toasts. */
 export function toastError(opts: ToastErrorOpts): void {
   const description =
     opts.description?.trim() ||

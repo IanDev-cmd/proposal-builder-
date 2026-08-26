@@ -116,6 +116,7 @@ export const costRatesPayloadSchema = z
     staffRatios: z.array(z.record(z.string(), z.unknown())).optional(),
     cutleryRatios: z.array(z.record(z.string(), z.unknown())).optional(),
     counts: z.record(z.string(), z.number()).optional(),
+    catalogBuiltAt: z.string().optional(),
     failureEvent: failureEventSchema.optional(),
   })
   .passthrough();

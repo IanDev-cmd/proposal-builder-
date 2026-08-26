@@ -8,7 +8,9 @@
  * 2. Open THIS file, select buildNexusCatalog, Run (authorize SpreadsheetApp).
  *    Do not Run from Sentry.gs — it has no functions.
  * 3. Triggers → onInstallableEdit → From spreadsheet → On edit.
- * 4. Optional: time trigger every 15 minutes on buildNexusCatalog.
+ * 4. Triggers → buildNexusCatalog → Time-driven → Minutes → Every 5 minutes.
+ *    That write is what Quote Builder reads; do not skip this trigger.
+ * 5. Triggers → assignReferencesTimed → Time-driven → Minutes → Every 5 minutes.
  *
  * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab only.
  * n8n no longer reads this tab — keep buildNexusCatalog as the sheet brain.
@@ -329,6 +331,7 @@ function writeCatalog_(ss, parsed, extras) {
   if (!tab) tab = ss.insertSheet(CATALOG_TAB);
   tab.clearContents();
   var rows = [['kind', 'label', 'section', 'multiplier', 'rateKey', 'rate']];
+  rows.push(['meta', 'catalog_built_at', '', '', '', new Date().toISOString()]);
   parsed.vessels.forEach(function (v) {
     rows.push(['vessel', v, '', '', '', '']);
   });

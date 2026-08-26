@@ -384,6 +384,7 @@ function emptyCatalog_(note) {
       staffRatios: 0,
       cutleryRatios: 0,
     },
+    catalogBuiltAt: '',
   };
 }
 
@@ -418,6 +419,7 @@ function parseCatalog_(rows) {
   var marginCells = [];
   var staffRatios = [];
   var cutleryRatios = [];
+  var catalogBuiltAt = '';
   var monthRe = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$/;
 
   for (var i = 0; i < rows.length; i++) {
@@ -426,6 +428,12 @@ function parseCatalog_(rows) {
     var label = String(catalogCell_(r, ['label', 'Label']) || '').trim();
     if (kind === 'vessel') {
       if (label) vessels[label] = true;
+      continue;
+    }
+    if (kind === 'meta') {
+      if (/catalog_built_at/i.test(label)) {
+        catalogBuiltAt = String(catalogCell_(r, ['rate', 'Rate', 'rateKey', 'Rate Key']) || '').trim();
+      }
       continue;
     }
     if (kind === 'line') {
@@ -506,6 +514,7 @@ function parseCatalog_(rows) {
     margins: margins,
     staffRatios: staffRatios,
     cutleryRatios: cutleryRatios,
+    catalogBuiltAt: catalogBuiltAt,
     counts: {
       costMotherItems: items.length,
       lines: lines.length,
