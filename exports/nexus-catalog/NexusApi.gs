@@ -31,7 +31,7 @@
  *
  * Ops tables (Id is the primary key; Mode is not used):
  *   Nexus Ops Notes   — NoteAppend / NotesFetch
- *   Nexus Ops Quotes  — QuoteStatus / QuotesFetch
+ *   Nexus Ops Quotes  — QuoteStatus / QuotesFetch / QuoteDelete
  */
 
 var NEXUS_WORKBOOK_ID = '1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o';
@@ -178,7 +178,7 @@ function route_(req) {
     if (req._emptyBody || req._method === 'POST') {
       return failure_('LeadDataFetch', 'empty or non-JSON request body', 400);
     }
-    return { ok: true, service: 'NexusApi', actions: ['health', 'LeadDataFetch', 'CostRatesFetch', 'NoteAppend', 'NotesFetch', 'QuoteStatus', 'QuotesFetch'] };
+    return { ok: true, service: 'NexusApi', actions: ['health', 'LeadDataFetch', 'CostRatesFetch', 'NoteAppend', 'NotesFetch', 'QuoteStatus', 'QuotesFetch', 'QuoteDelete'] };
   }
   if (action === 'health') {
     return { ok: true, service: 'NexusApi' };
@@ -190,6 +190,7 @@ function route_(req) {
     if (action === 'NotesFetch') return handleNotesFetch_(req);
     if (action === 'QuoteStatus') return handleQuoteStatus_(req);
     if (action === 'QuotesFetch') return handleQuotesFetch_(req);
+    if (action === 'QuoteDelete') return handleQuoteDelete_(req);
     return failure_('NexusApi', 'Unknown action: ' + action, 404);
   } catch (err) {
     return failure_(action || 'NexusApi', String(err && err.message ? err.message : err), 500);
@@ -669,6 +670,63 @@ function handleQuotesFetch_(req) {
     return norm_(q.referenceNumber) === want;
   });
   return { ok: true, count: quotes.length, quotes: quotes };
+}
+
+function handleQuoteDelete_(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = openWorkbook_();
+    var sheet = ss.getSheetByName(QUOTES_TAB);
+    if (!sheet) return { ok: true, deleted: 0 };
+
+    var ids = {};
+    function addId_(v) {
+      var s = String(v || '').trim();
+      if (s) ids[s] = true;
+    }
+    addId_(req.id);
+    addId_(req.quoteId);
+    if (req.ids && Object.prototype.toString.call(req.ids) === '[object Array]') {
+      for (var i = 0; i < req.ids.length; i++) addId_(req.ids[i]);
+    }
+    var wantRef = norm_(req.referenceNumber || req.reference || '');
+    var keys = Object.keys(ids);
+    if (!keys.length && !wantRef) {
+      return failure_('QuoteDelete', 'id is required', 400);
+    }
+
+    var lastCol = Math.max(sheet.getLastColumn(), 1);
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: true, deleted: 0 };
+
+    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var idCol = -1;
+    var quoteIdCol = -1;
+    var refCol = -1;
+    for (var c = 0; c < headers.length; c++) {
+      var h = String(headers[c] || '').trim();
+      if (h === 'Id') idCol = c;
+      if (h === 'Quote Id') quoteIdCol = c;
+      if (h === 'Reference') refCol = c;
+    }
+
+    var values = sheet.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
+    var deleted = 0;
+    for (var r = values.length - 1; r >= 0; r--) {
+      var rowId = idCol >= 0 ? String(values[r][idCol] || '').trim() : '';
+      var rowQuoteId = quoteIdCol >= 0 ? String(values[r][quoteIdCol] || '').trim() : '';
+      var rowRef = refCol >= 0 ? norm_(values[r][refCol]) : '';
+      if (ids[rowId] || ids[rowQuoteId] || (wantRef && rowRef === wantRef)) {
+        sheet.deleteRow(r + 2);
+        deleted++;
+      }
+    }
+    SpreadsheetApp.flush();
+    return { ok: true, deleted: deleted };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function readMappedRows_(sheet) {

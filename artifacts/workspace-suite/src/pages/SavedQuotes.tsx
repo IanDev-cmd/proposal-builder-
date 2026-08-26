@@ -19,7 +19,7 @@ import {
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
-import { toastError } from '@/lib/notify';
+import { toastError, toastSuccess } from '@/lib/notify';
 import { formatGbp } from '@/lib/utils';
 import type { PointKind } from '@/lib/leadNotes';
 import { listOpsQuotes, type OpsQuote } from '@/lib/opsStore';
@@ -316,11 +316,38 @@ export function SavedQuotes() {
               : emptyByTab
         }
         columns={2}
-        onDelete={(card) => {
-          if (opsQuotes.some((q) => q.id === card.id) && !quotes.some((q) => q.id === card.id)) return;
+        onDelete={async (card) => {
           if (!window.confirm('Delete this saved quote?')) return;
-          deleteSavedQuote(card.id);
-          setQuotes(listSavedQuotes());
+          const snap = opsQuotes.find((q) => q.id === card.id);
+          const quote = quotes.find((q) => q.id === card.id);
+          const relatedSnaps = opsQuotes.filter(
+            (row) =>
+              row.id === card.id ||
+              (snap?.quoteId && (row.id === snap.quoteId || row.quoteId === snap.quoteId)) ||
+              (quote?.referenceNumber && row.referenceNumber === quote.referenceNumber) ||
+              (snap?.referenceNumber && row.referenceNumber === snap.referenceNumber),
+          );
+          try {
+            await deleteSavedQuote(card.id, {
+              extraIds: relatedSnaps.flatMap((row) => [row.id, row.quoteId]),
+              quoteId: snap?.quoteId,
+              referenceNumber: quote?.referenceNumber || snap?.referenceNumber,
+            });
+            setQuotes(listSavedQuotes());
+            setOpsQuotes(await listOpsQuotes());
+            setActiveId((cur) => (cur === card.id ? null : cur));
+            toastSuccess({
+              key: 'quote-deleted',
+              title: 'Quote deleted',
+              description: snap && !quote ? 'Removed from this browser and the Quotes sheet.' : undefined,
+            });
+          } catch (err) {
+            toastError({
+              key: 'quote-delete',
+              title: 'Could not delete this quote',
+              err,
+            });
+          }
         }}
         footer={(card, active) => {
           if (!active) return null;

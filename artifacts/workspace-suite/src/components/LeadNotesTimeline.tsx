@@ -298,7 +298,7 @@ function TimelineNoteCard({
                 {canDelete ? (
                   <button
                     type="button"
-                    aria-label="Delete note"
+                    aria-label="Delete"
                     data-testid={`lead-note-delete-${card.id}`}
                     onClick={(e) => {
                       e.stopPropagation();

@@ -15,6 +15,13 @@ import {
   workspaceClear,
 } from '@/lib/nexusWorkspaceDb';
 import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote, cloudClearQuotes } from '@/lib/workspaceCloud';
+import { deleteOpsQuoteSnapshots } from '@/lib/opsStore';
+import {
+  forgetDeletedQuoteIds,
+  isQuoteDeleted,
+  listDeletedQuoteIds,
+  rememberDeletedQuoteIds,
+} from '@/lib/quoteTombstones';
 import { pickReviewFields, quoteReviewStatus, type QuoteReviewStatus } from '@/lib/quoteReview';
 
 export type SavedQuote = {
@@ -125,10 +132,11 @@ function ensureMemory(): SavedQuote[] {
 }
 
 export function listSavedQuotes(): SavedQuote[] {
-  return [...ensureMemory()];
+  return ensureMemory().filter((q) => !isQuoteDeleted(q.id));
 }
 
 export function getSavedQuote(id: string): SavedQuote | null {
+  if (!id || isQuoteDeleted(id)) return null;
   return ensureMemory().find((q) => q.id === id) || readLocal().find((q) => q.id === id) || null;
 }
 
@@ -147,6 +155,7 @@ export function upsertSavedQuote(
     reviewStatus,
     reviewedAt: input.reviewedAt ?? prev?.reviewedAt,
   };
+  forgetDeletedQuoteIds([next.id]);
   const list = ensureMemory().filter((q) => q.id !== next.id);
   list.unshift(next);
   setMemory(list);
@@ -181,7 +190,19 @@ export async function persistSavedQuote(
 
 export async function ingestRemoteQuotes(rows: SavedQuote[]): Promise<void> {
   if (!rows.length) return;
-  const merged = mergeQuotes(ensureMemory(), rows);
+  const deleted = listDeletedQuoteIds();
+  const keep = rows.filter((q) => q?.id && !deleted.has(q.id));
+  const stale = rows.filter((q) => q?.id && deleted.has(q.id));
+  for (const row of stale) {
+    void cloudDeleteQuote(row.id).catch(() => {
+      /* retry on next sync */
+    });
+  }
+  if (!keep.length) return;
+  const merged = mergeQuotes(
+    ensureMemory().filter((q) => !deleted.has(q.id)),
+    keep,
+  );
   setMemory(merged);
   try {
     await workspacePutAll(STORE, merged);
@@ -190,19 +211,40 @@ export async function ingestRemoteQuotes(rows: SavedQuote[]): Promise<void> {
   }
 }
 
-export function deleteSavedQuote(id: string): boolean {
-  const list = ensureMemory();
-  const next = list.filter((q) => q.id !== id);
-  if (next.length === list.length) return false;
-  setMemory(next);
-  void workspaceDelete(STORE, id);
-  void cloudDeleteQuote(id).catch(() => {
-    /* ignore */
-  });
+export type DeleteSavedQuoteOpts = {
+  extraIds?: Array<string | undefined | null>;
+  quoteId?: string;
+  referenceNumber?: string;
+};
+
+export async function deleteSavedQuote(id: string, opts?: DeleteSavedQuoteOpts): Promise<boolean> {
+  const ids = [
+    ...new Set(
+      [id, opts?.quoteId, ...(opts?.extraIds || [])]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (!ids.length) return false;
+  rememberDeletedQuoteIds(ids);
+  const list = ensureMemory().filter((q) => !ids.includes(q.id));
+  setMemory(list);
+  await Promise.all(
+    ids.map(async (qid) => {
+      try {
+        await workspaceDelete(STORE, qid);
+      } catch {
+        /* memory already dropped the row */
+      }
+    }),
+  );
+  await deleteOpsQuoteSnapshots(ids, { referenceNumber: opts?.referenceNumber });
+  await Promise.all(ids.map((qid) => cloudDeleteQuote(qid).catch(() => undefined)));
   return true;
 }
 
 export async function clearAllSavedQuotes(): Promise<void> {
+  rememberDeletedQuoteIds(ensureMemory().map((q) => q.id));
   try {
     await cloudClearQuotes();
   } catch {
@@ -295,6 +337,7 @@ export function savedQuoteIsCostView(search?: string): boolean {
 
 export async function getSavedQuoteAsync(id: string): Promise<SavedQuote | null> {
   if (!id) return null;
+  if (isQuoteDeleted(id)) return null;
   const local = getSavedQuote(id);
   if (local?.data && Object.keys(local.data).length) return local;
   try {
@@ -330,10 +373,20 @@ export async function hydrateSavedQuotesDb(): Promise<void> {
     } catch {
       fromDb = [];
     }
-    const merged = mergeQuotes(fromDb, readLocal(), ensureMemory());
+    const merged = mergeQuotes(fromDb, readLocal(), ensureMemory()).filter(
+      (q) => !isQuoteDeleted(q.id),
+    );
     memory = merged;
     writeLocal(merged);
     const dbIds = new Set(fromDb.map((q) => q.id));
+    for (const row of fromDb) {
+      if (!isQuoteDeleted(row.id)) continue;
+      try {
+        await workspaceDelete(STORE, row.id);
+      } catch {
+        /* keep filtering on read */
+      }
+    }
     const missing = merged.filter((q) => !dbIds.has(q.id));
     for (const q of missing) {
       try {

@@ -5,9 +5,17 @@
 import { callAppsScript } from '@/lib/appsScriptClient';
 import {
   WORKSPACE_STORES,
+  workspaceDelete,
+  workspaceGetAll,
   workspaceGetAllByIndex,
   workspacePut,
 } from '@/lib/nexusWorkspaceDb';
+import {
+  forgetDeletedQuoteIds,
+  isQuoteDeleted,
+  listDeletedQuoteIds,
+  rememberDeletedQuoteIds,
+} from '@/lib/quoteTombstones';
 
 export type OpsNote = {
   id: string;
@@ -168,6 +176,7 @@ export async function persistOpsQuote(payload: Record<string, unknown>): Promise
     updatedAt: new Date().toISOString(),
     referenceNumber: payload.referenceNumber || '',
   }) as OpsQuote;
+  forgetDeletedQuoteIds([local.id, local.quoteId]);
   await workspacePut(WORKSPACE_STORES.opsQuotes, local);
   try {
     const res = await callAppsScript<{ ok?: boolean; quote?: Record<string, unknown> }>('QuoteStatus', {
@@ -183,24 +192,87 @@ export async function persistOpsQuote(payload: Record<string, unknown>): Promise
   }
 }
 
+function isOpsQuoteDeleted(row: OpsQuote): boolean {
+  return isQuoteDeleted(row.id) || isQuoteDeleted(row.quoteId);
+}
+
+export async function deleteOpsQuoteSnapshots(
+  ids: string[],
+  opts?: { referenceNumber?: string },
+): Promise<void> {
+  const unique = [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))];
+  const ref = String(opts?.referenceNumber || '').trim();
+  if (!unique.length && !ref) return;
+  rememberDeletedQuoteIds(unique);
+
+  let local: OpsQuote[] = [];
+  try {
+    local = await workspaceGetAll<OpsQuote>(WORKSPACE_STORES.opsQuotes);
+  } catch {
+    local = [];
+  }
+  const related = local.filter(
+    (row) =>
+      unique.includes(row.id) ||
+      (row.quoteId && unique.includes(row.quoteId)) ||
+      (ref && row.referenceNumber === ref),
+  );
+  rememberDeletedQuoteIds(related.flatMap((row) => [row.id, row.quoteId]));
+  for (const row of related) {
+    try {
+      await workspaceDelete(WORKSPACE_STORES.opsQuotes, row.id);
+    } catch {
+      /* keep going */
+    }
+  }
+  for (const id of unique) {
+    try {
+      await workspaceDelete(WORKSPACE_STORES.opsQuotes, id);
+    } catch {
+      /* keep going */
+    }
+  }
+
+  try {
+    await callAppsScript<{ ok?: boolean; deleted?: number }>('QuoteDelete', {
+      id: unique[0] || '',
+      quoteId: unique.find((id) => id !== unique[0]) || unique[0] || '',
+      ids: unique,
+      referenceNumber: ref,
+    });
+  } catch {
+    /* Apps Script may still need a QuoteDelete deploy; tombstones hide the card */
+  }
+}
+
 export async function listOpsQuotes(referenceNumber?: string): Promise<OpsQuote[]> {
   const ref = String(referenceNumber || '').trim();
+  const deleted = listDeletedQuoteIds();
   let local: OpsQuote[] = [];
   try {
     local = ref
       ? await workspaceGetAllByIndex<OpsQuote>(WORKSPACE_STORES.opsQuotes, 'referenceNumber', ref)
-      : [];
+      : await workspaceGetAll<OpsQuote>(WORKSPACE_STORES.opsQuotes);
   } catch {
     local = [];
   }
+  local = local.filter((row) => !isOpsQuoteDeleted(row));
   try {
     const res = await callAppsScript<{ quotes?: Record<string, unknown>[] }>('QuotesFetch', {
       referenceNumber: ref,
     });
-    const remote = (res.quotes || []).map((row) => asQuote(row)).filter(Boolean) as OpsQuote[];
+    const parsed = (res.quotes || []).map((row) => asQuote(row)).filter(Boolean) as OpsQuote[];
+    const stale = parsed.filter((row) => isOpsQuoteDeleted(row));
+    if (stale.length) {
+      void deleteOpsQuoteSnapshots(stale.flatMap((row) => [row.id, row.quoteId || '']));
+    }
+    const remote = parsed.filter((row) => !isOpsQuoteDeleted(row));
     if (remote.length) await putQuotes(remote);
     const byId = new Map<string, OpsQuote>();
-    for (const row of [...local, ...remote]) byId.set(row.id, row);
+    for (const row of [...local, ...remote]) {
+      if (!row.id || deleted.has(row.id) || isOpsQuoteDeleted(row)) continue;
+      byId.set(row.id, row);
+    }
     return [...byId.values()].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
   } catch {
     return local.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));

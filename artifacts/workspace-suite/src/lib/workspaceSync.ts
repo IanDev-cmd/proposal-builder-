@@ -2,8 +2,10 @@ import { refreshLeadsFromNetwork } from '@/lib/leadCache';
 import { ingestRemoteProposals, loadProposals } from '@/lib/proposalStore';
 import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
 import { ingestRemoteQuotes, listSavedQuotes } from '@/lib/savedQuotesStore';
+import { listDeletedQuoteIds } from '@/lib/quoteTombstones';
 import {
   cloudDeleteProposal,
+  cloudDeleteQuote,
   cloudGetProposal,
   cloudListProposals,
   cloudListQuotes,
@@ -15,9 +17,18 @@ import {
 export async function syncWorkspaceCloud(): Promise<void> {
   try {
     const remoteQuotes = await cloudListQuotes();
-    await ingestRemoteQuotes(remoteQuotes);
+    const deleted = listDeletedQuoteIds();
+    for (const quote of remoteQuotes) {
+      if (deleted.has(quote.id)) {
+        void cloudDeleteQuote(quote.id).catch(() => {
+          /* retry on next boot */
+        });
+      }
+    }
+    await ingestRemoteQuotes(remoteQuotes.filter((q) => !deleted.has(q.id)));
     const remoteById = new Map(remoteQuotes.map((q) => [q.id, q]));
     for (const quote of listSavedQuotes()) {
+      if (deleted.has(quote.id)) continue;
       const remote = remoteById.get(quote.id);
       const remoteHasData = Boolean(remote?.data && Object.keys(remote.data).length);
       const localHasData = Boolean(quote.data && Object.keys(quote.data).length);

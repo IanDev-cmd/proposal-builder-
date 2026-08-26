@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
-import { ArrowLeft, Check, X } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, X } from 'lucide-react';
 import { QuoteDocumentView } from '@/components/QuoteDocumentView';
 import { QuoteShareButtons } from '@/components/QuoteShareButtons';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
 import {
+  deleteSavedQuote,
   getSavedQuote,
   getSavedQuoteAsync,
   hydrateSavedQuotesDb,
@@ -93,6 +94,25 @@ export function QuoteReview() {
     }
   }
 
+  async function remove() {
+    if (!quote || saving) return;
+    if (!window.confirm('Delete this saved quote?')) return;
+    setSaving(true);
+    try {
+      await deleteSavedQuote(quote.id, { referenceNumber: quote.referenceNumber });
+      toastSuccess({
+        key: 'quote-deleted',
+        title: 'Quote deleted',
+        description: 'Removed from this browser and the workspace.',
+      });
+      navigate('/saved-quotes');
+    } catch (err) {
+      toastError({ key: 'quote-delete', title: 'Could not delete this quote', err });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const status = quoteReviewStatus(quote);
 
   return (
@@ -152,6 +172,16 @@ export function QuoteReview() {
                 Disapprove Quote
               </button>
             </div>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void remove()}
+              data-testid="delete-quote"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-rose-200 bg-white py-3.5 text-[15px] font-bold text-[#b91c1c] shadow-sm"
+            >
+              <Trash2 className="h-5 w-5" />
+              Delete quote
+            </button>
           </>
         )}
       </div>
