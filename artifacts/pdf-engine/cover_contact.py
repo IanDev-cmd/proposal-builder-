@@ -36,8 +36,9 @@ def _parse_iso_datetime(raw: str):
 
 
 _ORDINAL = {1: "st", 2: "nd", 3: "rd"}
-# Cover second line for a flexible date. Template already prints this;
-# we redact it and redraw once so a bare "TBC" is never added underneath.
+# Cover second line lives on the template under Event date requested.
+# Engine keeps this marker in the formatted string for flexible-date rules,
+# then draws the calendar date only so the template line is not duplicated.
 FLEX_DATE_TBC = "(Date TBC)"
 _FLEX_TAIL_RE = re.compile(r"(?i)\s*\n\s*(\(\s*date\s*tbc\s*\)|\(\s*tbc\s*\)|tbc)\s*$")
 
@@ -610,30 +611,30 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
             spec = _snap_quote_date_spec(spec)
         value = str(data[field_name])
         value = _fit_cover_value(field_name, value, spec, font_mgr)
-        # If event_date won't fit at designed size, use compact form before shrink
-        tbc_under = False
         if field_name == "event_date":
-            x0, y0 = spec["origin"]
-            bbox = list(spec["bbox"])
-            # Always wipe the template's "(Date TBC)" line so a second TBC is not left behind.
-            bbox[3] = max(float(bbox[3]), float(y0) + 7.5)
-            spec["bbox"] = tuple(bbox)
-            spec["max_width"] = max(float(spec.get("max_width") or 0), bbox[2] - bbox[0])
+            flexible = bool(data.get("date_flexible"))
             if "\n" in value:
                 parts = value.split("\n", 1)
                 value = parts[0].strip()
-                tbc_under = bool(re.search(r"tbc", parts[1], re.I))
+                flexible = flexible or bool(re.search(r"tbc", parts[1], re.I))
             max_w = spec.get("max_width", 56)
-            # Measure date line only ((Date TBC) draws underneath when flexible)
             measure_src = value
             if font_mgr.text_length(measure_src, spec["size"], spec.get("bold", False)) > max_w:
                 compact = format_event_date_compact(data[field_name])
                 if "\n" in compact:
                     cparts = compact.split("\n", 1)
                     value = cparts[0].strip()
-                    tbc_under = True
+                    flexible = True
                 else:
                     value = compact
+            # Flexible: leave the template "(Date TBC)" under Event date requested.
+            # Fixed: wipe that template line so it does not stay on a confirmed date.
+            if not flexible:
+                x0, y0 = spec["origin"]
+                bbox = list(spec["bbox"])
+                bbox[3] = max(float(bbox[3]), float(y0) + 7.5)
+                spec["bbox"] = tuple(bbox)
+                spec["max_width"] = max(float(spec.get("max_width") or 0), bbox[2] - bbox[0])
         # Page 1 must stay pixel-perfect with the chosen template: measured
         # span colour + Century Gothic only. Page-13 pure-white / Fallback-Bold
         # styling must not leak onto the cover.
@@ -647,21 +648,6 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         spec["bold"] = False
         spec["deep_bold"] = want_weight  # light echo approximates template bold
         prepared.append(prepare_field_draw(spec, value, font_mgr, warnings, field_name))
-        if field_name == "event_date" and tbc_under:
-            # One marker only: (Date TBC). Never a second bare "TBC" line.
-            x0, y = spec["origin"]
-            tbc_y = y + 5.0
-            tbc_spec = dict(
-                bbox=spec["bbox"],
-                origin=(x0, tbc_y),
-                size=float(spec.get("size") or 4.63),
-                bold=False,
-                deep_bold=False,
-                color=spec["color"],
-                max_width=float(spec.get("max_width") or 56),
-                skip_redact=True,
-            )
-            prepared.append(prepare_field_draw(tbc_spec, FLEX_DATE_TBC, font_mgr, warnings, "event_date_tbc"))
 
     draw_fields_batched(page, prepared, font_mgr, clear_graphics=False)
 

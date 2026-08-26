@@ -1629,12 +1629,11 @@ export function Forms() {
 
     const outbound = { ...payload };
 
-    await new Promise((r) => setTimeout(r, 500));
     setStage('sending');
 
     try {
-      // Quote snapshot goes to IndexedDB + Nexus Ops Quotes. Notes persist when added.
-      await sheetsWrite('Quote status (generating)', () =>
+      // Do not block PDF generate on Apps Script — that round-trip is the long wait.
+      void sheetsWrite('Quote status (generating)', () =>
         writeQuoteStatus({
         referenceNumber: quoteLead?.referenceNumber,
         email: quoteLead?.email,
@@ -1683,6 +1682,7 @@ export function Forms() {
         }),
       );
 
+      setStage('generating');
       const res = await fetchWithTimeout(PROPOSAL_ENGINE_GENERATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1722,8 +1722,6 @@ export function Forms() {
             overflowNotices.slice(1).join(' ') || 'The proposal PDF was still generated.',
         });
       }
-
-      setStage('generating');
 
       const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
       let pdfDataUrl = '';
@@ -1781,7 +1779,7 @@ export function Forms() {
         pendingGenerateIdRef.current = null;
       }
 
-      await sheetsWrite('Quote status (ready)', () =>
+      void sheetsWrite('Quote status (ready)', () =>
         writeQuoteStatus({
           referenceNumber: quoteLead?.referenceNumber,
           email: quoteLead?.email,
@@ -1804,7 +1802,7 @@ export function Forms() {
 
       clearQuoteLead();
       setStage('done');
-      setTimeout(() => navigate('/proposal-doc'), 1200);
+      setTimeout(() => navigate('/proposal-doc'), 400);
     } catch (err) {
       const msg = formatError(err, 'Failed to generate the proposal.');
       setErrorMessage(msg);

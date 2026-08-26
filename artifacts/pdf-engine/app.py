@@ -16,7 +16,6 @@ import io
 import json
 import os
 import re
-import tempfile
 
 from pathlib import Path
 
@@ -183,22 +182,18 @@ def generate():
     except ValidationError as exc:
         return jsonify(validation_error_body(exc)), 422
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = os.path.join(tmpdir, "output.pdf")
-        try:
-            # AUTO still resolves when template_id is absent; with template_id
-            # catalog.resolve prefers that id (manual MVP selection).
-            report = build_proposal(payload, "AUTO", output_path)
-        except ProfileValidationError as exc:
-            return jsonify(
-                error="PDF layout validation failed — cover/contact measurements out of spec",
-                validation_errors=exc.errors,
-            ), 422
-        except Exception as exc:
-            return jsonify(error=f"Proposal generation failed: {exc}"), 500
-
-        with open(output_path, "rb") as f:
-            pdf_bytes = f.read()
+    try:
+        # AUTO still resolves when template_id is absent; with template_id
+        # catalog.resolve prefers that id (manual MVP selection).
+        report = build_proposal(payload, "AUTO", None)
+        pdf_bytes = report.pop("pdf_bytes")
+    except ProfileValidationError as exc:
+        return jsonify(
+            error="PDF layout validation failed — cover/contact measurements out of spec",
+            validation_errors=exc.errors,
+        ), 422
+    except Exception as exc:
+        return jsonify(error=f"Proposal generation failed: {exc}"), 500
 
     filename = proposal_download_name(payload, report)
     response = send_file(

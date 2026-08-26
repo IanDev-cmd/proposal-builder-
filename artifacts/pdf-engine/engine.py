@@ -36,7 +36,7 @@ from profile_validation import (
 )
 
 
-def build_proposal(payload: dict, template_path: str | None, output_path: str) -> dict:
+def build_proposal(payload: dict, template_path: str | None, output_path: str | None = None) -> dict:
     t0 = time.perf_counter()
     warnings = []
     lead = payload.get("lead", {})
@@ -146,13 +146,16 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
                 doc, list(selected_inserts), warnings, extra_page_shift=overflow_shift
             )
 
-        doc.save(output_path, garbage=0, deflate=False)
+        pdf_bytes = doc.tobytes(garbage=0, deflate=False)
+        if output_path:
+            with open(output_path, "wb") as fh:
+                fh.write(pdf_bytes)
         page_count = doc.page_count
     finally:
         doc.close()
     t1 = time.perf_counter()
 
-    return {
+    result = {
         "output_path": output_path,
         "template_id": (resolved or {}).get("id"),
         "template_path": template_path,
@@ -171,6 +174,9 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str) -
             "total": round((t1 - t0) * 1000),
         },
     }
+    if output_path is None:
+        result["pdf_bytes"] = pdf_bytes
+    return result
 
 
 if __name__ == "__main__":

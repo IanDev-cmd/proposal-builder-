@@ -62,7 +62,9 @@ function stripTbcMarkers(text: string): string {
 
 /**
  * Proposal cover date.
- * Fixed → date only. Flexible → date with "(Date TBC)" on the line below (when a date exists).
+ * Fixed → date only (engine wipes the template "(Date TBC)").
+ * Flexible → date plus a "(Date TBC)" marker; engine draws the date only and
+ * leaves the template line under Event date requested.
  */
 export function formatEventDateForProposal(opts: {
   eventDate?: string;
