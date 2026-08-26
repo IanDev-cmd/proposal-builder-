@@ -624,6 +624,10 @@ def _snap_quote_date_spec(page, spec: dict, value: str, font_mgr) -> tuple:
     cap = _quotation_valid_left(page, bbox)
     if cap is not None:
         bbox[2] = cap - 0.7
+        need = 34.0
+        if float(bbox[2]) - float(origin[0]) < need:
+            origin[0] = max(218.0, float(bbox[2]) - need)
+            bbox[0] = min(float(bbox[0]), origin[0])
     else:
         bbox[2] = min(float(bbox[2]), origin[0] + 38.0)
     max_w = max(8.0, float(bbox[2]) - float(origin[0]))

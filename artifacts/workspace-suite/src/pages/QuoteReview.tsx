@@ -101,10 +101,11 @@ export function QuoteReview() {
         <button
           type="button"
           onClick={() => navigate('/saved-quotes')}
-          className="inline-flex w-fit items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-slate-900"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-[14px] py-3 text-[13px] font-bold text-white"
+          style={{ backgroundColor: NOTES_BLUE }}
         >
           <ArrowLeft className="h-4 w-4" />
-          Saved Quotes
+          Back to Saved Quotes
         </button>
 
         {loading && !quote ? (
@@ -115,6 +116,14 @@ export function QuoteReview() {
           </p>
         ) : (
           <>
+            <div className="rounded-[20px] bg-white p-5 shadow-sm sm:p-7">
+              <QuoteDocumentView quote={quote} />
+              <div className="mt-6 flex flex-col gap-2 border-t border-slate-100 pt-5">
+                <QuoteShareButtons quote={quote} copied={copied} onShare={(channel) => share(channel)} />
+                {shareHint ? <p className="text-[11px] font-medium text-[#2F7CF6]">{shareHint}</p> : null}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
@@ -143,23 +152,6 @@ export function QuoteReview() {
                 Disapprove Quote
               </button>
             </div>
-
-            <div className="rounded-[20px] bg-white p-5 shadow-sm sm:p-7">
-              <QuoteDocumentView quote={quote} />
-              <div className="mt-6 flex flex-col gap-2 border-t border-slate-100 pt-5">
-                <QuoteShareButtons quote={quote} copied={copied} onShare={(channel) => share(channel)} />
-                {shareHint ? <p className="text-[11px] font-medium text-[#2F7CF6]">{shareHint}</p> : null}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate('/saved-quotes')}
-              className="rounded-[14px] py-3 text-[13px] font-bold text-white"
-              style={{ backgroundColor: NOTES_BLUE }}
-            >
-              Back to Saved Quotes
-            </button>
           </>
         )}
       </div>

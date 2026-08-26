@@ -273,6 +273,61 @@ def _guest_quote_field(num_sp, guests_sp):
     )
 
 
+def _measure_quote_date(spans) -> dict | None:
+    """
+    Date glyphs are split ('27' / 'January' / '202' / '6'). Union every span
+    on the validity line to the left of '| Quotation valid…'. Never grow into
+    that template phrase — grow left if the box is under 34pt.
+    """
+    line = [
+        sp
+        for sp in spans
+        if 60.0 <= float(sp["bbox"][1]) <= 82.0 and 200.0 <= float(sp["bbox"][0]) <= 345.0
+    ]
+    if not line:
+        return None
+    valid = next(
+        (
+            sp
+            for sp in line
+            if "quotation valid" in sp["text"].lower() or "valid for" in sp["text"].lower()
+        ),
+        None,
+    )
+    if not valid:
+        return None
+    # Stop at the validity phrase. A date span like "27 January 2026 |" includes
+    # the pipe at the RIGHT of the box — do not treat that x0 as the cap.
+    cap = float(valid["bbox"][0])
+    for sp in line:
+        t = sp["text"].strip()
+        if (t == "|" or t.startswith("|")) and float(sp["bbox"][0]) < cap:
+            cap = float(sp["bbox"][0])
+    date_spans = [
+        sp
+        for sp in line
+        if float(sp["bbox"][0]) < cap and "valid" not in sp["text"].lower()
+    ]
+    if not date_spans:
+        return None
+    origin_sp = min(date_spans, key=lambda s: s["bbox"][0])
+    x0 = float(origin_sp["bbox"][0])
+    y0 = min(float(s["bbox"][1]) for s in date_spans)
+    y1 = max(float(s["bbox"][3]) for s in date_spans)
+    x1 = cap - 0.7
+    min_w = 34.0
+    if x1 - x0 < min_w:
+        x0 = max(218.0, x1 - min_w)
+    return dict(
+        bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)),
+        origin=(round(x0, 1), round(origin_sp["origin"][1], 1)),
+        size=round(origin_sp["size"], 2),
+        bold=True,
+        max_width=round(max(x1 - x0, 1.0), 1),
+        color=_span_color(origin_sp),
+    )
+
+
 def _expand_cover_field(
     field: dict,
     panel_right: float,
@@ -428,41 +483,10 @@ def measure_cover(page) -> dict:
         )
         break
 
-    # Quote date: left-panel date like "27 January 2026" (NOT weekday event dates)
-    months = (
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December",
-    )
-    weekdays = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-    for i, sp in enumerate(spans):
-        t = sp["text"].strip()
-        if any(m in t for m in months) and any(ch.isdigit() for ch in t):
-            # left info panel
-            if 220 < sp["bbox"][0] < 340 and "valid" not in t.lower() and "requested" not in t.lower():
-                if any(t.startswith(d) for d in weekdays):
-                    continue
-                # next_sp is typically "| Quotation valid..." — widen=0.5 preserves it
-                nxt = None
-                if i + 1 < len(spans) and abs(spans[i + 1]["bbox"][1] - sp["bbox"][1]) < 3:
-                    nxt = spans[i + 1]
-                f = _span_field(sp, next_sp=nxt, widen=0.5)
-                f["bold"] = True
-                fields["quote_date"] = f
-                break
-
-    # Fallback: span immediately before '| Quotation valid'
-    if "quote_date" not in fields:
-        for i, sp in enumerate(spans):
-            if "quotation valid" in sp["text"].lower() and i > 0:
-                prev = spans[i - 1]
-                if abs(prev["bbox"][1] - sp["bbox"][1]) < 4:
-                    if prev["text"].strip() in ("|", "| ") and i > 1:
-                        f = _span_field(spans[i - 2], next_sp=prev, widen=0.5)
-                    else:
-                        f = _span_field(prev, next_sp=sp, widen=0.5)
-                    f["bold"] = True
-                    fields["quote_date"] = f
-                    break
+    # Quote date: union split glyphs ("27 January 2026") up to "| Quotation valid…"
+    quote_date = _measure_quote_date(spans)
+    if quote_date:
+        fields["quote_date"] = quote_date
 
     gqn = _guest_quote_n(spans)
     if gqn:
@@ -840,7 +864,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 7
+MEASURE_SCHEMA_VERSION = 9
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 

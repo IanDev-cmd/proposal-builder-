@@ -1993,7 +1993,7 @@ export function Forms() {
         title: 'Quote saved',
         description: 'Opening Saved Quotes.',
       });
-      navigate(`/saved-quotes/${saved.id}`);
+      navigate('/saved-quotes');
     } catch (err) {
       toastError({
         key: 'save-quote',
