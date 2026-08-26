@@ -61,6 +61,24 @@ class ProposalFilenameTest(unittest.TestCase):
         )
         self.assertEqual(name, "Proposal - Lily Day - WE.19108.pdf")
 
+    def test_joanna_eaton_house_name(self) -> None:
+        name = proposal_download_name(
+            {
+                "lead": {
+                    "client_name": "Joanna Eaton",
+                    "organisation": "EY",
+                    "reference_number": "WE.19103",
+                },
+                "nexusLead": {
+                    "name": "Joanna Eaton",
+                    "company": "EY",
+                    "referenceNumber": "WE.19103",
+                },
+            },
+            {},
+        )
+        self.assertEqual(name, "Proposal - Joanna Eaton (EY) - WE.19103.pdf")
+
 
 if __name__ == "__main__":
     unittest.main()

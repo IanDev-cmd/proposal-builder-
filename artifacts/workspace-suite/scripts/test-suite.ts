@@ -24,8 +24,10 @@ import {
   layoutOverflowMessages,
 } from '../src/lib/engineWarnings.ts';
 import {
+  isAnonymousPdfFilename,
   proposalDownloadFilenameFromLead,
   proposalFileStemFromLead,
+  proposalFilenameFromRecord,
 } from '../src/lib/proposalFilename.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
@@ -148,6 +150,27 @@ check(
   'unit PDF name omits empty company',
   proposalFileStemFromLead({ name: 'Lily Day', referenceNumber: 'WE.19108' }) ===
     'Proposal - Lily Day - WE.19108',
+);
+check(
+  'unit PDF name is Proposal - Joanna Eaton (EY) - WE.19103',
+  proposalDownloadFilenameFromLead({
+    name: 'Joanna Eaton',
+    company: 'EY',
+    referenceNumber: 'WE.19103',
+  }) === 'Proposal - Joanna Eaton (EY) - WE.19103.pdf',
+);
+check(
+  'unit blob UUID is not kept as a PDF name',
+  isAnonymousPdfFilename('8082d3e5-aed6-4e8b-9369-a535765a7bcb') === true,
+);
+check(
+  'unit UUID download is rebuilt from the lead',
+  proposalFilenameFromRecord({
+    filename: '8082d3e5-aed6-4e8b-9369-a535765a7bcb',
+    leadName: 'Joanna Eaton',
+    leadCompany: 'EY',
+    referenceNumber: 'WE.19103',
+  }) === 'Proposal - Joanna Eaton (EY) - WE.19103.pdf',
 );
 
 check(

@@ -18,7 +18,12 @@ import {
   persistSavedQuote,
 } from '@/lib/savedQuotesStore';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
-import { proposalFileStem, proposalFileStemFromLead } from '@/lib/proposalFilename';
+import {
+  filenameFromContentDisposition,
+  proposalFileStem,
+  proposalFileStemFromLead,
+  proposalFilenameFromRecord,
+} from '@/lib/proposalFilename';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
@@ -1875,12 +1880,22 @@ export function Forms() {
 
       const proposalId = `proposal-${Date.now()}`;
       const fileStem = proposalFileStemFromLead(quoteLead);
+      const filename = proposalFilenameFromRecord({
+        filename:
+          res.headers.get('X-Proposal-Filename') ||
+          filenameFromContentDisposition(res.headers.get('Content-Disposition')) ||
+          `${fileStem}.pdf`,
+        title: fileStem,
+        leadName: quoteLead?.name,
+        leadCompany: quoteLead?.company,
+        referenceNumber: quoteLead?.referenceNumber,
+      });
       const saved = await addProposal({
         id: proposalId,
         createdAt: new Date().toISOString(),
         eventDate: data.eventDate,
         title: fileStem,
-        filename: `${fileStem}.pdf`,
+        filename,
         vesselType: data.vesselType.join(', '),
         eventType: data.eventType,
         guestCount: data.guestCount,
@@ -1888,6 +1903,8 @@ export function Forms() {
         pdfDataUrl,
         leadName: quoteLead?.name,
         leadEmail: quoteLead?.email,
+        leadCompany: quoteLead?.company,
+        referenceNumber: quoteLead?.referenceNumber,
       });
 
       if (!saved) {

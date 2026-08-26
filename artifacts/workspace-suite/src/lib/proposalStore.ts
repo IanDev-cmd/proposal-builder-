@@ -27,6 +27,8 @@ export type GeneratedProposal = {
   pdfDataUrl: string;
   leadName?: string;
   leadEmail?: string;
+  leadCompany?: string;
+  referenceNumber?: string;
 };
 
 const STORE = WORKSPACE_STORES.proposals;

@@ -8,6 +8,7 @@ import {
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { downloadNamedPdf, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
@@ -34,27 +35,36 @@ type ProposalFile = {
   // lets Share address Gmail to this exact person instead of a blank compose.
   leadName?: string;
   leadEmail?: string;
+  leadCompany?: string;
+  referenceNumber?: string;
 };
 
-function proposalPdfFilename(file: Pick<ProposalFile, 'title' | 'filename'>): string {
-  const named = (file.filename || '').trim();
-  if (named) return named.toLowerCase().endsWith('.pdf') ? named : `${named}.pdf`;
-  const title = (file.title || 'Proposal').trim();
-  return title.toLowerCase().endsWith('.pdf') ? title : `${title}.pdf`;
+function proposalPdfFilename(file: Pick<ProposalFile, 'title' | 'filename' | 'leadName' | 'leadCompany' | 'referenceNumber'>): string {
+  return proposalFilenameFromRecord(file);
 }
 
 /** Maps a webhook-generated proposal (from the Forms wizard) into a file card — one card per lead's PDF. */
 function proposalToFile(p: GeneratedProposal): ProposalFile {
+  const linked = listSavedQuotes().find((q) => q.proposalId === p.id);
+  const filename = proposalFilenameFromRecord({
+    filename: p.filename,
+    title: p.title,
+    leadName: p.leadName || linked?.leadName || linked?.lead?.name,
+    leadCompany: p.leadCompany || linked?.lead?.company,
+    referenceNumber: p.referenceNumber || linked?.referenceNumber || linked?.lead?.referenceNumber,
+  });
   return {
     id: p.id,
     title: p.title,
-    filename: p.filename || (p.title.toLowerCase().endsWith('.pdf') ? p.title : `${p.title}.pdf`),
+    filename,
     kind: 'generated',
     sizeLabel: 'PDF',
     description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total ${formatGbp(p.grandTotal)}.`,
     pdfDataUrl: p.pdfDataUrl,
     leadName: p.leadName,
     leadEmail: p.leadEmail,
+    leadCompany: p.leadCompany || linked?.lead?.company,
+    referenceNumber: p.referenceNumber || linked?.referenceNumber || linked?.lead?.referenceNumber,
   };
 }
 
@@ -137,7 +147,7 @@ export function ProposalDoc() {
     if (!q) return generated.map(proposalToFile);
     return generated
       .filter((p) =>
-        [p.title, p.leadName, p.leadEmail, p.vesselType, p.eventType, p.guestCount, p.eventDate]
+        [p.title, p.filename, p.leadName, p.leadEmail, p.leadCompany, p.referenceNumber, p.vesselType, p.eventType, p.guestCount, p.eventDate]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -167,7 +177,8 @@ export function ProposalDoc() {
         const res = await fetch(active.pdfDataUrl!, { signal: ctrl.signal });
         const blob = await res.blob();
         if (cancelled) return;
-        holder.url = URL.createObjectURL(blob);
+        const named = new File([blob], proposalPdfFilename(active), { type: 'application/pdf' });
+        holder.url = URL.createObjectURL(named);
         setPdfBlobUrl(holder.url);
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return;
@@ -195,11 +206,8 @@ export function ProposalDoc() {
 
   const handleDownload = () => {
     if (!active) return;
-    if (active.kind === 'generated' && active.pdfDataUrl) {
-      const a = document.createElement('a');
-      a.href = active.pdfDataUrl;
-      a.download = proposalPdfFilename(active);
-      a.click();
+    if (active.kind === 'generated' && (pdfBlobUrl || active.pdfDataUrl)) {
+      downloadNamedPdf(pdfBlobUrl || active.pdfDataUrl!, proposalPdfFilename(active));
       return;
     }
     if (active.kind !== 'multipage' || !active.pageNums?.length) return;
@@ -251,7 +259,7 @@ export function ProposalDoc() {
     setShareOpen(false);
     if (pdfBlobUrl) {
       // pagemode=none collapses the thumbnail sidebar; zoom=200 opens at 200%.
-      window.open(`${pdfBlobUrl}#zoom=200&pagemode=none`, '_blank', 'noopener,noreferrer');
+      window.open(`${pdfBlobUrl}#zoom=200&pagemode=none&toolbar=0`, '_blank', 'noopener,noreferrer');
     } else if (active.kind === 'multipage' && active.pageNums?.length) {
       window.open(pageImg(active.pageNums[0]), '_blank', 'noopener,noreferrer');
     }
@@ -329,7 +337,12 @@ export function ProposalDoc() {
                 </button>
               ) : null}
             </label>
-            <button onClick={handleDownload} className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-[#FF5A45] transition-colors">
+            <button
+              onClick={handleDownload}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-[#FF5A45] transition-colors"
+              aria-label={active ? `Download ${proposalPdfFilename(active)}` : 'Download'}
+              title={active ? proposalPdfFilename(active) : 'Download'}
+            >
               <Download className="h-4 w-4" />
             </button>
             <button onClick={() => window.print()} className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-[#FF5A45] transition-colors">
@@ -363,7 +376,7 @@ export function ProposalDoc() {
                   >
                     <div className="origin-left scale-75"><FileIcon file={file} /></div>
                     <span className="min-w-0 flex-1 break-words text-[13px] font-medium leading-snug text-black/75">
-                      {file.title}
+                      {file.filename || file.title}
                     </span>
                     <span className="shrink-0 text-[11px] text-black/35">{file.sizeLabel}</span>
                     <Star
@@ -420,10 +433,17 @@ export function ProposalDoc() {
               <div className="flex items-center justify-between border-b border-black/8 px-6 py-4">
                 <div>
                   <h2 className="text-[15px] font-bold text-black">{active.title}</h2>
-                  <p className="mt-0.5 text-[11px] text-black/35">{active.sizeLabel} · Modified 3 days ago</p>
+                  <p className="mt-0.5 truncate text-[11px] text-black/35" title={proposalPdfFilename(active)}>
+                    {proposalPdfFilename(active)}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={handleDownload} className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-[#FF5A45] transition-colors" aria-label="Download">
+                  <button
+                    onClick={handleDownload}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-[#FF5A45] transition-colors"
+                    aria-label={`Download ${proposalPdfFilename(active)}`}
+                    title={proposalPdfFilename(active)}
+                  >
                     <Download className="h-4 w-4" />
                   </button>
                   <button onClick={() => setActiveId(null)} className="flex h-9 w-9 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-black transition-colors" aria-label="Close preview">
@@ -437,8 +457,8 @@ export function ProposalDoc() {
                 {active.kind === 'generated' && active.pdfDataUrl ? (
                   pdfBlobUrl ? (
                     <iframe
-                      src={pdfBlobUrl}
-                      title={active.title}
+                      src={`${pdfBlobUrl}#toolbar=0&navpanes=0`}
+                      title={proposalPdfFilename(active)}
                       className="h-[1400px] w-full rounded-[8px] border-0 bg-white shadow"
                     />
                   ) : (
