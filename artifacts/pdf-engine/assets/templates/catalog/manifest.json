@@ -122,7 +122,9 @@
         "conference or workshop",
         "conference workshop",
         "conference_or_workshop",
-        "conference_workshop"
+        "conference_workshop",
+        "Conference",
+        "conference"
       ]
     },
     {
@@ -137,7 +139,9 @@
         "conference or workshop",
         "conference workshop",
         "conference_or_workshop",
-        "conference_workshop"
+        "conference_workshop",
+        "Conference",
+        "conference"
       ]
     },
     {
@@ -165,7 +169,9 @@
         "Networking Event",
         "networking",
         "networking event",
-        "networking_event"
+        "networking_event",
+        "Client & Prospects Networking Cruise",
+        "client & prospects networking cruise"
       ]
     },
     {
@@ -181,7 +187,9 @@
         "Networking Event",
         "networking",
         "networking event",
-        "networking_event"
+        "networking_event",
+        "Client & Prospects Networking Cruise",
+        "client & prospects networking cruise"
       ]
     },
     {
@@ -300,7 +308,13 @@
         "wedding anniversary or pre-wedding party",
         "wedding anniversary pre wedding party",
         "wedding_anniversary_or_pre_wedding_party",
-        "wedding_anniversary_pre_wedding_party"
+        "wedding_anniversary_pre_wedding_party",
+        "Wedding Anniversary",
+        "wedding anniversary",
+        "Pre-Wedding Celebration",
+        "Pre-Wedding Party",
+        "pre-wedding celebration",
+        "pre-wedding party"
       ]
     },
     {

@@ -22,6 +22,13 @@ export function quoteReviewStatus(
   return 'pending';
 }
 
+/** True when Generate Proposal should warn but still continue. */
+export function quoteNeedsApprovalFirst(
+  quote?: Pick<SavedQuote, 'reviewStatus'> | QuoteReviewStatus | null,
+): boolean {
+  return Boolean(quote) && quoteReviewStatus(quote) !== 'approved';
+}
+
 export function quoteReviewLabel(status: QuoteReviewStatus): string {
   if (status === 'approved') return 'Approved';
   if (status === 'disapproved') return 'Disapproved';

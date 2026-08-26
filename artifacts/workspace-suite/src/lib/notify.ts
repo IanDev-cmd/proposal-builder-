@@ -21,6 +21,7 @@ export type ToastErrorOpts = {
   title: string;
   description?: string;
   err?: unknown;
+  duration?: number;
 };
 
 /** Show a blue toast for failures. Errors only — no success toasts. */
@@ -35,6 +36,7 @@ export function toastError(opts: ToastErrorOpts): void {
     variant: 'destructive',
     title: opts.title,
     description,
+    duration: opts.duration,
   });
 }
 

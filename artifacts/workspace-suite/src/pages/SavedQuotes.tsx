@@ -26,6 +26,7 @@ import { listOpsQuotes, type OpsQuote } from '@/lib/opsStore';
 import {
   QUOTE_REVIEW_TABS,
   filterQuotesByReviewTab,
+  quoteNeedsApprovalFirst,
   quoteReviewLabel,
   quoteReviewStatus,
   type QuoteReviewStatus,
@@ -173,6 +174,14 @@ export function SavedQuotes() {
   }, [filteredQuotes, quotes, opsQuotes, query, reviewTab]);
 
   async function generate(quote: SavedQuote) {
+    if (quoteNeedsApprovalFirst(quote)) {
+      toastError({
+        key: 'approve-quote-first',
+        title: 'Approve Quote First',
+        description: 'You can still generate this proposal.',
+        duration: 8000,
+      });
+    }
     await restoreQuote(quote);
     markPendingGenerate(quote.id);
     navigate('/quote-builder');

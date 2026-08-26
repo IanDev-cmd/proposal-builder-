@@ -216,6 +216,18 @@ def format_organisation(value: str, *, font_mgr=None, max_width: float | None = 
     return s
 
 
+def _ellipsis_to_width(value: str, font_mgr, max_width: float, base_size: float) -> str:
+    """Keep one cover line at designed size — ellipsis rather than clipping mid-glyph."""
+    raw = " ".join(str(value or "").split())
+    if not raw or font_mgr.text_length(raw, base_size, False) <= max_width:
+        return raw
+    ell = "…"
+    cut = raw
+    while cut and font_mgr.text_length(cut + ell, base_size, False) > max_width:
+        cut = cut[:-1]
+    return (cut + ell) if cut else raw[:40]
+
+
 def format_event_type(value: str, *, font_mgr=None, max_width: float | None = None, base_size: float = 4.63) -> str:
     """Long catalogue event names must not shrink on the cover panel."""
     s = str(value or "").strip()
@@ -227,11 +239,13 @@ def format_event_type(value: str, *, font_mgr=None, max_width: float | None = No
         first = s.split(" or ", 1)[0].strip()
         if font_mgr.text_length(first, base_size, False) <= max_width:
             return first
+        s = first
     if " / " in s:
         first = s.split(" / ", 1)[0].strip()
         if font_mgr.text_length(first, base_size, False) <= max_width:
             return first
-    return s
+        s = first
+    return _ellipsis_to_width(s, font_mgr, max_width, base_size)
 
 
 def format_cover_email(value: str, *, font_mgr=None, max_width: float | None = None, base_size: float = 4.63) -> str:
@@ -461,15 +475,7 @@ def _fit_cover_value(field_name: str, value: str, spec: dict, font_mgr) -> str:
     if field_name == "event_type":
         return format_event_type(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
     if field_name == "key_items":
-        raw = " ".join(str(value).split())
-        if font_mgr.text_length(raw, base_size, False) <= max_w:
-            return raw
-        # Keep one line at designed size — ellipsis rather than shrinking cover type.
-        ell = "…"
-        cut = raw
-        while cut and font_mgr.text_length(cut + ell, base_size, False) > max_w:
-            cut = cut[:-1]
-        return (cut + ell) if cut else raw[:40]
+        return _ellipsis_to_width(value, font_mgr, max_w, base_size)
     if field_name == "client_name" and " / " in value:
         parts = [p.strip() for p in value.split(" / ") if p.strip()]
         if len(parts) == 2 and font_mgr.text_length(value, base_size, False) > max_w:

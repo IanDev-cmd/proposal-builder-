@@ -41,6 +41,15 @@ export function templateLabel(t: ProposalTemplate): string {
   return `${t.event_type}${slot}`;
 }
 
+/** WEOTT I vs II vs III must not match as substrings ("I" inside "III"). */
+function weottVesselKey(raw: string): string {
+  const m = String(raw || '')
+    .toLowerCase()
+    .match(/weott[\s_-]*(yacht|limo|vii|vi|iv|iii|ii|v|i)(?![a-z])/);
+  if (!m) return '';
+  return `weott ${m[1]}`;
+}
+
 export function filterInserts(opts: {
   kind?: string;
   category?: string;
@@ -53,14 +62,10 @@ export function filterInserts(opts: {
     if (opts.category && opts.category !== 'any' && i.category && i.category !== 'any' && i.category !== opts.category) {
       return false;
     }
-    if (opts.vesselHint && i.kind === 'vessel' && i.vessel) {
-      const v = opts.vesselHint.toLowerCase();
-      const iv = i.vessel.toLowerCase();
-      if (!v.includes(iv) && !iv.includes(v.split('(')[0].trim()) && !iv.split(' ').some((p) => v.includes(p))) {
-        // soft filter — still allow if no overlap on WEOTT number
-        const num = (s: string) => s.match(/weott\s*(i{1,3}|iv|v|vi{0,3}|vii|yacht|limo)/i)?.[0]?.toLowerCase();
-        if (num(v) && num(iv) && num(v) !== num(iv)) return false;
-      }
+    if (opts.vesselHint && i.kind === 'vessel') {
+      const want = weottVesselKey(opts.vesselHint);
+      const have = weottVesselKey(`${i.id} ${i.label || ''} ${i.vessel || ''}`);
+      if (want && have && want !== have) return false;
     }
     if (q) {
       const hay = `${i.label} ${i.vessel || ''} ${i.staff || ''} ${i.season || ''}`.toLowerCase();

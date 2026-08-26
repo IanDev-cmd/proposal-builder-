@@ -111,7 +111,9 @@
         "conference or workshop",
         "conference workshop",
         "conference_or_workshop",
-        "conference_workshop"
+        "conference_workshop",
+        "Conference",
+        "conference"
       ]
     },
     {
@@ -125,7 +127,9 @@
         "conference or workshop",
         "conference workshop",
         "conference_or_workshop",
-        "conference_workshop"
+        "conference_workshop",
+        "Conference",
+        "conference"
       ]
     },
     {
@@ -151,7 +155,9 @@
         "Networking Event",
         "networking",
         "networking event",
-        "networking_event"
+        "networking_event",
+        "Client & Prospects Networking Cruise",
+        "client & prospects networking cruise"
       ]
     },
     {
@@ -166,7 +172,9 @@
         "Networking Event",
         "networking",
         "networking event",
-        "networking_event"
+        "networking_event",
+        "Client & Prospects Networking Cruise",
+        "client & prospects networking cruise"
       ]
     },
     {
@@ -276,7 +284,13 @@
         "wedding anniversary or pre-wedding party",
         "wedding anniversary pre wedding party",
         "wedding_anniversary_or_pre_wedding_party",
-        "wedding_anniversary_pre_wedding_party"
+        "wedding_anniversary_pre_wedding_party",
+        "Wedding Anniversary",
+        "wedding anniversary",
+        "Pre-Wedding Celebration",
+        "Pre-Wedding Party",
+        "pre-wedding celebration",
+        "pre-wedding party"
       ]
     },
     {
@@ -321,7 +335,7 @@
         "season": "autumn_winter",
         "slot": "daytime",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -343,7 +357,7 @@
         "season": "autumn_winter",
         "slot": "evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -398,7 +412,7 @@
         "season": "any_season",
         "slot": "daytime_or_evening",
         "category": "wedding",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -409,7 +423,7 @@
         "season": "christmas",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT V",
+        "vessel": "WEOTT VII",
         "staff": "",
         "dancefloor": false
       },
@@ -486,7 +500,7 @@
         "season": "autumn_winter",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT IV",
         "staff": "",
         "dancefloor": false
       },
@@ -497,7 +511,7 @@
         "season": "spring_summer",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": true
       },
@@ -508,7 +522,7 @@
         "season": "any_season",
         "slot": "daytime_or_evening",
         "category": "wedding",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -530,7 +544,7 @@
         "season": "christmas",
         "slot": "evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": true
       },
@@ -541,7 +555,7 @@
         "season": "christmas",
         "slot": "evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -552,7 +566,7 @@
         "season": "any_season",
         "slot": "daytime_or_evening",
         "category": "wedding",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -574,7 +588,7 @@
         "season": "christmas",
         "slot": "daytime",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -585,7 +599,7 @@
         "season": "any_season",
         "slot": "daytime_or_evening",
         "category": "wedding",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -618,7 +632,7 @@
         "season": "christmas",
         "slot": "daytime",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": true
       },
@@ -629,7 +643,7 @@
         "season": "christmas",
         "slot": "evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -640,7 +654,7 @@
         "season": "christmas",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT IV",
         "staff": "",
         "dancefloor": false
       },
@@ -662,7 +676,7 @@
         "season": "spring_summer",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -684,7 +698,7 @@
         "season": "any_season",
         "slot": "daytime_or_evening",
         "category": "wedding",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -706,7 +720,7 @@
         "season": "christmas",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT V",
+        "vessel": "WEOTT VI",
         "staff": "",
         "dancefloor": false
       },
@@ -717,7 +731,7 @@
         "season": "christmas",
         "slot": "daytime",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -728,7 +742,7 @@
         "season": "autumn_winter",
         "slot": "evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -739,7 +753,7 @@
         "season": "christmas",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT V",
+        "vessel": "WEOTT VI",
         "staff": "",
         "dancefloor": false
       },
@@ -772,7 +786,7 @@
         "season": "spring_summer",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT IV",
         "staff": "",
         "dancefloor": false
       },
@@ -794,7 +808,7 @@
         "season": "any_season",
         "slot": "daytime_or_evening",
         "category": "wedding",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT III",
         "staff": "",
         "dancefloor": false
       },
@@ -816,7 +830,7 @@
         "season": "autumn_winter",
         "slot": "daytime",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       },
@@ -838,7 +852,7 @@
         "season": "spring_summer",
         "slot": "daytime_or_evening",
         "category": "corporate",
-        "vessel": "WEOTT I",
+        "vessel": "WEOTT II",
         "staff": "",
         "dancefloor": false
       }

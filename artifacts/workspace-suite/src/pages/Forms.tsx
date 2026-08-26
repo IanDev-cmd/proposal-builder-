@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, Loader2, FileCheck2, AlertTriangle, X, UserRound, Layers, Search, Eye, Download } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, AlertTriangle, X, UserRound, Layers, Search, Eye, Download } from 'lucide-react';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
@@ -86,6 +86,7 @@ import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
 import { autoConfirmPrefillKeys, collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
 import { toastError, toastSuccess } from '@/lib/notify';
+import { quoteNeedsApprovalFirst } from '@/lib/quoteReview';
 import { errorMessage as formatError } from '@/lib/errors';
 import {
   humanizeEngineWarning,
@@ -279,6 +280,77 @@ const INTEGRITY_STEPS: { key: Exclude<GenerationStage, 'idle' | 'error'>; label:
   { key: 'done', label: 'Proposal saved & ready' },
 ];
 const STAGE_ORDER: Exclude<GenerationStage, 'idle' | 'error'>[] = ['preparing', 'sending', 'generating', 'done'];
+const STAGE_PERCENT: Record<GenerationStage, number> = {
+  idle: 0,
+  preparing: 22,
+  sending: 48,
+  generating: 78,
+  done: 100,
+  error: 0,
+};
+
+function FluidFillCircle({
+  percent,
+  color,
+  size = 88,
+}: {
+  percent: number;
+  color: string;
+  size?: number;
+}) {
+  const clipId = `fluid-${useId().replace(/:/g, '')}`;
+  const p = Math.max(0, Math.min(100, percent));
+  const r = size / 2;
+  const innerR = r - 4;
+  const fillTop = r + innerR - (p / 100) * innerR * 2;
+  return (
+    <div className="relative" style={{ width: size, height: size }} aria-label={`${Math.round(p)} percent`}>
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full">
+        <defs>
+          <clipPath id={clipId}>
+            <circle cx={r} cy={r} r={innerR} />
+          </clipPath>
+        </defs>
+        <circle cx={r} cy={r} r={innerR + 1.6} fill={`${color}18`} stroke={color} strokeWidth={2.2} />
+        <g clipPath={`url(#${clipId})`}>
+          <motion.rect
+            x={-4}
+            width={size + 8}
+            height={size * 2}
+            fill={color}
+            initial={false}
+            animate={{ y: fillTop }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            opacity={0.9}
+          />
+          <motion.ellipse
+            cx={r}
+            rx={innerR * 0.92}
+            ry={5}
+            fill={color}
+            initial={false}
+            animate={{
+              cy: fillTop,
+              opacity: p > 3 && p < 97 ? 1 : 0,
+              scaleX: [1, 1.08, 1],
+            }}
+            transition={{
+              cy: { duration: 0.45, ease: 'easeOut' },
+              opacity: { duration: 0.2 },
+              scaleX: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
+            }}
+          />
+        </g>
+      </svg>
+      <span
+        className="absolute inset-0 flex items-center justify-center text-[15px] font-bold tabular-nums"
+        style={{ color: p > 52 ? '#fff' : color }}
+      >
+        {Math.round(p)}%
+      </span>
+    </div>
+  );
+}
 
 /**
  * Base Cost (Quote Sheet SoT via quoteFinance.ts) then flows through:
@@ -928,6 +1000,7 @@ export function Forms() {
   const [previewField, setPreviewField] = useState<string | null>(null);
   const [previewOption, setPreviewOption] = useState<string | null>(null);
   const [stage, setStage] = useState<GenerationStage>('idle');
+  const [genPercent, setGenPercent] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   // Base Cost stays auto-prefilled from the vessel/menu/guests/upgrades
   // formula until the user types their own figure into the field — then it
@@ -947,6 +1020,23 @@ export function Forms() {
   useEffect(() => {
     if (step === 3) setIsNotesOpen(true);
   }, [step]);
+
+  useEffect(() => {
+    if (stage === 'idle') {
+      setGenPercent(0);
+      return;
+    }
+    if (stage === 'error') return;
+    const id = window.setInterval(() => {
+      setGenPercent((p) => {
+        if (stage === 'done') return Math.min(100, p + 8);
+        const cap = stage === 'generating' ? 92 : STAGE_PERCENT[stage];
+        if (p >= cap) return p;
+        return Math.min(cap, p + (stage === 'generating' ? 0.45 : 2.4));
+      });
+    }, 40);
+    return () => window.clearInterval(id);
+  }, [stage]);
 
   // Gemini catalogue overlay — guests and money stay local. Skip gold playbook leads.
   useEffect(() => {
@@ -1509,6 +1599,18 @@ export function Forms() {
     setStage('preparing');
 
     const fromSavedQuote = Boolean(fromSavedGenerateRef.current || pendingGenerateIdRef.current);
+    const savedForReview =
+      (pendingGenerateIdRef.current && getSavedQuote(pendingGenerateIdRef.current)) ||
+      listSavedQuotes().find((q) => q.leadKey === leadNotesKey) ||
+      null;
+    if (quoteNeedsApprovalFirst(savedForReview)) {
+      toastError({
+        key: 'approve-quote-first',
+        title: 'Approve Quote First',
+        description: 'You can still generate this proposal.',
+        duration: 8000,
+      });
+    }
 
     if (!data.costApproved && !fromSavedQuote) {
       setErrorMessage('Confirm cost cross-check approval before Proposal Pack / generate.');
@@ -3089,7 +3191,7 @@ export function Forms() {
                               : `border-blue-400 bg-blue-50/80 text-blue-900 ${PREFILL_BLUE_GLOW_CLS}`
                           }`}
                         >
-                          <span className="truncate">{item?.label || id}</span>
+                          <span className="min-w-0 break-words pr-2" title={item?.label || id}>{item?.label || id}</span>
                           {confirmed ? (
                             <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
                           ) : (
@@ -3125,7 +3227,7 @@ export function Forms() {
                               key={id}
                               className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-[12px] text-gray-700"
                             >
-                              <span className="truncate">{item?.label || id}</span>
+                              <span className="min-w-0 break-words pr-2" title={item?.label || id}>{item?.label || id}</span>
                               <button
                                 type="button"
                                 onClick={() => toggleInsert(id)}
@@ -3480,32 +3582,32 @@ export function Forms() {
                     </>
                   )}
 
+                  <div className="relative z-10 mb-6 flex h-20 w-20 items-center justify-center">
+                    {stage === 'error' ? (
+                      <div
+                        className="flex h-20 w-20 items-center justify-center rounded-full"
+                        style={{ backgroundColor: `${STAGE_META.error.color}18` }}
+                      >
+                        <AlertTriangle className="h-9 w-9" style={{ color: STAGE_META.error.color }} />
+                      </div>
+                    ) : (
+                      <FluidFillCircle
+                        percent={genPercent}
+                        color={STAGE_META[stage as keyof typeof STAGE_META].color}
+                        size={80}
+                      />
+                    )}
+                  </div>
+
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={stage}
-                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.25 }}
                       className="relative z-10 flex flex-col items-center text-center"
                     >
-                      <div
-                        className="mb-6 flex h-20 w-20 items-center justify-center rounded-full"
-                        style={{ backgroundColor: `${STAGE_META[stage as keyof typeof STAGE_META].color}18` }}
-                      >
-                        {stage === 'done' ? (
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
-                            <FileCheck2 className="h-9 w-9" style={{ color: STAGE_META.done.color }} />
-                          </motion.div>
-                        ) : stage === 'error' ? (
-                          <AlertTriangle className="h-9 w-9" style={{ color: STAGE_META.error.color }} />
-                        ) : (
-                          <Loader2
-                            className="h-9 w-9 animate-spin"
-                            style={{ color: STAGE_META[stage as keyof typeof STAGE_META].color }}
-                          />
-                        )}
-                      </div>
                       <p className="text-[17px] font-bold text-gray-800">
                         {stage === 'error' ? errorMessage || STAGE_META.error.label : STAGE_META[stage as keyof typeof STAGE_META].label}
                       </p>
@@ -3543,16 +3645,15 @@ export function Forms() {
                       {INTEGRITY_STEPS.map(({ key, label }) => {
                         const reached =
                           stage !== 'error' && STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number]) >= STAGE_ORDER.indexOf(key);
-                        const active = stage === key;
                         return (
                           <div key={key} className="flex items-center gap-2.5">
                             <motion.div
                               className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                               animate={{
                                 backgroundColor: reached ? STAGE_META[key].color : '#e5e7eb',
-                                scale: active ? [1, 1.15, 1] : 1,
+                                scale: 1,
                               }}
-                              transition={{ duration: active ? 0.8 : 0.3, repeat: active ? Infinity : 0 }}
+                              transition={{ duration: 0.28, ease: 'easeOut' }}
                             >
                               {reached && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                             </motion.div>
@@ -3575,16 +3676,20 @@ export function Forms() {
                       Quote Snapshot
                     </p>
                     <div className="flex flex-col gap-1.5 text-[12px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400">Vessel</span>
-                        <span className="font-semibold text-gray-700">{data.vesselType.join(', ') || '—'}</span>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="shrink-0 text-gray-400">Vessel</span>
+                        <span className="min-w-0 text-right font-semibold leading-snug text-gray-700 break-words">
+                          {data.vesselType.join(', ') || '—'}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400">Event</span>
-                        <span className="font-semibold text-gray-700">{data.eventType || '—'}</span>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="shrink-0 text-gray-400">Event</span>
+                        <span className="min-w-0 text-right font-semibold leading-snug text-gray-700 break-words">
+                          {data.eventType || '—'}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400">Guests</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="shrink-0 text-gray-400">Guests</span>
                         <span className="font-semibold text-gray-700">{data.guestCount || '—'}</span>
                       </div>
                       <div className="flex items-center justify-between">
