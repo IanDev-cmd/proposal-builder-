@@ -15,6 +15,7 @@ import { savedQuoteSharePath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
 import { formatEventTimingsPayload, itineraryHours } from '../src/lib/proposalTimings.ts';
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
+import { formatEventDateForProposal } from '../src/lib/goldScenarioCover.ts';
 import { errorMessage } from '../src/lib/errors.ts';
 import { formatGbp } from '../src/lib/utils.ts';
 import {
@@ -122,6 +123,16 @@ check('unit cover timings are event window not embark', formatEventTimingsPayloa
 check('unit billed hours ignore embark buffer', itineraryHours({ embarkation: '18:45', departure: '19:00', returnTime: '23:00' }) === 4);
 check('unit missing event date is TBC', isEventDateTbc(undefined as unknown as string) === true);
 check('unit TBC date string', isEventDateTbc('TBC') === true);
+check(
+  'unit flexible cover date uses (Date TBC) once',
+  formatEventDateForProposal({ eventDate: '2026-08-26', dateFlexible: true }) ===
+    'Wednesday 26th August 2026\n(Date TBC)',
+);
+check(
+  'unit fixed cover date has no TBC line',
+  formatEventDateForProposal({ eventDate: '2026-08-26', dateFlexible: false }) ===
+    'Wednesday 26th August 2026',
+);
 check('unit formatGbp', formatGbp(3256.15) === '£3256.15' || formatGbp(3256.15) === '£3256.15');
 check('unit errorMessage from Error', errorMessage(new Error('boom')) === 'boom');
 check('unit errorMessage fallback', errorMessage(null) === 'Something went wrong');

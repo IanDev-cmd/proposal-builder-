@@ -35,7 +35,7 @@ def draw_text(page: "fitz.Page", origin, text: str, fontname: str, size: float,
               color=None, fontfile=None, *, line_gap: float | None = None):
     """
     Draw text at origin. PyMuPDF insert_text ignores newlines, so multi-line
-    strings (e.g. event_date with a trailing \\nTBC) are drawn line-by-line.
+    strings (e.g. event_date with a trailing \\n(Date TBC)) are drawn line-by-line.
     """
     if color is None:
         color = config.TEXT_COLOR

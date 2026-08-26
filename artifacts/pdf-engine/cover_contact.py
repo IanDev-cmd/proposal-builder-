@@ -36,12 +36,24 @@ def _parse_iso_datetime(raw: str):
 
 
 _ORDINAL = {1: "st", 2: "nd", 3: "rd"}
+# Cover second line for a flexible date. Template already prints this;
+# we redact it and redraw once so a bare "TBC" is never added underneath.
+FLEX_DATE_TBC = "(Date TBC)"
+_FLEX_TAIL_RE = re.compile(r"(?i)\s*\n\s*(\(\s*date\s*tbc\s*\)|\(\s*tbc\s*\)|tbc)\s*$")
 
 
 def _ordinal(n: int) -> str:
     if 10 <= (n % 100) <= 20:
         return "th"
     return _ORDINAL.get(n % 10, "th")
+
+
+def _is_flexible_event_date(raw: str, date_flexible: bool | None) -> bool:
+    if date_flexible is True:
+        return True
+    if date_flexible is False:
+        return False
+    return bool(_FLEX_TAIL_RE.search(raw))
 
 
 def format_event_date(value: str, *, date_flexible: bool | None = None) -> str:
@@ -54,14 +66,9 @@ def format_event_date(value: str, *, date_flexible: bool | None = None) -> str:
     if re.match(r"^(date\s*)?tbc$", raw, re.I):
         return "Date TBC"
 
-    if date_flexible is True:
-        flexible = True
-    elif date_flexible is False:
-        flexible = False
-    else:
-        flexible = bool(re.search(r"(?i)\n\s*tbc\s*$", raw))
+    flexible = _is_flexible_event_date(raw, date_flexible)
 
-    date_part = re.sub(r"(?i)\s*\n\s*tbc\s*$", "", raw)
+    date_part = _FLEX_TAIL_RE.sub("", raw)
     date_part = re.sub(r"(?i)\s*\(date\s*tbc\)\s*", "", date_part)
     date_part = re.sub(r"(?i)\s*\(tbc\)\s*", "", date_part)
     date_part = re.sub(r"(?i)\s*\bflexible\b\s*", "", date_part).strip()
@@ -90,7 +97,7 @@ def format_event_date(value: str, *, date_flexible: bool | None = None) -> str:
                     continue
 
     if flexible:
-        return f"{formatted}\nTBC"
+        return f"{formatted}\n{FLEX_DATE_TBC}"
     return formatted
 
 
@@ -99,8 +106,8 @@ def format_event_date_compact(value: str) -> str:
     raw = format_event_date(value)
     if raw in ("", "TBC", "Date TBC"):
         return raw
-    flexible = "\nTBC" in raw
-    date_only = raw.replace("\nTBC", "").strip()
+    flexible = _FLEX_TAIL_RE.search(raw) is not None
+    date_only = _FLEX_TAIL_RE.sub("", raw).strip()
     # Try parse back from house style or ISO
     source = str(value).strip().split("\n")[0]
     source = re.sub(r"(?i)\s*\(date\s*tbc\)\s*", "", source).strip()
@@ -108,7 +115,7 @@ def format_event_date_compact(value: str) -> str:
         try:
             dt = datetime.strptime(source[:10], fmt)
             compact = f"{dt.strftime('%a')} {dt.day}{_ordinal(dt.day)} {dt.strftime('%b %Y')}"
-            return f"{compact}\nTBC" if flexible else compact
+            return f"{compact}\n{FLEX_DATE_TBC}" if flexible else compact
         except ValueError:
             continue
     # From already-formatted long date: Tuesday 14th July 2026 -> Tue 14th Jul 2026
@@ -128,7 +135,7 @@ def format_event_date_compact(value: str) -> str:
             "September": "Sep", "October": "Oct", "November": "Nov", "December": "Dec",
         }
         compact = f"{day_map[m.group(1)]} {m.group(2)}{m.group(3)} {mon_map[m.group(4)]} {m.group(5)}"
-        return f"{compact}\nTBC" if flexible else compact
+        return f"{compact}\n{FLEX_DATE_TBC}" if flexible else compact
     return raw
 
 
@@ -606,12 +613,18 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         # If event_date won't fit at designed size, use compact form before shrink
         tbc_under = False
         if field_name == "event_date":
+            x0, y0 = spec["origin"]
+            bbox = list(spec["bbox"])
+            # Always wipe the template's "(Date TBC)" line so a second TBC is not left behind.
+            bbox[3] = max(float(bbox[3]), float(y0) + 7.5)
+            spec["bbox"] = tuple(bbox)
+            spec["max_width"] = max(float(spec.get("max_width") or 0), bbox[2] - bbox[0])
             if "\n" in value:
                 parts = value.split("\n", 1)
                 value = parts[0].strip()
-                tbc_under = parts[1].strip().upper() == "TBC" or "TBC" in parts[1].upper()
+                tbc_under = bool(re.search(r"tbc", parts[1], re.I))
             max_w = spec.get("max_width", 56)
-            # Measure date line only (TBC draws underneath)
+            # Measure date line only ((Date TBC) draws underneath when flexible)
             measure_src = value
             if font_mgr.text_length(measure_src, spec["size"], spec.get("bold", False)) > max_w:
                 compact = format_event_date_compact(data[field_name])
@@ -635,8 +648,7 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         spec["deep_bold"] = want_weight  # light echo approximates template bold
         prepared.append(prepare_field_draw(spec, value, font_mgr, warnings, field_name))
         if field_name == "event_date" and tbc_under:
-            # Date origin is (410.4, 52.0); place TBC ~5pt below so it stays
-            # readable under the date without overlapping neighbouring panel copy.
+            # One marker only: (Date TBC). Never a second bare "TBC" line.
             x0, y = spec["origin"]
             tbc_y = y + 5.0
             tbc_spec = dict(
@@ -649,7 +661,7 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
                 max_width=float(spec.get("max_width") or 56),
                 skip_redact=True,
             )
-            prepared.append(prepare_field_draw(tbc_spec, "TBC", font_mgr, warnings, "event_date_tbc"))
+            prepared.append(prepare_field_draw(tbc_spec, FLEX_DATE_TBC, font_mgr, warnings, "event_date_tbc"))
 
     draw_fields_batched(page, prepared, font_mgr, clear_graphics=False)
 

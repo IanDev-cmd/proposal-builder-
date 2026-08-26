@@ -62,7 +62,7 @@ function stripTbcMarkers(text: string): string {
 
 /**
  * Proposal cover date.
- * Fixed → date only. Flexible → date with "TBC" on the line below (when a date exists).
+ * Fixed → date only. Flexible → date with "(Date TBC)" on the line below (when a date exists).
  */
 export function formatEventDateForProposal(opts: {
   eventDate?: string;
@@ -84,7 +84,7 @@ export function formatEventDateForProposal(opts: {
   }
 
   if (!base) return 'Date TBC';
-  if (dateFlexible) return `${base}\nTBC`;
+  if (dateFlexible) return `${base}\n(Date TBC)`;
   return base;
 }
 

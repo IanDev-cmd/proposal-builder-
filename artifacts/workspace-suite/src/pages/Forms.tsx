@@ -2168,14 +2168,14 @@ export function Forms() {
                   />
                   {data.dateFlexible && data.eventDate ? (
                     <p className="mt-1.5 text-[12px] font-semibold text-emerald-700">
-                      Proposal will show this date with TBC underneath
+                      Proposal will show this date with (Date TBC) underneath
                     </p>
                   ) : null}
                 </div>
                 <div className="mb-7 rounded-[10px] border border-[#e3e6e4] p-4">
                   <p className="text-[13px] font-semibold text-gray-800">Date Flexibility</p>
                   <p className="mt-0.5 text-[12px] text-gray-400">
-                    Pulled from the Lead Sheet. TBC selects Flexible; otherwise Fixed. Flexible still prints the date, with TBC on the line below.
+                    Pulled from the Lead Sheet. TBC selects Flexible; otherwise Fixed. Flexible still prints the date, with (Date TBC) on the line below.
                   </p>
                   <div
                     role="radiogroup"
