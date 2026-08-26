@@ -109,7 +109,11 @@ check('unit share includes full quote URL', text.includes(shareUrl));
 const gmail = quoteShareWebUrl('email', { title: 'Quote: Lily Day V1', text, shareUrl });
 check('unit Gmail compose has no to=', !/[?&]to=/.test(gmail));
 check('unit Gmail compose does not include lead email', !gmail.includes(encodeURIComponent('lily@example.com')));
+check('unit Gmail is Gmail web', gmail.startsWith('https://mail.google.com/mail/'));
 check('unit WhatsApp compose has no recipient phone', quoteShareWebUrl('whatsapp', { title: 't', text, shareUrl }).startsWith('https://web.whatsapp.com/send?text='));
+check('unit WhatsApp is WhatsApp Web not wa.me', !quoteShareWebUrl('whatsapp', { title: 't', text, shareUrl }).includes('wa.me'));
+check('unit Drive is Google Drive web', quoteShareWebUrl('drive', { title: 't', text, shareUrl }).startsWith('https://drive.google.com/'));
+check('unit Dropbox is Dropbox web', quoteShareWebUrl('dropbox', { title: 't', text, shareUrl }) === 'https://www.dropbox.com/home');
 
 const html = quotePageHtml(pending, shareUrl);
 check('unit quote page HTML is the quote title', html.includes('Lily Day V1'));

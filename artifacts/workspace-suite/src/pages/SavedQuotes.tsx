@@ -192,18 +192,18 @@ export function SavedQuotes() {
     setSharing(true);
     try {
       const result = await openQuoteShareWeb(channel, quote);
-      if (channel === 'link' || result === 'copied' || result === 'overlay') {
+      if (channel === 'link' || result === 'copied') {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1600);
         setShareHint('Quote page link copied');
       } else if (result === 'opened-copied') {
         setShareHint(
-          channel === 'dropbox' ? 'Quote page downloaded — opened Dropbox' : 'Quote page downloaded — opened Drive',
+          channel === 'dropbox' ? 'Opened Dropbox on the web' : 'Opened Google Drive on the web',
         );
       } else if (channel === 'email') {
-        setShareHint('Quote page downloaded — Gmail opened with To blank');
+        setShareHint('Opened Gmail — To is blank');
       } else {
-        setShareHint('Quote page downloaded — opened WhatsApp');
+        setShareHint('Opened WhatsApp Web');
       }
       window.setTimeout(() => setShareHint(''), 3500);
     } catch {
@@ -328,7 +328,7 @@ export function SavedQuotes() {
           if (quote) {
             return (
               <div className="mt-3 flex flex-col gap-2.5">
-                <QuoteShareButtons quote={quote} onBlue copied={copied} onShare={share} />
+                <QuoteShareButtons quote={quote} copied={copied} onShare={share} />
                 <button
                   type="button"
                   onClick={() => navigate(`/saved-quotes/${quote.id}`)}

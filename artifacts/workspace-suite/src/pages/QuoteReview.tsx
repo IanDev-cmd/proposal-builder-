@@ -57,13 +57,13 @@ export function QuoteReview() {
       } else if (result === 'opened-copied') {
         setShareHint(
           channel === 'dropbox'
-            ? 'Quote page downloaded — opened Dropbox'
-            : 'Quote page downloaded — opened Drive',
+            ? 'Opened Dropbox on the web'
+            : 'Opened Google Drive on the web',
         );
       } else if (channel === 'email') {
-        setShareHint('Quote page downloaded — Gmail opened with To blank');
+        setShareHint('Opened Gmail — To is blank');
       } else {
-        setShareHint('Quote page downloaded — opened WhatsApp');
+        setShareHint('Opened WhatsApp Web');
       }
       window.setTimeout(() => setShareHint(''), 4000);
     } catch {

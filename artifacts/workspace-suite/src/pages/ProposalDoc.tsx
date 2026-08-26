@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  PenSquare, Star, Search, Share2,
+  PenSquare, Star, Search,
   Download, Printer, X, ChevronUp, ChevronDown,
   FileIcon as FileGeneratedIcon,
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
 import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
+import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
@@ -254,7 +255,7 @@ export function ProposalDoc() {
     }
   };
 
-  /* ── Share targets: each attaches the PDF (OS share sheet, .eml, or download + app) ── */
+  /* ── Share targets: web Gmail / Drive / Dropbox / WhatsApp Web only ── */
   const handleShareFullScreen = () => {
     if (!active) return;
     setShareOpen(false);
@@ -282,13 +283,11 @@ export function ProposalDoc() {
       });
       return;
     }
-    const greetingName = active.leadName ? active.leadName.split(' ')[0] : 'there';
     try {
       await shareArtifact(channel, {
         file,
         title: `Proposal: ${active.title}`,
-        text: `Hi ${greetingName},\n\nPlease find attached the proposal "${active.title}".\n\n${active.description}\n\nBest regards`,
-        toEmail: active.leadEmail,
+        text: `Hi,\n\nPlease find attached the proposal "${active.title}".\n\n${active.description}\n\nBest regards`,
         kind: 'pdf',
       });
     } catch {
@@ -300,7 +299,7 @@ export function ProposalDoc() {
     }
   };
 
-  const SHARE_TARGETS = [
+  const shareTargets = [
     { label: 'Full Screen', icon: Maximize2, color: '#1a1a1a', onClick: handleShareFullScreen },
     { label: 'Gmail', icon: Mail, color: '#EA4335', onClick: () => void handleShareWithFile('email') },
     { label: 'Google Drive', icon: HardDrive, color: '#34A853', onClick: () => void handleShareWithFile('drive') },
@@ -484,12 +483,7 @@ export function ProposalDoc() {
 
               <div className="flex items-center gap-2 border-t border-black/8 px-6 py-4">
                 <p className="flex-1 text-[12.5px] leading-relaxed text-black/60">{active.description}</p>
-                <button
-                  onClick={() => setShareOpen(true)}
-                  className="flex shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-blue-600 px-4 py-2.5 text-[11.5px] font-bold text-white hover:bg-blue-700 transition-colors"
-                >
-                  <Share2 className="h-3.5 w-3.5" /> Share
-                </button>
+                <ShareTriggerButton color="blue" onClick={() => setShareOpen(true)} />
                 <button
                   onClick={() => void handleEdit()}
                   className="flex shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-black px-4 py-2.5 text-[11.5px] font-bold text-white hover:bg-black/80 transition-colors"
@@ -510,62 +504,17 @@ export function ProposalDoc() {
         )}
       </AnimatePresence>
 
-      {/* ══ Share overlay — beautiful icon tiles for each destination; each opens the exact right place ══ */}
-      <AnimatePresence>
-        {shareOpen && active && (
-          <motion.div
-            key="share-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onClick={() => setShareOpen(false)}
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 12 }}
-              transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-[480px] rounded-[20px] bg-white p-7 shadow-2xl"
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <h3 className="text-[16px] font-bold text-black/85">Share proposal</h3>
-                <button
-                  onClick={() => setShareOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-black/35 hover:bg-black/5 hover:text-black transition-colors"
-                  aria-label="Close share menu"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="mb-6 truncate text-[12.5px] text-black/40">
-                {active.title}
-                {active.leadEmail && <> · to <span className="font-semibold text-black/60">{active.leadEmail}</span></>}
-              </p>
-
-              <div className="grid grid-cols-5 gap-3">
-                {SHARE_TARGETS.map(({ label, icon: Icon, color, onClick }) => (
-                  <button
-                    key={label}
-                    onClick={onClick}
-                    className="flex flex-col items-center gap-2 rounded-[14px] p-2 transition-colors hover:bg-black/4"
-                  >
-                    <span
-                      className="flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:scale-105"
-                      style={{ backgroundColor: `${color}18`, color }}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="text-center text-[10px] font-semibold leading-tight text-black/60">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ShareOverlay
+        open={Boolean(shareOpen && active)}
+        title="Share proposal"
+        subtitle={
+          active
+            ? `${active.title}${active.leadEmail ? ` · to ${active.leadEmail}` : ''}`
+            : undefined
+        }
+        targets={shareTargets}
+        onClose={() => setShareOpen(false)}
+      />
     </div>
   );
 }
