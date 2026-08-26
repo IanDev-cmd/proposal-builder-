@@ -8,7 +8,7 @@ import {
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
-import { downloadNamedPdf, proposalFilenameFromRecord } from '@/lib/proposalFilename';
+import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
 import { toastError } from '@/lib/notify';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
@@ -141,11 +141,12 @@ export function ProposalDoc() {
     }
   }, [generated]);
 
-  const generatedFiles = generated.map(proposalToFile);
+  const generatedFiles = generated.filter((p) => !isLegacyEventVesselProposal(p)).map(proposalToFile);
   const q = query.trim().toLowerCase();
   const files = useMemo(() => {
-    if (!q) return generated.map(proposalToFile);
-    return generated
+    const visible = generated.filter((p) => !isLegacyEventVesselProposal(p));
+    if (!q) return visible.map(proposalToFile);
+    return visible
       .filter((p) =>
         [p.title, p.filename, p.leadName, p.leadEmail, p.leadCompany, p.referenceNumber, p.vesselType, p.eventType, p.guestCount, p.eventDate]
           .filter(Boolean)

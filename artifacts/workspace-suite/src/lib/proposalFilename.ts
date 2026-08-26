@@ -24,6 +24,23 @@ export function isAnonymousPdfFilename(raw: string): boolean {
   return !base || ANON_FILENAME.test(base) || UUID_FILENAME.test(base) || UUID_FILENAME.test(cleaned);
 }
 
+/**
+ * Old Quote Builder list cards, e.g. "Christmas Event Proposal — WEOTT II (Avontuur)".
+ * House names start with "Proposal -" and are kept.
+ */
+export function isLegacyEventVesselProposalLabel(raw?: string | null): boolean {
+  const t = String(raw || '').trim();
+  if (!t || /^Proposal\s*-/i.test(t)) return false;
+  return /\bProposal\s*[—–-]\s+\S/i.test(t);
+}
+
+export function isLegacyEventVesselProposal(p: {
+  title?: string | null;
+  filename?: string | null;
+}): boolean {
+  return isLegacyEventVesselProposalLabel(p.title) || isLegacyEventVesselProposalLabel(p.filename);
+}
+
 export function ensurePdfFilename(raw: string): string {
   const cleaned = sanitizeFilenamePart(raw);
   if (!cleaned || isAnonymousPdfFilename(cleaned)) return 'Proposal.pdf';

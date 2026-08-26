@@ -13,6 +13,7 @@ import {
   markWorkspaceMigrated,
 } from '@/lib/nexusWorkspaceDb';
 import { cloudDeleteProposal, cloudGetProposal, cloudPutProposal } from '@/lib/workspaceCloud';
+import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
 
 export type GeneratedProposal = {
   id: string;
@@ -107,8 +108,22 @@ export async function getProposal(id: string): Promise<GeneratedProposal | null>
 export async function loadProposals(): Promise<GeneratedProposal[]> {
   await ensureMigrated();
   const rows = await workspaceGetAll<GeneratedProposal>(STORE);
-  rows.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return rows;
+  const keep: GeneratedProposal[] = [];
+  let purged = false;
+  for (const row of rows) {
+    if (isLegacyEventVesselProposal(row)) {
+      await workspaceDelete(STORE, row.id);
+      void cloudDeleteProposal(row.id).catch(() => {
+        /* list hide still applies if the engine copy cannot be removed */
+      });
+      purged = true;
+      continue;
+    }
+    keep.push(row);
+  }
+  if (purged) window.dispatchEvent(new Event(PROPOSALS_EVENT));
+  keep.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return keep;
 }
 
 export async function addProposal(proposal: GeneratedProposal): Promise<boolean> {
@@ -148,6 +163,14 @@ export async function ingestRemoteProposals(rows: GeneratedProposal[]): Promise<
   let changed = false;
   for (const row of rows) {
     if (!row?.id) continue;
+    if (isLegacyEventVesselProposal(row)) {
+      await workspaceDelete(STORE, row.id);
+      void cloudDeleteProposal(row.id).catch(() => {
+        /* ignore */
+      });
+      changed = true;
+      continue;
+    }
     const existing = await workspaceGet<GeneratedProposal>(STORE, row.id);
     const incomingHasPdf = Boolean(row.pdfDataUrl);
     const existingHasPdf = Boolean(existing?.pdfDataUrl);

@@ -1,7 +1,9 @@
 import { refreshLeadsFromNetwork } from '@/lib/leadCache';
 import { ingestRemoteProposals, loadProposals } from '@/lib/proposalStore';
+import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
 import { ingestRemoteQuotes, listSavedQuotes } from '@/lib/savedQuotesStore';
 import {
+  cloudDeleteProposal,
   cloudGetProposal,
   cloudListProposals,
   cloudListQuotes,
@@ -37,10 +39,18 @@ export async function syncWorkspaceCloud(): Promise<void> {
 
   try {
     const remoteMeta = await cloudListProposals();
+    for (const meta of remoteMeta) {
+      if (isLegacyEventVesselProposal(meta)) {
+        void cloudDeleteProposal(meta.id).catch(() => {
+          /* list hide still applies */
+        });
+      }
+    }
     const local = await loadProposals();
     const localById = new Map(local.map((p) => [p.id, p]));
     const fetched = await Promise.all(
       remoteMeta.map(async (meta) => {
+        if (isLegacyEventVesselProposal(meta)) return null;
         const localRow = localById.get(meta.id);
         if (localRow?.pdfDataUrl && (localRow.createdAt || '') >= (meta.createdAt || '')) {
           return null;
@@ -55,6 +65,7 @@ export async function syncWorkspaceCloud(): Promise<void> {
     await ingestRemoteProposals(fetched.filter((row): row is NonNullable<typeof row> => Boolean(row)));
     const remoteIds = new Set(remoteMeta.map((p) => p.id));
     for (const proposal of local) {
+      if (isLegacyEventVesselProposal(proposal)) continue;
       if (proposal.pdfDataUrl && !remoteIds.has(proposal.id)) {
         void cloudPutProposal(proposal).catch(() => {
           /* retry on next boot */

@@ -25,6 +25,7 @@ import {
 } from '../src/lib/engineWarnings.ts';
 import {
   isAnonymousPdfFilename,
+  isLegacyEventVesselProposalLabel,
   proposalDownloadFilenameFromLead,
   proposalFileStemFromLead,
   proposalFilenameFromRecord,
@@ -171,6 +172,13 @@ check(
     leadCompany: 'EY',
     referenceNumber: 'WE.19103',
   }) === 'Proposal - Joanna Eaton (EY) - WE.19103.pdf',
+);
+check(
+  'unit event-vessel cards are legacy',
+  isLegacyEventVesselProposalLabel('Christmas Event Proposal — WEOTT II (Avontuur)') === true &&
+    isLegacyEventVesselProposalLabel('Wedding Reception Proposal — Vessel TBC') === true &&
+    isLegacyEventVesselProposalLabel('Award Ceremony Proposal — WEOTT II (Avontuur)') === true &&
+    isLegacyEventVesselProposalLabel('Proposal - Joanna Eaton (EY) - WE.19103.pdf') === false,
 );
 
 check(
