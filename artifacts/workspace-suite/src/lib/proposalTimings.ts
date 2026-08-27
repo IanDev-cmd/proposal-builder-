@@ -50,12 +50,13 @@ export function formatClockLabel(t?: string): string {
 }
 
 /**
- * Billable event hours: departure → finish (return, else disembark).
- * Never includes the 15-minute embarkation buffer.
+ * Billable event hours: departure → disembarkation.
+ * Embarkation buffer (boarding before departure) is complimentary and not billed.
+ * Return is inside the window; official end is when disembarkation finishes.
  */
 export function itineraryHours(opts: TimingFields): number {
   const start = toMin(opts.departure) ?? toMin(opts.embarkation);
-  const finish = toMin(opts.returnTime) ?? toMin(opts.disembarkation);
+  const finish = toMin(opts.disembarkation) ?? toMin(opts.returnTime);
   if (start == null || finish == null || finish <= start) return 4;
   return Math.max(1, Math.round(((finish - start) / 60) * 100) / 100);
 }

@@ -55,6 +55,15 @@ const cover = formatEventTimingsPayload(timings);
 check('2 Cover timings are 19:00 - 23:00', cover === '19:00 - 23:00', cover);
 check('2 Cover timings do not include embarkation 18:45', !cover.includes('18:45'));
 check('2 Billable hours ignore the 15-min embark buffer', itineraryHours(timings) === 4);
+check(
+  '2 Billable hours end at disembark not return',
+  itineraryHours({
+    embarkation: '11:45',
+    departure: '12:00',
+    returnTime: '16:45',
+    disembarkation: '17:00',
+  }) === 5,
+);
 
 // 3. Bespoke description is a real input (styling covered by CSS + QuoteCostLines class)
 check('3 Bespoke description class uses slate-900 ink', true);

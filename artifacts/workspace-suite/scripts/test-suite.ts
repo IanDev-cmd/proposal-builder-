@@ -133,7 +133,11 @@ check('unit single guest number parses', parseGuestCountDetailed({ groupSize: '4
 check('unit empty guests stay empty', parseGuestCountDetailed({}).value === '' && parseGuestCountDetailed({}).ambiguous === true);
 
 check('unit cover timings are event window not embark', formatEventTimingsPayload({ embarkation: '18:45', departure: '19:00', returnTime: '23:00' }) === '19:00 - 23:00');
-check('unit billed hours ignore embark buffer', itineraryHours({ embarkation: '18:45', departure: '19:00', returnTime: '23:00' }) === 4);
+check('unit billed hours ignore embark buffer', itineraryHours({ embarkation: '18:45', departure: '19:00', returnTime: '23:00', disembarkation: '23:00' }) === 4);
+check(
+  'unit billed hours end at disembark not return',
+  itineraryHours({ embarkation: '11:45', departure: '12:00', returnTime: '16:45', disembarkation: '17:00' }) === 5,
+);
 check('unit missing event date is TBC', isEventDateTbc(undefined as unknown as string) === true);
 check('unit TBC date string', isEventDateTbc('TBC') === true);
 check(

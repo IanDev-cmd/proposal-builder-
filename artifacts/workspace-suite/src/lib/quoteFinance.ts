@@ -1,7 +1,7 @@
 /**
  * Quote finance — Quote Builder 2026 formulas (live sheet, not guessed).
  *
- * Hours C12: typed departure→return; embark is not billed; team types min 4.
+ * Hours: departure → disembarkation; embark buffer is not billed; min 4.
  * YES line = Cost Mother SUMIFS(vessel, weekly, day, group) × multiplier:
  *   vessel / BG music / CONTIGENCY STAFF → × billed hours
  *   menus / cutlery / prosecco / disposable tableware → × guests
@@ -119,7 +119,7 @@ export function isWeekendOrPeak(eventDate: string, dateFlexible?: boolean): bool
   return day === 0 || day === 5 || day === 6;
 }
 
-/** Hours from departure → finish. Never includes the 15-minute embark buffer. */
+/** Hours from departure → disembarkation. Never includes the 15-minute embark buffer. */
 export function eventHours(
   data: Pick<QuoteFormInput, 'embarkation' | 'departure' | 'returnTime' | 'disembarkation'>,
 ): number {
