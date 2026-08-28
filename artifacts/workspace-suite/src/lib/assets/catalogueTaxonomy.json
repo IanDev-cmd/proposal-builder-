@@ -152,6 +152,20 @@
       ]
     },
     {
+      "id": "catering_two_course_seated_dinner_main_dessert_or_starter_main_all_seasons",
+      "section": "catering",
+      "label": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+        "Two Course Seated Dinner",
+        "2-Course Seated Dinner",
+        "Two Course Seated Dinner - Main & Dessert (All Seasons)",
+        "Two Course Seated Dinner - Starter & Main (All Seasons)",
+        "2CSD"
+      ]
+    },
+    {
       "id": "catering_three_course_seated_dinner_all_seasons",
       "section": "catering",
       "label": "Three Course Seated Dinner (All Seasons)",
@@ -452,7 +466,7 @@
       "id": "beverages_unlimited_drinks",
       "section": "beverages",
       "label": "Unlimited Drinks",
-      "multiplier": "guests",
+      "multiplier": "guests_hours",
       "aliases": [
         "Unlimited Drinks"
       ]
@@ -461,7 +475,7 @@
       "id": "beverages_unlimited_drinks_with_prosecco",
       "section": "beverages",
       "label": "Unlimited Drinks (with Prosecco)",
-      "multiplier": "guests",
+      "multiplier": "guests_hours",
       "aliases": [
         "Unlimited Drinks (with Prosecco)"
       ]
@@ -840,7 +854,7 @@
       "id": "decor_onboard_wifi",
       "section": "decor",
       "label": "Onboard WiFi",
-      "multiplier": "hours",
+      "multiplier": "guests",
       "aliases": [
         "Onboard WiFi"
       ]
@@ -866,9 +880,10 @@
     {
       "id": "decor_table_festive_crackers",
       "section": "decor_table",
-      "label": "Festive Crackers",
+      "label": "Festive Crackers/Mini Chocolates",
       "multiplier": "guests",
       "aliases": [
+        "Festive Crackers/Mini Chocolates",
         "Festive Crackers"
       ]
     },
@@ -1097,7 +1112,7 @@
       "id": "staff_additional_chefs_x_2_for_all_seated_dinners",
       "section": "staff",
       "label": "Additional Chefs x 2 (for all seated dinners)",
-      "multiplier": "staff_hours",
+      "multiplier": "hours",
       "aliases": [
         "Additional Chefs x 2 (for all seated dinners)"
       ],

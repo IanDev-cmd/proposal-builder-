@@ -4,6 +4,9 @@ services:
     runtime: static
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/workspace-suite run build
     staticPublishPath: artifacts/workspace-suite/dist/public
+    envVars:
+      - key: VITE_NEXUS_TEAM_PASSWORD
+        sync: false
     routes:
       - type: rewrite
         source: /*

@@ -42,10 +42,10 @@ export function costSheetCsv(form: QuoteFormInput, title = 'Quote'): string {
   }
   rows.push([]);
   rows.push(['Total to WEOTT', '', fin.baseCost.toFixed(2)]);
-  rows.push([`Margin (${(fin.margin * 100).toFixed(1)}%)`, '', fin.marginAmount.toFixed(2)]);
-  rows.push(['Cost to client (exc VAT)', '', fin.costToClient.toFixed(2)]);
-  rows.push(['VAT (20%)', '', fin.vat.toFixed(2)]);
-  rows.push(['Grand total', '', fin.grand.toFixed(2)]);
+  rows.push([`Margin (${(fin.margin * 100).toFixed(1)}%)`, '', String(Math.round(fin.marginAmount))]);
+  rows.push(['Cost to client (exc VAT)', '', String(Math.round(fin.costToClient))]);
+  rows.push(['VAT (20%)', '', String(Math.round(fin.vat))]);
+  rows.push(['Grand total', '', String(Math.round(fin.grand))]);
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
 }
 
@@ -63,8 +63,8 @@ export function costSheetPlainText(form: QuoteFormInput, title = 'Quote'): strin
     ...lines,
     '',
     `Total to WEOTT: £${fin.baseCost.toFixed(2)}`,
-    `Cost to client (exc VAT): £${fin.costToClient.toFixed(2)}`,
-    `Grand total: £${fin.grand.toFixed(2)}`,
+    `Cost to client (exc VAT): £${Math.round(fin.costToClient).toLocaleString('en-GB')}`,
+    `Grand total: £${Math.round(fin.grand).toLocaleString('en-GB')}`,
   ]
     .filter((s) => s !== '')
     .join('\n');

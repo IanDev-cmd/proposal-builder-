@@ -8,6 +8,7 @@ import taxonomyJson from '@/lib/assets/catalogueTaxonomy.json';
 export type LineMultiplier =
   | 'vessel_hours' // × event hours (Section 1)
   | 'guests' // × guests
+  | 'guests_hours' // × guests × billed event hours
   | 'hours' // × event hours
   | 'staff_hours' // × (event hours + 3)
   | 'tables' // × no. of tables
@@ -63,7 +64,7 @@ export const SECTION_META: { id: QuoteSectionId; title: string; hint?: string }[
   { id: 'catering', title: 'Section 2 — Catering', hint: '× guests' },
   { id: 'catering_surcharge', title: 'Section 3 — Catering Surcharge', hint: 'Set value (own food)' },
   { id: 'catering_equipment', title: 'Section 4 — Catering Equipment', hint: '× guests · cutlery ratios' },
-  { id: 'beverages', title: 'Section 5 — Beverages', hint: '× guests · min spend Dixie/Elizab £1800 · Edwardian £600' },
+  { id: 'beverages', title: 'Section 5 — Beverages', hint: '× guests · unlimited drinks × guests × hours' },
   { id: 'entertainment', title: 'Section 6 — Entertainment / Experience', hint: '× event hours' },
   { id: 'bespoke', title: 'Section 7 — Bespoke', hint: 'Manual amounts' },
   { id: 'decor', title: 'Section 8 — Decor', hint: '× event hours' },
@@ -190,6 +191,7 @@ const SECTION_IDS = new Set<QuoteSectionId>([
 const MULTIPLIERS = new Set<LineMultiplier>([
   'vessel_hours',
   'guests',
+  'guests_hours',
   'hours',
   'staff_hours',
   'tables',
@@ -210,6 +212,24 @@ function lineId(section: string, label: string): string {
 
 let liveCatalogLines: CatalogLine[] | null = null;
 
+/** Event-detail rows that must never appear as Section 12 cost cards. */
+export function isNonCostEventVariable(label: string): boolean {
+  const n = normLabel(label).replace(/\./g, '');
+  return n === 'no of tables' || n.replace(/\s+/g, '_') === 'no_of_tables';
+}
+
+function matchBundledLine(liveLabel: string): CatalogLine | null {
+  const n = normLabel(liveLabel);
+  if (!n) return null;
+  for (const raw of CATALOGUE_TAXONOMY.lines) {
+    const aliases = raw.aliases?.length ? raw.aliases : [raw.label];
+    const hits = [raw.label, ...aliases].some((a) => normLabel(a) === n);
+    if (!hits) continue;
+    return QUOTE_LINES.find((l) => l.id === raw.id) || lineFromTaxonomy(raw);
+  }
+  return null;
+}
+
 /** Extra Cost Mother lines from Apps Script catalog (new rows appear as cards). */
 export function setLiveCatalogLines(
   lines: Array<{ id?: string; section?: string; label?: string; multiplier?: string }> | null,
@@ -221,7 +241,7 @@ export function setLiveCatalogLines(
   liveCatalogLines = lines
     .map((raw) => {
       const label = String(raw.label || '').trim();
-      if (!label) return null;
+      if (!label || isNonCostEventVariable(label)) return null;
       const section = SECTION_IDS.has(raw.section as QuoteSectionId)
         ? (raw.section as QuoteSectionId)
         : 'other';
@@ -238,12 +258,31 @@ export function setLiveCatalogLines(
     .filter(Boolean) as CatalogLine[];
 }
 
-/** Bundled catalogue plus any new live-sheet lines (bundled wins on matching labels). */
+/**
+ * Live Cost Mother order wins when the catalog overlay is present.
+ * Bundled metadata (id, defaults, wording, staffBuffer, multiplier) is kept;
+ * the live label overlays so sheet title renames show immediately.
+ */
 export function getQuoteLines(): CatalogLine[] {
-  if (!liveCatalogLines?.length) return QUOTE_LINES;
-  const have = new Set(QUOTE_LINES.map((l) => normLabel(l.label)));
-  const extra = liveCatalogLines.filter((l) => !have.has(normLabel(l.label)));
-  return extra.length ? [...QUOTE_LINES, ...extra] : QUOTE_LINES;
+  const bundled = QUOTE_LINES.filter((l) => !isNonCostEventVariable(l.label));
+  if (!liveCatalogLines?.length) return bundled;
+
+  const used = new Set<string>();
+  const ordered: CatalogLine[] = [];
+  for (const live of liveCatalogLines) {
+    if (isNonCostEventVariable(live.label)) continue;
+    const match = matchBundledLine(live.label);
+    if (match) {
+      used.add(match.id);
+      ordered.push({ ...match, label: live.label });
+    } else {
+      ordered.push(live);
+    }
+  }
+  for (const line of bundled) {
+    if (!used.has(line.id)) ordered.push(line);
+  }
+  return ordered;
 }
 
 export function linesForSection(section: QuoteSectionId): CatalogLine[] {

@@ -3,15 +3,16 @@
  *
  * Hours: departure → disembarkation; embark buffer is not billed; min 4.
  * YES line = Cost Mother SUMIFS(vessel, weekly, day, group) × multiplier:
- *   vessel / BG music / CONTIGENCY STAFF → × billed hours
- *   menus / cutlery / prosecco / disposable tableware → × guests
+ *   vessel / BG music / CONTIGENCY STAFF / Additional Chefs × 2 → × billed hours
+ *   menus / cutlery / prosecco / disposable tableware / onboard wifi → × guests
+ *   unlimited drinks (incl. prosecco) → × guests × billed hours
  *   event decor / table linen → × tables
  *   delivery, own food, WP Runner, in-house set fees, admin → set (no hours)
  *   Event Manager (in house) → × (billed + 4)
  *   Event Coordinator, chefs, catering assistants, wild CA → × (billed + 3)
  * Contingency D182 = SUM(D21:D179) * 0.0225; WEOTT D184 = SUM(D21:D182).
  * Margin C186 typed; D186 = C186*D184; D187 = D184+D186; VAT = 0.2*D187; Inc VAT = D187+D188.
- * Sheet formulas use no ROUND(); 2dp is cell formatting only.
+ * WEOTT / line items stay 2dp. Client-facing margin, cost-to-client, VAT, grand round to nearest pound.
  *
  * Rates: Cost Mother (bundled snapshot or live CostRatesFetch overlay).
  * Flask /generate must NOT recalculate — pass-through only.
@@ -131,6 +132,12 @@ export function money(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+/** Client-facing totals — nearest whole pound, matching Cost Mother display. */
+export function pound(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n + Number.EPSILON);
+}
+
 export function resolveSelectedLineIds(data: QuoteFormInput): string[] {
   const wedding = /wedding|engagement/i.test(data.eventType || '');
   // Honour the UI ticks exactly. Do not add catering menus from menuType — that
@@ -151,6 +158,8 @@ function multiplierValue(line: CatalogLine, hours: number, guests: number, table
       return billable + (line.staffBuffer ?? STAFF_HOURS_BUFFER);
     case 'guests':
       return guests;
+    case 'guests_hours':
+      return guests * billable;
     case 'tables':
       return Math.max(0, tables);
     case 'set':
@@ -382,12 +391,12 @@ export function calcFinancials(data: QuoteFormInput) {
   const grandRaw = costToClientRaw + vatRaw;
   const guests = parseFloat(data.guestCount) || 0;
   const weottCost = money(weottRaw);
-  const marginAmount = money(marginRaw);
-  const costToClient = money(costToClientRaw);
-  const vat = money(vatRaw);
-  const grand = money(grandRaw);
-  const costPerGuestExc = guests > 0 ? money(costToClientRaw / guests) : 0;
-  const costPerGuestInc = guests > 0 ? money(grandRaw / guests) : 0;
+  const marginAmount = pound(marginRaw);
+  const costToClient = pound(costToClientRaw);
+  const vat = pound(vatRaw);
+  const grand = pound(grandRaw);
+  const costPerGuestExc = guests > 0 ? money(costToClient / guests) : 0;
+  const costPerGuestInc = guests > 0 ? money(grand / guests) : 0;
 
   return {
     baseCost: weottCost,
@@ -398,12 +407,12 @@ export function calcFinancials(data: QuoteFormInput) {
     margin,
     marginAmount,
     costToClient,
-    costToClientBeforeDiscount: money(costToClientPreDiscount),
+    costToClientBeforeDiscount: pound(costToClientPreDiscount),
     discountPercent: discountPct,
     discountAmount: money(discountAmount),
     commissionPercent: effectiveCommission,
     commissionAmount: money(commissionAmount),
-    updatedProfit: money(updatedProfit),
+    updatedProfit: pound(updatedProfit),
     vat,
     vatRate: VAT_RATE,
     grand,

@@ -6,7 +6,7 @@ import { SECTION_META } from '@/lib/quoteBuilderCatalog';
 import { calcFinancials } from '@/lib/quoteFinance';
 import { quoteFormFromSaved } from '@/lib/costSheet';
 import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
-import { formatGbp } from '@/lib/utils';
+import { formatGbp, formatGbpPounds } from '@/lib/utils';
 import { quoteReviewLabel, quoteReviewStatus } from '@/lib/quoteReview';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 
@@ -47,9 +47,9 @@ export function quotePageHtml(quote: SavedQuote, shareUrl = ''): string {
   const totals = fin
     ? `<dl class="totals">
         <div><dt>Total to WEOTT</dt><dd>${escapeHtml(formatGbp(fin.baseCost))}</dd></div>
-        <div><dt>Cost to client (exc VAT)</dt><dd>${escapeHtml(formatGbp(fin.costToClient))}</dd></div>
-        <div><dt>VAT</dt><dd>${escapeHtml(formatGbp(fin.vat))}</dd></div>
-        <div><dt>Grand total</dt><dd>${escapeHtml(formatGbp(fin.grand))}</dd></div>
+        <div><dt>Cost to client (exc VAT)</dt><dd>${escapeHtml(formatGbpPounds(fin.costToClient))}</dd></div>
+        <div><dt>VAT</dt><dd>${escapeHtml(formatGbpPounds(fin.vat))}</dd></div>
+        <div><dt>Grand total</dt><dd>${escapeHtml(formatGbpPounds(fin.grand))}</dd></div>
       </dl>`
     : '';
 
@@ -96,7 +96,7 @@ export function quotePageHtml(quote: SavedQuote, shareUrl = ''): string {
     <div><dt>Event</dt><dd>${escapeHtml(quote.eventType || '—')}</dd></div>
     <div><dt>Guests</dt><dd>${escapeHtml(quote.guestCount || '—')}</dd></div>
     <div><dt>Event date</dt><dd>${escapeHtml(quote.eventDate || '—')}</dd></div>
-    <div><dt>Grand total</dt><dd>${escapeHtml(formatGbp(quote.grandTotal))}</dd></div>
+    <div><dt>Grand total</dt><dd>${escapeHtml(formatGbpPounds(quote.grandTotal))}</dd></div>
   </dl>
   ${keyItems ? `<div class="keys"><p class="kicker">Key items</p><p>${escapeHtml(keyItems)}</p></div>` : ''}
   ${sections}

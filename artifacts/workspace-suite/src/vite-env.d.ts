@@ -23,3 +23,7 @@ declare module '@assets/*' {
   const src: string;
   export default src;
 }
+
+interface ImportMetaEnv {
+  readonly VITE_NEXUS_TEAM_PASSWORD?: string;
+}

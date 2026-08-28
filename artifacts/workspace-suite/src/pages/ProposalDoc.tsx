@@ -15,7 +15,7 @@ import { toastError } from '@/lib/notify';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
 import { listSavedQuotes } from '@/lib/savedQuotesStore';
-import { formatGbp } from '@/lib/utils';
+import { formatGbpPounds } from '@/lib/utils';
 
 /* ─── Real document pages from the uploaded PDF ─── */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -60,7 +60,7 @@ function proposalToFile(p: GeneratedProposal): ProposalFile {
     filename,
     kind: 'generated',
     sizeLabel: 'PDF',
-    description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total ${formatGbp(p.grandTotal)}.`,
+    description: `Generated for ${p.guestCount || '—'} guests aboard ${p.vesselType || 'a vessel TBC'}. Grand total ${formatGbpPounds(p.grandTotal)}.`,
     pdfDataUrl: p.pdfDataUrl,
     leadName: p.leadName,
     leadEmail: p.leadEmail,

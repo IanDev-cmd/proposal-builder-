@@ -17,7 +17,18 @@ import { formatEventTimingsPayload, itineraryHours } from '../src/lib/proposalTi
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
 import { formatEventDateForProposal } from '../src/lib/goldScenarioCover.ts';
 import { errorMessage } from '../src/lib/errors.ts';
-import { formatGbp } from '../src/lib/utils.ts';
+import { formatGbp, formatGbpPounds } from '../src/lib/utils.ts';
+import {
+  calcFinancials,
+  calcSectionLines,
+  type QuoteFormInput,
+} from '../src/lib/quoteFinance.ts';
+import {
+  QUOTE_LINES,
+  getQuoteLines,
+  isNonCostEventVariable,
+  setLiveCatalogLines,
+} from '../src/lib/quoteBuilderCatalog.ts';
 import {
   humanizeEngineWarning,
   isLayoutOverflowOnly,
@@ -151,6 +162,84 @@ check(
     'Wednesday 26th August 2026',
 );
 check('unit formatGbp', formatGbp(3256.15) === '£3256.15' || formatGbp(3256.15) === '£3256.15');
+check('unit formatGbpPounds rounds to whole pounds', formatGbpPounds(4453.96) === '£4,454');
+
+const twoIdx = QUOTE_LINES.findIndex((l) => l.label.startsWith('Two Course Seated Dinner'));
+const threeIdx = QUOTE_LINES.findIndex((l) => l.label.startsWith('Three Course Seated Dinner'));
+check('unit two-course sits above three-course', twoIdx >= 0 && twoIdx < threeIdx);
+
+const festive = QUOTE_LINES.find((l) => l.id === 'decor_table_festive_crackers');
+check('unit festive crackers live title', festive?.label === 'Festive Crackers/Mini Chocolates');
+
+const drinks = QUOTE_LINES.find((l) => l.label === 'Unlimited Drinks');
+const drinksP = QUOTE_LINES.find((l) => l.label === 'Unlimited Drinks (with Prosecco)');
+const wifi = QUOTE_LINES.find((l) => l.label === 'Onboard WiFi');
+const chefs = QUOTE_LINES.find((l) => l.label === 'Additional Chefs x 2 (for all seated dinners)');
+check('unit unlimited drinks multiplier', drinks?.multiplier === 'guests_hours');
+check('unit unlimited drinks prosecco multiplier', drinksP?.multiplier === 'guests_hours');
+check('unit onboard wifi multiplier', wifi?.multiplier === 'guests');
+check('unit additional chefs multiplier', chefs?.multiplier === 'hours');
+
+const sampleForm: QuoteFormInput = {
+  vesselType: ['London Rose'],
+  eventType: 'Corporate',
+  eventDate: '2026-08-28',
+  guestCount: '60',
+  embarkation: '11:45',
+  departure: '12:00',
+  returnTime: '16:00',
+  disembarkation: '16:00',
+  menuType: [],
+  selectedUpgrades: [],
+  selectedLineIds: [drinks?.id || '', drinksP?.id || '', wifi?.id || '', chefs?.id || ''].filter(Boolean),
+  repeatClient: false,
+  totalCost: '',
+};
+const sampleLines = calcSectionLines(sampleForm).lines;
+const amt = (label: string) => sampleLines.find((l) => l.label === label)?.amount;
+check('unit unlimited drinks 60x4x10', amt('Unlimited Drinks') === 2400);
+check('unit unlimited drinks prosecco 60x4x13.75', amt('Unlimited Drinks (with Prosecco)') === 3300);
+check('unit onboard wifi 60x2', amt('Onboard WiFi') === 120);
+check('unit additional chefs 4x85', amt('Additional Chefs x 2 (for all seated dinners)') === 340);
+
+const finRound = calcFinancials({
+  ...sampleForm,
+  selectedLineIds: [],
+  totalCost: '17815.84',
+  marginOverride: 0.25,
+});
+check('unit margin nearest pound', finRound.marginAmount === 4454);
+check('unit cost to client nearest pound', finRound.costToClient === 22270);
+check('unit vat nearest pound', finRound.vat === 4454);
+check('unit grand nearest pound', finRound.grand === 26724);
+
+setLiveCatalogLines([
+  { label: 'Barbecue', section: 'catering', multiplier: 'guests' },
+  {
+    label: 'Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)',
+    section: 'catering',
+    multiplier: 'guests',
+  },
+  { label: 'Three Course Seated Dinner (All Seasons)', section: 'catering', multiplier: 'guests' },
+  { label: 'Catering Delivery Charge (In every quote)', section: 'catering', multiplier: 'set' },
+  { label: 'Festive Crackers/Mini Chocolates', section: 'decor_table', multiplier: 'guests' },
+  { label: 'No. of Tables', section: 'other', multiplier: 'set' },
+]);
+const live = getQuoteLines();
+const cateringLive = live.filter((l) => l.section === 'catering').map((l) => l.label);
+const twoLive = cateringLive.indexOf(
+  'Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)',
+);
+const threeLive = cateringLive.indexOf('Three Course Seated Dinner (All Seasons)');
+const deliveryLive = cateringLive.indexOf('Catering Delivery Charge (In every quote)');
+check('unit live catalog excludes no of tables', !live.some((l) => isNonCostEventVariable(l.label)));
+check('unit live two-course before three-course', twoLive >= 0 && twoLive < threeLive);
+check('unit live two-course before delivery', twoLive >= 0 && twoLive < deliveryLive);
+check(
+  'unit live festive title overlay',
+  live.some((l) => l.id === 'decor_table_festive_crackers' && l.label === 'Festive Crackers/Mini Chocolates'),
+);
+setLiveCatalogLines(null);
 check('unit errorMessage from Error', errorMessage(new Error('boom')) === 'boom');
 check('unit errorMessage fallback', errorMessage(null) === 'Something went wrong');
 check(

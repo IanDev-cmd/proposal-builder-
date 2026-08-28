@@ -2,7 +2,7 @@ import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
 import { calcFinancials } from '@/lib/quoteFinance';
 import { quoteFormFromSaved } from '@/lib/costSheet';
 import { CostSectionAccordion } from '@/components/CostSectionAccordion';
-import { formatGbp } from '@/lib/utils';
+import { formatGbp, formatGbpPounds } from '@/lib/utils';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 import { quoteReviewLabel, quoteReviewStatus } from '@/lib/quoteReview';
 
@@ -49,7 +49,7 @@ export function QuoteDocumentView({ quote }: { quote: SavedQuote }) {
         </div>
         <div>
           <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Grand total</dt>
-          <dd className="font-bold text-[#00a85a]">{formatGbp(quote.grandTotal)}</dd>
+          <dd className="font-bold text-[#00a85a]">{formatGbpPounds(quote.grandTotal)}</dd>
         </div>
       </dl>
       {keyItems ? (
@@ -72,15 +72,15 @@ export function QuoteDocumentView({ quote }: { quote: SavedQuote }) {
             </div>
             <div className="flex justify-between py-1">
               <dt className="text-slate-500">Cost to client (exc VAT)</dt>
-              <dd className="font-semibold">{formatGbp(fin.costToClient)}</dd>
+              <dd className="font-semibold">{formatGbpPounds(fin.costToClient)}</dd>
             </div>
             <div className="flex justify-between py-1">
               <dt className="text-slate-500">VAT</dt>
-              <dd className="font-semibold">{formatGbp(fin.vat)}</dd>
+              <dd className="font-semibold">{formatGbpPounds(fin.vat)}</dd>
             </div>
             <div className="flex justify-between py-1">
               <dt className="font-bold text-slate-800">Grand total</dt>
-              <dd className="font-bold text-[#00a85a]">{formatGbp(fin.grand)}</dd>
+              <dd className="font-bold text-[#00a85a]">{formatGbpPounds(fin.grand)}</dd>
             </div>
           </dl>
         </>

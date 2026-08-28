@@ -197,6 +197,7 @@ function parseCostMother_(sheet) {
     var label = String(row[0] == null ? '' : row[0]).trim();
     if (!label) continue;
     if (/^total\b/i.test(label)) continue;
+    if (/^no\.?\s*of\s*tables$/i.test(label) || /^no_of_tables$/i.test(label)) continue;
 
     var numericCount = 0;
     var rowRates = [];
@@ -289,7 +290,10 @@ function inferLine_(label, sectionHint) {
   if (/spoon|fork|knife|plate|bowl|napkin|cutlery|linen \(or/.test(s) || /dessert\/starter|dinner plates|small plates/.test(s)) {
     return { section: 'catering_equipment', multiplier: 'guests' };
   }
-  if (/reception drink|drink token|unlimited drinks|prosecco|champagne hour|tea\/coffee|cocktail|half a bottle/.test(s)) {
+  if (/unlimited drinks/.test(s)) return { section: 'beverages', multiplier: 'guests_hours' };
+  if (/onboard wifi/.test(s)) return { section: 'decor', multiplier: 'guests' };
+  if (/additional chefs/.test(s)) return { section: 'staff', multiplier: 'hours' };
+  if (/reception drink|drink token|prosecco|champagne hour|tea\/coffee|cocktail|half a bottle/.test(s)) {
     return { section: 'beverages', multiplier: 'guests' };
   }
   if (/dj|live band|acoustic|steel band|jazz|piano|sax|karaoke|magician|tour guide|casino|photobooth|chocolate fountain|wine tasting|background music/.test(s)) {
@@ -299,14 +303,14 @@ function inferLine_(label, sectionHint) {
     return { section: 'decor_table', multiplier: /cracker/i.test(s) ? 'guests' : 'tables' };
   }
   if (/festive cracker/.test(s)) return { section: 'decor_table', multiplier: 'guests' };
-  if (/astro turf|rattan|red carpet|bean bag|banner|welcome board|tv -|projector|boat flag|bunting|flower\/plant|onboard wifi|white board|stationary \(pens/.test(s)) {
+  if (/astro turf|rattan|red carpet|bean bag|banner|welcome board|tv -|projector|boat flag|bunting|flower\/plant|white board|stationary \(pens/.test(s)) {
     return { section: 'decor', multiplier: 'hours' };
   }
   if (/project management|pier coordinator|unit management/.test(s)) {
     return { section: 'in_house', multiplier: 'set' };
   }
   if (/event manager|event coordinator|event assistant|wp runner|chef|catering assistant|photographer|videographer|security|contigency staff/.test(s)) {
-    return { section: 'staff', multiplier: /photographer|contigency staff/i.test(s) ? 'hours' : 'staff_hours' };
+    return { section: 'staff', multiplier: /photographer|contigency staff|additional chefs/i.test(s) ? 'hours' : 'staff_hours' };
   }
   if (/van courier|taxi|pier stop|embark|pack down|welcome and thank|graphic work|creative kitty|staff food/.test(s)) {
     return { section: 'other', multiplier: 'set' };

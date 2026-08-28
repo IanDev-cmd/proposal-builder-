@@ -485,3 +485,215 @@
     inset: -1px;
   }
 }
+
+/* Team PIN gate — split card cloned from the Welcome Back / Login reference. */
+.team-login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: #ececec;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.team-login-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  width: min(920px, 100%);
+  min-height: 480px;
+  background: #f4f4f4;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.22);
+}
+.team-login-dark {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  background: #0a0a0a;
+  padding: 72px 48px 56px 52px;
+  clip-path: polygon(0 0, 100% 0, 62% 100%, 0 100%);
+  margin-right: -18%;
+}
+.team-login-dark h1 {
+  margin: 0 0 22px;
+  font-size: clamp(28px, 3.4vw, 42px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+}
+.team-login-dark p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 14.5px;
+  line-height: 1.65;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+}
+.team-login-light {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 48px 48px 72px;
+  text-align: center;
+}
+.team-login-light h2 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  color: #111;
+  letter-spacing: -0.02em;
+}
+.team-login-rule {
+  display: block;
+  width: 52px;
+  height: 4px;
+  margin: 12px 0 36px;
+  background: #111;
+  border-radius: 999px;
+}
+.team-login-label {
+  align-self: stretch;
+  margin: 0 0 10px 8px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+.team-pin-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding-right: 22px;
+}
+.team-pin-box {
+  width: 58px;
+  height: 58px;
+  border: 1.5px solid #c9c9c9;
+  border-radius: 12px;
+  background: #fff;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111;
+  outline: none;
+  caret-color: #111;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+.team-pin-box:focus {
+  border-color: #111;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+}
+.team-pin-lock {
+  position: absolute;
+  right: 0;
+  color: #111;
+}
+.team-login-hint,
+.team-login-error {
+  min-height: 20px;
+  margin: 14px 0 0;
+  font-size: 12.5px;
+}
+.team-login-hint {
+  color: #8a8a8a;
+}
+.team-login-error {
+  color: #c62828;
+  font-weight: 600;
+}
+.team-login-btn {
+  margin-top: 28px;
+  min-width: 210px;
+  height: 48px;
+  padding: 0 36px;
+  border: 0;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.team-login-btn:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+.team-login-card.auth .team-pin-box {
+  animation: team-pin-glow 1s ease-in-out infinite;
+}
+.team-login-card.success .team-pin-box {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18), 0 0 22px rgba(0, 0, 0, 0.35);
+}
+.team-login-card.error .team-pin-box {
+  border-color: #c62828;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.18);
+}
+.team-login-success {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgba(244, 244, 244, 0.28);
+  pointer-events: none;
+}
+.team-login-success-ring {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  box-shadow: 0 0 0 8px rgba(0, 0, 0, 0.08), 0 18px 40px rgba(0, 0, 0, 0.28);
+  animation: team-success-pop 0.55s cubic-bezier(0.2, 1.4, 0.3, 1);
+}
+@keyframes team-pin-glow {
+  0%,
+  100% {
+    border-color: #111;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2), 0 0 14px rgba(0, 0, 0, 0.28);
+  }
+  50% {
+    border-color: #111;
+    box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.12), 0 0 26px rgba(0, 0, 0, 0.45);
+  }
+}
+@keyframes team-success-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (max-width: 760px) {
+  .team-login-card {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .team-login-dark {
+    clip-path: none;
+    margin-right: 0;
+    padding: 36px 28px 28px;
+  }
+  .team-login-light {
+    padding: 28px 24px 36px;
+  }
+}

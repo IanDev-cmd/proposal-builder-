@@ -80,6 +80,7 @@ import {
 } from '@/lib/leadPrefill';
 import { applyPrefillHealerMatches, requestPrefillHealer } from '@/lib/prefillHealer';
 import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
+import { formatGbpPounds } from '@/lib/utils';
 import { financialParityReport, costApprovalBlocked, clientTotalsFromWeott } from '@/lib/financialParity';
 import {
   resolveSheetFinancialTargets,
@@ -194,6 +195,11 @@ function moneySum(...vals: Array<number | undefined>): number {
   let total = 0;
   for (const v of vals) total += v ?? 0;
   return Math.round(total * 100) / 100;
+}
+
+function formatFinMoney(label: string, val: number): string {
+  if (/WEOTT|Base Cost/i.test(label) || /guest/i.test(label)) return `£${val.toFixed(2)}`;
+  return formatGbpPounds(val);
 }
 
 const INIT: FormData = {
@@ -2558,10 +2564,13 @@ export function Forms() {
                 transition={{ duration: 0.25 }}
               >
                 <p className={sectionLabelCls}>Client Status</p>
+                <p className="mb-3 text-[12px] text-gray-500">
+                  Toggle on one or both of the below when you want to apply.
+                </p>
                 <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('repeatClient') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-800">Repeat Client</p>
-                    <p className="text-[12px] text-gray-400">Reduces margin by 10%</p>
+                    <p className="text-[13px] font-semibold text-gray-800">Apply Client Discount</p>
+                    <p className="text-[12px] text-gray-400">Reduces Margin by % set in box below</p>
                   </div>
                   <button
                     type="button"
@@ -2579,7 +2588,7 @@ export function Forms() {
                 <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('agentReferral') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Agent Referral</p>
-                    <p className="text-[12px] text-gray-400">Defaults 10% commission (value lost from profit) unless you set %</p>
+                    <p className="text-[12px] text-gray-400">Agent Referral Commission - Reduce Margin by % set in box below</p>
                   </div>
                   <button
                     type="button"
@@ -2602,7 +2611,7 @@ export function Forms() {
 
                 <div className="mb-5 grid grid-cols-3 gap-4">
                   <div>
-                    <label className={fieldLabelCls}>Margin %</label>
+                    <label className={fieldLabelCls}>Target Margin %</label>
                     <input
                       type="number"
                       min={0}
@@ -2615,7 +2624,7 @@ export function Forms() {
                     />
                   </div>
                   <div>
-                    <label className={fieldLabelCls}>Discount %</label>
+                    <label className={fieldLabelCls}>Client Discount % (If applicable)</label>
                     <input
                       type="number"
                       min={0}
@@ -2628,7 +2637,7 @@ export function Forms() {
                     />
                   </div>
                   <div>
-                    <label className={fieldLabelCls}>Commission %</label>
+                    <label className={fieldLabelCls}>Agent Referral Commission % (If applicable)</label>
                     <input
                       type="number"
                       min={0}
@@ -2745,16 +2754,16 @@ export function Forms() {
                     ).map(([label, val]) => (
                       <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                         <span>{label}</span>
-                        <span className="font-semibold text-[#00e676]">£{val.toFixed(2)}</span>
+                        <span className="font-semibold text-[#00e676]">{formatFinMoney(label, val)}</span>
                       </div>
                     ))}
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                       <span>Cost to Client (exc VAT)</span>
-                      <span className="font-black text-[#00e676]">£{fin.costToClient.toFixed(2)}</span>
+                      <span className="font-black text-[#00e676]">{formatGbpPounds(fin.costToClient)}</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>VAT (20%)</span>
-                      <span className="font-semibold text-[#00e676]">£{fin.vat.toFixed(2)}</span>
+                      <span className="font-semibold text-[#00e676]">{formatGbpPounds(fin.vat)}</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>£ / guest (exc / inc VAT)</span>
@@ -2764,7 +2773,7 @@ export function Forms() {
                     </div>
                     <div className="flex items-center justify-between bg-[#FF5A45] px-5 py-4 text-[14px] font-black text-white">
                       <span>Grand Total</span>
-                      <span className="text-[#00e676]">£{fin.grand.toFixed(2)}</span>
+                      <span className="text-[#00e676]">{formatGbpPounds(fin.grand)}</span>
                     </div>
                   </motion.div>
                 )}
@@ -2860,7 +2869,7 @@ export function Forms() {
                       className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600 last:border-b-0"
                     >
                       <span>{label}</span>
-                      <span className="font-semibold text-[#00e676]">£{val.toFixed(2)}</span>
+                      <span className="font-semibold text-[#00e676]">{formatFinMoney(label, val)}</span>
                     </div>
                   ))}
                 </div>
@@ -3494,13 +3503,13 @@ export function Forms() {
                       <span className="font-semibold text-[#00e676]">
                         {val == null
                           ? `£${fin.costPerGuestExc.toFixed(2)} / £${fin.costPerGuestInc.toFixed(2)}`
-                          : `£${val.toFixed(2)}`}
+                          : formatFinMoney(label, val)}
                       </span>
                     </div>
                   ))}
                   <div className="flex items-center justify-between bg-[#FF5A45] px-4 py-3 text-[13px] font-black text-white">
                     <span>Grand total</span>
-                    <span className="text-[#00e676]">£{fin.grand.toFixed(2)}</span>
+                    <span className="text-[#00e676]">{formatGbpPounds(fin.grand)}</span>
                   </div>
                 </div>
               </div>
@@ -3715,7 +3724,7 @@ export function Forms() {
                       </div>
                       <div className="mt-1.5 flex items-center justify-between border-t border-gray-100 pt-1.5">
                         <span className="text-gray-500">Grand Total</span>
-                        <span className="font-black text-[#00e676]">£{fin.grand.toFixed(2)}</span>
+                        <span className="font-black text-[#00e676]">{formatGbpPounds(fin.grand)}</span>
                       </div>
                     </div>
                   </div>

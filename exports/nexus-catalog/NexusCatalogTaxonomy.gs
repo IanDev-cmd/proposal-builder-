@@ -153,6 +153,20 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       ]
     },
     {
+      "id": "catering_two_course_seated_dinner_main_dessert_or_starter_main_all_seasons",
+      "section": "catering",
+      "label": "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+      "multiplier": "guests",
+      "aliases": [
+        "Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)",
+        "Two Course Seated Dinner",
+        "2-Course Seated Dinner",
+        "Two Course Seated Dinner - Main & Dessert (All Seasons)",
+        "Two Course Seated Dinner - Starter & Main (All Seasons)",
+        "2CSD"
+      ]
+    },
+    {
       "id": "catering_three_course_seated_dinner_all_seasons",
       "section": "catering",
       "label": "Three Course Seated Dinner (All Seasons)",
@@ -226,7 +240,8 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "label": "Own Food Surcharge",
       "multiplier": "set",
       "aliases": [
-        "Own Food Surcharge"
+        "Own Food Surcharge",
+        "WEOTT Providing"
       ]
     },
     {
@@ -356,6 +371,16 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       ]
     },
     {
+      "id": "catering_equipment_delivery_charge_cutlery_linen",
+      "section": "catering_equipment",
+      "label": "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+      "multiplier": "guests",
+      "aliases": [
+        "Delivery charge for cutlery and linen (or contigency for lost/damage items)",
+        "Delivery charge for cutlery and linen (or contingency for lost/damage items)"
+      ]
+    },
+    {
       "id": "beverages_reception_drink_pimms",
       "section": "beverages",
       "label": "Reception drink - Pimms",
@@ -442,7 +467,7 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "id": "beverages_unlimited_drinks",
       "section": "beverages",
       "label": "Unlimited Drinks",
-      "multiplier": "guests",
+      "multiplier": "guests_hours",
       "aliases": [
         "Unlimited Drinks"
       ]
@@ -451,7 +476,7 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "id": "beverages_unlimited_drinks_with_prosecco",
       "section": "beverages",
       "label": "Unlimited Drinks (with Prosecco)",
-      "multiplier": "guests",
+      "multiplier": "guests_hours",
       "aliases": [
         "Unlimited Drinks (with Prosecco)"
       ]
@@ -830,7 +855,7 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "id": "decor_onboard_wifi",
       "section": "decor",
       "label": "Onboard WiFi",
-      "multiplier": "hours",
+      "multiplier": "guests",
       "aliases": [
         "Onboard WiFi"
       ]
@@ -856,9 +881,10 @@ var NEXUS_CATALOGUE_TAXONOMY = {
     {
       "id": "decor_table_festive_crackers",
       "section": "decor_table",
-      "label": "Festive Crackers",
+      "label": "Festive Crackers/Mini Chocolates",
       "multiplier": "guests",
       "aliases": [
+        "Festive Crackers/Mini Chocolates",
         "Festive Crackers"
       ]
     },
@@ -885,7 +911,7 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "id": "decor_table_disposable_tableware_add_to_street_food_quotes_only",
       "section": "decor_table",
       "label": "Disposable tableware (Add to street food quotes ONLY)",
-      "multiplier": "tables",
+      "multiplier": "guests",
       "aliases": [
         "Disposable tableware (Add to street food quotes ONLY)"
       ],
@@ -932,6 +958,7 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "section": "staff",
       "label": "Event Manager (In house member of team)",
       "multiplier": "staff_hours",
+      "staffBuffer": 4,
       "aliases": [
         "Event Manager (In house member of team)"
       ]
@@ -967,7 +994,7 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "id": "staff_wp_runner",
       "section": "staff",
       "label": "WP Runner",
-      "multiplier": "staff_hours",
+      "multiplier": "set",
       "aliases": [
         "WP Runner"
       ]
@@ -1041,7 +1068,8 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "label": "Photographer - Corporate/Special",
       "multiplier": "hours",
       "aliases": [
-        "Photographer - Corporate/Special"
+        "Photographer - Corporate/Special",
+        "Photographer - Corporate / Special"
       ]
     },
     {
@@ -1077,14 +1105,15 @@ var NEXUS_CATALOGUE_TAXONOMY = {
       "label": "CONTIGENCY STAFF",
       "multiplier": "hours",
       "aliases": [
-        "CONTIGENCY STAFF"
+        "CONTIGENCY STAFF",
+        "CONTINGENCY STAFF"
       ]
     },
     {
       "id": "staff_additional_chefs_x_2_for_all_seated_dinners",
       "section": "staff",
       "label": "Additional Chefs x 2 (for all seated dinners)",
-      "multiplier": "staff_hours",
+      "multiplier": "hours",
       "aliases": [
         "Additional Chefs x 2 (for all seated dinners)"
       ],
@@ -1164,6 +1193,26 @@ var NEXUS_CATALOGUE_TAXONOMY = {
         "Graphic Work (Design & Print) + Gift Vouchers"
       ],
       "proposalWording": "Bespoke graphic design, print, and gift vouchers"
+    },
+    {
+      "id": "other_catering_staff_food_contigency",
+      "section": "other",
+      "label": "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+      "multiplier": "set",
+      "aliases": [
+        "Catering/Staff Food Contigency (ADD TO ALL QUOTES)",
+        "Catering/Staff Food Contingency (ADD TO ALL QUOTES)"
+      ]
+    },
+    {
+      "id": "other_event_manager_creative_kitty",
+      "section": "other",
+      "label": "Event Manager 'Creative Kitty'",
+      "multiplier": "set",
+      "aliases": [
+        "Event Manager 'Creative Kitty'",
+        "Event Manager Creative Kitty"
+      ]
     },
     {
       "id": "financial_financial_admin_fee_carly",

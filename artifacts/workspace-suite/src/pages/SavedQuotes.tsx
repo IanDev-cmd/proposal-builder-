@@ -20,7 +20,7 @@ import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { toastError, toastSuccess } from '@/lib/notify';
-import { formatGbp } from '@/lib/utils';
+import { formatGbpPounds } from '@/lib/utils';
 import type { PointKind } from '@/lib/leadNotes';
 import { listOpsQuotes, type OpsQuote } from '@/lib/opsStore';
 import {
@@ -48,7 +48,7 @@ function opsQuoteToCard(q: OpsQuote): TimelineCard {
     summary: [q.leadName, q.eventType, q.status, q.guestCount && `${q.guestCount} guests`]
       .filter(Boolean)
       .join(' · '),
-    body: `${q.eventType || 'Event'} · ${q.status || 'snapshot'} · grand total ${formatGbp(Number(q.grandTotal) || 0)}.`,
+    body: `${q.eventType || 'Event'} · ${q.status || 'snapshot'} · grand total ${formatGbpPounds(Number(q.grandTotal) || 0)}.`,
     kind: 'pipeline',
     kinds,
     when: formatWhen(q.updatedAt),
@@ -68,7 +68,7 @@ function quoteToCard(q: SavedQuote): TimelineCard {
     summary: [status, q.leadName, q.vesselType, q.eventType, q.guestCount && `${q.guestCount} guests`]
       .filter(Boolean)
       .join(' · '),
-    body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total ${formatGbp(q.grandTotal)}.`,
+    body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total ${formatGbpPounds(q.grandTotal)}.`,
     kind: 'pipeline',
     kinds,
     when: formatWhen(q.savedAt),
@@ -381,7 +381,7 @@ export function SavedQuotes() {
             <p className="mt-3 text-[12px] text-white/80">
               Sheet snapshot{snap.status ? ` · ${snap.status}` : ''}
               {snap.grandTotal != null && snap.grandTotal !== ''
-                ? ` · ${formatGbp(Number(snap.grandTotal) || 0)}`
+                ? ` · ${formatGbpPounds(Number(snap.grandTotal) || 0)}`
                 : ''}
             </p>
           );

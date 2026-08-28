@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { AppNav } from '@/components/AppNav';
 import { ActiveLeadProvider } from '@/context/ActiveLeadContext';
+import { TeamPasswordGate } from '@/components/TeamPasswordGate';
 import { Home } from '@/pages/Home';
 import { Leads } from '@/pages/Leads';
 import { Forms as QuoteBuilder } from '@/pages/Forms';
@@ -57,9 +58,11 @@ function App() {
   return (
     <TooltipProvider>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-        <ActiveLeadProvider>
-          <Router />
-        </ActiveLeadProvider>
+        <TeamPasswordGate>
+          <ActiveLeadProvider>
+            <Router />
+          </ActiveLeadProvider>
+        </TeamPasswordGate>
       </WouterRouter>
       <Toaster />
     </TooltipProvider>

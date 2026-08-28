@@ -4,7 +4,7 @@
  */
 import { savedQuoteShareUrl, type SavedQuote } from '@/lib/savedQuotesStore';
 import { savedQuotePageFile } from '@/lib/quotePageHtml';
-import { formatGbp } from '@/lib/utils';
+import { formatGbpPounds } from '@/lib/utils';
 
 export type ShareChannel = 'email' | 'whatsapp' | 'dropbox' | 'drive' | 'link';
 
@@ -74,7 +74,7 @@ export function quoteSharePlainText(quote: SavedQuote, shareUrl: string): string
     `Event: ${quote.eventType || '—'}`,
     `Guests: ${quote.guestCount || '—'}`,
     `Event date: ${quote.eventDate || '—'}`,
-    `Grand total: ${formatGbp(quote.grandTotal)}`,
+    `Grand total: ${formatGbpPounds(quote.grandTotal)}`,
     '',
     `Open the full quote: ${shareUrl}`,
     '',
