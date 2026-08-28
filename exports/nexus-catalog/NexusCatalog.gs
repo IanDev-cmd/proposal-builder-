@@ -13,9 +13,8 @@
  * 5. Triggers → assignReferencesTimed → Time-driven → Minutes → Every 5 minutes.
  *
  * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab only.
- * n8n no longer reads this tab — keep buildNexusCatalog as the sheet brain.
  * Extras.gs appends margin / cutlery_ratio / staff_ratio rows.
- * Does not call n8n. Does not dump the whole workbook.
+ * Does not dump the whole workbook.
  */
 
 var CATALOG_TAB = '_Nexus Catalog';

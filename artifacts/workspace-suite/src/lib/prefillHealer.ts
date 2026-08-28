@@ -1,56 +1,24 @@
 /**
- * Optional n8n Gemini Prefill Healer (models/gemini-3-flash-preview).
- * Live webhook matches CRM notes to Cost Mother catalogue labels
- * (menuType | lineLabel | vesselType). Never guests. Never £ / margin / rates.
+ * Optional catalogue prefill from CRM notes.
+ * Remote Gemini matching was retired; applyPrefillHealerMatches still
+ * accepts matches if a caller supplies them.
  */
-import { PREFILL_HEALER_URL } from '@/lib/backendUrls';
 import {
   LOW_CONFIDENCE_THRESHOLD,
-  parsePrefillHealerResponse,
   type PrefillMatch,
 } from '@/lib/contracts';
-import { CATALOGUE_TAXONOMY, QUOTE_LINES, findLineByAlias } from '@/lib/quoteBuilderCatalog';
+import { QUOTE_LINES, findLineByAlias } from '@/lib/quoteBuilderCatalog';
 import { MENU_TYPES, VESSEL_TYPES } from '@/lib/formOptions';
 import { prefillHealerTasks, type PrefillHealerTasks } from '@/lib/leadPrefill';
 
 const MONEY_FIELD_RE = /^(guestCount|guestCountHigh|marginPercent|discountPercent|commissionPercent|totalCost|noOfTables)$/i;
 
-export async function requestPrefillHealer(opts: {
+export async function requestPrefillHealer(_opts: {
   notes: string;
   quoteVersion?: string;
   tasks: PrefillHealerTasks;
 }): Promise<PrefillMatch[] | null> {
-  const notes = String(opts.notes || '').slice(0, 8000);
-  if (!notes.trim()) return null;
-
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
-  try {
-    const res = await fetch(PREFILL_HEALER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        notes,
-        quoteVersion: opts.quoteVersion || '',
-        tasks: opts.tasks,
-        taxonomy: {
-          lines: CATALOGUE_TAXONOMY.lines.map((l) => ({
-            id: l.id,
-            label: l.label,
-            aliases: l.aliases || [l.label],
-          })),
-        },
-      }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return parsePrefillHealerResponse(json);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return null;
 }
 
 function spanFromNotes(notes: string, span: string): string {

@@ -1,4 +1,3 @@
-import { N8N_INSTANCE_HOST } from '@/lib/backendUrls';
 import { useActiveLead } from '@/context/ActiveLeadContext';
 import { Avatar } from '@/components/Avatar';
 import { personAvatarUrl } from '@/lib/avatar';
@@ -82,12 +81,6 @@ const APP_TILES: AppTile[] = [
     color:  '#FBBC04',
     getUrl: ({ company }) =>
       `https://www.google.com/search?q=${encodeURIComponent((company || '') + ' reviews')}`,
-  },
-  {
-    name:   'n8n Gemini',
-    domain: 'n8n.io',
-    color:  '#EA5E00',
-    getUrl: () => `${N8N_INSTANCE_HOST}/`,
   },
 ];
 

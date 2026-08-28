@@ -1,8 +1,6 @@
 /**
- * Runtime contracts for Apps Script / Gemini / Flask ↔ UI payloads.
+ * Runtime contracts for Apps Script / Flask ↔ UI payloads.
  * Wire validation only — does not change Sheets write-back behaviour.
- * ContractSync / PayloadContractCheck n8n webhooks are deleted from the UX;
- * this Zod file is the contract.
  */
 import { z } from 'zod';
 
@@ -18,7 +16,7 @@ export type FailureEvent = z.infer<typeof failureEventSchema>;
 const scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]).optional();
 
 /** Structure-all-Leads1 row (Apps Script port). Extra sheet headers are allowed. */
-export const n8nLeadRowSchema = z
+export const leadRowSchema = z
   .object({
     referenceNumber: scalar,
     name: scalar,
@@ -59,13 +57,13 @@ export const n8nLeadRowSchema = z
   })
   .passthrough();
 
-export type N8nLeadRow = z.infer<typeof n8nLeadRowSchema>;
+export type LeadRow = z.infer<typeof leadRowSchema>;
 
 export const leadDataFetchResponseSchema = z
   .object({
     ok: z.boolean().optional(),
     count: z.number().optional(),
-    leads: z.array(n8nLeadRowSchema).default([]),
+    leads: z.array(leadRowSchema).default([]),
     failureEvent: failureEventSchema.optional(),
   })
   .passthrough();
@@ -216,7 +214,7 @@ export function parseLeadDataFetch(input: unknown): LeadDataFetchResponse {
   }
   const rows = extractLeadRows(input).filter((row) => row && typeof row === 'object');
   if (rows.length) {
-    return { ok: true, leads: rows as N8nLeadRow[] };
+    return { ok: true, leads: rows as LeadRow[] };
   }
   throw new Error(`LeadDataFetch contract failed: ${formatZodIssues(parsed.error)}`);
 }

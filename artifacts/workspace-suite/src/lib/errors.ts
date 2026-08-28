@@ -23,11 +23,6 @@ export function isSheetsApiError(err: unknown): err is SheetsApiError {
   return err instanceof SheetsApiError;
 }
 
-/** @deprecated Use SheetsApiError. */
-export const N8nWebhookError = SheetsApiError;
-export type N8nWebhookError = SheetsApiError;
-export const isN8nWebhookError = isSheetsApiError;
-
 export class TimeoutError extends Error {
   readonly timeoutMs?: number;
 

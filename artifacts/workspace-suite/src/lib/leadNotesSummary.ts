@@ -1,13 +1,8 @@
 /**
- * Optional n8n Gemini Lead Notes Summary (models/gemini-3.6-flash).
- * Turns concatenated Progress 1…N notes into titled, kind-tagged cards.
- * Display-only — never writes Gemini output back onto the sheet string.
+ * Lead notes summary — local Progress 1…N cards only.
+ * Display-only — never writes output back onto the sheet string.
  */
-import { LEAD_NOTES_SUMMARY_URL } from '@/lib/backendUrls';
-import {
-  parseLeadNotesSummaryResponse,
-  type LeadNotePointPayload,
-} from '@/lib/contracts';
+import { type LeadNotePointPayload } from '@/lib/contracts';
 import {
   detectPointKinds,
   pointsFromProgressNotes,
@@ -54,7 +49,7 @@ export function mergeSummaryPoints(notes: string, remote: LeadNotePointPayload[]
     const kinds = kindsFromPayload(p, body);
     const idx = sourceIndex >= 0 ? sourceIndex : i;
     return {
-      id: `gemini-${i}`,
+      id: `note-${i}`,
       title: progressNoteTitle(idx),
       summary: (p.summary || local[sourceIndex]?.summary || body).slice(0, 220),
       body,
@@ -79,29 +74,7 @@ export async function requestLeadNotesSummary(opts: {
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
-  try {
-    const res = await fetch(LEAD_NOTES_SUMMARY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        notes,
-        leadKey: opts.leadKey || '',
-        leadName: opts.leadName || '',
-        referenceNumber: opts.referenceNumber || '',
-      }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    const remote = parseLeadNotesSummaryResponse(json);
-    const points = mergeSummaryPoints(notes, remote);
-    cacheSet(key, points);
-    return points;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  const points = pointsFromProgressNotes(notes);
+  cacheSet(key, points);
+  return points;
 }

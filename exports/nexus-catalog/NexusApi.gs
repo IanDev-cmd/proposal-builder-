@@ -4,7 +4,7 @@
  * Paste as a NEW file next to Code.gs / Sentry.gs / Extras.gs.
  * Suggested name in the Apps Script editor: NexusApi.gs
  *
- * Does NOT replace buildNexusCatalog. Does not call Gemini, n8n, or Flask.
+ * Does NOT replace buildNexusCatalog. Does not call Gemini or Flask.
  * Catalog rebuild stays on buildNexusCatalog triggers; this file only READs
  * the prebuilt "_Nexus Catalog" tab (CostRatesFetch).
  *
@@ -14,7 +14,7 @@
  *   2. Paste this file. Save.
  *   3. Deploy → New deployment → Type: Web app
  *        Execute as: Me
- *        Who has access: Anyone  (matches the previous unauthenticated n8n webhooks)
+ *        Who has access: Anyone
  *   4. Copy the /exec URL.
  *   5. Paste it into artifacts/workspace-suite/src/lib/backendUrls.ts
  *      as APPS_SCRIPT_WEBAPP_URL.
@@ -97,7 +97,7 @@ var QUOTES_HEADERS = [
   'Section Totals',
 ];
 
-/** Port of n8n Structure all Leads1 header prefixes → Sapphire aliases. */
+/** Enquiry header prefixes → Sapphire aliases. */
 var LEAD_WANTED = [
   ['Client Reference Number', 'referenceNumber'],
   ['Name', 'name'],
@@ -257,7 +257,7 @@ function handleLeadDataFetch_(req) {
   return { ok: true, count: leads.length, leads: leads };
 }
 
-/** Port of n8n Structure all Leads1 — do not rewrite Sapphire aliases. */
+/** Structure Enquiry rows — do not rewrite Sapphire aliases. */
 function structureLeads_(sheet) {
   var values = sheetDisplayValues_(sheet);
   if (!values || values.length < 2) return [];
@@ -273,7 +273,7 @@ function structureLeads_(sheet) {
     var out = mapLeadRow_(row);
     if (out.referenceNumber || out.name || out.email) leads.push(out);
   }
-  leads.reverse(); // newest first (same as n8n)
+  leads.reverse(); // newest first
   return leads;
 }
 
@@ -331,7 +331,7 @@ function mapLeadRow_(row) {
 /**
  * CostRatesFetch — ALWAYS the LIVE workbook _Nexus Catalog.
  * Mode is ignored for which catalog to read (rates are live by design).
- * Port of n8n Parse Catalog. Does not rebuild Cost Mother.
+ * Does not rebuild Cost Mother.
  */
 function handleCostRatesFetch_(req) {
   var ss = SpreadsheetApp.openById(NEXUS_WORKBOOK_ID);
@@ -410,7 +410,7 @@ function slugId_(section, label) {
   return s.slice(0, 80);
 }
 
-/** Port of n8n Parse Catalog — kind/label/rateKey/rate → costMother + lines + margins + ratios. */
+/** Parse catalog rows — kind/label/rateKey/rate → costMother + lines + margins + ratios. */
 function parseCatalog_(rows) {
   var itemsByLabel = {};
   var itemOrder = [];

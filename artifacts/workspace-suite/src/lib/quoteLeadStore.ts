@@ -52,7 +52,7 @@ export type QuoteLead = {
   quoteDayPeriod?: string;
   quoteGroupBracket?: string;
   /** Full Sapphire alias bag — pass through as nexusLead without re-mapping. */
-  sapphire?: import('@/lib/sapphireLead').N8nSapphireLead;
+  sapphire?: import('@/lib/sapphireLead').SapphireLead;
 };
 
 export function setQuoteLead(lead: QuoteLead): boolean {

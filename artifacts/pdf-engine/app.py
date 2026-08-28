@@ -1,7 +1,7 @@
 """
 app.py
 ------
-Web wrapper around engine.build_proposal() for Render / n8n.
+Web wrapper around engine.build_proposal() for Render.
 
 ENDPOINTS
     GET  /               health

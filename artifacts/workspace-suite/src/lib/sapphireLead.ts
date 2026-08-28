@@ -6,7 +6,7 @@
 
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 
-export const N8N_LEAD_ALIASES = [
+export const SAPPHIRE_LEAD_ALIASES = [
   'referenceNumber',
   'name',
   'companyName',
@@ -43,14 +43,14 @@ export const N8N_LEAD_ALIASES = [
   'quoteGroupBracket',
 ] as const;
 
-export type N8nLeadAlias = (typeof N8N_LEAD_ALIASES)[number];
+export type SapphireLeadAlias = (typeof SAPPHIRE_LEAD_ALIASES)[number];
 
-export type N8nSapphireLead = Partial<Record<N8nLeadAlias, string | number | boolean>>;
+export type SapphireLead = Partial<Record<SapphireLeadAlias, string | number | boolean>>;
 
 /** Pick alias first (Sheets SoT), then optional sheet-header fallbacks. */
 export function aliasFirst(
   row: Record<string, unknown>,
-  alias: N8nLeadAlias,
+  alias: SapphireLeadAlias,
   ...fallbacks: string[]
 ): string {
   const primary = row[alias];
@@ -73,9 +73,9 @@ export function aliasFirst(
 }
 
 /** Preserve the full lead object for QuoteBuilder nexusLead pass-through. */
-export function toNexusLeadPayload(row: Record<string, unknown>): N8nSapphireLead {
-  const out: N8nSapphireLead = {};
-  for (const key of N8N_LEAD_ALIASES) {
+export function toNexusLeadPayload(row: Record<string, unknown>): SapphireLead {
+  const out: SapphireLead = {};
+  for (const key of SAPPHIRE_LEAD_ALIASES) {
     if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
       out[key] = row[key] as string | number | boolean;
     }

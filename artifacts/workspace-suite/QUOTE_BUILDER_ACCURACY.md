@@ -3,8 +3,8 @@
 This file is the proof pack for Gemini (Google Sheets). Copy **section 5** into Gemini on the production workbook. Do not ask Gemini to write Enquiry totals.
 
 Engine source: `artifacts/workspace-suite/src/lib/quoteFinance.ts` + `src/lib/assets/catalogueTaxonomy.json`.  
-Rates: live Cost Mother via n8n `CostRatesFetch` (`_Nexus Catalog`).  
-n8n Transform must not recalculate money.
+Rates: live Cost Mother via Apps Script `CostRatesFetch` (`_Nexus Catalog`).  
+Flask /generate must not recalculate money.
 
 ---
 

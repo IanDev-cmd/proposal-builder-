@@ -24,7 +24,7 @@ import { personAvatarUrl, companyAvatarUrl } from '@/lib/avatar';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { consumePendingGenerate } from '@/lib/savedQuotesStore';
 import { toastError } from '@/lib/notify';
-import type { N8nSapphireLead } from '@/lib/sapphireLead';
+import type { SapphireLead } from '@/lib/sapphireLead';
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -93,7 +93,7 @@ export type Lead = {
   quoteDayPeriod?: string;
   quoteGroupBracket?: string;
   /** Full Structure all Leads1 alias bag — SoT for QuoteBuilder nexusLead. */
-  sapphire?: N8nSapphireLead;
+  sapphire?: SapphireLead;
 };
 
 /* ─── helpers ───
