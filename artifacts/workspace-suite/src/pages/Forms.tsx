@@ -68,6 +68,7 @@ import {
 } from '@/lib/proposalTimings';
 import { PROPOSAL_ENGINE_GENERATE_URL } from '@/lib/backendUrls';
 import { blobToDataUrl, fetchWithTimeout } from '@/lib/http';
+import { engineAuthHeaders, notifyTeamAuthExpired } from '@/lib/teamSession';
 import {
   buildLeadPrefill,
   prefillForQuoteVersion,
@@ -1823,10 +1824,15 @@ export function Forms() {
       setStage('generating');
       const res = await fetchWithTimeout(PROPOSAL_ENGINE_GENERATE_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: engineAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(outbound),
         timeoutMs: 120_000,
       });
+
+      if (res.status === 401) {
+        notifyTeamAuthExpired();
+        throw new Error('Session expired. Sign in with the team PIN and try again.');
+      }
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');

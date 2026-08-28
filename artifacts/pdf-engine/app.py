@@ -4,7 +4,11 @@ app.py
 Web wrapper around engine.build_proposal() for Render.
 
 ENDPOINTS
-    GET  /               health
+    GET  /               health (public — Render)
+    POST /auth/login     six-digit team PIN → signed session
+    GET  /auth/session   Bearer session check
+    POST /auth/touch     extend idle session
+    POST /auth/logout    revoke session
     GET  /templates      list categories, event types, slots
     GET  /inserts        list optional proposal inserts (vessel/staff/map)
     POST /generate       JSON payload → PDF binary
@@ -16,12 +20,15 @@ import io
 import json
 import os
 import re
+from urllib.parse import urlparse
 
 from pathlib import Path
 
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, g, request, send_file, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from engine import build_proposal
+from team_auth import handle_login, refresh_session, require_team_session, revoke
 from workspace_store import (
     clear_proposals as workspace_clear_proposals,
     clear_quotes as workspace_clear_quotes,
@@ -43,7 +50,43 @@ from pydantic import ValidationError
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 _BASE = Path(__file__).resolve().parent
+
+_DEFAULT_CORS_ORIGINS = (
+    "https://weott-quote-builder.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+)
+
+
+def _safe_origin(raw: str) -> str | None:
+    origin = raw.strip().rstrip("/")
+    if not origin or len(origin) > 180:
+        return None
+    try:
+        parsed = urlparse(origin)
+    except Exception:
+        return None
+    if parsed.path not in ("", "/") or parsed.query or parsed.fragment or parsed.username:
+        return None
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme == "https" and host:
+        return f"https://{host}" + (f":{parsed.port}" if parsed.port else "")
+    if parsed.scheme == "http" and host in {"localhost", "127.0.0.1"}:
+        return f"http://{host}" + (f":{parsed.port}" if parsed.port else "")
+    return None
+
+
+def _cors_origins() -> set[str]:
+    origins = set(_DEFAULT_CORS_ORIGINS)
+    for item in os.environ.get("NEXUS_CORS_ORIGINS", "").split(","):
+        origin = _safe_origin(item)
+        if origin:
+            origins.add(origin)
+    return origins
 
 _WARM = {"ok": False, "error": None, "templates_warmed": 0}
 
@@ -67,22 +110,65 @@ _warm_profiles()
 
 
 @app.before_request
-def _cors_preflight():
+def _gate():
     if request.method == "OPTIONS":
         return ("", 204)
+    if request.path == "/" and request.method == "GET":
+        return None
+    if request.path == "/auth/login" and request.method == "POST":
+        return None
+    denied, claims = require_team_session(request)
+    if denied is not None:
+        return denied
+    g.team_session = claims
+    return None
 
 
 @app.after_request
-def _cors(resp):
-    resp.headers["Access-Control-Allow-Origin"] = "*"
+def _security_headers(resp):
+    origin = _safe_origin(request.headers.get("Origin") or "")
+    if origin and origin in _cors_origins():
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
     resp.headers["Access-Control-Allow-Methods"] = "GET, PUT, POST, DELETE, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     resp.headers["Access-Control-Expose-Headers"] = (
         "Content-Disposition, Content-Type, X-Warnings, X-Using-Brand-Font, "
         "X-Page-Count, X-Template-Id, X-Template-Matched-By, X-Inserts, X-Proposal-Filename"
     )
     resp.headers["Access-Control-Max-Age"] = "86400"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Cache-Control"] = "no-store"
+    resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     return resp
+
+
+@app.post("/auth/login")
+def auth_login():
+    return handle_login(request)
+
+
+@app.get("/auth/session")
+def auth_session():
+    claims = getattr(g, "team_session", None) or {}
+    return jsonify(ok=True, expiresAt=claims.get("exp"))
+
+
+@app.post("/auth/touch")
+def auth_touch():
+    refreshed = refresh_session(getattr(g, "team_session", {}) or {})
+    if not refreshed:
+        return jsonify(error="Authentication required."), 401
+    token, expires_in = refreshed
+    return jsonify(ok=True, token=token, expiresIn=expires_in)
+
+
+@app.post("/auth/logout")
+def auth_logout():
+    revoke(getattr(g, "team_session", {}) or {})
+    return jsonify(ok=True)
 
 
 @app.get("/")

@@ -1,15 +1,38 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { TeamLoginScreen } from '@/components/TeamLoginScreen';
 import {
+  TEAM_AUTH_EXPIRED_EVENT,
+  TEAM_IDLE_MS,
   clearTeamSession,
   isTeamSessionActive,
-  startTeamSession,
-  TEAM_IDLE_MS,
+  restoreTeamSession,
   touchTeamSession,
 } from '@/lib/teamSession';
 
 export function TeamPasswordGate({ children }: { children: ReactNode }) {
-  const [unlocked, setUnlocked] = useState(() => isTeamSessionActive());
+  const [ready, setReady] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void restoreTeamSession().then((ok) => {
+      if (cancelled) return;
+      setUnlocked(ok);
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onExpired = () => {
+      clearTeamSession();
+      setUnlocked(false);
+    };
+    window.addEventListener(TEAM_AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(TEAM_AUTH_EXPIRED_EVENT, onExpired);
+  }, []);
 
   useEffect(() => {
     if (!unlocked) return;
@@ -39,11 +62,14 @@ export function TeamPasswordGate({ children }: { children: ReactNode }) {
     };
   }, [unlocked]);
 
+  if (!ready) {
+    return <div className="team-login-page" aria-busy="true" />;
+  }
+
   if (!unlocked) {
     return (
       <TeamLoginScreen
         onUnlocked={() => {
-          startTeamSession();
           setUnlocked(true);
         }}
       />

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Lock } from 'lucide-react';
-import { verifyTeamPin } from '@/lib/teamSession';
-
-const PIN_LENGTH = 4;
+import { loginTeamPin, PIN_LENGTH } from '@/lib/teamSession';
 
 type Status = 'idle' | 'auth' | 'success' | 'error';
 
@@ -11,10 +9,13 @@ type Props = {
   onUnlocked: () => void;
 };
 
+const emptyPin = () => Array.from({ length: PIN_LENGTH }, () => '');
+
 export function TeamLoginScreen({ onUnlocked }: Props) {
-  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
+  const [digits, setDigits] = useState<string[]>(emptyPin);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState('');
+  const [showReset, setShowReset] = useState(false);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function TeamLoginScreen({ onUnlocked }: Props) {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, PIN_LENGTH);
     if (!pasted) return;
-    const next = ['', '', '', ''];
+    const next = emptyPin();
     pasted.split('').forEach((ch, i) => {
       next[i] = ch;
     });
@@ -66,16 +67,17 @@ export function TeamLoginScreen({ onUnlocked }: Props) {
     if (status === 'auth' || status === 'success') return;
     setStatus('auth');
     setError('');
-    await wait(720);
-    const result = verifyTeamPin(pin);
+    const result = await loginTeamPin(pin);
     if (!result.ok) {
       setStatus('error');
-      setDigits(['', '', '', '']);
+      setDigits(emptyPin());
       inputs.current[0]?.focus();
       setError(
-        result.reason === 'empty'
-          ? 'Team password is not configured. Set VITE_NEXUS_TEAM_PASSWORD.'
-          : 'Incorrect PIN. Try again.',
+        result.reason === 'locked'
+          ? 'Too many attempts. Try again later.'
+          : result.reason === 'network'
+            ? 'Could not reach the server. Try again.'
+            : 'Incorrect PIN. Try again.',
       );
       return;
     }
@@ -101,13 +103,16 @@ export function TeamLoginScreen({ onUnlocked }: Props) {
         <div className="team-login-dark">
           <h1>WELCOME BACK!</h1>
           <p>
-            Enter the shared four-digit team PIN to open Nexus. The session stays on this tab and
+            Enter the shared six-digit team PIN to open Nexus. The session stays on this tab and
             signs out after two hours of inactivity.
           </p>
         </div>
 
         <form
           className="team-login-light"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           onSubmit={(e) => {
             e.preventDefault();
             void submitPin(digits.join(''));
@@ -128,8 +133,12 @@ export function TeamLoginScreen({ onUnlocked }: Props) {
                   inputs.current[i] = el;
                 }}
                 className="team-pin-box"
+                type="text"
                 inputMode="numeric"
-                autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 maxLength={1}
                 value={digit}
                 disabled={status === 'auth' || status === 'success'}
@@ -142,11 +151,24 @@ export function TeamLoginScreen({ onUnlocked }: Props) {
             <Lock className="team-pin-lock" size={16} strokeWidth={2} aria-hidden />
           </div>
 
-          {error ? <p className="team-login-error">{error}</p> : <p className="team-login-hint">Four-digit team PIN</p>}
+          {error ? <p className="team-login-error">{error}</p> : <p className="team-login-hint">Six-digit team PIN</p>}
 
           <button type="submit" className="team-login-btn" disabled={status === 'auth' || status === 'success'}>
             {status === 'auth' ? 'Checking…' : status === 'success' ? 'Welcome' : 'Login'}
           </button>
+
+          <button
+            type="button"
+            className="team-login-reset"
+            onClick={() => setShowReset(true)}
+          >
+            Contact Developer
+          </button>
+          {showReset ? (
+            <p className="team-login-reset-msg">
+              To reset the team PIN, contact the developer. Reset is not available in this app.
+            </p>
+          ) : null}
         </form>
 
         <AnimatePresence>

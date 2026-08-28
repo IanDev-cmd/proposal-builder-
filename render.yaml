@@ -4,9 +4,6 @@ services:
     runtime: static
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/workspace-suite run build
     staticPublishPath: artifacts/workspace-suite/dist/public
-    envVars:
-      - key: VITE_NEXUS_TEAM_PASSWORD
-        sync: false
     routes:
       - type: rewrite
         source: /*
@@ -19,3 +16,8 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: NEXUS_TEAM_PASSWORD
+        value: "945762"
+      - key: NEXUS_AUTH_SECRET
+        generateValue: true

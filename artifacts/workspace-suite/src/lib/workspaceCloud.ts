@@ -1,12 +1,19 @@
 import { PROPOSAL_ENGINE_URL } from '@/lib/backendUrls';
 import { fetchWithTimeout } from '@/lib/http';
+import { engineAuthHeaders, notifyTeamAuthExpired } from '@/lib/teamSession';
 import type { GeneratedProposal } from '@/lib/proposalStore';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 
 const BASE = `${PROPOSAL_ENGINE_URL}/workspace`;
 
 async function cloudFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetchWithTimeout(`${BASE}${path}`, { ...init, timeoutMs: 45_000 });
+  const res = await fetchWithTimeout(`${BASE}${path}`, {
+    ...init,
+    headers: engineAuthHeaders(init?.headers),
+    timeoutMs: 45_000,
+  });
+  if (res.status === 401) notifyTeamAuthExpired();
+  return res;
 }
 
 async function readJson(res: Response): Promise<unknown> {
