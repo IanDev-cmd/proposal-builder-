@@ -16,6 +16,7 @@ Multiple maps: inserted in selection order after the vessel page.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import fitz
@@ -57,6 +58,110 @@ def list_inserts(
             or str(i.get("vessel", "")).lower() in v
         ]
     return items
+
+
+_WEOTT_KEY_RE = re.compile(r"weott[\s_-]*(yacht|limo|vii|vi|iv|iii|ii|v|i)(?![a-z])")
+
+
+def weott_vessel_key(raw: str) -> str:
+    m = _WEOTT_KEY_RE.search(str(raw or "").lower())
+    return f"weott {m.group(1)}" if m else ""
+
+
+def _infer_season(event_date: str | None, event_type: str | None) -> str:
+    if re.search(r"christmas|xmas", event_type or "", re.I):
+        return "christmas"
+    if not event_date:
+        return "all_seasons"
+    try:
+        month = int(str(event_date)[5:7])
+    except (TypeError, ValueError):
+        return "all_seasons"
+    if month == 12:
+        return "christmas"
+    if 3 <= month <= 8:
+        return "spring_summer"
+    return "autumn_winter"
+
+
+def infer_insert_slot(payload: dict) -> str:
+    lead = payload.get("lead") or {}
+    for key in ("day_period", "dayPeriod"):
+        raw = str(lead.get(key) or payload.get(key) or "").strip().lower()
+        if raw == "daytime":
+            return "daytime"
+        if raw == "evening":
+            return "evening"
+    text = " ".join(
+        str(x or "")
+        for x in (
+            lead.get("event_timings"),
+            lead.get("departure"),
+            payload.get("departure"),
+        )
+    )
+    m = re.search(r"(\d{1,2}):(\d{2})", text)
+    if not m:
+        return "daytime_or_evening"
+    hour = int(m.group(1)) + int(m.group(2)) / 60
+    if hour >= 17:
+        return "evening"
+    if hour < 12:
+        return "daytime"
+    return "evening" if hour >= 15 else "daytime"
+
+
+def pick_vessel_insert_id(
+    vessel: str,
+    *,
+    event_type: str = "",
+    event_date: str = "",
+    slot: str = "",
+    category: str = "",
+) -> str | None:
+    """Choose the V2 vessel-profile insert for this boat when none was selected."""
+    want = weott_vessel_key(vessel)
+    if not want:
+        return None
+    wedding = bool(re.search(r"wedding|engagement", event_type or "", re.I))
+    season = _infer_season(event_date, event_type)
+    wanted_slot = slot or "daytime_or_evening"
+    cat = (category or ("wedding" if wedding else "corporate")).lower()
+
+    best_id = None
+    best_score = -1
+    for ins in get_insert_manifest().get("inserts", []):
+        if ins.get("kind") != "vessel":
+            continue
+        have = weott_vessel_key(f"{ins.get('id', '')} {ins.get('label', '')} {ins.get('vessel', '')}")
+        if not have or have != want:
+            continue
+        ins_cat = str(ins.get("category") or "any").lower()
+        if ins_cat not in ("any", "", cat):
+            continue
+        score = 35
+        iid = str(ins.get("id") or "").lower()
+        label = str(ins.get("label") or "").lower()
+        if wedding and ("wedding" in iid or "wedding" in label):
+            score += 25
+        if not wedding and "wedding" in iid:
+            score -= 40
+        ins_season = str(ins.get("season") or "any")
+        if ins_season in (season, "any", "all_seasons", "any_season") or (
+            ins_season == "except_christmas" and season != "christmas"
+        ):
+            score += 18
+        else:
+            score -= 25
+        ins_slot = str(ins.get("slot") or "any")
+        if ins_slot in (wanted_slot, "any", "daytime_or_evening"):
+            score += 15 if ins_slot == wanted_slot else 6
+        else:
+            score -= 10
+        if score > best_score:
+            best_score = score
+            best_id = ins.get("id")
+    return str(best_id) if best_id and best_score > 0 else None
 
 
 def resolve_insert_paths(selected_ids: list[str]) -> list[dict]:

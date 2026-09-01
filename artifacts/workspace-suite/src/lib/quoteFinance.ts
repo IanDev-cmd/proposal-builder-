@@ -374,16 +374,22 @@ export function calcFinancials(data: QuoteFormInput) {
   const marginRaw = weottRaw * margin;
   const costToClientPreDiscount = weottRaw + marginRaw;
 
-  const discountPct = Math.min(100, Math.max(0, parseFloat(data.discountPercent || '') || 0)) / 100;
+  // Client-discount toggle is the master switch — leftover % is ignored when off.
+  const discountPct = data.repeatClient
+    ? Math.min(100, Math.max(0, parseFloat(data.discountPercent || '') || 0)) / 100
+    : 0;
   const discountAmount = costToClientPreDiscount * discountPct;
   const costToClientRaw = costToClientPreDiscount - discountAmount;
 
-  // Commission = value lost from profit (QB). Agent toggle defaults to 10% when blank.
+  // Agent-referral toggle is the master switch. When on and the box is blank, default 10%.
   const explicitCommission = data.commissionPercent?.trim()
     ? Math.min(100, Math.max(0, parseFloat(data.commissionPercent) || 0)) / 100
     : null;
-  const effectiveCommission =
-    explicitCommission != null ? explicitCommission : data.agentReferral ? 0.1 : 0;
+  const effectiveCommission = !data.agentReferral
+    ? 0
+    : explicitCommission != null
+      ? explicitCommission
+      : 0.1;
   const commissionAmount = costToClientRaw * effectiveCommission;
   const updatedProfit = marginRaw - discountAmount - commissionAmount;
 

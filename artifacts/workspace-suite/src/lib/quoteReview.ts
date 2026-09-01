@@ -22,11 +22,21 @@ export function quoteReviewStatus(
   return 'pending';
 }
 
+function quoteHasCostApproval(quote?: Pick<SavedQuote, 'data'> | null): boolean {
+  const data = quote && typeof quote === 'object' ? quote.data : undefined;
+  return Boolean(data && (data as { costApproved?: boolean }).costApproved);
+}
+
 /** True when Generate Proposal should warn but still continue. */
 export function quoteNeedsApprovalFirst(
-  quote?: Pick<SavedQuote, 'reviewStatus'> | QuoteReviewStatus | null,
+  quote?: Pick<SavedQuote, 'reviewStatus' | 'data'> | QuoteReviewStatus | null,
 ): boolean {
-  return Boolean(quote) && quoteReviewStatus(quote) !== 'approved';
+  if (!quote || typeof quote === 'string') {
+    return Boolean(quote) && quoteReviewStatus(quote) !== 'approved';
+  }
+  if (quoteReviewStatus(quote) === 'approved') return false;
+  if (quoteHasCostApproval(quote)) return false;
+  return true;
 }
 
 export function quoteReviewLabel(status: QuoteReviewStatus): string {

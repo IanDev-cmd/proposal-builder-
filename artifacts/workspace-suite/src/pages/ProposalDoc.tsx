@@ -5,13 +5,13 @@ import {
   PenSquare, Star, Search,
   Download, Printer, X, ChevronUp, ChevronDown,
   FileIcon as FileGeneratedIcon,
-  Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2,
+  Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2, Link2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
 import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
-import { toastError } from '@/lib/notify';
+import { toastError, toastSuccess } from '@/lib/notify';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
 import { listSavedQuotes } from '@/lib/savedQuotesStore';
@@ -92,6 +92,11 @@ function FileIcon({ file }: { file: ProposalFile }) {
   );
 }
 
+function proposalShareUrl(id: string): string {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${window.location.origin}${base}/proposal-doc?id=${encodeURIComponent(id)}`;
+}
+
 /* ──────────────────────── Main export ──────────────────────── */
 export function ProposalDoc() {
   const [, navigate] = useLocation();
@@ -140,6 +145,11 @@ export function ProposalDoc() {
     } else {
       generated.forEach((p) => generatedIds.current.add(p.id));
     }
+  }, [generated]);
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) setActiveId(id);
   }, [generated]);
 
   const generatedFiles = generated.filter((p) => !isLegacyEventVesselProposal(p)).map(proposalToFile);
@@ -299,8 +309,25 @@ export function ProposalDoc() {
     }
   };
 
+  const handleCopyProposalLink = async () => {
+    if (!active) return;
+    try {
+      await navigator.clipboard.writeText(proposalShareUrl(active.id));
+      toastSuccess({ key: 'copy-proposal-link', title: 'Link copied' });
+      setShareOpen(false);
+    } catch {
+      toastError({
+        key: 'copy-proposal-link',
+        title: 'Could not copy link',
+        description: 'Copy the address bar URL instead.',
+      });
+    }
+  };
+
   const shareTargets = [
     { label: 'Full Screen', icon: Maximize2, color: '#1a1a1a', onClick: handleShareFullScreen },
+    { label: 'Copy Link', icon: Link2, color: '#1a1a1a', onClick: () => void handleCopyProposalLink() },
+    { label: 'Download', icon: Download, color: '#2F7CF6', onClick: () => { handleDownload(); setShareOpen(false); } },
     { label: 'Gmail', icon: Mail, color: '#EA4335', onClick: () => void handleShareWithFile('email') },
     { label: 'Google Drive', icon: HardDrive, color: '#34A853', onClick: () => void handleShareWithFile('drive') },
     { label: 'Dropbox', icon: Box, color: '#0061FF', onClick: () => void handleShareWithFile('dropbox') },

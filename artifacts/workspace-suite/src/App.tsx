@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
@@ -15,6 +15,7 @@ import { Timeline } from '@/pages/Timeline';
 import { Settings } from '@/pages/Settings';
 import { Apps } from '@/pages/Apps';
 import NotFound from '@/pages/NotFound';
+import { FRESH_QUOTE_BUILDER_EVENT } from '@/lib/quoteBuilderSession';
 
 function scrollPagesToTop() {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -34,6 +35,12 @@ function ScrollToTop() {
 }
 
 function Router() {
+  const [quoteBuilderKey, setQuoteBuilderKey] = useState(0);
+  useEffect(() => {
+    const onFresh = () => setQuoteBuilderKey((n) => n + 1);
+    window.addEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
+    return () => window.removeEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
+  }, []);
   return (
     <>
       <ScrollToTop />
@@ -41,7 +48,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/leads" component={Leads} />
-        <Route path="/quote-builder" component={QuoteBuilder} />
+        <Route path="/quote-builder">{() => <QuoteBuilder key={quoteBuilderKey} />}</Route>
         <Route path="/saved-quotes/:id" component={QuoteReview} />
         <Route path="/saved-quotes" component={SavedQuotes} />
         <Route path="/proposal-doc" component={ProposalDoc} />

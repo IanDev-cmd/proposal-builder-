@@ -654,10 +654,13 @@
   animation: team-pin-glow 1s ease-in-out infinite;
 }
 .team-login-card.success .team-pin-box {
-  background: #111;
-  border-color: #111;
+  background: #1f9d55;
+  border-color: #1f9d55;
   color: #fff;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18), 0 0 22px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 3px rgba(31, 157, 85, 0.28), 0 0 22px rgba(31, 157, 85, 0.45);
+}
+.team-login-card.success .team-login-btn {
+  background: #1f9d55;
 }
 .team-login-card.error .team-pin-box {
   border-color: #c62828;
@@ -669,7 +672,7 @@
   z-index: 3;
   display: grid;
   place-items: center;
-  background: rgba(244, 244, 244, 0.28);
+  background: rgba(31, 157, 85, 0.14);
   pointer-events: none;
 }
 .team-login-success-ring {
@@ -678,10 +681,12 @@
   width: 88px;
   height: 88px;
   border-radius: 999px;
-  background: #111;
+  background: #1f9d55;
   color: #fff;
-  box-shadow: 0 0 0 8px rgba(0, 0, 0, 0.08), 0 18px 40px rgba(0, 0, 0, 0.28);
-  animation: team-success-pop 0.55s cubic-bezier(0.2, 1.4, 0.3, 1);
+  box-shadow: 0 0 0 8px rgba(31, 157, 85, 0.18), 0 18px 40px rgba(31, 157, 85, 0.32);
+  animation:
+    team-success-pop 0.55s cubic-bezier(0.2, 1.4, 0.3, 1),
+    team-success-glow 1s ease-in-out infinite;
 }
 @keyframes team-pin-glow {
   0%,
@@ -702,6 +707,15 @@
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+@keyframes team-success-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 8px rgba(31, 157, 85, 0.18), 0 0 22px rgba(31, 157, 85, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(31, 157, 85, 0.28), 0 0 36px rgba(31, 157, 85, 0.55);
   }
 }
 @media (max-width: 760px) {

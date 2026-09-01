@@ -5,6 +5,7 @@
 import {
   PROPOSAL_INSERTS,
   PROPOSAL_TEMPLATES,
+  weottVesselKey,
   type ProposalInsert,
   type ProposalTemplate,
 } from '@/lib/proposalAssets';
@@ -110,6 +111,7 @@ function slotMatches(insertSlot: string | undefined, wanted: string): boolean {
 
 function seasonMatches(insertSeason: string | undefined, wanted: string): boolean {
   if (!insertSeason || insertSeason === 'any') return true;
+  if (insertSeason === 'except_christmas') return wanted !== 'christmas';
   if (insertSeason === wanted) return true;
   if (['any_season', 'all_seasons'].includes(insertSeason)) return true;
   if (wanted === 'all_seasons') return true;
@@ -134,9 +136,16 @@ function scoreInsert(
 
   if (ins.category && ins.category !== 'any' && ins.category !== ctx.category) return -1000;
 
-  for (const tok of vesselTokens(ctx.vesselHint)) {
-    const t = tok.replace(/\s+/g, '_');
-    if (id.includes(t) || label.includes(tok.replace(/_/g, ' '))) score += 35;
+  if (ins.kind === 'vessel') {
+    const want = weottVesselKey(ctx.vesselHint);
+    const have = weottVesselKey(`${ins.id} ${ins.label || ''} ${ins.vessel || ''}`);
+    if (want && have && want !== have) return -1000;
+    if (want && have && want === have) score += 35;
+  } else {
+    for (const tok of vesselTokens(ctx.vesselHint)) {
+      const t = tok.replace(/\s+/g, '_');
+      if (id.includes(t) || label.includes(tok.replace(/_/g, ' '))) score += 35;
+    }
   }
 
   if (ins.kind === 'vessel') {
@@ -425,4 +434,34 @@ export function resolveProposalPack(opts: {
   });
   const { requiresInserts, selectedInserts } = resolveProposalInserts(opts);
   return { templateId, requiresInserts, selectedInserts };
+}
+
+/** Always include a matching V2 vessel-profile insert so page 9 is not left as template artwork. */
+export function insertsForGenerate(data: {
+  requiresInserts: boolean;
+  selectedInserts: string[];
+  proposalCategory: 'corporate' | 'wedding';
+  eventType: string;
+  vesselType?: string[];
+  eventDate?: string;
+  embarkation?: string;
+  departure?: string;
+  disembarkation?: string;
+}): string[] {
+  const selected = data.requiresInserts ? [...data.selectedInserts] : [];
+  const hasVessel = selected.some((id) => PROPOSAL_INSERTS.find((i) => i.id === id)?.kind === 'vessel');
+  if (hasVessel || !data.vesselType?.[0]) return selected;
+  const auto = resolveProposalInserts({
+    category: data.proposalCategory,
+    eventType: data.eventType,
+    vesselHint: data.vesselType[0],
+    eventDate: data.eventDate,
+    embarkation: data.embarkation,
+    departure: data.departure,
+    disembarkation: data.disembarkation,
+  });
+  const vesselIds = auto.selectedInserts.filter(
+    (id) => PROPOSAL_INSERTS.find((i) => i.id === id)?.kind === 'vessel',
+  );
+  return [...selected, ...vesselIds];
 }

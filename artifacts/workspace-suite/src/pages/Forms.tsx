@@ -10,6 +10,7 @@ import { ProposalTimingsCard } from '@/components/ProposalTimingsCard';
 import { getQuoteLead, clearQuoteLead, setQuoteLead, consumeQuoteBuilderStartStep, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
+import { consumeFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import {
   consumePendingGenerate,
   getSavedQuote,
@@ -80,7 +81,7 @@ import {
   PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
 import { applyPrefillHealerMatches, requestPrefillHealer } from '@/lib/prefillHealer';
-import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
+import { indexProposalTemplates, indexProposalInserts, insertsForGenerate, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
 import { formatGbpPounds } from '@/lib/utils';
 import { financialParityReport, costApprovalBlocked, clientTotalsFromWeott } from '@/lib/financialParity';
 import {
@@ -941,7 +942,9 @@ async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<b
 
 export function Forms() {
   const [, navigate] = useLocation();
+  const freshStartRef = useRef(consumeFreshQuoteBuilder());
   const pendingQuote = (() => {
+    if (freshStartRef.current) return null;
     const id = peekPendingGenerate();
     return id ? getSavedQuote(id) : null;
   })();
@@ -952,14 +955,21 @@ export function Forms() {
     openAtEventCoreRef.current ? 1 : pendingQuote?.step && pendingQuote.step >= 1 ? pendingQuote.step : 1,
   );
   const [quoteLead] = useState<QuoteLead | null>(() =>
-    openAtEventCoreRef.current ? getQuoteLead() : pendingQuote?.lead || getQuoteLead(),
+    freshStartRef.current
+      ? null
+      : openAtEventCoreRef.current
+        ? getQuoteLead()
+        : pendingQuote?.lead || getQuoteLead(),
   );
-  const [leadInit] = useState(() => formFromLead(getQuoteLead() || pendingQuote?.lead || null));
+  const [leadInit] = useState(() =>
+    formFromLead(freshStartRef.current ? null : getQuoteLead() || pendingQuote?.lead || null),
+  );
   const leadNotesKey =
     quoteLead?.referenceNumber ||
     quoteLead?.email ||
     (quoteLead?.id != null ? `lead-${quoteLead.id}` : pendingQuote?.leadKey || 'quote-draft');
   const [data, setData] = useState<FormData>(() => {
+    if (freshStartRef.current) return { ...INIT };
     if (pendingQuote?.data) {
       return {
         ...INIT,
@@ -1112,7 +1122,7 @@ export function Forms() {
 
   useEffect(() => {
     let cancelled = false;
-    if (peekPendingGenerate()) {
+    if (peekPendingGenerate() || freshStartRef.current) {
       setDraftReady(true);
       return;
     }
@@ -1615,7 +1625,7 @@ export function Forms() {
       (pendingGenerateIdRef.current && getSavedQuote(pendingGenerateIdRef.current)) ||
       listSavedQuotes().find((q) => q.leadKey === leadNotesKey) ||
       null;
-    if (quoteNeedsApprovalFirst(savedForReview)) {
+    if (quoteNeedsApprovalFirst(savedForReview) && !data.costApproved) {
       toastError({
         key: 'approve-quote-first',
         title: 'Approve Quote First',
@@ -1664,8 +1674,10 @@ export function Forms() {
       return;
     }
 
+    const generateInserts = insertsForGenerate(data);
+
     const staffContact = resolveStaffContactFromInsertIds(
-      data.requiresInserts ? data.selectedInserts : [],
+      generateInserts,
       PROPOSAL_INSERTS,
     );
 
@@ -1759,7 +1771,7 @@ export function Forms() {
         : null,
       templateId,
       category: data.proposalCategory,
-      selectedInserts: data.requiresInserts ? data.selectedInserts : [],
+      selectedInserts: generateInserts,
       progressNotes: data.progressNotes,
       packageWording,
       staffContact,
@@ -1796,7 +1808,7 @@ export function Forms() {
         groupBracket: data.groupBracket || fin.rateParts?.groupBracket,
         noOfTables: data.noOfTables,
         templateId: data.templateId,
-        selectedInserts: data.requiresInserts ? data.selectedInserts : [],
+        selectedInserts: generateInserts,
         staffContact: staffContact.name,
         baseCost: fin.baseCost,
         subtotalBeforeContingency: fin.subtotalBeforeContingency,
@@ -1980,35 +1992,49 @@ export function Forms() {
     }
   };
 
+  const persistWizardQuote = async (next: FormData) => {
+    const version = next.quoteVersion || 'V1';
+    const existing = listSavedQuotes().find((q) => {
+      if (q.leadKey !== leadNotesKey) return false;
+      const savedVer = String((q.data as { quoteVersion?: string })?.quoteVersion || 'V1');
+      return savedVer === version;
+    });
+    const stem = proposalFileStem({
+      contactName: quoteLead?.name,
+      companyName: quoteLead?.company,
+      referenceCode: quoteLead?.referenceNumber,
+    });
+    const approved = Boolean(next.costApproved);
+    return persistSavedQuote({
+      id: existing?.id || `quote-${leadNotesKey}-${version}`,
+      leadKey: leadNotesKey,
+      leadName: quoteLead?.name,
+      referenceNumber: quoteLead?.referenceNumber,
+      title: `${stem} (${version})`,
+      vesselType: next.vesselType.join(', '),
+      eventType: next.eventType,
+      guestCount: next.guestCount,
+      eventDate: next.eventDate,
+      grandTotal: next === data ? fin.grand : calcFinancials({
+        ...next,
+        marginOverride:
+          next.marginPercent.trim() !== '' && Number.isFinite(Number(next.marginPercent))
+            ? Number(next.marginPercent) / 100
+            : null,
+        totalCost: baseCostAuto ? '' : next.totalCost,
+      }).grand,
+      step,
+      data: next,
+      lead: quoteLead,
+      proposalId: existing?.proposalId,
+      reviewStatus: approved ? 'approved' : existing?.reviewStatus === 'disapproved' ? 'disapproved' : 'pending',
+      reviewedAt: approved ? new Date().toISOString() : existing?.reviewedAt,
+    });
+  };
+
   const handleSaveQuote = async () => {
     try {
-      const version = data.quoteVersion || 'V1';
-      const existing = listSavedQuotes().find((q) => {
-        if (q.leadKey !== leadNotesKey) return false;
-        const savedVer = String((q.data as { quoteVersion?: string })?.quoteVersion || 'V1');
-        return savedVer === version;
-      });
-      const stem = proposalFileStem({
-        contactName: quoteLead?.name,
-        companyName: quoteLead?.company,
-        referenceCode: quoteLead?.referenceNumber,
-      });
-      const saved = await persistSavedQuote({
-        id: existing?.id || `quote-${leadNotesKey}-${version}`,
-        leadKey: leadNotesKey,
-        leadName: quoteLead?.name,
-        referenceNumber: quoteLead?.referenceNumber,
-        title: `${stem} (${version})`,
-        vesselType: data.vesselType.join(', '),
-        eventType: data.eventType,
-        guestCount: data.guestCount,
-        eventDate: data.eventDate,
-        grandTotal: fin.grand,
-        step,
-        data,
-        lead: quoteLead,
-        proposalId: existing?.proposalId,
-      });
+      await persistWizardQuote(data);
       await saveQuoteDraft({
         leadKey: leadNotesKey,
         step,
@@ -2639,7 +2665,8 @@ export function Forms() {
                       value={data.discountPercent}
                       onChange={(e) => set('discountPercent', e.target.value)}
                       placeholder="0"
-                      className={fieldCls('discountPercent')}
+                      disabled={!data.repeatClient}
+                      className={`${fieldCls('discountPercent')} ${!data.repeatClient ? 'opacity-50' : ''}`}
                     />
                   </div>
                   <div>
@@ -2652,7 +2679,8 @@ export function Forms() {
                       value={data.commissionPercent}
                       onChange={(e) => set('commissionPercent', e.target.value)}
                       placeholder={data.agentReferral ? '10' : '0'}
-                      className={fieldCls('commissionPercent')}
+                      disabled={!data.agentReferral}
+                      className={`${fieldCls('commissionPercent')} ${!data.agentReferral ? 'opacity-50' : ''}`}
                     />
                   </div>
                 </div>
@@ -2938,7 +2966,9 @@ export function Forms() {
                       return;
                     }
                     setErrorMessage('');
-                    set('costApproved', !data.costApproved);
+                    const nextApproved = !data.costApproved;
+                    set('costApproved', nextApproved);
+                    void persistWizardQuote({ ...data, costApproved: nextApproved });
                   }}
                   data-testid="btn-approve-cost"
                   disabled={costApprovalBlocked(parity, sheetTargets)}
@@ -3324,6 +3354,7 @@ export function Forms() {
                       return;
                     }
                     set('costApproved', true);
+                    void persistWizardQuote({ ...data, costApproved: true });
                     setQuoteDetailsOpen(false);
                     setErrorMessage('');
                     setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
@@ -3526,6 +3557,7 @@ export function Forms() {
                   data-testid="btn-approve-cost-overlay"
                   onClick={() => {
                     set('costApproved', true);
+                    void persistWizardQuote({ ...data, costApproved: true });
                     setQuoteDetailsOpen(false);
                     setErrorMessage('');
                     setStep(7);

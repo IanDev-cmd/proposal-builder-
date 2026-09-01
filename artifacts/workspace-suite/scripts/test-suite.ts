@@ -8,6 +8,7 @@ import {
   pickReviewFields,
   quoteReviewLabel,
   quoteReviewStatus,
+  quoteNeedsApprovalFirst,
 } from '../src/lib/quoteReview.ts';
 import { quoteSharePlainText, quoteShareWebUrl } from '../src/lib/quoteShare.ts';
 import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
@@ -41,6 +42,7 @@ import {
   proposalFileStemFromLead,
   proposalFilenameFromRecord,
 } from '../src/lib/proposalFilename.ts';
+import { insertsForGenerate, resolveProposalInserts } from '../src/lib/proposalPrefill.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -109,6 +111,11 @@ const picked = pickReviewFields(
   { reviewStatus: 'approved', reviewedAt: '2026-08-25T15:00:00.000Z' },
 );
 check('unit later reviewedAt wins merge', picked.reviewStatus === 'approved');
+check(
+  'unit cost approval on the quote suppresses generate warning',
+  quoteNeedsApprovalFirst(stubQuote({ data: { ...pending.data, costApproved: true } })) === false,
+);
+check('unit pending without cost approval still warns', quoteNeedsApprovalFirst(pending) === true);
 
 const shareUrl = 'https://nexus.example/saved-quotes/q-lily';
 const text = quoteSharePlainText(pending, shareUrl);
@@ -213,6 +220,35 @@ check('unit cost to client nearest pound', finRound.costToClient === 22270);
 check('unit vat nearest pound', finRound.vat === 4454);
 check('unit grand nearest pound', finRound.grand === 26724);
 
+const togglesOff = calcFinancials({
+  ...sampleForm,
+  selectedLineIds: [],
+  totalCost: '10000',
+  marginOverride: 0.25,
+  repeatClient: false,
+  discountPercent: '10',
+  agentReferral: false,
+  commissionPercent: '5',
+});
+check(
+  'unit off toggles ignore leftover discount and commission',
+  togglesOff.discountAmount === 0 && togglesOff.commissionAmount === 0,
+);
+const togglesOn = calcFinancials({
+  ...sampleForm,
+  selectedLineIds: [],
+  totalCost: '10000',
+  marginOverride: 0.25,
+  repeatClient: true,
+  discountPercent: '10',
+  agentReferral: true,
+  commissionPercent: '5',
+});
+check(
+  'unit on toggles apply discount and commission',
+  togglesOn.discountAmount > 0 && togglesOn.commissionAmount > 0,
+);
+
 setLiveCatalogLines([
   { label: 'Barbecue', section: 'catering', multiplier: 'guests' },
   {
@@ -276,6 +312,68 @@ check(
     referenceNumber: 'WE.19103',
   }) === 'Proposal - Joanna Eaton (EY) - WE.19103.pdf',
 );
+{
+  const xmas = resolveProposalInserts({
+    category: 'corporate',
+    eventType: 'Christmas Event',
+    vesselHint: 'WEOTT VI (Elizabethan)',
+    eventDate: '2026-12-12',
+    embarkation: '18:00',
+    disembarkation: '22:00',
+  });
+  const summer = resolveProposalInserts({
+    category: 'corporate',
+    eventType: 'Summer Event',
+    vesselHint: 'WEOTT VI (Elizabethan)',
+    eventDate: '2026-06-12',
+    embarkation: '12:00',
+    disembarkation: '16:00',
+  });
+  check(
+    'unit WEOTT VI Christmas picks Christmas insert',
+    xmas.selectedInserts.includes('weott_vi_christmas_daytime_or_evening'),
+  );
+  check(
+    'unit WEOTT VI Christmas does not pick except-Christmas insert',
+    !xmas.selectedInserts.includes('weott_vi_any_season_except_christmas_daytime_or_evening'),
+  );
+  check(
+    'unit WEOTT VI summer picks except-Christmas insert',
+    summer.selectedInserts.includes('weott_vi_any_season_except_christmas_daytime_or_evening'),
+  );
+  check(
+    'unit WEOTT VI summer does not pick WEOTT VII insert',
+    !summer.selectedInserts.some((id) => id.includes('weott_vii')),
+  );
+  const weottIiSummer = resolveProposalInserts({
+    category: 'corporate',
+    eventType: 'Summer Event',
+    vesselHint: 'WEOTT II (Avontuur)',
+    eventDate: '2026-06-12',
+    embarkation: '12:00',
+    disembarkation: '16:00',
+  });
+  check(
+    'unit WEOTT II summer picks WEOTT II vessel insert',
+    weottIiSummer.selectedInserts.some((id) => id.startsWith('weott_ii_')),
+  );
+  const generatedInserts = insertsForGenerate({
+    requiresInserts: false,
+    selectedInserts: [],
+    proposalCategory: 'corporate',
+    eventType: 'Summer Event',
+    vesselType: ['WEOTT II (Avontuur)'],
+    eventDate: '2026-06-12',
+    embarkation: '12:00',
+    departure: '12:00',
+    disembarkation: '16:00',
+  });
+  check(
+    'unit generate still attaches WEOTT II vessel insert when inserts were skipped',
+    generatedInserts.some((id) => id.startsWith('weott_ii_')),
+  );
+}
+
 check(
   'unit event-vessel cards are legacy',
   isLegacyEventVesselProposalLabel('Christmas Event Proposal — WEOTT II (Avontuur)') === true &&

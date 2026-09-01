@@ -28,7 +28,7 @@ from bespoke import (
 from vessel import swap_vessel_page
 from catalog import resolve_template, get_catalog
 from measure import get_profile
-from inserts import apply_inserts, resolve_insert_paths
+from inserts import apply_inserts, infer_insert_slot, pick_vessel_insert_id, resolve_insert_paths
 from profile_validation import (
     ProfileValidationError,
     validate_profile_strict,
@@ -107,12 +107,24 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str | 
     font_mgr = get_font_manager()
     font_mgr.reset_doc_registry()
     try:
-        resolved_inserts = resolve_insert_paths(list(selected_inserts)) if selected_inserts else []
+        selected_inserts = list(selected_inserts or [])
+        resolved_inserts = resolve_insert_paths(selected_inserts) if selected_inserts else []
         has_vessel_insert = any(item.get("kind") == "vessel" for item in resolved_inserts)
 
-        # Vessel insert PDFs replace the vessel page; otherwise use legacy vessel swap.
+        # V2 vessel profiles live in the inserts pack (page 9). Auto-attach when missing.
         if vessel_id and profile.page_vessel is not None and not has_vessel_insert:
-            if str(vessel_id).lower().replace(" ", "_") not in (
+            auto_vessel = pick_vessel_insert_id(
+                str(vessel_id),
+                event_type=str(lead.get("event_type") or payload.get("event_type") or ""),
+                event_date=str(lead.get("event_date") or payload.get("event_date") or ""),
+                slot=str((resolved or {}).get("slot") or infer_insert_slot(payload)),
+                category=str((resolved or {}).get("category") or payload.get("category") or ""),
+            )
+            if auto_vessel:
+                selected_inserts.append(auto_vessel)
+                resolved_inserts = resolve_insert_paths(selected_inserts)
+                has_vessel_insert = any(item.get("kind") == "vessel" for item in resolved_inserts)
+            elif str(vessel_id).lower().replace(" ", "_") not in (
                 "weott_i",
                 "weott",
                 "weotti",

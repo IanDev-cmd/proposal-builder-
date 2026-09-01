@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { Home, Users, ClipboardList, Bookmark, FileText, Settings } from 'lucide-react';
 import { isSavedQuoteReviewPath } from '@/lib/savedQuotesStore';
+import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 
 const NAV_ITEMS = [
   { href: '/',              label: 'Home',          icon: Home           },
@@ -31,6 +32,9 @@ export function AppNav() {
               <Link
                 key={href}
                 href={href}
+                onClick={() => {
+                  if (href === '/quote-builder') emitFreshQuoteBuilder();
+                }}
                 className={`flex items-center gap-2 whitespace-nowrap px-4 py-2 text-[13px] font-medium transition-colors ${
                   isActive
                     ? 'bg-[#FF5A45] text-white'

@@ -89,6 +89,28 @@ export async function loadQuoteDraft<T>(leadKey: string): Promise<QuoteWizardDra
   return (local as QuoteWizardDraft<T>) || null;
 }
 
+export async function clearQuoteDraft(leadKey: string): Promise<void> {
+  if (!leadKey) return;
+  try {
+    const store = readLocalStore();
+    delete store[leadKey];
+    localStorage.setItem(LS_KEY, JSON.stringify(store));
+  } catch {
+    /* ignore */
+  }
+  try {
+    const db = await getDraftDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(leadKey);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('Failed to clear quote draft'));
+    });
+  } catch {
+    /* IndexedDB optional */
+  }
+}
+
 export async function saveQuoteDraft<T>(
   draft: Omit<QuoteWizardDraft<T>, 'savedAt'> & { savedAt?: string },
 ): Promise<boolean> {

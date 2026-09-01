@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Users, ClipboardList, FileText, Check, ArrowRight, Bookmark } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 
 type Tile = {
   href: string;
@@ -64,7 +65,10 @@ export function Home() {
                   type="button"
                   onMouseEnter={() => setActiveIndex(i)}
                   onFocus={() => setActiveIndex(i)}
-                  onClick={() => navigate(tile.href)}
+                  onClick={() => {
+                    if (tile.href === '/quote-builder') emitFreshQuoteBuilder();
+                    navigate(tile.href);
+                  }}
                   className={`group relative flex w-[130px] flex-col items-center gap-3 rounded-[16px] bg-[#f6f7f9] px-3 py-6 text-center shadow-sm transition-all duration-200 sm:w-[150px] ${
                     isActive
                       ? 'bg-white shadow-[0_10px_30px_-8px_rgba(16,60,40,0.25)] ring-2 ring-[#FF5A45]'

@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Lead } from '@/components/LeadPanel';
 import { getQuoteLead } from '@/lib/quoteLeadStore';
+import { FRESH_QUOTE_BUILDER_EVENT } from '@/lib/quoteBuilderSession';
 
 interface ActiveLeadContextValue {
   activeLead: Lead | null;
@@ -60,6 +61,11 @@ function leadFromQuoteStore(): Lead | null {
 
 export function ActiveLeadProvider({ children }: { children: ReactNode }) {
   const [activeLead, setActiveLead] = useState<Lead | null>(() => leadFromQuoteStore());
+  useEffect(() => {
+    const onFresh = () => setActiveLead(null);
+    window.addEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
+    return () => window.removeEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
+  }, []);
   return (
     <ActiveLeadContext.Provider value={{ activeLead, setActiveLead }}>
       {children}

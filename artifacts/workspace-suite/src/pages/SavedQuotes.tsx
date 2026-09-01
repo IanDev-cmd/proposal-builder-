@@ -18,6 +18,7 @@ import {
 } from '@/lib/savedQuotesStore';
 import { saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
+import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { toastError, toastSuccess } from '@/lib/notify';
 import { formatGbpPounds } from '@/lib/utils';
@@ -300,11 +301,13 @@ export function SavedQuotes() {
           if (opsQuotes.some((q) => q.id === activeId)) return;
           consumePendingGenerate();
           markQuoteBuilderStartAt(1);
+          emitFreshQuoteBuilder();
           navigate('/quote-builder');
         }}
         onAdd={() => {
           consumePendingGenerate();
           markQuoteBuilderStartAt(1);
+          emitFreshQuoteBuilder();
           navigate('/quote-builder');
         }}
         onSummarize={() => setQuotes(listSavedQuotes())}

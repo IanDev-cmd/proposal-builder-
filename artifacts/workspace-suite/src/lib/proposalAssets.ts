@@ -42,7 +42,7 @@ export function templateLabel(t: ProposalTemplate): string {
 }
 
 /** WEOTT I vs II vs III must not match as substrings ("I" inside "III"). */
-function weottVesselKey(raw: string): string {
+export function weottVesselKey(raw: string): string {
   const m = String(raw || '')
     .toLowerCase()
     .match(/weott[\s_-]*(yacht|limo|vii|vi|iv|iii|ii|v|i)(?![a-z])/);

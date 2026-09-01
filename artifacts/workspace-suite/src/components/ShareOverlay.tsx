@@ -87,7 +87,7 @@ export function ShareOverlay({
               </button>
             </div>
             {subtitle ? <p className="mb-6 truncate text-[12.5px] text-black/40">{subtitle}</p> : <div className="mb-6" />}
-            <div className="grid grid-cols-5 gap-3">
+            <div className={`grid gap-3 ${targets.length > 5 ? 'grid-cols-4' : 'grid-cols-5'}`}>
               {targets.map(({ label, icon: Icon, color, onClick }) => (
                 <button
                   key={label}
