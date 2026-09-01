@@ -1,7 +1,7 @@
 /**
  * Thin client for the Apps Script Sheets API (NexusApi.gs).
  * Production workbook 1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o is the only sheet.
- * Notes and quote snapshots also live in IndexedDB (opsStore) so the UX can read them back.
+ * Notes and quote snapshots live in IndexedDB (opsStore) / Flask workspace, not Sheets.
  */
 
 import { callAppsScript } from '@/lib/appsScriptClient';

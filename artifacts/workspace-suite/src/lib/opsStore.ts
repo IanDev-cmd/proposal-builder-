@@ -1,8 +1,7 @@
 /**
- * Ops notes and quote snapshots — IndexedDB schema is the UX store;
- * Apps Script Nexus Ops tabs are the shared sheet copy.
+ * Ops notes and quote snapshots — IndexedDB only.
+ * Full saved quotes also sync to the Flask workspace; Sheets is not used.
  */
-import { callAppsScript } from '@/lib/appsScriptClient';
 import {
   WORKSPACE_STORES,
   workspaceDelete,
@@ -52,22 +51,7 @@ function newId(): string {
   return `ops-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function asNote(row: Record<string, unknown>): OpsNote | null {
-  const note = String(row.note || '').trim();
-  const id = String(row.id || newId());
-  if (!note && !id) return null;
-  return {
-    id,
-    createdAt: String(row.createdAt || new Date().toISOString()),
-    referenceNumber: String(row.referenceNumber || ''),
-    email: String(row.email || ''),
-    leadName: String(row.leadName || ''),
-    tag: String(row.tag || ''),
-    note,
-  };
-}
-
-function asQuote(row: Record<string, unknown>): OpsQuote | null {
+function asQuote(row: Record<string, unknown>): OpsQuote {
   const id = String(row.id || newId());
   return {
     id,
@@ -88,18 +72,6 @@ function asQuote(row: Record<string, unknown>): OpsQuote | null {
     vat: row.vat as string | number | undefined,
     templateId: String(row.templateId || ''),
   };
-}
-
-async function putNotes(rows: OpsNote[]): Promise<void> {
-  for (const row of rows) {
-    if (row.id) await workspacePut(WORKSPACE_STORES.opsNotes, row);
-  }
-}
-
-async function putQuotes(rows: OpsQuote[]): Promise<void> {
-  for (const row of rows) {
-    if (row.id) await workspacePut(WORKSPACE_STORES.opsQuotes, row);
-  }
 }
 
 export function mergeOpsNotesIntoProgress(progressNotes: string, notes: OpsNote[]): string {
@@ -133,16 +105,7 @@ export async function persistOpsNote(input: {
     note: input.note,
   };
   await workspacePut(WORKSPACE_STORES.opsNotes, local);
-  try {
-    const res = await callAppsScript<{ ok?: boolean; note?: Record<string, unknown> }>('NoteAppend', {
-      ...local,
-    });
-    const saved = res?.note ? asNote(res.note) : local;
-    if (saved) await workspacePut(WORKSPACE_STORES.opsNotes, saved);
-    return saved || local;
-  } catch {
-    return local;
-  }
+  return local;
 }
 
 export async function listOpsNotes(referenceNumber?: string): Promise<OpsNote[]> {
@@ -155,18 +118,7 @@ export async function listOpsNotes(referenceNumber?: string): Promise<OpsNote[]>
   } catch {
     local = [];
   }
-  try {
-    const res = await callAppsScript<{ notes?: Record<string, unknown>[] }>('NotesFetch', {
-      referenceNumber: ref,
-    });
-    const remote = (res.notes || []).map((row) => asNote(row)).filter(Boolean) as OpsNote[];
-    if (remote.length) await putNotes(remote);
-    const byId = new Map<string, OpsNote>();
-    for (const row of [...local, ...remote]) byId.set(row.id, row);
-    return [...byId.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  } catch {
-    return local.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  }
+  return local.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export async function persistOpsQuote(payload: Record<string, unknown>): Promise<OpsQuote> {
@@ -175,21 +127,10 @@ export async function persistOpsQuote(payload: Record<string, unknown>): Promise
     id: payload.id || newId(),
     updatedAt: new Date().toISOString(),
     referenceNumber: payload.referenceNumber || '',
-  }) as OpsQuote;
+  });
   forgetDeletedQuoteIds([local.id, local.quoteId]);
   await workspacePut(WORKSPACE_STORES.opsQuotes, local);
-  try {
-    const res = await callAppsScript<{ ok?: boolean; quote?: Record<string, unknown> }>('QuoteStatus', {
-      ...payload,
-      id: local.id,
-      updatedAt: local.updatedAt,
-    });
-    const saved = res?.quote ? asQuote(res.quote) : local;
-    if (saved) await workspacePut(WORKSPACE_STORES.opsQuotes, saved);
-    return saved || local;
-  } catch {
-    return local;
-  }
+  return local;
 }
 
 function isOpsQuoteDeleted(row: OpsQuote): boolean {
@@ -232,17 +173,6 @@ export async function deleteOpsQuoteSnapshots(
       /* keep going */
     }
   }
-
-  try {
-    await callAppsScript<{ ok?: boolean; deleted?: number }>('QuoteDelete', {
-      id: unique[0] || '',
-      quoteId: unique.find((id) => id !== unique[0]) || unique[0] || '',
-      ids: unique,
-      referenceNumber: ref,
-    });
-  } catch {
-    /* Apps Script may still need a QuoteDelete deploy; tombstones hide the card */
-  }
 }
 
 export async function listOpsQuotes(referenceNumber?: string): Promise<OpsQuote[]> {
@@ -256,25 +186,7 @@ export async function listOpsQuotes(referenceNumber?: string): Promise<OpsQuote[
   } catch {
     local = [];
   }
-  local = local.filter((row) => !isOpsQuoteDeleted(row));
-  try {
-    const res = await callAppsScript<{ quotes?: Record<string, unknown>[] }>('QuotesFetch', {
-      referenceNumber: ref,
-    });
-    const parsed = (res.quotes || []).map((row) => asQuote(row)).filter(Boolean) as OpsQuote[];
-    const stale = parsed.filter((row) => isOpsQuoteDeleted(row));
-    if (stale.length) {
-      void deleteOpsQuoteSnapshots(stale.flatMap((row) => [row.id, row.quoteId || '']));
-    }
-    const remote = parsed.filter((row) => !isOpsQuoteDeleted(row));
-    if (remote.length) await putQuotes(remote);
-    const byId = new Map<string, OpsQuote>();
-    for (const row of [...local, ...remote]) {
-      if (!row.id || deleted.has(row.id) || isOpsQuoteDeleted(row)) continue;
-      byId.set(row.id, row);
-    }
-    return [...byId.values()].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  } catch {
-    return local.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  }
+  return local
+    .filter((row) => row.id && !deleted.has(row.id) && !isOpsQuoteDeleted(row))
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 }

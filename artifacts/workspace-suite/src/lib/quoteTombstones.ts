@@ -1,5 +1,5 @@
 /**
- * Deleted quote ids stay hidden even if IndexedDB, the engine, or QuotesFetch
+ * Deleted quote ids stay hidden even if IndexedDB or the engine
  * still return the row. Persist/upsert removes an id so Save Quote can reuse it.
  */
 const KEY = 'nexus_deleted_quote_ids';

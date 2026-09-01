@@ -342,7 +342,7 @@ export function SavedQuotes() {
             toastSuccess({
               key: 'quote-deleted',
               title: 'Quote deleted',
-              description: snap && !quote ? 'Removed from this browser and the Quotes sheet.' : undefined,
+              description: snap && !quote ? 'Removed from this browser.' : undefined,
             });
           } catch (err) {
             toastError({

@@ -15,7 +15,7 @@ import {
 import { SheetsApiError } from '@/lib/errors';
 import { fetchWithTimeout } from '@/lib/http';
 
-const READ_ACTIONS = new Set(['LeadDataFetch', 'CostRatesFetch', 'NotesFetch', 'QuotesFetch', 'health']);
+const READ_ACTIONS = new Set(['LeadDataFetch', 'CostRatesFetch', 'health']);
 
 function assertConfigured(): void {
   if (!isAppsScriptConfigured()) {

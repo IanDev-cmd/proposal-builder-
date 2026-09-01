@@ -15,6 +15,8 @@
  * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab only.
  * Extras.gs appends margin / cutlery_ratio / staff_ratio rows.
  * Does not dump the whole workbook.
+ * After each catalog write, deletes leftover "Nexus Ops Notes" / "Nexus Ops Quotes".
+ * Or Run deleteNexusOpsTabs once from this file.
  */
 
 var CATALOG_TAB = '_Nexus Catalog';
@@ -32,6 +34,7 @@ function buildNexusCatalog() {
     var parsed = parseCostMother_(mother);
     var extras = typeof collectCatalogExtras_ === 'function' ? collectCatalogExtras_(ss) : [];
     writeCatalog_(ss, parsed, extras);
+    deleteUnusedOpsTabs_(ss);
     Logger.log(
       'Catalog: ' + parsed.lines.length + ' lines, ' + parsed.rates.length + ' rates, ' +
       parsed.vessels.length + ' vessels, ' + extras.length + ' extras',
@@ -352,5 +355,17 @@ function writeCatalog_(ss, parsed, extras) {
   for (var i = 0; i < rows.length; i += chunk) {
     var part = rows.slice(i, Math.min(i + chunk, rows.length));
     tab.getRange(i + 1, 1, part.length, 6).setValues(part);
+  }
+}
+
+function deleteNexusOpsTabs() {
+  deleteUnusedOpsTabs_(SpreadsheetApp.getActiveSpreadsheet());
+}
+
+function deleteUnusedOpsTabs_(ss) {
+  var names = ['Nexus Ops Notes', 'Nexus Ops Quotes'];
+  for (var i = 0; i < names.length; i++) {
+    var sh = ss.getSheetByName(names[i]);
+    if (sh) ss.deleteSheet(sh);
   }
 }

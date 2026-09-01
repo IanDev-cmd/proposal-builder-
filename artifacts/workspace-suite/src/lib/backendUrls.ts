@@ -1,8 +1,8 @@
 /**
  * Backend URLs for the WEOTT Nexus workspace.
  *
- *   Sheets (leads / rates / notes / quote snapshots) → Apps Script web app
- *   PDF → Flask /generate (browser calls it directly)
+ *   Sheets (leads / Cost Mother catalog) → Apps Script web app
+ *   PDF + saved quotes → Flask (browser calls it directly)
  *
  * Paste the Web app /exec URL after Deploy → New deployment (see NexusApi.gs).
  */
@@ -15,7 +15,7 @@ export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
  * Example: https://script.google.com/macros/s/AKfycb.../exec
  */
 export const APPS_SCRIPT_WEBAPP_URL =
-  'https://script.google.com/macros/s/AKfycbz5TEEIhivFUIzeMVOk34KUgnT6D0vWl5N5bFSMsKpnhNfgb05BNhLYkBoOyRmFwsv5Cg/exec';
+  'https://script.google.com/macros/s/AKfycbwmurfWliOxunCIT3Z-v10oBEuTao9GvhMdTworDJanaVcwKaUHPsuOkG3W2sM98Yf8zQ/exec';
 
 export function isAppsScriptConfigured(): boolean {
   const url = APPS_SCRIPT_WEBAPP_URL.trim();

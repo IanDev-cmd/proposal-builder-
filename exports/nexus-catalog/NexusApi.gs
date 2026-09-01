@@ -22,80 +22,22 @@
  * Browser CORS:
  *   Apps Script POST with application/json preflights and 302s to
  *   googleusercontent — that fails from a Vite SPA. The UX therefore:
- *     - GET for reads (LeadDataFetch, CostRatesFetch, NotesFetch, QuotesFetch, health)
+ *     - GET for reads (LeadDataFetch, CostRatesFetch, health)
  *     - POST with Content-Type: text/plain (JSON body) for writes
  *   Both doGet and doPost are implemented. Follow redirects.
  *
  * Single workbook (no demo/live split):
  *   1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o
  *
- * Ops tables (Id is the primary key; Mode is not used):
- *   Nexus Ops Notes   — NoteAppend / NotesFetch
- *   Nexus Ops Quotes  — QuoteStatus / QuotesFetch / QuoteDelete
+ * Sheet writes: "_Nexus Catalog" only (via buildNexusCatalog in Code.gs).
+ * Notes and saved quotes live in the SPA IndexedDB / Flask workspace, not Sheets.
+ * Paste the updated Code.gs too: buildNexusCatalog deletes leftover Ops tabs.
  */
 
 var NEXUS_WORKBOOK_ID = '1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o';
 
 var ENQUIRY_TAB = 'Enquiry - Lead Data (2026)';
 var CATALOG_TAB = '_Nexus Catalog';
-var NOTES_TAB = 'Nexus Ops Notes';
-var QUOTES_TAB = 'Nexus Ops Quotes';
-
-var NOTES_HEADERS = [
-  'Id',
-  'Created At',
-  'Reference',
-  'Email',
-  'Lead Name',
-  'Tag',
-  'Note',
-];
-
-var QUOTES_HEADERS = [
-  'Id',
-  'Updated At',
-  'Reference',
-  'Email',
-  'Lead Name',
-  'Quote Id',
-  'Status',
-  'Version',
-  'Title',
-  'Event Type',
-  'Event Date',
-  'Guests',
-  'Guests High',
-  'Repeat Client',
-  'Agent Referral',
-  'Key Items',
-  'Weekly Period',
-  'Day Period',
-  'Group Bracket',
-  'No Of Tables',
-  'Selected Upgrades',
-  'Selected Cost Lines',
-  'Template Id',
-  'Selected Inserts',
-  'Staff Contact',
-  'Subtotal Pre Contingency',
-  'Base Cost',
-  'Contingency',
-  'Margin',
-  'Margin Amount',
-  'Discount %',
-  'Discount Amount',
-  'Commission %',
-  'Commission Amount',
-  'Updated Profit',
-  'Cost Per Guest Exc',
-  'Cost Per Guest Inc',
-  'Cost To Client',
-  'Package Cost',
-  'VAT',
-  'Upgrade Total',
-  'Grand Total',
-  'Section Totals',
-];
 
 /** Enquiry header prefixes → Sapphire aliases. */
 var LEAD_WANTED = [
@@ -178,7 +120,7 @@ function route_(req) {
     if (req._emptyBody || req._method === 'POST') {
       return failure_('LeadDataFetch', 'empty or non-JSON request body', 400);
     }
-    return { ok: true, service: 'NexusApi', actions: ['health', 'LeadDataFetch', 'CostRatesFetch', 'NoteAppend', 'NotesFetch', 'QuoteStatus', 'QuotesFetch', 'QuoteDelete'] };
+    return { ok: true, service: 'NexusApi', actions: ['health', 'LeadDataFetch', 'CostRatesFetch'] };
   }
   if (action === 'health') {
     return { ok: true, service: 'NexusApi' };
@@ -186,11 +128,6 @@ function route_(req) {
   try {
     if (action === 'LeadDataFetch') return handleLeadDataFetch_(req);
     if (action === 'CostRatesFetch') return handleCostRatesFetch_(req);
-    if (action === 'NoteAppend') return handleNoteAppend_(req);
-    if (action === 'NotesFetch') return handleNotesFetch_(req);
-    if (action === 'QuoteStatus') return handleQuoteStatus_(req);
-    if (action === 'QuotesFetch') return handleQuotesFetch_(req);
-    if (action === 'QuoteDelete') return handleQuoteDelete_(req);
     return failure_('NexusApi', 'Unknown action: ' + action, 404);
   } catch (err) {
     return failure_(action || 'NexusApi', String(err && err.message ? err.message : err), 500);
@@ -220,10 +157,6 @@ function sheetDisplayValues_(sheet) {
   var lastCol = sheet.getLastColumn();
   if (lastRow < 1 || lastCol < 1) return [];
   return sheet.getRange(1, 1, lastRow, lastCol).getDisplayValues();
-}
-
-function newId_() {
-  return Utilities.getUuid();
 }
 
 function findTab_(ss, exactName, re) {
@@ -335,6 +268,7 @@ function mapLeadRow_(row) {
  */
 function handleCostRatesFetch_(req) {
   var ss = SpreadsheetApp.openById(NEXUS_WORKBOOK_ID);
+  if (typeof deleteUnusedOpsTabs_ === 'function') deleteUnusedOpsTabs_(ss);
   var sheet = ss.getSheetByName(CATALOG_TAB);
   if (!sheet) {
     return emptyCatalog_('Catalog tab missing — run buildNexusCatalog in Apps Script.');
@@ -534,298 +468,4 @@ function parseCatalog_(rows) {
     };
   }
   return out;
-}
-
-function handleNoteAppend_(req) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    var ss = openWorkbook_();
-    var sheet = ensureSheet_(ss, NOTES_TAB, NOTES_HEADERS);
-    var note = {
-      id: req.id || newId_(),
-      createdAt: req.createdAt || new Date().toISOString(),
-      referenceNumber: req.referenceNumber || '',
-      email: req.email || '',
-      leadName: req.leadName || '',
-      tag: req.tag || '',
-      note: req.note || '',
-    };
-    appendMappedRow_(sheet, {
-      Id: note.id,
-      'Created At': note.createdAt,
-      Reference: note.referenceNumber,
-      Email: note.email,
-      'Lead Name': note.leadName,
-      Tag: note.tag,
-      Note: note.note,
-    });
-    SpreadsheetApp.flush();
-    return { ok: true, note: note };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleNotesFetch_(req) {
-  var ss = openWorkbook_();
-  var sheet = ss.getSheetByName(NOTES_TAB);
-  if (!sheet) return { ok: true, count: 0, notes: [] };
-  var want = norm_(req.referenceNumber || req.reference || '');
-  var notes = readMappedRows_(sheet).map(noteFromRow_).filter(function (n) {
-    if (!n.id && !n.note) return false;
-    if (!want) return true;
-    return norm_(n.referenceNumber) === want;
-  });
-  return { ok: true, count: notes.length, notes: notes };
-}
-
-function yesNo_(v) {
-  if (v === true) return 'YES';
-  if (v === false) return 'NO';
-  return '';
-}
-
-function joinList_(v, sep) {
-  if (Object.prototype.toString.call(v) === '[object Array]') return v.join(sep);
-  return v || '';
-}
-
-function handleQuoteStatus_(req) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    var ss = openWorkbook_();
-    var sheet = ensureSheet_(ss, QUOTES_TAB, QUOTES_HEADERS);
-    var upgrades = joinList_(req.selectedUpgrades, ', ');
-    var inserts = joinList_(req.selectedInserts, ', ');
-    var lineLabels = joinList_(req.selectedLineLabels, ' | ');
-    var sectionTotals = req.sectionTotals;
-    if (sectionTotals && typeof sectionTotals === 'object') {
-      sectionTotals = JSON.stringify(sectionTotals);
-    }
-    var quoteId = req.id || newId_();
-    var updatedAt = new Date().toISOString();
-    var rowByHeader = {};
-    rowByHeader['Id'] = quoteId;
-    rowByHeader['Updated At'] = updatedAt;
-    rowByHeader['Reference'] = req.referenceNumber || '';
-    rowByHeader['Email'] = req.email || '';
-    rowByHeader['Lead Name'] = req.leadName || '';
-    rowByHeader['Quote Id'] = req.quoteId || '';
-    rowByHeader['Status'] = req.status || '';
-    rowByHeader['Version'] = req.version || req.quoteVersion || '';
-    rowByHeader['Title'] = req.title || '';
-    rowByHeader['Event Type'] = req.eventType || '';
-    rowByHeader['Event Date'] = req.eventDate || '';
-    rowByHeader['Guests'] = firstDefined_(req.guestCount, req.guests, '');
-    rowByHeader['Guests High'] = req.guestCountHigh || '';
-    rowByHeader['Repeat Client'] = yesNo_(req.repeatClient);
-    rowByHeader['Agent Referral'] = yesNo_(req.agentReferral);
-    rowByHeader['Key Items'] = req.keyItems || '';
-    rowByHeader['Weekly Period'] = req.weeklyPeriod || '';
-    rowByHeader['Day Period'] = req.dayPeriod || '';
-    rowByHeader['Group Bracket'] = req.groupBracket || '';
-    rowByHeader['No Of Tables'] = req.noOfTables || '';
-    rowByHeader['Selected Upgrades'] = upgrades;
-    rowByHeader['Selected Cost Lines'] = lineLabels;
-    rowByHeader['Template Id'] = req.templateId || req.template_id || '';
-    rowByHeader['Selected Inserts'] = inserts;
-    rowByHeader['Staff Contact'] = req.staffContact || '';
-    rowByHeader['Subtotal Pre Contingency'] = firstDefined_(req.subtotalBeforeContingency, '');
-    rowByHeader['Base Cost'] = firstDefined_(req.baseCost, '');
-    rowByHeader['Contingency'] = firstDefined_(req.contingency, '');
-    rowByHeader['Margin'] = firstDefined_(req.margin, '');
-    rowByHeader['Margin Amount'] = firstDefined_(req.marginAmount, '');
-    rowByHeader['Discount %'] = firstDefined_(req.discountPercent, '');
-    rowByHeader['Discount Amount'] = firstDefined_(req.discountAmount, '');
-    rowByHeader['Commission %'] = firstDefined_(req.commissionPercent, '');
-    rowByHeader['Commission Amount'] = firstDefined_(req.commissionAmount, '');
-    rowByHeader['Updated Profit'] = firstDefined_(req.updatedProfit, '');
-    rowByHeader['Cost Per Guest Exc'] = firstDefined_(req.costPerGuestExc, '');
-    rowByHeader['Cost Per Guest Inc'] = firstDefined_(req.costPerGuestInc, '');
-    rowByHeader['Cost To Client'] = firstDefined_(req.costToClient, req.packageCost, '');
-    rowByHeader['Package Cost'] = firstDefined_(req.packageCost, req.costToClient, '');
-    rowByHeader['VAT'] = firstDefined_(req.vat, '');
-    rowByHeader['Upgrade Total'] = firstDefined_(req.upgradeTotal, '');
-    rowByHeader['Grand Total'] = firstDefined_(req.grandTotal, '');
-    rowByHeader['Section Totals'] = sectionTotals || '';
-
-    appendMappedRow_(sheet, rowByHeader);
-    SpreadsheetApp.flush();
-    return { ok: true, quote: quoteFromRow_(rowByHeader) };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleQuotesFetch_(req) {
-  var ss = openWorkbook_();
-  var sheet = ss.getSheetByName(QUOTES_TAB);
-  if (!sheet) return { ok: true, count: 0, quotes: [] };
-  var want = norm_(req.referenceNumber || req.reference || '');
-  var quotes = readMappedRows_(sheet).map(quoteFromRow_).filter(function (q) {
-    if (!q.id && !q.status) return false;
-    if (!want) return true;
-    return norm_(q.referenceNumber) === want;
-  });
-  return { ok: true, count: quotes.length, quotes: quotes };
-}
-
-function handleQuoteDelete_(req) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    var ss = openWorkbook_();
-    var sheet = ss.getSheetByName(QUOTES_TAB);
-    if (!sheet) return { ok: true, deleted: 0 };
-
-    var ids = {};
-    function addId_(v) {
-      var s = String(v || '').trim();
-      if (s) ids[s] = true;
-    }
-    addId_(req.id);
-    addId_(req.quoteId);
-    if (req.ids && Object.prototype.toString.call(req.ids) === '[object Array]') {
-      for (var i = 0; i < req.ids.length; i++) addId_(req.ids[i]);
-    }
-    var wantRef = norm_(req.referenceNumber || req.reference || '');
-    var keys = Object.keys(ids);
-    if (!keys.length && !wantRef) {
-      return failure_('QuoteDelete', 'id is required', 400);
-    }
-
-    var lastCol = Math.max(sheet.getLastColumn(), 1);
-    var lastRow = sheet.getLastRow();
-    if (lastRow < 2) return { ok: true, deleted: 0 };
-
-    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    var idCol = -1;
-    var quoteIdCol = -1;
-    var refCol = -1;
-    for (var c = 0; c < headers.length; c++) {
-      var h = String(headers[c] || '').trim();
-      if (h === 'Id') idCol = c;
-      if (h === 'Quote Id') quoteIdCol = c;
-      if (h === 'Reference') refCol = c;
-    }
-
-    var values = sheet.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-    var deleted = 0;
-    for (var r = values.length - 1; r >= 0; r--) {
-      var rowId = idCol >= 0 ? String(values[r][idCol] || '').trim() : '';
-      var rowQuoteId = quoteIdCol >= 0 ? String(values[r][quoteIdCol] || '').trim() : '';
-      var rowRef = refCol >= 0 ? norm_(values[r][refCol]) : '';
-      if (ids[rowId] || ids[rowQuoteId] || (wantRef && rowRef === wantRef)) {
-        sheet.deleteRow(r + 2);
-        deleted++;
-      }
-    }
-    SpreadsheetApp.flush();
-    return { ok: true, deleted: deleted };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function readMappedRows_(sheet) {
-  var values = sheetDisplayValues_(sheet);
-  if (!values || values.length < 2) return [];
-  var headers = values[0];
-  var rows = [];
-  for (var r = values.length - 1; r >= 1; r--) {
-    var obj = {};
-    var any = false;
-    for (var c = 0; c < headers.length; c++) {
-      var h = String(headers[c] || '').trim();
-      if (!h) continue;
-      var v = values[r][c];
-      obj[h] = v;
-      if (v !== undefined && v !== null && String(v).trim() !== '') any = true;
-    }
-    if (any) rows.push(obj);
-  }
-  return rows;
-}
-
-function noteFromRow_(row) {
-  return {
-    id: String(row.Id || row.id || ''),
-    createdAt: String(row['Created At'] || row.createdAt || ''),
-    referenceNumber: String(row.Reference || row.referenceNumber || ''),
-    email: String(row.Email || row.email || ''),
-    leadName: String(row['Lead Name'] || row.leadName || ''),
-    tag: String(row.Tag || row.tag || ''),
-    note: String(row.Note || row.note || ''),
-  };
-}
-
-function quoteFromRow_(row) {
-  return {
-    id: String(row.Id || row.id || ''),
-    updatedAt: String(row['Updated At'] || row.updatedAt || ''),
-    referenceNumber: String(row.Reference || row.referenceNumber || ''),
-    email: String(row.Email || row.email || ''),
-    leadName: String(row['Lead Name'] || row.leadName || ''),
-    quoteId: String(row['Quote Id'] || row.quoteId || ''),
-    status: String(row.Status || row.status || ''),
-    version: String(row.Version || row.version || ''),
-    title: String(row.Title || row.title || ''),
-    eventType: String(row['Event Type'] || row.eventType || ''),
-    eventDate: String(row['Event Date'] || row.eventDate || ''),
-    guestCount: row.Guests != null ? row.Guests : (row.guestCount || ''),
-    guestCountHigh: row['Guests High'] != null ? row['Guests High'] : (row.guestCountHigh || ''),
-    grandTotal: row['Grand Total'] != null ? row['Grand Total'] : (row.grandTotal || ''),
-    costToClient: row['Cost To Client'] != null ? row['Cost To Client'] : (row.costToClient || ''),
-    vat: row.VAT != null ? row.VAT : (row.vat || ''),
-    templateId: String(row['Template Id'] || row.templateId || ''),
-  };
-}
-
-function appendMappedRow_(sheet, rowByHeader) {
-  var lastCol = Math.max(sheet.getLastColumn(), 1);
-  var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-  var row = [];
-  for (var i = 0; i < headers.length; i++) {
-    var h = String(headers[i] || '').trim();
-    row.push(h && rowByHeader[h] !== undefined ? rowByHeader[h] : '');
-  }
-  sheet.appendRow(row);
-}
-
-function firstDefined_() {
-  for (var i = 0; i < arguments.length; i++) {
-    if (arguments[i] !== undefined && arguments[i] !== null) return arguments[i];
-  }
-  return '';
-}
-
-function ensureSheet_(ss, name, headers) {
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
-  var lastCol = sheet.getLastColumn();
-  var lastRow = sheet.getLastRow();
-  if (lastRow === 0 || lastCol === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    return sheet;
-  }
-  var existing = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-  var missing = [];
-  for (var i = 0; i < headers.length; i++) {
-    var found = false;
-    for (var j = 0; j < existing.length; j++) {
-      if (String(existing[j] || '').trim() === headers[i]) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) missing.push(headers[i]);
-  }
-  if (missing.length) {
-    sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
-  }
-  return sheet;
 }
