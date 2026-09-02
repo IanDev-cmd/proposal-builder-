@@ -4,7 +4,7 @@ import {
   clearFreshQuoteBuilderFlag,
   emitRemountQuoteBuilder,
 } from '@/lib/quoteBuilderSession';
-import { consumePendingGenerate } from '@/lib/savedQuotesStore';
+import { consumePendingGenerate, type SavedQuote } from '@/lib/savedQuotesStore';
 
 /** Quote Builder Cost Lines (Sections 1–13 / upgrades). */
 export const COST_LINES_STEP = 4;
