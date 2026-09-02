@@ -16,8 +16,8 @@ import {
   hydrateSavedQuotesDb,
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
-import { saveQuoteDraft } from '@/lib/quoteDraftStore';
-import { setQuoteLead, markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
+import { restoreSavedQuote } from '@/lib/restoreSavedQuote';
+import { markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { toastError, toastSuccess } from '@/lib/notify';
@@ -77,19 +77,8 @@ function quoteToCard(q: SavedQuote): TimelineCard {
   };
 }
 
-function wizardStep(step?: number): number {
-  return Number(step) >= 1 && Number(step) <= 7 ? Number(step) : 1;
-}
-
 async function restoreQuote(quote: SavedQuote, step?: number) {
-  if (quote.lead) setQuoteLead(quote.lead);
-  await saveQuoteDraft({
-    leadKey: quote.leadKey,
-    step: step ?? wizardStep(quote.step),
-    data: quote.data,
-    leadName: quote.leadName,
-    referenceNumber: quote.referenceNumber,
-  });
+  await restoreSavedQuote(quote, step);
 }
 
 export function SavedQuotes() {

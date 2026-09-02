@@ -15,7 +15,7 @@ import { Timeline } from '@/pages/Timeline';
 import { Settings } from '@/pages/Settings';
 import { Apps } from '@/pages/Apps';
 import NotFound from '@/pages/NotFound';
-import { FRESH_QUOTE_BUILDER_EVENT } from '@/lib/quoteBuilderSession';
+import { FRESH_QUOTE_BUILDER_EVENT, REMOUNT_QUOTE_BUILDER_EVENT } from '@/lib/quoteBuilderSession';
 
 function scrollPagesToTop() {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -39,7 +39,11 @@ function Router() {
   useEffect(() => {
     const onFresh = () => setQuoteBuilderKey((n) => n + 1);
     window.addEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
-    return () => window.removeEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
+    window.addEventListener(REMOUNT_QUOTE_BUILDER_EVENT, onFresh);
+    return () => {
+      window.removeEventListener(FRESH_QUOTE_BUILDER_EVENT, onFresh);
+      window.removeEventListener(REMOUNT_QUOTE_BUILDER_EVENT, onFresh);
+    };
   }, []);
   return (
     <>

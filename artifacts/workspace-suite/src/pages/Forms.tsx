@@ -950,10 +950,13 @@ export function Forms() {
   })();
   const pendingGenerateIdRef = useRef<string | null>(peekPendingGenerate());
   const fromSavedGenerateRef = useRef(Boolean(pendingGenerateIdRef.current));
-  const openAtEventCoreRef = useRef(consumeQuoteBuilderStartStep() === 1);
-  const [step, setStep] = useState(() =>
-    openAtEventCoreRef.current ? 1 : pendingQuote?.step && pendingQuote.step >= 1 ? pendingQuote.step : 1,
-  );
+  const startStepRef = useRef(consumeQuoteBuilderStartStep());
+  const openAtEventCoreRef = useRef(startStepRef.current === 1);
+  const [step, setStep] = useState(() => {
+    if (startStepRef.current) return startStepRef.current;
+    if (openAtEventCoreRef.current) return 1;
+    return pendingQuote?.step && pendingQuote.step >= 1 ? pendingQuote.step : 1;
+  });
   const [quoteLead] = useState<QuoteLead | null>(() =>
     freshStartRef.current
       ? null
@@ -1142,7 +1145,7 @@ export function Forms() {
             Number(draft.step) >= 1 &&
             Number(draft.step) <= LAST_CONTENT_STEP
           ) {
-            setStep(draft.step);
+            setStep(startStepRef.current || draft.step);
           }
         }
         setDraftReady(true);
