@@ -16,7 +16,7 @@ import {
 } from '@/lib/savedQuotesStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { quoteReviewStatus } from '@/lib/quoteReview';
-import { COST_LINES_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
+import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
 import { toastError, toastSuccess } from '@/lib/notify';
 
 export function QuoteReview() {
@@ -92,7 +92,7 @@ export function QuoteReview() {
     if (!quote || saving) return;
     setSaving(true);
     try {
-      await restoreSavedQuote(quote, COST_LINES_STEP);
+      await restoreSavedQuote(quote, EVENT_CORE_STEP);
       navigate('/quote-builder');
     } catch (err) {
       toastError({ key: 'quote-edit', title: 'Could not open this quote for editing', err });
@@ -111,7 +111,7 @@ export function QuoteReview() {
         toastSuccess({
           key: 'quote-review',
           title: 'Quote disapproved',
-          description: 'Use Edit Quote to amend costs and lines.',
+          description: 'Use Edit Quote to open Event Core and amend this quote.',
         });
         return;
       }
@@ -176,6 +176,20 @@ export function QuoteReview() {
                 {shareHint ? <p className="text-[11px] font-medium text-[#2F7CF6]">{shareHint}</p> : null}
               </div>
             </div>
+
+            {status === 'disapproved' ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void openQuoteForEdit()}
+                data-testid="edit-quote-page"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] py-3.5 text-[15px] font-bold text-white shadow-sm"
+                style={{ backgroundColor: NOTES_BLUE }}
+              >
+                <Pencil className="h-5 w-5" />
+                Edit Quote
+              </button>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
@@ -255,8 +269,8 @@ export function QuoteReview() {
                 Amend this quote
               </h3>
               <p className="mt-2 text-[13px] leading-relaxed text-slate-500">
-                {quote.title || quote.leadName || 'This quote'} is marked disapproved. Edit Quote opens the same
-                cost lines and upgrades so you can correct the mistake.
+                {quote.title || quote.leadName || 'This quote'} is marked disapproved. Edit Quote opens Event
+                Core for that quote so you can amend it from the start of the wizard.
               </p>
               <button
                 type="button"

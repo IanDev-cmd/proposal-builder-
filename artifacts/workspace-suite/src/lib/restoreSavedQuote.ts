@@ -6,11 +6,14 @@ import {
 } from '@/lib/quoteBuilderSession';
 import { consumePendingGenerate, type SavedQuote } from '@/lib/savedQuotesStore';
 
+/** Quote Builder Event Core (wizard step 1). */
+export const EVENT_CORE_STEP = 1;
+
 /** Quote Builder Cost Lines (Sections 1–13 / upgrades). */
 export const COST_LINES_STEP = 4;
 
 function wizardStep(step?: number): number {
-  return Number(step) >= 1 && Number(step) <= 7 ? Number(step) : COST_LINES_STEP;
+  return Number(step) >= 1 && Number(step) <= 7 ? Number(step) : EVENT_CORE_STEP;
 }
 
 /** Load a saved quote into Quote Builder (lead + draft). Does not navigate. */

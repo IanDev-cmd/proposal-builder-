@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Bookmark, Search, X } from 'lucide-react';
+import { Bookmark, Pencil, Search, X } from 'lucide-react';
 import {
   LeadNotesTimeline,
   NOTES_BLUE,
@@ -16,7 +16,7 @@ import {
   hydrateSavedQuotesDb,
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
-import { restoreSavedQuote } from '@/lib/restoreSavedQuote';
+import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
 import { markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
@@ -175,6 +175,15 @@ export function SavedQuotes() {
     await restoreQuote(quote);
     markPendingGenerate(quote.id);
     navigate('/quote-builder');
+  }
+
+  async function editQuote(quote: SavedQuote) {
+    try {
+      await restoreSavedQuote(quote, EVENT_CORE_STEP);
+      navigate('/quote-builder');
+    } catch (err) {
+      toastError({ key: 'quote-edit', title: 'Could not open this quote for editing', err });
+    }
   }
 
   async function share(channel: ShareChannel, quote: SavedQuote) {
@@ -345,6 +354,7 @@ export function SavedQuotes() {
           if (!active) return null;
           const quote = quotes.find((q) => q.id === card.id);
           if (quote) {
+            const disapproved = quoteReviewStatus(quote) === 'disapproved';
             return (
               <div className="mt-3 flex flex-col gap-2.5">
                 <QuoteShareButtons quote={quote} copied={copied} onShare={share} />
@@ -356,14 +366,26 @@ export function SavedQuotes() {
                 >
                   Open quote
                 </button>
-                <button
-                  type="button"
-                  onClick={() => generate(quote)}
-                  className="w-full rounded-[12px] bg-white/15 py-2.5 text-[12.5px] font-bold text-white"
-                  data-testid={`saved-quote-generate-${quote.id}`}
-                >
-                  Generate Proposal
-                </button>
+                {disapproved ? (
+                  <button
+                    type="button"
+                    onClick={() => void editQuote(quote)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-[12px] bg-white/15 py-2.5 text-[12.5px] font-bold text-white"
+                    data-testid={`saved-quote-edit-${quote.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit Quote
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => generate(quote)}
+                    className="w-full rounded-[12px] bg-white/15 py-2.5 text-[12.5px] font-bold text-white"
+                    data-testid={`saved-quote-generate-${quote.id}`}
+                  >
+                    Generate Proposal
+                  </button>
+                )}
               </div>
             );
           }
