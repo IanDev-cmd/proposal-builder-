@@ -3242,7 +3242,7 @@ export function Forms() {
                     )}
                     <p className="mt-2 text-[11px] text-gray-400">
                       {(INSERT_PLACEMENT_RULES as Record<string, string>).vessel ||
-                        'Vessel inserts replace page 9; staff replace page 16. River map is in the core template.'
+                        'Vessel inserts replace page 9; staff replace page 16. River map is in the core template.'}
                     </p>
                     {(() => {
                       const sc = resolveStaffContactFromInsertIds(data.selectedInserts, PROPOSAL_INSERTS);
