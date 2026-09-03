@@ -571,17 +571,6 @@
         "dancefloor": false
       },
       {
-        "id": "2024_weott_proposal_river_map",
-        "label": "2024 WEOTT_Proposal RIVER MAP",
-        "kind": "map",
-        "season": "any",
-        "slot": "any",
-        "category": "any",
-        "vessel": "",
-        "staff": "",
-        "dancefloor": false
-      },
-      {
         "id": "weott_iii_christmas_daytime",
         "label": "WEOTT III - Christmas (Daytime)",
         "kind": "vessel",

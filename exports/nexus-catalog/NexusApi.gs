@@ -5,8 +5,8 @@
  * Suggested name in the Apps Script editor: NexusApi.gs
  *
  * Does NOT replace buildNexusCatalog. Does not call Gemini or Flask.
- * Catalog rebuild stays on buildNexusCatalog triggers; this file only READs
- * the prebuilt "_Nexus Catalog" tab (CostRatesFetch).
+ * CostRatesFetch rebuilds "_Nexus Catalog" when it is missing or stale, then
+ * reads that tab so the UX always gets the live Cost Mother / extras.
  *
  * Deploy (required before the React UX can call it):
  *   1. Extensions → Apps Script on the production workbook
@@ -262,11 +262,17 @@ function mapLeadRow_(row) {
 }
 
 /**
- * CostRatesFetch — ALWAYS the LIVE workbook _Nexus Catalog.
- * Mode is ignored for which catalog to read (rates are live by design).
- * Does not rebuild Cost Mother.
+ * CostRatesFetch — live workbook. Rebuilds Cost Mother catalog when stale,
+ * then reads "_Nexus Catalog" so names and rates match the sheet.
  */
 function handleCostRatesFetch_(req) {
+  if (typeof ensureNexusCatalogFresh_ === 'function') {
+    try {
+      ensureNexusCatalogFresh_();
+    } catch (err) {
+      /* still try to serve the last catalog write */
+    }
+  }
   var ss = SpreadsheetApp.openById(NEXUS_WORKBOOK_ID);
   if (typeof deleteUnusedOpsTabs_ === 'function') deleteUnusedOpsTabs_(ss);
   var sheet = ss.getSheetByName(CATALOG_TAB);

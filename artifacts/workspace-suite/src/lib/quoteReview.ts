@@ -14,11 +14,13 @@ export const QUOTE_REVIEW_TABS = [
 ];
 
 export function quoteReviewStatus(
-  quote?: Pick<SavedQuote, 'reviewStatus'> | QuoteReviewStatus | null,
+  quote?: Pick<SavedQuote, 'reviewStatus' | 'data'> | QuoteReviewStatus | null,
 ): QuoteReviewStatus {
   const raw = typeof quote === 'string' ? quote : quote?.reviewStatus;
   const status = String(raw || '').trim().toLowerCase();
-  if (status === 'approved' || status === 'disapproved') return status;
+  if (status === 'disapproved') return 'disapproved';
+  if (status === 'approved') return 'approved';
+  if (quote && typeof quote === 'object' && quoteHasCostApproval(quote)) return 'approved';
   return 'pending';
 }
 

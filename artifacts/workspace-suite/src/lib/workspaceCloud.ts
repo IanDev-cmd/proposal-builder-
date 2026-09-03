@@ -109,3 +109,27 @@ export async function cloudClearProposals(): Promise<number> {
   await Promise.all(listed.map((p) => cloudDeleteProposal(p.id)));
   return listed.length;
 }
+
+export type CloudRatesCatalog = {
+  id?: string;
+  savedAt?: string;
+  catalogBuiltAt?: string;
+  payload?: Record<string, unknown>;
+};
+
+export async function cloudGetCatalog(): Promise<CloudRatesCatalog | null> {
+  const res = await cloudFetch('/catalog');
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Workspace catalog failed (${res.status})`);
+  const body = (await readJson(res)) as CloudRatesCatalog | null;
+  return body && typeof body === 'object' ? body : null;
+}
+
+export async function cloudPutCatalog(row: CloudRatesCatalog): Promise<void> {
+  const res = await cloudFetch('/catalog', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) throw new Error(`Could not save catalog to workspace (${res.status})`);
+}

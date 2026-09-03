@@ -182,9 +182,13 @@ export async function persistSavedQuote(
 ): Promise<SavedQuote> {
   const next = upsertSavedQuote(input);
   await workspacePut(STORE, next);
-  void cloudPutQuote(next).catch(() => {
-    /* local copy remains; next hydrate retries the upload */
-  });
+  try {
+    await cloudPutQuote(next);
+  } catch (err) {
+    const wrapped = err instanceof Error ? err : new Error(String(err));
+    (wrapped as Error & { localSaved?: boolean }).localSaved = true;
+    throw wrapped;
+  }
   return next;
 }
 

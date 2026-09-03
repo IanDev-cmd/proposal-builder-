@@ -58,6 +58,7 @@ export function filterInserts(opts: {
 }): ProposalInsert[] {
   const q = (opts.query || '').trim().toLowerCase();
   return PROPOSAL_INSERTS.filter((i) => {
+    if (i.kind === 'map' || i.id === '2024_weott_proposal_river_map') return false;
     if (opts.kind && i.kind !== opts.kind) return false;
     if (opts.category && opts.category !== 'any' && i.category && i.category !== 'any' && i.category !== opts.category) {
       return false;

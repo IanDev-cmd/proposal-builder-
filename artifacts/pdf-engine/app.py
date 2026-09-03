@@ -10,7 +10,7 @@ ENDPOINTS
     POST /auth/touch     extend idle session
     POST /auth/logout    revoke session
     GET  /templates      list categories, event types, slots
-    GET  /inserts        list optional proposal inserts (vessel/staff/map)
+    GET  /inserts        list optional proposal inserts (vessel/staff)
     POST /generate       JSON payload → PDF binary
                          Prefer payload.template_id for manual selection (MVP).
                          Optional payload.selectedInserts: string[] of insert ids.
@@ -36,10 +36,12 @@ from workspace_store import (
     delete_quote as workspace_delete_quote,
     get_proposal as workspace_get_proposal,
     get_quote as workspace_get_quote,
+    get_rates_catalog as workspace_get_rates_catalog,
     list_proposals as workspace_list_proposals,
     list_quotes as workspace_list_quotes,
     put_proposal as workspace_put_proposal,
     put_quote as workspace_put_quote,
+    put_rates_catalog as workspace_put_rates_catalog,
 )
 from catalog import get_catalog
 from measure import warm_profiles, clear_profile_cache
@@ -215,7 +217,11 @@ def inserts_endpoint():
     vessel = request.args.get("vessel")
     man = get_insert_manifest()
     return jsonify({
-        "inserts": list_inserts(kind=kind, category=category, vessel=vessel),
+        "inserts": [
+            i
+            for i in list_inserts(kind=kind, category=category, vessel=vessel)
+            if i.get("kind") != "map" and i.get("id") != "2024_weott_proposal_river_map"
+        ],
         "placement_rules": man.get("placement_rules", {}),
         "version": man.get("version"),
     })
@@ -370,6 +376,23 @@ def workspace_proposals_clear():
 @app.delete("/workspace/proposals/<proposal_id>")
 def workspace_proposals_delete(proposal_id):
     return jsonify(ok=workspace_delete_proposal(proposal_id))
+
+
+@app.get("/workspace/catalog")
+def workspace_catalog_get():
+    row = workspace_get_rates_catalog()
+    if not row:
+        return jsonify(error="Not found"), 404
+    return jsonify(row)
+
+
+@app.put("/workspace/catalog")
+def workspace_catalog_put():
+    payload = request.get_json(force=True, silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error="Request body must be valid JSON"), 400
+    saved = workspace_put_rates_catalog(payload)
+    return jsonify(ok=True, catalog=saved)
 
 
 if __name__ == "__main__":

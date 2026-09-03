@@ -169,8 +169,12 @@ def resolve_insert_paths(selected_ids: list[str]) -> list[dict]:
     by_id = {i["id"]: i for i in get_insert_manifest().get("inserts", [])}
     resolved = []
     for iid in selected_ids or []:
+        if iid == "2024_weott_proposal_river_map":
+            continue
         entry = by_id.get(iid)
         if not entry:
+            continue
+        if entry.get("kind") == "map":
             continue
         path = BASE_DIR / entry["path"]
         if not path.exists():
@@ -244,7 +248,7 @@ def apply_inserts(doc: fitz.Document, selected_ids: list[str], warnings: list, e
     # Partition by kind; preserve user order within kind
     vessels = [r for r in resolved if r.get("kind") == "vessel"]
     staff = [r for r in resolved if r.get("kind") == "staff"]
-    maps = [r for r in resolved if r.get("kind") == "map"]
+    maps = []
     others = [r for r in resolved if r.get("kind") not in ("vessel", "staff", "map")]
 
     # Vessel: last wins

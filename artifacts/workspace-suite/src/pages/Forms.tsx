@@ -39,14 +39,7 @@ import {
   QUOTE_VERSIONS,
   defaultSelectedLineIds,
   tablesForVessel,
-  setLiveCatalogLines,
 } from '@/lib/quoteBuilderCatalog';
-import { parseCostRatesPayload } from '@/lib/contracts';
-import {
-  parseCostMotherRows,
-  setLiveCostMotherRates,
-  getCostMotherMeta,
-} from '@/lib/costMotherLookup';
 import { QuoteCostLines } from '@/components/QuoteCostLines';
 import { CostSectionAccordion } from '@/components/CostSectionAccordion';
 import { downloadCostSheetCsv } from '@/lib/costSheet';
@@ -57,7 +50,9 @@ import {
   INSERT_PLACEMENT_RULES,
   PROPOSAL_INSERTS,
 } from '@/lib/proposalAssets';
-import { writeQuoteStatus, fetchCostRates } from '@/lib/sheetsSync';
+import { writeQuoteStatus } from '@/lib/sheetsSync';
+import { getCatalogRatesNote, subscribeCatalog } from '@/lib/catalogSync';
+import { pullWorkbookToUx } from '@/lib/workbookSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import {
@@ -1032,6 +1027,7 @@ export function Forms() {
   // stops overwriting them until they explicitly ask to resync.
   const [baseCostAuto, setBaseCostAuto] = useState(true);
   const [ratesNote, setRatesNote] = useState<string>('');
+  const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(true);
   const [draftReady, setDraftReady] = useState(false);
@@ -1352,7 +1348,7 @@ export function Forms() {
       // Auto mode: always roll up from cost lines + bespoke (ignore stale manual WEOTT).
       totalCost: baseCostAuto ? '' : data.totalCost,
     }),
-    [data, marginOverride, baseCostAuto],
+    [data, marginOverride, baseCostAuto, catalogEpoch],
   );
   const fin = calcFinancials(financeInput);
   const baseCostBreakdown = calcBaseCostBreakdown(financeInput);
@@ -1436,7 +1432,7 @@ export function Forms() {
         next.delete('templateId');
         return next;
       });
-      return { ...prev, templateId, costApproved: false };
+      return { ...prev, templateId };
     });
     setPrefilledKeys((prev) => {
       if (prev.has('templateId')) return prev;
@@ -1483,91 +1479,16 @@ export function Forms() {
         : availableTemplates;
 
   const [insertPanelOpen, setInsertPanelOpen] = useState(false);
-  const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff' | 'map'>('all');
+  const [insertKindFilter, setInsertKindFilter] = useState<'all' | 'vessel' | 'staff'>('all');
 
-  // Live Cost Mother from `_Nexus Catalog` (Apps Script rebuilds it every 5 minutes + on edit).
   useEffect(() => {
-    let cancelled = false;
-    const CATALOG_REFRESH_MS = 5 * 60 * 1000;
-    const CATALOG_STALE_MS = 12 * 60 * 1000;
-
-    const pull = async () => {
-      try {
-        const r = await fetchCostRates();
-        if (cancelled) return;
-        const rates = parseCostRatesPayload(r);
-        const structured =
-          rates.costMother ||
-          parseCostMotherRows(
-            (rates.costMotherItems || rates.cateringRates || []) as Record<string, unknown>[],
-          );
-        if (structured?.items?.length) {
-          const liveMargins =
-            Array.isArray(structured.margins) && structured.margins.length
-              ? structured.margins
-              : Array.isArray(rates.margins) && rates.margins.length
-                ? (rates.margins as NonNullable<(typeof structured)['margins']>)
-                : structured.margins;
-          setLiveCostMotherRates(
-            (liveMargins
-              ? { ...structured, margins: liveMargins }
-              : structured) as Parameters<typeof setLiveCostMotherRates>[0],
-          );
-        }
-        const liveLines = rates.lines;
-        if (Array.isArray(liveLines) && liveLines.length) {
-          setLiveCatalogLines(liveLines);
-        }
-        const meta = getCostMotherMeta();
-        const n = rates.counts?.costMotherItems ?? rates.counts?.cateringRates ?? meta.itemCount;
-        const extra = Array.isArray(liveLines) ? liveLines.length : 0;
-        const extraKinds = [
-          rates.counts?.margins ? `${rates.counts.margins} margins` : '',
-          rates.counts?.staffRatios ? `${rates.counts.staffRatios} staff ratios` : '',
-          rates.counts?.cutleryRatios ? `${rates.counts.cutleryRatios} cutlery ratios` : '',
-        ].filter(Boolean);
-        const builtAt = Date.parse(String(rates.catalogBuiltAt || ''));
-        const stale =
-          Number.isFinite(builtAt) && Date.now() - builtAt > CATALOG_STALE_MS;
-        setRatesNote(
-          meta.live
-            ? `Live catalog (${n} Cost Mother lines${extra ? ` · ${extra} sheet cards` : ''}${extraKinds.length ? ` · ${extraKinds.join(' · ')}` : ''}${stale ? ' · catalog save overdue' : ''}).`
-            : `Using bundled Cost Mother snapshot (${meta.itemCount} lines).`,
-        );
-        if (stale) {
-          toastError({
-            key: 'catalog-stale',
-            title: 'Cost Mother catalog is stale',
-            description:
-              'The 5-minute _Nexus Catalog save did not run. Check the buildNexusCatalog time trigger.',
-          });
-        }
-      } catch (err) {
-        if (cancelled) return;
-        const msg = err instanceof Error ? err.message : String(err);
-        const saveMissed = /catalog tab empty|catalog tab missing/i.test(msg);
-        if (saveMissed) {
-          const meta = getCostMotherMeta();
-          setRatesNote(`Using bundled Cost Mother snapshot (${meta.itemCount} lines).`);
-          toastError({
-            key: 'catalog-missing',
-            title: 'Cost Mother catalog not saved',
-            description:
-              'The 5-minute _Nexus Catalog rebuild did not write rates. Run buildNexusCatalog in Apps Script.',
-            err,
-          });
-        }
-      }
-    };
-
-    void pull();
-    const timer = window.setInterval(() => {
-      void pull();
-    }, CATALOG_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
+    setRatesNote(getCatalogRatesNote());
+    const unsub = subscribeCatalog((note) => {
+      setRatesNote(note);
+      setCatalogEpoch((n) => n + 1);
+    });
+    void pullWorkbookToUx();
+    return unsub;
   }, []);
 
   // Keep Base Cost synced to the formula while it's in "auto" mode.
@@ -2008,8 +1929,10 @@ export function Forms() {
       referenceCode: quoteLead?.referenceNumber,
     });
     const approved = Boolean(next.costApproved);
-    return persistSavedQuote({
-      id: existing?.id || `quote-${leadNotesKey}-${version}`,
+    const quoteId = existing?.id || `quote-${leadNotesKey}-${version}`;
+    try {
+      return await persistSavedQuote({
+      id: quoteId,
       leadKey: leadNotesKey,
       leadName: quoteLead?.name,
       referenceNumber: quoteLead?.referenceNumber,
@@ -2031,8 +1954,20 @@ export function Forms() {
       lead: quoteLead,
       proposalId: existing?.proposalId,
       reviewStatus: approved ? 'approved' : existing?.reviewStatus === 'disapproved' ? 'disapproved' : 'pending',
-      reviewedAt: approved ? new Date().toISOString() : existing?.reviewedAt,
+      reviewedAt: new Date().toISOString(),
     });
+    } catch (err) {
+      if ((err as { localSaved?: boolean }).localSaved) {
+        toastError({
+          key: 'quote-cloud',
+          title: 'Quote saved on this device',
+          description: 'Could not reach the shared workspace. Sync will retry automatically.',
+          err,
+        });
+        return getSavedQuote(quoteId) || existing || undefined;
+      }
+      throw err;
+    }
   };
 
   const handleSaveQuote = async () => {
@@ -3143,7 +3078,7 @@ export function Forms() {
                             if (selected && !prefilled) return;
                             templateManualRef.current = true;
                             clearPrefill('templateId');
-                            setData((prev) => ({ ...prev, templateId: t.id, costApproved: false }));
+                            setData((prev) => ({ ...prev, templateId: t.id }));
                           }}
                           className={`flex w-full items-center justify-between rounded-[10px] border px-4 py-3.5 text-left text-[13px] transition-all ${
                             selected
@@ -3192,8 +3127,8 @@ export function Forms() {
 
                 <p className={sectionLabelCls}>Inserts</p>
                 <p className="mb-3 text-[11.5px] text-gray-400">
-                  {insertCatalog.count} inserts indexed — vessel, staff, map ({insertCatalog.byKind.get('vessel')?.length || 0} vessel ·{' '}
-                  {insertCatalog.byKind.get('staff')?.length || 0} staff · {insertCatalog.byKind.get('map')?.length || 0} map).
+                  {insertCatalog.count} inserts indexed — vessel and staff ({insertCatalog.byKind.get('vessel')?.length || 0} vessel ·{' '}
+                  {insertCatalog.byKind.get('staff')?.length || 0} staff).
                 </p>
                 <div
                   className={`mb-4 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${
@@ -3206,7 +3141,7 @@ export function Forms() {
                 >
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Does this proposal require inserts?</p>
-                    <p className="text-[12px] text-gray-400">Vessel profile, staff page, river map…</p>
+                    <p className="text-[12px] text-gray-400">Vessel profile and staff page…</p>
                   </div>
                   <div className="flex gap-2">
                     {([true, false] as const).map((yes) => (
@@ -3307,7 +3242,7 @@ export function Forms() {
                     )}
                     <p className="mt-2 text-[11px] text-gray-400">
                       {(INSERT_PLACEMENT_RULES as Record<string, string>).vessel ||
-                        'Vessel inserts replace page 9; staff replace page 16; maps insert after vessel.'}
+                        'Vessel inserts replace page 9; staff replace page 16. River map is in the core template.'
                     </p>
                     {(() => {
                       const sc = resolveStaffContactFromInsertIds(data.selectedInserts, PROPOSAL_INSERTS);
@@ -3333,9 +3268,9 @@ export function Forms() {
             )}
           </AnimatePresence>
 
-          {/* ── Navigation (DNB: single pill "Next" button, bottom right) ── */}
-          <div className="mt-11 flex items-center justify-between">
-            {step > 1 ? (
+          {/* ── Navigation ── */}
+          <div className="mt-11 flex items-center justify-between gap-3">
+            {step > 1 && step !== 6 ? (
               <button
                 onClick={() => setStep((s) => Math.max(1, s - 1))}
                 className="text-[13px] font-semibold text-gray-400 transition-colors hover:text-gray-700"
@@ -3345,39 +3280,63 @@ export function Forms() {
             ) : (
               <span />
             )}
-            {step < LAST_CONTENT_STEP ? (
-              <button
-                onClick={() => {
-                  if (step === 6 && !data.costApproved) {
-                    if (costApprovalBlocked(parity, sheetTargets)) {
-                      setErrorMessage(
-                        parity.hints[0] ||
-                          'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',
-                      );
+            {step === 6 ? (
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <button
+                  type="button"
+                  data-testid="btn-amend-quote"
+                  onClick={() => {
+                    set('costApproved', false);
+                    void persistWizardQuote({ ...data, costApproved: false });
+                    setErrorMessage('');
+                    setStep(4);
+                  }}
+                  className="rounded-full border border-[#e3e6e4] bg-white px-6 py-3.5 text-[13px] font-bold text-gray-700 shadow-sm transition-colors hover:border-[#FF5A45]/50 hover:text-[#E22A12]"
+                >
+                  Amend Quote
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!data.costApproved) {
+                      if (costApprovalBlocked(parity, sheetTargets)) {
+                        setErrorMessage(
+                          parity.hints[0] ||
+                            'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',
+                        );
+                        return;
+                      }
+                      set('costApproved', true);
+                      void persistWizardQuote({ ...data, costApproved: true }).then(() => {
+                        setQuoteDetailsOpen(false);
+                        setErrorMessage('');
+                        setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+                      });
                       return;
                     }
-                    set('costApproved', true);
-                    void persistWizardQuote({ ...data, costApproved: true });
-                    setQuoteDetailsOpen(false);
                     setErrorMessage('');
                     setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
-                    return;
-                  }
+                  }}
+                  className={`flex items-center gap-2 rounded-full px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors ${
+                    data.costApproved
+                      ? 'bg-[#00e676] text-[#0b1f14] hover:bg-[#00d66c]'
+                      : 'bg-[#FF5A45] hover:bg-[#F4412A]'
+                  }`}
+                  data-testid="btn-next"
+                >
+                  {data.costApproved ? 'Continue to Proposal Pack' : 'Approve & continue'}
+                </button>
+              </div>
+            ) : step < LAST_CONTENT_STEP ? (
+              <button
+                onClick={() => {
                   setErrorMessage('');
                   setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
                 }}
-                className={`flex items-center gap-2 rounded-full px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors ${
-                  step === 6 && data.costApproved
-                    ? 'bg-[#00e676] text-[#0b1f14] hover:bg-[#00d66c]'
-                    : 'bg-[#FF5A45] hover:bg-[#F4412A]'
-                }`}
+                className="flex items-center gap-2 rounded-full bg-[#FF5A45] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#F4412A]"
                 data-testid="btn-next"
               >
-                {step === 6
-                  ? data.costApproved
-                    ? 'Continue to Proposal Pack'
-                    : 'Approve & continue'
-                  : 'Next'}
+                Next
               </button>
             ) : (
               <button
@@ -3560,10 +3519,11 @@ export function Forms() {
                   data-testid="btn-approve-cost-overlay"
                   onClick={() => {
                     set('costApproved', true);
-                    void persistWizardQuote({ ...data, costApproved: true });
-                    setQuoteDetailsOpen(false);
-                    setErrorMessage('');
-                    setStep(7);
+                    void persistWizardQuote({ ...data, costApproved: true }).then(() => {
+                      setQuoteDetailsOpen(false);
+                      setErrorMessage('');
+                      setStep(7);
+                    });
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#FF5A45] px-5 py-3.5 text-[13px] font-bold text-white transition-colors hover:bg-[#F4412A]"
                 >
@@ -3808,7 +3768,7 @@ export function Forms() {
                 </button>
               </div>
               <div className="flex gap-2 border-b border-[#f0f0f0] px-5 py-3">
-                {(['all', 'vessel', 'staff', 'map'] as const).map((k) => (
+                {(['all', 'vessel', 'staff'] as const).map((k) => (
                   <button
                     key={k}
                     type="button"

@@ -249,3 +249,22 @@ def clear_proposals() -> int:
     for path in PROPOSALS_DIR.glob("*.pdf"):
         path.unlink()
     return count
+
+
+def _rates_catalog_path() -> Path:
+    _ensure_dirs()
+    return DATA_DIR / "cost_rates_catalog.json"
+
+
+def get_rates_catalog() -> dict | None:
+    return _read_json(_rates_catalog_path())
+
+
+def put_rates_catalog(payload: dict) -> dict:
+    from datetime import datetime, timezone
+
+    row = dict(payload or {})
+    row["id"] = "cost-rates"
+    row["savedAt"] = row.get("savedAt") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    _write_json(_rates_catalog_path(), row)
+    return row

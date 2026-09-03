@@ -4,7 +4,7 @@
  */
 
 export const WORKSPACE_DB_NAME = 'nexus-workspace';
-export const WORKSPACE_DB_VERSION = 3;
+export const WORKSPACE_DB_VERSION = 4;
 
 export const WORKSPACE_STORES = {
   leads: 'leads',
@@ -12,6 +12,7 @@ export const WORKSPACE_STORES = {
   proposals: 'proposals',
   opsNotes: 'opsNotes',
   opsQuotes: 'opsQuotes',
+  catalog: 'catalog',
 } as const;
 
 export type WorkspaceStoreName = (typeof WORKSPACE_STORES)[keyof typeof WORKSPACE_STORES];
@@ -52,6 +53,9 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(WORKSPACE_STORES.opsQuotes)) {
         const opsQuotes = db.createObjectStore(WORKSPACE_STORES.opsQuotes, { keyPath: 'id' });
         opsQuotes.createIndex('referenceNumber', 'referenceNumber', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(WORKSPACE_STORES.catalog)) {
+        db.createObjectStore(WORKSPACE_STORES.catalog, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);

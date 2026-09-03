@@ -528,10 +528,14 @@ export function buildStargtmPayload(opts: {
     eventDateDisplay: lead?.eventDateDisplay,
   });
 
+  const guestsInt = Math.round(guests) || 0;
+  const guestHighInt = Math.round(guestHigh) || 0;
   const guestRange =
-    guestHigh > guests
-      ? `${guests}-${guestHigh}`
-      : form.guestCount || lead?.groupSize || '';
+    guestHighInt > guestsInt
+      ? `${guestsInt}-${guestHighInt}`
+      : guestsInt
+        ? String(guestsInt)
+        : form.guestCount || lead?.groupSize || '';
 
   const selectedLineLabels = (fin.lines || []).map((l) => l.label);
 
@@ -559,8 +563,9 @@ export function buildStargtmPayload(opts: {
       event_timings: formatEventTimingsPayload(form),
       departure: form.departure || undefined,
       returnTime: form.returnTime || undefined,
+      embarkation: form.embarkation || undefined,
       guest_range: guestRange,
-      guest_quote_n: String(guests || lead?.groupSizeQuote || ''),
+      guest_quote_n: String(guestsInt || lead?.groupSizeQuote || ''),
       prepared_by: preparedBy,
       contact_name: contact.name,
       contact_title: contact.title,
@@ -582,7 +587,7 @@ export function buildStargtmPayload(opts: {
       no_of_tables: form.noOfTables || undefined,
     },
     calculations: {
-      guests,
+      guests: guestsInt,
       package_cost: fin.costToClient,
       vat: fin.vat,
       grand_total: fin.grand,

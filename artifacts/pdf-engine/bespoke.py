@@ -14,6 +14,7 @@ import re
 import fitz
 
 import config
+from cover_contact import format_guest_count
 from pdf_ops import redact_zone, draw_text, draw_field
 
 _HIRE_RE = re.compile(r"private venue hire|current itinerary|itinerary is as follows", re.I)
@@ -51,7 +52,8 @@ def render_financials(doc: "fitz.Document", calculations: dict, font_mgr, warnin
         spec["bold"] = True
         spec["color"] = (1.0, 1.0, 1.0)
         spec["deep_bold"] = True
-        prepared.append(prepare_field_draw(spec, str(value), font_mgr, warnings, field_name))
+        draw = format_guest_count(value) if field_name == "pkg_guests" else str(value)
+        prepared.append(prepare_field_draw(spec, draw, font_mgr, warnings, field_name))
     draw_fields_batched(page, prepared, font_mgr, clear_graphics=False)
 
 

@@ -49,8 +49,6 @@ const VESSEL_TOKENS: Record<string, string[]> = {
   'WEOTT Limo III (Bourne)': ['weott_limo', 'limo', 'bourne'],
 };
 
-const MAP_INSERT_ID = '2024_weott_proposal_river_map';
-
 function slug(text: string): string {
   return (text || '')
     .trim()
@@ -186,7 +184,9 @@ export function indexProposalTemplates(category?: 'corporate' | 'wedding' | 'all
 }
 
 export function indexProposalInserts(opts?: { category?: string; kind?: string }) {
-  let list = [...PROPOSAL_INSERTS];
+  let list = [...PROPOSAL_INSERTS].filter(
+    (i) => i.kind !== 'map' && i.id !== '2024_weott_proposal_river_map',
+  );
   if (opts?.category && opts.category !== 'any') {
     list = list.filter((i) => !i.category || i.category === 'any' || i.category === opts.category);
   }
@@ -395,9 +395,6 @@ export function resolveProposalInserts(opts: {
   }
   if (bestStaff && bestStaffScore > 0) selected.push(bestStaff.id);
 
-  const mapInsert = PROPOSAL_INSERTS.find((i) => i.id === MAP_INSERT_ID);
-  if (mapInsert && opts.category === 'corporate') selected.push(mapInsert.id);
-
   return {
     requiresInserts: selected.length > 0,
     selectedInserts: [...new Set(selected)],
@@ -448,7 +445,9 @@ export function insertsForGenerate(data: {
   departure?: string;
   disembarkation?: string;
 }): string[] {
-  const selected = data.requiresInserts ? [...data.selectedInserts] : [];
+  const selected = (data.requiresInserts ? [...data.selectedInserts] : []).filter(
+    (id) => id !== '2024_weott_proposal_river_map' && PROPOSAL_INSERTS.find((i) => i.id === id)?.kind !== 'map',
+  );
   const hasVessel = selected.some((id) => PROPOSAL_INSERTS.find((i) => i.id === id)?.kind === 'vessel');
   if (hasVessel || !data.vesselType?.[0]) return selected;
   const auto = resolveProposalInserts({

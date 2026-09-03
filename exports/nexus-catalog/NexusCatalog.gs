@@ -4,30 +4,123 @@
  * Paste into Extensions → Apps Script on the LIVE workbook.
  *
  * Setup:
- * 1. Paste three files: Code.gs (this), Sentry.gs (taxonomy), Extras.gs.
- * 2. Open THIS file, select buildNexusCatalog, Run (authorize SpreadsheetApp).
- *    Do not Run from Sentry.gs — it has no functions.
- * 3. Triggers → onInstallableEdit → From spreadsheet → On edit.
- * 4. Triggers → buildNexusCatalog → Time-driven → Minutes → Every 5 minutes.
- *    That write is what Quote Builder reads; do not skip this trigger.
- * 5. Triggers → assignReferencesTimed → Time-driven → Minutes → Every 5 minutes.
+ * 1. Paste files: Code.gs (this), Sentry.gs, Extras.gs, NexusApi.gs.
+ * 2. Run installNexusTriggers once (or open the workbook — onOpen installs missing ones).
+ * 3. Authorize SpreadsheetApp + ScriptApp.
  *
- * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab only.
+ * Triggers installed by installNexusTriggers / onOpen:
+ *   - onInstallableEdit  (any cell edit, any tab)
+ *   - onSpreadsheetChange (row/column/tab/sheet insert, delete, rename, grid)
+ *   - buildNexusCatalog   every 1 minute (safety net)
+ *   - assignReferencesTimed every 1 minute
+ *
+ * Any workbook change rebuilds "_Nexus Catalog" so CostRatesFetch / LeadDataFetch
+ * return current Cost Mother labels, rates, and enquiry rows. Nexus polls that
+ * catalog every 30s and stores the last-good copy as the UX fallback.
+ *
+ * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab, and
+ * rebuilds it first when the catalog is missing or stale.
  * Extras.gs appends margin / cutlery_ratio / staff_ratio rows.
- * Does not dump the whole workbook.
- * After each catalog write, deletes leftover "Nexus Ops Notes" / "Nexus Ops Quotes".
- * Or Run deleteNexusOpsTabs once from this file.
  */
 
 var CATALOG_TAB = '_Nexus Catalog';
 var COST_MOTHER_RE = /cost mother/i;
 var ENQUIRY_RE = /enquiry.*lead/i;
+var NEXUS_WB_ID = '1STCEp_UgqH1qoDskFj2rvb8xA9hCdXgntOPPWmCzV6o';
+var CATALOG_BUILD_LOCK_KEY = 'nexus_building_catalog';
+var CATALOG_STALE_MS = 90 * 1000;
+
+function nexusWorkbook_() {
+  var id = (typeof NEXUS_WORKBOOK_ID !== 'undefined' && NEXUS_WORKBOOK_ID)
+    ? NEXUS_WORKBOOK_ID
+    : NEXUS_WB_ID;
+  try {
+    return SpreadsheetApp.openById(id);
+  } catch (err) {
+    return SpreadsheetApp.getActiveSpreadsheet();
+  }
+}
+
+function catalogBuildCache_() {
+  return CacheService.getScriptCache();
+}
+
+function markCatalogBuilding_(on) {
+  var cache = catalogBuildCache_();
+  if (on) cache.put(CATALOG_BUILD_LOCK_KEY, '1', 45);
+  else cache.remove(CATALOG_BUILD_LOCK_KEY);
+}
+
+function isCatalogBuilding_() {
+  return Boolean(catalogBuildCache_().get(CATALOG_BUILD_LOCK_KEY));
+}
+
+/** Bound-script menu + idempotent trigger install when the workbook is opened. */
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu('Nexus')
+      .addItem('Install workbook sync triggers', 'installNexusTriggers')
+      .addItem('Rebuild catalog now', 'buildNexusCatalog')
+      .addToUi();
+  } catch (err) {
+    /* web app / installable context has no UI */
+  }
+  ensureNexusTriggers_();
+}
+
+/**
+ * Create (or repair) installable triggers for the whole workbook.
+ * Run once after pasting this file. onOpen also calls ensureNexusTriggers_.
+ */
+function installNexusTriggers() {
+  ensureNexusTriggers_(true);
+}
+
+function ensureNexusTriggers_(forceRecreate) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet() || nexusWorkbook_();
+  var want = {
+    onInstallableEdit: ScriptApp.EventType.ON_EDIT,
+    onSpreadsheetChange: ScriptApp.EventType.ON_CHANGE,
+    buildNexusCatalog: ScriptApp.EventType.CLOCK,
+    assignReferencesTimed: ScriptApp.EventType.CLOCK,
+  };
+  var have = {};
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    var t = triggers[i];
+    var h = t.getHandlerFunction();
+    if (!want[h]) continue;
+    if (forceRecreate) {
+      ScriptApp.deleteTrigger(t);
+      continue;
+    }
+    if (have[h]) {
+      ScriptApp.deleteTrigger(t);
+      continue;
+    }
+    have[h] = true;
+  }
+  if (!have.onInstallableEdit) {
+    ScriptApp.newTrigger('onInstallableEdit').forSpreadsheet(ss).onEdit().create();
+  }
+  if (!have.onSpreadsheetChange) {
+    ScriptApp.newTrigger('onSpreadsheetChange').forSpreadsheet(ss).onChange().create();
+  }
+  if (!have.buildNexusCatalog) {
+    ScriptApp.newTrigger('buildNexusCatalog').timeBased().everyMinutes(1).create();
+  }
+  if (!have.assignReferencesTimed) {
+    ScriptApp.newTrigger('assignReferencesTimed').timeBased().everyMinutes(1).create();
+  }
+}
 
 function buildNexusCatalog() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return;
+  markCatalogBuilding_(true);
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = nexusWorkbook_();
     var mother = findSheet_(ss, COST_MOTHER_RE);
     if (!mother) throw new Error('No Cost Mother tab found');
 
@@ -40,22 +133,79 @@ function buildNexusCatalog() {
       parsed.vessels.length + ' vessels, ' + extras.length + ' extras',
     );
   } finally {
+    markCatalogBuilding_(false);
     lock.releaseLock();
   }
 }
 
+/** Rebuild if the catalog tab is missing, empty, or older than CATALOG_STALE_MS. */
+function ensureNexusCatalogFresh_() {
+  if (isCatalogBuilding_()) return;
+  var ss = nexusWorkbook_();
+  var tab = ss.getSheetByName(CATALOG_TAB);
+  if (!tab || tab.getLastRow() < 2) {
+    buildNexusCatalog();
+    return;
+  }
+  var builtAt = '';
+  try {
+    var values = tab.getRange(1, 1, Math.min(8, tab.getLastRow()), 6).getValues();
+    for (var r = 0; r < values.length; r++) {
+      if (String(values[r][0] || '').toLowerCase() === 'meta' &&
+          /catalog_built_at/i.test(String(values[r][1] || ''))) {
+        builtAt = String(values[r][5] || values[r][4] || '').trim();
+        break;
+      }
+    }
+  } catch (err) {
+    builtAt = '';
+  }
+  var ts = builtAt ? new Date(builtAt).getTime() : 0;
+  if (!ts || !isFinite(ts) || (Date.now() - ts) > CATALOG_STALE_MS) {
+    buildNexusCatalog();
+  }
+}
+
 function onInstallableEdit(e) {
-  if (!e || !e.range) return;
+  ensureNexusTriggers_();
+  if (isCatalogBuilding_()) return;
+  if (!e || !e.range) {
+    pushWorkbookToNexus_();
+    return;
+  }
   var sheet = e.range.getSheet();
   var name = sheet.getName();
   if (name === CATALOG_TAB) return;
-
   if (ENQUIRY_RE.test(name)) {
     handleLeadAgentReference(sheet);
   }
-  var extrasHit = typeof isCatalogExtrasSheet_ === 'function' && isCatalogExtrasSheet_(name);
-  if (COST_MOTHER_RE.test(name) || /quote builder/i.test(name) || extrasHit) {
-    buildNexusCatalog();
+  pushWorkbookToNexus_();
+}
+
+/**
+ * Rows, columns, tabs, sheets, grids — anything structural in the workbook.
+ * FORMAT-only changes are skipped so catalog writes do not loop.
+ */
+function onSpreadsheetChange(e) {
+  ensureNexusTriggers_();
+  if (isCatalogBuilding_()) return;
+  var changeType = String((e && e.changeType) || '').toUpperCase();
+  if (changeType === 'FORMAT') return;
+  pushWorkbookToNexus_();
+}
+
+function pushWorkbookToNexus_() {
+  assignReferencesTimed();
+  buildNexusCatalog();
+}
+
+function assignReferencesTimed() {
+  var ss = nexusWorkbook_();
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    if (ENQUIRY_RE.test(sheets[i].getName())) {
+      handleLeadAgentReference(sheets[i]);
+    }
   }
 }
 

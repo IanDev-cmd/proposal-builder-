@@ -3,6 +3,7 @@ import { getWorkspaceDb } from './nexusWorkspaceDb';
 import { hydrateProposalsDb } from './proposalStore';
 import { hydrateSavedQuotesDb } from './savedQuotesStore';
 import { syncWorkspaceCloud } from './workspaceSync';
+import { startWorkbookSync } from './workbookSync';
 
 let started: Promise<void> | null = null;
 
@@ -20,6 +21,7 @@ export function hydrateWorkspace(): Promise<void> {
     }
     void refreshLeadsFromNetwork();
     void syncWorkspaceCloud();
+    startWorkbookSync();
   })();
   return started;
 }

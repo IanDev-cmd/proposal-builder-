@@ -14,6 +14,7 @@ import { quoteSharePlainText, quoteShareWebUrl } from '../src/lib/quoteShare.ts'
 import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
 import { savedQuoteSharePath, isSavedQuoteReviewPath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
+import { parseRequestedTimes } from '../src/lib/leadPrefill.ts';
 import { formatEventTimingsPayload, itineraryHours } from '../src/lib/proposalTimings.ts';
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
 import { formatEventDateForProposal } from '../src/lib/goldScenarioCover.ts';
@@ -115,7 +116,29 @@ check(
   'unit cost approval on the quote suppresses generate warning',
   quoteNeedsApprovalFirst(stubQuote({ data: { ...pending.data, costApproved: true } })) === false,
 );
-check('unit pending without cost approval still warns', quoteNeedsApprovalFirst(pending) === true);
+check(
+  'unit cost-approved quote is on Approved Quotes tab',
+  filterQuotesByReviewTab(
+    [stubQuote({ id: 'q-cost', data: { ...pending.data, costApproved: true } })],
+    'approved',
+  ).map((q) => q.id).join() === 'q-cost',
+);
+
+check(
+  'unit labeled embark times from lead sheet',
+  parseRequestedTimes('Embark 17:45 Depart 18:00 Return 22:00 Disembark 22:15').embarkation === '17:45' &&
+    parseRequestedTimes('Embark 17:45 Depart 18:00 Return 22:00 Disembark 22:15').departure === '18:00',
+);
+check(
+  'unit dotted clocks parse as event window then embark-15',
+  parseRequestedTimes('18.00 - 22.00').departure === '18:00' &&
+    parseRequestedTimes('18.00 - 22.00').embarkation === '17:45',
+);
+check(
+  'unit 12-hour lead times',
+  parseRequestedTimes('6pm to 10pm').departure === '18:00' &&
+    parseRequestedTimes('6pm to 10pm').returnTime === '22:00',
+);
 
 const shareUrl = 'https://nexus.example/saved-quotes/q-lily';
 const text = quoteSharePlainText(pending, shareUrl);

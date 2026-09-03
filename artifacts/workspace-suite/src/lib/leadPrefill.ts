@@ -23,7 +23,7 @@ import {
 } from '@/lib/progressNotesFinance';
 import { applyGoldScenarioPlaybook, goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { buildRateParts } from '@/lib/costMotherLookup';
-import { buildItineraryProposalText, embarkationFromDeparture } from '@/lib/proposalTimings';
+import { buildItineraryProposalText, embarkationFromDeparture, addMinutesToTime } from '@/lib/proposalTimings';
 
 export const PREFILL_INPUT_CLS =
   'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
@@ -137,26 +137,109 @@ export function matchEventType(raw?: string): string {
   return '';
 }
 
-/** Parse times; prefers version-specific block when present (e.g. V2 13:00 -17:00). */
-export function parseRequestedTimes(
-  raw?: string,
-  quoteVersion?: string,
-): { departure?: string; returnTime?: string } {
-  if (!raw?.trim()) return {};
-  const norm = (t: string) => {
-    const [h, min] = t.split(':');
-    return `${h.padStart(2, '0')}:${min}`;
+/** Parse Lead Sheet times: labeled clocks, 4-part itinerary, or event window. */
+function parseClockToken(raw: string): string | null {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const ampm = s.match(/^(\d{1,2})(?:[:.h](\d{2}))?\s*([ap]m?)\.?$/i);
+  if (ampm) {
+    let h = Number(ampm[1]);
+    const min = ampm[2] || '00';
+    const ap = ampm[3].toLowerCase();
+    if (ap.startsWith('p') && h < 12) h += 12;
+    if (ap.startsWith('a') && h === 12) h = 0;
+    if (!Number.isFinite(h) || h > 23) return null;
+    return `${String(h).padStart(2, '0')}:${min}`;
+  }
+  const colon = s.match(/^(\d{1,2})[:.h](\d{2})(?:\s*hrs?)?$/i);
+  if (colon) {
+    const h = Number(colon[1]);
+    if (h > 23) return null;
+    return `${String(h).padStart(2, '0')}:${colon[2]}`;
+  }
+  const compact = s.match(/^(\d{2})(\d{2})$/);
+  if (compact) {
+    const h = Number(compact[1]);
+    if (h > 23) return null;
+    return `${compact[1]}:${compact[2]}`;
+  }
+  return null;
+}
+
+function collectClocks(text: string): string[] {
+  const out: string[] = [];
+  const re =
+    /(\d{1,2}[:.h]\d{2}\s*(?:hrs?)?)|(\d{1,2}\s*[ap]m\b)|(\d{1,2}:\d{2}\s*[ap]m\b)|(\b\d{2}\d{2}\b)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const token = (m[1] || m[2] || m[3] || m[4] || '').trim();
+    const clock = parseClockToken(token.replace(/\s*hrs?$/i, ''));
+    if (clock) out.push(clock);
+  }
+  return out;
+}
+
+export type ParsedScheduleTimes = {
+  embarkation?: string;
+  departure?: string;
+  returnTime?: string;
+  disembarkation?: string;
+};
+
+function completeSchedule(partial: ParsedScheduleTimes): ParsedScheduleTimes {
+  const departure =
+    partial.departure ||
+    (partial.embarkation ? addMinutesToTime(partial.embarkation, 15) : undefined);
+  const embarkation =
+    partial.embarkation || (departure ? embarkationFromDeparture(departure) : undefined);
+  const returnTime = partial.returnTime || partial.disembarkation;
+  const disembarkation = partial.disembarkation || returnTime;
+  return { embarkation, departure, returnTime, disembarkation };
+}
+
+function parseLabeledTimes(raw: string): ParsedScheduleTimes {
+  const pick = (labels: RegExp): string | undefined => {
+    const m = raw.match(
+      new RegExp(`(?:${labels.source})[^\\d]{0,24}(\\d{1,2}[:.h]\\d{2}|\\d{1,2}\\s*[ap]m)`, 'i'),
+    );
+    return m ? parseClockToken(m[1]) || undefined : undefined;
   };
+  return {
+    embarkation: pick(/(?:^|[^a-z])embark(?:ation|ing)?\b|boarding|\bboard\b/),
+    departure: pick(/depart(?:ure|s)?|cast off|sail/),
+    returnTime: pick(/return(?:s|ing)?|back (?:to )?pier/),
+    disembarkation: pick(/disembark(?:ation|ing)?|off[- ]hire/),
+  };
+}
+
+export function parseRequestedTimes(raw?: string, quoteVersion?: string): ParsedScheduleTimes {
+  if (!raw?.trim()) return {};
+  let scoped = raw;
   const verNum = quoteVersion?.match(/V?\s*(\d+)/i)?.[1];
   if (verNum) {
-    const vm = raw.match(
-      new RegExp(`V\\s*${verNum}\\s*[:\\-]?\\s*(\\d{1,2}:\\d{2})\\s*[-–—to]+\\s*(\\d{1,2}:\\d{2})`, 'i'),
-    );
-    if (vm) return { departure: norm(vm[1]), returnTime: norm(vm[2]) };
+    const vm = raw.match(new RegExp(`V\\s*${verNum}\\s*[:\\-]?\\s*([^V]+?)(?=V\\s*\\d+|$)`, 'i'));
+    if (vm) scoped = vm[1];
   }
-  const m = raw.match(/(\d{1,2}:\d{2})\s*[-–—to]+\s*(\d{1,2}:\d{2})/i);
-  if (!m) return {};
-  return { departure: norm(m[1]), returnTime: norm(m[2]) };
+  const labeled = parseLabeledTimes(scoped);
+  if (labeled.embarkation || labeled.departure || labeled.returnTime || labeled.disembarkation) {
+    return completeSchedule(labeled);
+  }
+  const clocks = collectClocks(scoped);
+  if (clocks.length >= 4) {
+    return completeSchedule({
+      embarkation: clocks[0],
+      departure: clocks[1],
+      returnTime: clocks[2],
+      disembarkation: clocks[3],
+    });
+  }
+  if (clocks.length >= 2) {
+    return completeSchedule({
+      departure: clocks[0],
+      returnTime: clocks[1],
+    });
+  }
+  return {};
 }
 
 export function isFlexibleDate(flexible?: string, flexibleBool?: boolean): boolean {
@@ -242,19 +325,23 @@ export function parseGuestHigh(groupSize?: string | number | null, guestCount?: 
   return guestCount || '';
 }
 
-function inferDepartureReturn(start: string, finish: string): {
+function inferDepartureReturn(
+  start: string,
+  finish: string,
+  extras?: ParsedScheduleTimes,
+): {
   embarkation: string;
   departure: string;
   returnTime: string;
   disembarkation: string;
 } {
-  const departure = start || '12:00';
-  const returnTime = finish || '17:00';
+  const departure = extras?.departure || start || '12:00';
+  const returnTime = extras?.returnTime || finish || '17:00';
   return {
     departure,
     returnTime,
-    disembarkation: finish || returnTime,
-    embarkation: embarkationFromDeparture(departure),
+    disembarkation: extras?.disembarkation || finish || returnTime,
+    embarkation: extras?.embarkation || embarkationFromDeparture(departure),
   };
 }
 
@@ -462,7 +549,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
   const windowStart = times.departure || String(init.departure || '12:00');
   const windowFinish = times.returnTime || String(init.returnTime || init.disembarkation || '17:00');
-  const schedule = inferDepartureReturn(windowStart, windowFinish);
+  const schedule = inferDepartureReturn(windowStart, windowFinish, times);
   const embarkation = schedule.embarkation;
   const disembarkation = schedule.disembarkation;
 
@@ -619,7 +706,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   if (guestCountHigh) prefilledKeys.add('guestCountHigh');
   if (times.departure) prefilledKeys.add('departure');
   if (times.returnTime) prefilledKeys.add('returnTime');
-  if (times.departure || times.returnTime) {
+  if (times.departure || times.returnTime || times.embarkation) {
     prefilledKeys.add('embarkation');
     prefilledKeys.add('disembarkation');
   }
@@ -690,10 +777,11 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
     patch.noOfTables = tablesForVessel(String(((current as { vesselType?: string[] }).vesselType || [])[0] || ''));
     if (patch.noOfTables) keys.push('noOfTables');
   }
-  if (times.departure || times.returnTime) {
+  if (times.departure || times.returnTime || times.embarkation) {
     const sch = inferDepartureReturn(
       String(times.departure || current.departure || '12:00'),
       String(times.returnTime || current.returnTime || current.disembarkation || '17:00'),
+      times,
     );
     patch.embarkation = sch.embarkation;
     patch.departure = sch.departure;

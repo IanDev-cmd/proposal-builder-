@@ -140,7 +140,7 @@ def format_event_date_compact(value: str) -> str:
     return raw
 
 
-def format_event_timings(value: str, *, include_tbc: bool = True, departure: str | None = None, return_time: str | None = None) -> str:
+def format_event_timings(value: str, *, include_tbc: bool = True, departure: str | None = None, return_time: str | None = None, embarkation: str | None = None) -> str:
     if value is None:
         value = ""
     raw = str(value).strip()
@@ -150,6 +150,9 @@ def format_event_timings(value: str, *, include_tbc: bool = True, departure: str
         out = f"{start}hrs – {end}hrs"
     else:
         times = re.findall(r"(\d{1,2}:\d{2})", raw)
+        emb = _norm_hhmm(embarkation)
+        if emb and times and _norm_hhmm(times[0]) == emb:
+            times = times[1:]
         if len(times) >= 2:
             out = f"{_norm_hhmm(times[0])}hrs – {_norm_hhmm(times[1])}hrs"
         else:
@@ -208,14 +211,31 @@ def format_quote_date_compact(value: str) -> str:
     return s
 
 
+def format_guest_count(value) -> str:
+    """Whole guests only — never 50.0."""
+    if value is None or value == "":
+        return ""
+    raw = str(value).strip().replace(",", "")
+    try:
+        n = float(raw)
+        if n != n:  # NaN
+            return str(value).strip()
+        return str(int(round(n)))
+    except (TypeError, ValueError):
+        m = re.match(r"^(\d+)(?:\.0+)?$", raw)
+        return m.group(1) if m else str(value).strip()
+
+
 def format_guest_range(value) -> str:
     if value is None:
         return ""
     raw = str(value).strip()
-    m = re.match(r"(\d+)\s*[-–—to]+\s*(\d+)", raw, re.I)
+    m = re.match(r"(\d+(?:\.\d+)?)\s*[-–—to]+\s*(\d+(?:\.\d+)?)", raw, re.I)
     if m:
-        return f"{m.group(1)} \u2013 {m.group(2)}"
-    return raw
+        lo = format_guest_count(m.group(1))
+        hi = format_guest_count(m.group(2))
+        return f"{lo} \u2013 {hi}"
+    return format_guest_count(raw) or raw
 
 
 def format_organisation(value: str, *, font_mgr=None, max_width: float | None = None, base_size: float = 4.63) -> str:
@@ -461,6 +481,7 @@ def normalize_cover_lead(lead: dict) -> dict:
             include_tbc=False,
             departure=lead.get("departure") or lead.get("event_start"),
             return_time=lead.get("returnTime") or lead.get("return_time") or lead.get("event_end"),
+            embarkation=lead.get("embarkation"),
         )
         if re.search(r"TBC", original, re.I) and "(TBC)" not in formatted:
             formatted = f"{formatted} (TBC)"
@@ -481,7 +502,7 @@ def normalize_cover_lead(lead: dict) -> dict:
     if "guest_range" in out:
         out["guest_range"] = format_guest_range(out["guest_range"])
     if "guest_quote_n" in out:
-        out["guest_quote_n"] = str(out["guest_quote_n"]).strip()
+        out["guest_quote_n"] = format_guest_count(out["guest_quote_n"])
     if out.get("key_items"):
         out["key_items"] = " ".join(str(out["key_items"]).split())
     return out
@@ -683,16 +704,7 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
                 parts = value.split("\n", 1)
                 value = parts[0].strip()
                 flexible = flexible or bool(re.search(r"tbc", parts[1], re.I))
-            max_w = spec.get("max_width", 56)
-            measure_src = value
-            if font_mgr.text_length(measure_src, spec["size"], spec.get("bold", False)) > max_w:
-                compact = format_event_date_compact(data[field_name])
-                if "\n" in compact:
-                    cparts = compact.split("\n", 1)
-                    value = cparts[0].strip()
-                    flexible = True
-                else:
-                    value = compact
+            # Keep the full weekday month date; shrink is handled in prepare_field_draw.
             # Flexible: leave the template "(Date TBC)" under Event date requested.
             # Fixed: wipe that template line so it does not stay on a confirmed date.
             if not flexible:
