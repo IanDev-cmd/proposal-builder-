@@ -63,10 +63,20 @@ export function filenameFromContentDisposition(header?: string | null): string {
   return sanitizeFilenamePart(plain?.[1] || '');
 }
 
+const PLACEHOLDER_COMPANY =
+  /^(na|n\/a|n\.a\.?|none|nil|null|-|—|–)$/i;
+
+/** Company token for filenames — drop blank / NA / dash placeholders. */
+export function companyForFilename(raw?: string | null): string {
+  const company = sanitizeFilenamePart(raw || '');
+  if (!company || PLACEHOLDER_COMPANY.test(company)) return '';
+  return company;
+}
+
 /**
  * Exact house filename from the lead:
  *   Proposal - Contact Name (Company Name) - Reference Code
- * Company omitted when the lead has none. Reference is the lead code, not a quote version.
+ * Company omitted when the lead has none, NA, or a dash placeholder. Reference is the lead code, not a quote version.
  */
 export function proposalFileStem(opts: {
   contactName?: string;
@@ -74,7 +84,7 @@ export function proposalFileStem(opts: {
   referenceCode?: string;
 }): string {
   const name = sanitizeFilenamePart(opts.contactName || '') || 'Contact TBC';
-  const company = sanitizeFilenamePart(opts.companyName || '');
+  const company = companyForFilename(opts.companyName);
   const ref = sanitizeFilenamePart(opts.referenceCode || '') || 'REF TBC';
   const who = company ? `${name} (${company})` : name;
   return `Proposal - ${who} - ${ref}`;

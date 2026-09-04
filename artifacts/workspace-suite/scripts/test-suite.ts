@@ -15,7 +15,7 @@ import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
 import { savedQuoteSharePath, isSavedQuoteReviewPath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
 import { parseRequestedTimes } from '../src/lib/leadPrefill.ts';
-import { formatEventTimingsPayload, itineraryHours } from '../src/lib/proposalTimings.ts';
+import { formatEventTimingsPayload, itineraryHours, returnFromDisembarkation } from '../src/lib/proposalTimings.ts';
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
 import { formatEventDateForProposal } from '../src/lib/goldScenarioCover.ts';
 import { errorMessage } from '../src/lib/errors.ts';
@@ -135,10 +135,17 @@ check(
     parseRequestedTimes('18.00 - 22.00').embarkation === '17:45',
 );
 check(
+  'unit two-clock finish is disembark not return',
+  parseRequestedTimes('18.00 - 22.00').disembarkation === '22:00' &&
+    parseRequestedTimes('18.00 - 22.00').returnTime === '21:45',
+);
+check(
   'unit 12-hour lead times',
   parseRequestedTimes('6pm to 10pm').departure === '18:00' &&
-    parseRequestedTimes('6pm to 10pm').returnTime === '22:00',
+    parseRequestedTimes('6pm to 10pm').disembarkation === '22:00' &&
+    parseRequestedTimes('6pm to 10pm').returnTime === '21:45',
 );
+check('unit return defaults to disembark minus 15', returnFromDisembarkation('23:00') === '22:45');
 
 const shareUrl = 'https://nexus.example/saved-quotes/q-lily';
 const text = quoteSharePlainText(pending, shareUrl);
@@ -173,7 +180,24 @@ check('unit guest range without quote number is ambiguous', parseGuestCountDetai
 check('unit single guest number parses', parseGuestCountDetailed({ groupSize: '40 guests' }).value === '40');
 check('unit empty guests stay empty', parseGuestCountDetailed({}).value === '' && parseGuestCountDetailed({}).ambiguous === true);
 
-check('unit cover timings are event window not embark', formatEventTimingsPayload({ embarkation: '18:45', departure: '19:00', returnTime: '23:00' }) === '19:00 - 23:00');
+check(
+  'unit cover timings are event window not embark',
+  formatEventTimingsPayload({
+    embarkation: '18:45',
+    departure: '19:00',
+    returnTime: '22:45',
+    disembarkation: '23:00',
+  }) === '19:00 - 23:00',
+);
+check(
+  'unit cover timings ignore pier return',
+  formatEventTimingsPayload({
+    embarkation: '18:45',
+    departure: '19:00',
+    returnTime: '22:45',
+    disembarkation: '23:00',
+  }).includes('22:45') === false,
+);
 check('unit billed hours ignore embark buffer', itineraryHours({ embarkation: '18:45', departure: '19:00', returnTime: '23:00', disembarkation: '23:00' }) === 4);
 check(
   'unit billed hours end at disembark not return',
@@ -313,6 +337,22 @@ check(
   'unit PDF name omits empty company',
   proposalFileStemFromLead({ name: 'Lily Day', referenceNumber: 'WE.19108' }) ===
     'Proposal - Lily Day - WE.19108',
+);
+check(
+  'unit PDF name drops NA company',
+  proposalFileStemFromLead({
+    name: 'Katrina Watson',
+    company: 'NA',
+    referenceNumber: 'WE.19132',
+  }) === 'Proposal - Katrina Watson - WE.19132',
+);
+check(
+  'unit PDF name drops dash placeholder company',
+  proposalFileStemFromLead({
+    name: 'Katrina Watson',
+    company: '—',
+    referenceNumber: 'WE.19132',
+  }) === 'Proposal - Katrina Watson - WE.19132',
 );
 check(
   'unit PDF name is Proposal - Joanna Eaton (EY) - WE.19103',

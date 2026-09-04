@@ -140,12 +140,21 @@ def format_event_date_compact(value: str) -> str:
     return raw
 
 
-def format_event_timings(value: str, *, include_tbc: bool = True, departure: str | None = None, return_time: str | None = None, embarkation: str | None = None) -> str:
+def format_event_timings(
+    value: str,
+    *,
+    include_tbc: bool = True,
+    departure: str | None = None,
+    return_time: str | None = None,
+    embarkation: str | None = None,
+    disembarkation: str | None = None,
+    event_end: str | None = None,
+) -> str:
     if value is None:
         value = ""
     raw = str(value).strip()
     start = _norm_hhmm(departure)
-    end = _norm_hhmm(return_time)
+    end = _norm_hhmm(disembarkation or event_end or return_time)
     if start and end:
         out = f"{start}hrs – {end}hrs"
     else:
@@ -480,7 +489,8 @@ def normalize_cover_lead(lead: dict) -> dict:
             original,
             include_tbc=False,
             departure=lead.get("departure") or lead.get("event_start"),
-            return_time=lead.get("returnTime") or lead.get("return_time") or lead.get("event_end"),
+            return_time=lead.get("returnTime") or lead.get("return_time"),
+            disembarkation=lead.get("disembarkation") or lead.get("event_end"),
             embarkation=lead.get("embarkation"),
         )
         if re.search(r"TBC", original, re.I) and "(TBC)" not in formatted:
@@ -597,16 +607,23 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
     )
     items.append(prepare_field_draw(client_spec, client, font_mgr, warnings, "prepared_by_client"))
 
-    role_origin = spec.get("role_origin") or (spec.get("label_x0", x0), y + 7.0)
-    role_bbox = spec.get("role_bbox") or spec["bbox"]
+    role_origin = spec.get("role_origin") or (spec.get("label_x0", x0), y + 6.4)
+    role_bbox = spec.get("role_bbox") or (
+        spec.get("label_x0", x0),
+        y + 1.2,
+        float((spec.get("bbox") or (0, 0, x0 + 90, y))[2]),
+        y + 7.2,
+    )
+    # Keep "Relationship Manager" on one line above the quote-date row (~y 67–73).
+    role_right = max(float(role_bbox[2]), float(x0) + 90.0)
     role_spec = dict(
-        bbox=role_bbox,
-        origin=role_origin,
-        size=size,  # role stays at template size (gold 4.63)
+        bbox=(float(role_bbox[0]), float(role_bbox[1]), role_right, min(float(role_bbox[3]), 65.5)),
+        origin=(float(role_origin[0]), min(float(role_origin[1]), 64.2)),
+        size=size,
         bold=False,
         deep_bold=False,
         color=color,
-        max_width=max(float(role_bbox[2]) - float(role_bbox[0]), 20.0),
+        max_width=max(role_right - float(role_bbox[0]), 80.0),
         skip_redact=True,
     )
     items.append(prepare_field_draw(role_spec, role, font_mgr, warnings, "prepared_by_role"))
@@ -635,8 +652,8 @@ def _quotation_valid_left(page, bbox) -> float | None:
 
 def _snap_quote_date_spec(page, spec: dict, value: str, font_mgr) -> tuple:
     """
-    Redact only the date. Never paint over template
-    '| Quotation valid for 28 days'.
+    Draw 'Date | 3 September 2026' (full month). Never paint over template
+    '| Quotation valid for 28 days'. Never abbreviate the month.
     """
     spec = dict(spec)
     bbox = list(spec.get("bbox") or (227.3, 67.1, 264.1, 73.7))
@@ -645,23 +662,26 @@ def _snap_quote_date_spec(page, spec: dict, value: str, font_mgr) -> tuple:
     cap = _quotation_valid_left(page, bbox)
     if cap is not None:
         bbox[2] = cap - 0.7
-        need = 34.0
-        if float(bbox[2]) - float(origin[0]) < need:
-            origin[0] = max(218.0, float(bbox[2]) - need)
-            bbox[0] = min(float(bbox[0]), origin[0])
     else:
-        bbox[2] = min(float(bbox[2]), origin[0] + 38.0)
+        bbox[2] = min(float(bbox[2]), origin[0] + 90.0)
+    date_text = format_quote_date(value)
+    prefix = "Date | "
+    need = 88.0
+    if font_mgr is not None:
+        need = max(
+            72.0,
+            font_mgr.text_length(prefix, size, True) + font_mgr.text_length(date_text, size, True) + 1.0,
+        )
+    if float(bbox[2]) - float(origin[0]) < need:
+        origin[0] = max(198.0, float(bbox[2]) - need)
+        bbox[0] = min(float(bbox[0]), origin[0])
     max_w = max(8.0, float(bbox[2]) - float(origin[0]))
-    text = format_quote_date(value)
-    bold = bool(spec.get("bold"))
-    if font_mgr is not None and font_mgr.text_length(text, size, bold) > max_w:
-        compact = format_quote_date_compact(text)
-        if font_mgr.text_length(compact, size, bold) <= max_w:
-            text = compact
     spec["bbox"] = tuple(bbox)
     spec["origin"] = tuple(origin)
     spec["max_width"] = max_w
-    return spec, text
+    spec["prefix"] = prefix
+    spec["bold"] = True
+    return spec, date_text
 
 
 def _cover_slot_is_location(page, spec: dict) -> bool:

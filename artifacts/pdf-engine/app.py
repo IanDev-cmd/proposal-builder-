@@ -227,7 +227,15 @@ def inserts_endpoint():
     })
 
 
+_PLACEHOLDER_COMPANY = re.compile(r"^(na|n/?a|n\.a\.?|none|nil|null|-|—|–)$", re.I)
 _REF_VERSION_TAIL = re.compile(r"\s+V\d+\s*$", re.I)
+
+
+def _company_for_filename(raw: str) -> str:
+    company = re.sub(r"\s+", " ", raw).strip()
+    if not company or _PLACEHOLDER_COMPANY.match(company):
+        return ""
+    return company
 
 
 def proposal_download_name(payload: dict, report: dict) -> str:
@@ -246,13 +254,15 @@ def proposal_download_name(payload: dict, report: dict) -> str:
     name = clean(
         str(lead.get("client_name") or nexus.get("name") or "").strip()
     ) or "Contact TBC"
-    company = clean(
-        str(
-            lead.get("organisation")
-            or nexus.get("companyName")
-            or nexus.get("company")
-            or ""
-        ).strip()
+    company = _company_for_filename(
+        clean(
+            str(
+                lead.get("organisation")
+                or nexus.get("companyName")
+                or nexus.get("company")
+                or ""
+            ).strip()
+        )
     )
     ref = clean(
         str(nexus.get("referenceNumber") or lead.get("reference_number") or "").strip()

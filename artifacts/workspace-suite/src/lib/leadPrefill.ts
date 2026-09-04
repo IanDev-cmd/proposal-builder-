@@ -23,7 +23,12 @@ import {
 } from '@/lib/progressNotesFinance';
 import { applyGoldScenarioPlaybook, goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
 import { buildRateParts } from '@/lib/costMotherLookup';
-import { buildItineraryProposalText, embarkationFromDeparture, addMinutesToTime } from '@/lib/proposalTimings';
+import {
+  buildItineraryProposalText,
+  embarkationFromDeparture,
+  returnFromDisembarkation,
+  addMinutesToTime,
+} from '@/lib/proposalTimings';
 
 export const PREFILL_INPUT_CLS =
   'border-blue-400 bg-blue-50/60 ring-2 ring-blue-100/90 focus:border-blue-500 focus:ring-blue-200/80';
@@ -192,8 +197,12 @@ function completeSchedule(partial: ParsedScheduleTimes): ParsedScheduleTimes {
     (partial.embarkation ? addMinutesToTime(partial.embarkation, 15) : undefined);
   const embarkation =
     partial.embarkation || (departure ? embarkationFromDeparture(departure) : undefined);
-  const returnTime = partial.returnTime || partial.disembarkation;
-  const disembarkation = partial.disembarkation || returnTime;
+  const disembarkation =
+    partial.disembarkation ||
+    (partial.returnTime ? addMinutesToTime(partial.returnTime, 15) : undefined);
+  const returnTime =
+    partial.returnTime ||
+    (disembarkation ? returnFromDisembarkation(disembarkation) : undefined);
   return { embarkation, departure, returnTime, disembarkation };
 }
 
@@ -236,7 +245,7 @@ export function parseRequestedTimes(raw?: string, quoteVersion?: string): Parsed
   if (clocks.length >= 2) {
     return completeSchedule({
       departure: clocks[0],
-      returnTime: clocks[1],
+      disembarkation: clocks[1],
     });
   }
   return {};
@@ -336,11 +345,12 @@ function inferDepartureReturn(
   disembarkation: string;
 } {
   const departure = extras?.departure || start || '12:00';
-  const returnTime = extras?.returnTime || finish || '17:00';
+  const disembarkation = extras?.disembarkation || finish || extras?.returnTime || '17:00';
+  const returnTime = extras?.returnTime || returnFromDisembarkation(disembarkation);
   return {
     departure,
     returnTime,
-    disembarkation: extras?.disembarkation || finish || returnTime,
+    disembarkation,
     embarkation: extras?.embarkation || embarkationFromDeparture(departure),
   };
 }
@@ -548,7 +558,9 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const guestCountHigh = parseGuestHigh(lead.groupSize, guestCount);
   const times = parseRequestedTimes(lead.requestedEventTimes, quoteVersion);
   const windowStart = times.departure || String(init.departure || '12:00');
-  const windowFinish = times.returnTime || String(init.returnTime || init.disembarkation || '17:00');
+  const windowFinish =
+    times.disembarkation ||
+    String(init.disembarkation || times.returnTime || init.returnTime || '17:00');
   const schedule = inferDepartureReturn(windowStart, windowFinish, times);
   const embarkation = schedule.embarkation;
   const disembarkation = schedule.disembarkation;
@@ -780,7 +792,7 @@ export function prefillForQuoteVersion<T extends Record<string, unknown>>(
   if (times.departure || times.returnTime || times.embarkation) {
     const sch = inferDepartureReturn(
       String(times.departure || current.departure || '12:00'),
-      String(times.returnTime || current.returnTime || current.disembarkation || '17:00'),
+      String(times.disembarkation || current.disembarkation || times.returnTime || current.returnTime || '17:00'),
       times,
     );
     patch.embarkation = sch.embarkation;

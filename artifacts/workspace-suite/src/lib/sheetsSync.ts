@@ -58,7 +58,7 @@ export type CostRatesPayload = {
     source?: string;
     items: { row?: number; label: string; rates: Record<string, number> }[];
     margins?: { eventService: string; market: string; months: Record<string, number> }[];
-  };
+  } | null;
   lines?: { id?: string; section?: string; label?: string; multiplier?: string }[];
   vessels?: string[];
   costMotherItems?: Record<string, unknown>[];

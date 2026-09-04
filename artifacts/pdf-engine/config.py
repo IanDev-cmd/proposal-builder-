@@ -61,8 +61,19 @@ PAGE_CONTACT = 15               # "Your Contact"
 # Cover fields — always near-white on the photo panels
 COVER_FIELDS = {
     "proposal_ref":  dict(bbox=(284.4, 39.3, 340, 45.7), origin=(284.4, 44.2), size=4.63, bold=False, color=COVER_TEXT_COLOR),
-    "prepared_by":   dict(bbox=(256.8, 48.4, 340, 55.0), origin=(256.8, 53.4), size=4.63, bold=True, color=COVER_TEXT_COLOR),
-    "quote_date":    dict(bbox=(227.3, 67.1, 264.1, 73.7), origin=(227.3, 72.3), size=4.63, bold=True, color=COVER_TEXT_COLOR),
+    "prepared_by":   dict(
+        bbox=(256.8, 48.4, 340, 55.0),
+        origin=(256.8, 53.4),
+        size=4.63,
+        bold=True,
+        color=COVER_TEXT_COLOR,
+        layout="gold_prepared_by",
+        label_x0=218.0,
+        role_bbox=(218.0, 55.2, 340, 62.8),
+        role_origin=(218.0, 61.8),
+        extra_redacts=[(217.5, 54.8, 340, 63.2)],
+    ),
+    "quote_date":    dict(bbox=(198.0, 67.1, 264.1, 73.7), origin=(198.0, 72.3), size=4.63, bold=True, color=COVER_TEXT_COLOR),
     "client_name":   dict(bbox=(260.0, 82.9, 320, 89.2), origin=(260.0, 87.8), size=4.63, bold=False, color=COVER_TEXT_COLOR),
     "organisation":  dict(bbox=(260.7, 92.2, 340, 98.5), origin=(260.7, 97.1), size=4.63, bold=False, color=COVER_TEXT_COLOR),
     "telephone":     dict(bbox=(254.9, 101.6, 310, 107.9), origin=(254.9, 106.5), size=4.63, bold=False, color=COVER_TEXT_COLOR),

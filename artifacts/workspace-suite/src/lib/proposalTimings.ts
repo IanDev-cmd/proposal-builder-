@@ -33,6 +33,11 @@ export function embarkationFromDeparture(departure: string): string {
   return addMinutesToTime(departure, -15);
 }
 
+/** Return is pier arrival — 15 minutes before guest disembarkation / event finish. */
+export function returnFromDisembarkation(disembarkation: string): string {
+  return addMinutesToTime(disembarkation, -15);
+}
+
 function fmtHrs(t?: string): string {
   const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return t || 'TBC';
@@ -84,17 +89,20 @@ export function buildItineraryProposalText(opts: TimingFields): string {
   return [block.heading, ...block.items].join('\n');
 }
 
-/** Cover / payload event window: departure → return. Never embarkation. */
+/**
+ * Cover / payload charter window: departure → disembarkation (event finish).
+ * Return is pier arrival before guests get off — not the cover end time.
+ */
 export function eventWindowTimes(opts: TimingFields): { start: string; end: string } {
   return {
     start: opts.departure || '',
-    end: opts.returnTime || '',
+    end: opts.disembarkation || opts.returnTime || '',
   };
 }
 
 /**
- * Cover event window as "HH:MM - HH:MM" from departure → return.
- * Embarkation is not a cover timing.
+ * Cover event window as "HH:MM - HH:MM" from departure → disembarkation.
+ * Embarkation and return (pier arrival) are not cover timings.
  */
 export function formatEventTimingsPayload(opts: TimingFields): string {
   const { start, end } = eventWindowTimes(opts);

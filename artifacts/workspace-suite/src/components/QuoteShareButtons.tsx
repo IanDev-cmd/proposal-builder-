@@ -8,13 +8,33 @@ type Props = {
   quote: SavedQuote;
   copied?: boolean;
   onShare: (channel: ShareChannel, quote: SavedQuote) => void;
+  /** When set, the overlay is controlled by the parent (used from Step 6). */
+  open?: boolean;
+  onClose?: () => void;
+  hideTrigger?: boolean;
+  title?: string;
 };
 
-export function QuoteShareButtons({ quote, copied, onShare }: Props) {
-  const [open, setOpen] = useState(false);
+export function QuoteShareButtons({
+  quote,
+  copied,
+  onShare,
+  open: openProp,
+  onClose,
+  hideTrigger = false,
+  title = 'Share quote',
+}: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? Boolean(openProp) : internalOpen;
+
+  const close = () => {
+    if (!controlled) setInternalOpen(false);
+    onClose?.();
+  };
 
   const pick = (channel: ShareChannel) => {
-    setOpen(false);
+    close();
     onShare(channel, quote);
   };
 
@@ -28,13 +48,13 @@ export function QuoteShareButtons({ quote, copied, onShare }: Props) {
 
   return (
     <>
-      <ShareTriggerButton onClick={() => setOpen(true)} fullWidth />
+      {hideTrigger ? null : <ShareTriggerButton onClick={() => setInternalOpen(true)} fullWidth />}
       <ShareOverlay
         open={open}
-        title="Share quote"
+        title={title}
         subtitle={quote.title}
         targets={targets}
-        onClose={() => setOpen(false)}
+        onClose={close}
       />
     </>
   );

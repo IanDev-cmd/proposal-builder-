@@ -21,7 +21,7 @@ import { SECTION_META } from '../src/lib/quoteBuilderCatalog.ts';
 const timings = {
   embarkation: '18:45',
   departure: '19:00',
-  returnTime: '23:00',
+  returnTime: '22:45',
   disembarkation: '23:00',
 };
 
@@ -47,7 +47,7 @@ check(
 );
 check(
   '1 Page 13 returns-to-pier uses template "at"',
-  overlay.venue_and_management[0].items.some((i) => /Returns to pier at 23:00hrs/.test(i)),
+  overlay.venue_and_management[0].items.some((i) => /Returns to pier at 22:45hrs/.test(i)),
 );
 
 // 2. Front page timings = event window, not embarkation

@@ -13,8 +13,10 @@ export const QUOTE_REVIEW_TABS = [
   { id: 'disapproved' as const, label: 'Disapproved Quotes' },
 ];
 
+type ReviewQuote = Pick<SavedQuote, 'reviewStatus'> & { data?: SavedQuote['data'] };
+
 export function quoteReviewStatus(
-  quote?: Pick<SavedQuote, 'reviewStatus' | 'data'> | QuoteReviewStatus | null,
+  quote?: ReviewQuote | QuoteReviewStatus | null,
 ): QuoteReviewStatus {
   const raw = typeof quote === 'string' ? quote : quote?.reviewStatus;
   const status = String(raw || '').trim().toLowerCase();
@@ -24,14 +26,14 @@ export function quoteReviewStatus(
   return 'pending';
 }
 
-function quoteHasCostApproval(quote?: Pick<SavedQuote, 'data'> | null): boolean {
+function quoteHasCostApproval(quote?: { data?: SavedQuote['data'] } | null): boolean {
   const data = quote && typeof quote === 'object' ? quote.data : undefined;
   return Boolean(data && (data as { costApproved?: boolean }).costApproved);
 }
 
 /** True when Generate Proposal should warn but still continue. */
 export function quoteNeedsApprovalFirst(
-  quote?: Pick<SavedQuote, 'reviewStatus' | 'data'> | QuoteReviewStatus | null,
+  quote?: ReviewQuote | QuoteReviewStatus | null,
 ): boolean {
   if (!quote || typeof quote === 'string') {
     return Boolean(quote) && quoteReviewStatus(quote) !== 'approved';

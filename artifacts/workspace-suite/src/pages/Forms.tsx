@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, AlertTriangle, X, UserRound, Layers, Search, Eye, Download } from 'lucide-react';
+import { ChevronDown, ArrowRight, Check, HelpCircle, AlertTriangle, X, UserRound, Layers, Search, Eye, Download, Share2 } from 'lucide-react';
 import { addProposal } from '@/lib/proposalStore';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
@@ -17,7 +17,10 @@ import {
   listSavedQuotes,
   peekPendingGenerate,
   persistSavedQuote,
+  type SavedQuote,
 } from '@/lib/savedQuotesStore';
+import { QuoteShareButtons } from '@/components/QuoteShareButtons';
+import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
 import {
   filenameFromContentDisposition,
@@ -60,6 +63,7 @@ import {
   parseItineraryProposalText,
   buildItineraryProposalBlock,
   embarkationFromDeparture,
+  returnFromDisembarkation,
   formatEventTimingsPayload,
 } from '@/lib/proposalTimings';
 import { PROPOSAL_ENGINE_GENERATE_URL } from '@/lib/backendUrls';
@@ -209,7 +213,7 @@ const INIT: FormData = {
   guestCountHigh: '',
   embarkation: '11:45',
   departure: '12:00',
-  returnTime: '17:00',
+  returnTime: '17:45',
   disembarkation: '18:00',
   menuType: [],
   repeatClient: false,
@@ -1029,6 +1033,10 @@ export function Forms() {
   const [ratesNote, setRatesNote] = useState<string>('');
   const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
+  const [step6ShareOpen, setStep6ShareOpen] = useState(false);
+  const [step6ShareQuote, setStep6ShareQuote] = useState<SavedQuote | null>(null);
+  const [step6ShareCopied, setStep6ShareCopied] = useState(false);
+  const [step6Sharing, setStep6Sharing] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(true);
   const [draftReady, setDraftReady] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
@@ -1279,6 +1287,9 @@ export function Forms() {
       ) {
         if (key === 'departure') {
           next.embarkation = embarkationFromDeparture(String(val || next.departure));
+        }
+        if (key === 'disembarkation') {
+          next.returnTime = returnFromDisembarkation(String(val || next.disembarkation));
         }
         next.proposalTimingsNotes = buildItineraryProposalText(next);
       }
@@ -1967,6 +1978,98 @@ export function Forms() {
         return getSavedQuote(quoteId) || existing || undefined;
       }
       throw err;
+    }
+  };
+
+  const amendQuoteFromStep6 = () => {
+    set('costApproved', false);
+    void persistWizardQuote({ ...data, costApproved: false });
+    setErrorMessage('');
+    setStep6ShareOpen(false);
+    setStep(4);
+  };
+
+  const approveAndContinueFromStep6 = () => {
+    if (!data.costApproved) {
+      if (costApprovalBlocked(parity, sheetTargets)) {
+        setErrorMessage(
+          parity.hints[0] ||
+            'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',
+        );
+        return;
+      }
+      set('costApproved', true);
+      void persistWizardQuote({ ...data, costApproved: true }).then(() => {
+        setQuoteDetailsOpen(false);
+        setErrorMessage('');
+        setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+      });
+      return;
+    }
+    setErrorMessage('');
+    setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+  };
+
+  const openStep6ShareForApproval = async () => {
+    if (step6Sharing) return;
+    setStep6Sharing(true);
+    try {
+      const saved = await persistWizardQuote(data);
+      const quote = saved || getSavedQuote(`quote-${leadNotesKey}-${data.quoteVersion || 'V1'}`);
+      if (!quote) {
+        toastError({
+          key: 'share-quote',
+          title: 'Could not prepare a review link',
+          description: 'Save the quote, then try Share for Approval again.',
+        });
+        return;
+      }
+      setStep6ShareQuote(quote);
+      setStep6ShareOpen(true);
+    } catch (err) {
+      toastError({
+        key: 'share-quote',
+        title: 'Could not prepare a review link',
+        description: formatError(err, 'Could not write the quote for sharing. Try again.'),
+      });
+    } finally {
+      setStep6Sharing(false);
+    }
+  };
+
+  const shareStep6Quote = async (channel: ShareChannel, quote: SavedQuote) => {
+    try {
+      const result = await openQuoteShareWeb(channel, quote);
+      if (channel === 'link' || result === 'copied') {
+        setStep6ShareCopied(true);
+        window.setTimeout(() => setStep6ShareCopied(false), 1600);
+        toastSuccess({
+          key: 'share-quote',
+          title: 'Quote page link copied',
+          description: 'Send it to a peer or manager without leaving Cost Approval.',
+        });
+      } else if (result === 'opened-copied') {
+        toastSuccess({
+          key: 'share-quote',
+          title: channel === 'dropbox' ? 'Opened Dropbox on the web' : 'Opened Google Drive on the web',
+        });
+      } else if (channel === 'email') {
+        toastSuccess({
+          key: 'share-quote',
+          title: 'Opened Gmail — To is blank',
+        });
+      } else {
+        toastSuccess({
+          key: 'share-quote',
+          title: 'Opened WhatsApp Web',
+        });
+      }
+    } catch {
+      toastError({
+        key: 'share-quote',
+        title: 'Could not share this quote',
+        description: 'Try again, or copy the quote page URL from Saved Quotes.',
+      });
     }
   };
 
@@ -2892,45 +2995,52 @@ export function Forms() {
                   <ArrowRight className="h-4 w-4 text-gray-300" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (costApprovalBlocked(parity, sheetTargets)) {
-                      setErrorMessage(
-                        parity.hints[0] ||
-                          'Financial cross-check failed — align WEOTT cost with Quote Sheet before approving.',
-                      );
-                      set('costApproved', false);
-                      return;
-                    }
-                    setErrorMessage('');
-                    const nextApproved = !data.costApproved;
-                    set('costApproved', nextApproved);
-                    void persistWizardQuote({ ...data, costApproved: nextApproved });
-                  }}
-                  data-testid="btn-approve-cost"
-                  disabled={costApprovalBlocked(parity, sheetTargets)}
-                  className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-5 py-4 text-[14px] font-bold transition-colors ${
-                    data.costApproved
-                      ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)]'
-                      : costApprovalBlocked(parity, sheetTargets)
-                        ? 'cursor-not-allowed border border-amber-200 bg-amber-50/60 text-amber-900/80'
-                        : 'border border-[#e3e6e4] bg-white text-gray-700 hover:border-[#FF5A45]/40'
-                  }`}
-                >
-                  {data.costApproved ? (
-                    <>
-                      <Check className="h-4.5 w-4.5" strokeWidth={3} />
-                      Cost cross-check approved
-                    </>
-                  ) : (
-                    'Approve cost cross-check'
-                  )}
-                </button>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    data-testid="btn-amend-quote"
+                    onClick={amendQuoteFromStep6}
+                    className="flex w-full items-center justify-center rounded-[12px] bg-black px-4 py-4 text-[13px] font-bold text-white transition-colors hover:bg-[#1a1a1a]"
+                  >
+                    Amend Quote
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="btn-share-for-approval"
+                    disabled={step6Sharing}
+                    onClick={() => void openStep6ShareForApproval()}
+                    className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-blue-600 px-4 py-4 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-70"
+                  >
+                    <Share2 className="h-4 w-4" strokeWidth={2.5} />
+                    {step6Sharing ? 'Preparing…' : 'Share for Approval'}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="btn-approve-cost"
+                    disabled={!data.costApproved && costApprovalBlocked(parity, sheetTargets)}
+                    onClick={approveAndContinueFromStep6}
+                    className={`flex w-full items-center justify-center gap-2 rounded-[12px] px-4 py-4 text-[13px] font-bold transition-colors ${
+                      data.costApproved
+                        ? 'bg-[#00e676] text-[#0b1f14] shadow-[0_0_18px_rgba(0,230,118,0.35)] hover:bg-[#00d66c]'
+                        : costApprovalBlocked(parity, sheetTargets)
+                          ? 'cursor-not-allowed border border-amber-200 bg-amber-50/80 text-amber-900/80'
+                          : 'bg-amber-500 text-white hover:bg-amber-600'
+                    }`}
+                  >
+                    {data.costApproved ? (
+                      <>
+                        <Check className="h-4 w-4" strokeWidth={3} />
+                        Approve and continue
+                      </>
+                    ) : (
+                      'Approve and continue'
+                    )}
+                  </button>
+                </div>
                 <p className="mt-2 text-center text-[11.5px] text-gray-400">
                   {data.costApproved
                     ? 'Approved — continue to Proposal Pack'
-                    : 'Review quote details, then approve to unlock Proposal Pack'}
+                    : 'Amend figures, share for a peer review, or self-approve to open Proposal Pack'}
                 </p>
                 {errorMessage && step === 6 && !data.costApproved ? (
                   <p className="mt-3 rounded-[10px] border border-[#FFE0DC] bg-[#FFF1F0] px-4 py-2.5 text-center text-[12px] font-semibold text-[#E22A12]">
@@ -3268,9 +3378,10 @@ export function Forms() {
             )}
           </AnimatePresence>
 
-          {/* ── Navigation ── */}
+          {/* ── Navigation (Cost Approval actions live on the three Step 6 buttons) ── */}
+          {step !== 6 ? (
           <div className="mt-11 flex items-center justify-between gap-3">
-            {step > 1 && step !== 6 ? (
+            {step > 1 ? (
               <button
                 onClick={() => setStep((s) => Math.max(1, s - 1))}
                 className="text-[13px] font-semibold text-gray-400 transition-colors hover:text-gray-700"
@@ -3280,54 +3391,7 @@ export function Forms() {
             ) : (
               <span />
             )}
-            {step === 6 ? (
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                <button
-                  type="button"
-                  data-testid="btn-amend-quote"
-                  onClick={() => {
-                    set('costApproved', false);
-                    void persistWizardQuote({ ...data, costApproved: false });
-                    setErrorMessage('');
-                    setStep(4);
-                  }}
-                  className="rounded-full border border-[#e3e6e4] bg-white px-6 py-3.5 text-[13px] font-bold text-gray-700 shadow-sm transition-colors hover:border-[#FF5A45]/50 hover:text-[#E22A12]"
-                >
-                  Amend Quote
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!data.costApproved) {
-                      if (costApprovalBlocked(parity, sheetTargets)) {
-                        setErrorMessage(
-                          parity.hints[0] ||
-                            'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',
-                        );
-                        return;
-                      }
-                      set('costApproved', true);
-                      void persistWizardQuote({ ...data, costApproved: true }).then(() => {
-                        setQuoteDetailsOpen(false);
-                        setErrorMessage('');
-                        setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
-                      });
-                      return;
-                    }
-                    setErrorMessage('');
-                    setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
-                  }}
-                  className={`flex items-center gap-2 rounded-full px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors ${
-                    data.costApproved
-                      ? 'bg-[#00e676] text-[#0b1f14] hover:bg-[#00d66c]'
-                      : 'bg-[#FF5A45] hover:bg-[#F4412A]'
-                  }`}
-                  data-testid="btn-next"
-                >
-                  {data.costApproved ? 'Continue to Proposal Pack' : 'Approve & continue'}
-                </button>
-              </div>
-            ) : step < LAST_CONTENT_STEP ? (
+            {step < LAST_CONTENT_STEP ? (
               <button
                 onClick={() => {
                   setErrorMessage('');
@@ -3350,6 +3414,7 @@ export function Forms() {
               </button>
             )}
           </div>
+          ) : null}
         </div>
       </main>
 
@@ -3517,14 +3582,7 @@ export function Forms() {
                 <button
                   type="button"
                   data-testid="btn-approve-cost-overlay"
-                  onClick={() => {
-                    set('costApproved', true);
-                    void persistWizardQuote({ ...data, costApproved: true }).then(() => {
-                      setQuoteDetailsOpen(false);
-                      setErrorMessage('');
-                      setStep(7);
-                    });
-                  }}
+                  onClick={approveAndContinueFromStep6}
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#FF5A45] px-5 py-3.5 text-[13px] font-bold text-white transition-colors hover:bg-[#F4412A]"
                 >
                   <Check className="h-4 w-4" strokeWidth={3} />
@@ -3535,6 +3593,17 @@ export function Forms() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {step6ShareQuote ? (
+        <QuoteShareButtons
+          quote={step6ShareQuote}
+          copied={step6ShareCopied}
+          onShare={(channel, quote) => void shareStep6Quote(channel, quote)}
+          open={step6ShareOpen}
+          onClose={() => setStep6ShareOpen(false)}
+          hideTrigger
+        />
+      ) : null}
 
       {/* ── Right-edge hover image preview (from settings, per selected/hovered option) ── */}
       <AnimatePresence>

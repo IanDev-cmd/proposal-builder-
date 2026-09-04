@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import unittest
 
+_PLACEHOLDER_COMPANY = re.compile(r"^(na|n/?a|n\.a\.?|none|nil|null|-|—|–)$", re.I)
 _REF_VERSION_TAIL = re.compile(r"\s+V\d+\s*$", re.I)
 
 
@@ -24,6 +25,8 @@ def proposal_download_name(payload: dict, report: dict) -> str:
     company = clean(
         str(lead.get("organisation") or nexus.get("companyName") or nexus.get("company") or "").strip()
     )
+    if not company or _PLACEHOLDER_COMPANY.match(company):
+        company = ""
     ref = clean(str(nexus.get("referenceNumber") or lead.get("reference_number") or "").strip())
     if not ref:
         ref = clean(str(lead.get("proposal_ref") or report.get("proposal_ref") or "").strip())
@@ -78,6 +81,16 @@ class ProposalFilenameTest(unittest.TestCase):
             {},
         )
         self.assertEqual(name, "Proposal - Joanna Eaton (EY) - WE.19103.pdf")
+
+    def test_drops_na_company(self) -> None:
+        name = proposal_download_name(
+            {
+                "lead": {"client_name": "Katrina Watson", "organisation": "NA", "reference_number": "WE.19132"},
+                "nexusLead": {"name": "Katrina Watson", "company": "NA", "referenceNumber": "WE.19132"},
+            },
+            {},
+        )
+        self.assertEqual(name, "Proposal - Katrina Watson - WE.19132.pdf")
 
 
 if __name__ == "__main__":

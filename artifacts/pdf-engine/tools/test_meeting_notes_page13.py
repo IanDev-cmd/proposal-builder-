@@ -65,9 +65,11 @@ def main() -> int:
         "18:45 - 23:00",
         include_tbc=False,
         departure="19:00",
-        return_time="23:00",
+        return_time="22:45",
+        disembarkation="23:00",
     )
     check("cover uses departure not embarkation", formatted.startswith("19:00hrs") and "18:45" not in formatted, formatted)
+    check("cover ends at event finish not pier return", "23:00hrs" in formatted and "22:45" not in formatted, formatted)
 
     if SAMPLE.exists():
         gen = fitz.open(SAMPLE)

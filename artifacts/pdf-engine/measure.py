@@ -315,9 +315,9 @@ def _measure_quote_date(spans) -> dict | None:
     y0 = min(float(s["bbox"][1]) for s in date_spans)
     y1 = max(float(s["bbox"][3]) for s in date_spans)
     x1 = cap - 0.7
-    min_w = 34.0
+    min_w = 80.0
     if x1 - x0 < min_w:
-        x0 = max(218.0, x1 - min_w)
+        x0 = max(198.0, x1 - min_w)
     return dict(
         bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)),
         origin=(round(x0, 1), round(origin_sp["origin"][1], 1)),
