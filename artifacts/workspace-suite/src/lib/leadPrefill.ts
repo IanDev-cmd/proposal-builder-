@@ -132,9 +132,10 @@ export function matchEventType(raw?: string): string {
   const starts = EVENT_TYPES.find((e) => lower.startsWith(e.toLowerCase()) || e.toLowerCase().startsWith(lower));
   if (starts) return starts;
   if (lower.includes('wedding')) {
-    return EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding transfer')) ||
-      EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding reception')) ||
-      'Wedding Reception';
+    if (/transfer/.test(lower)) {
+      return EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding transfer')) || 'Wedding Transfer';
+    }
+    return EVENT_TYPES.find((e) => e.toLowerCase().includes('wedding reception')) || 'Wedding Reception';
   }
   if (lower.includes('summer')) return 'Summer Event';
   if (lower.includes('christmas') || lower.includes('xmas')) return 'Christmas Event';

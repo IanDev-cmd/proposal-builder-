@@ -954,8 +954,12 @@ def clear_profile_cache():
 
 def warm_profiles(template_paths):
     """Pre-measure a list of templates (call at app startup)."""
+    failed: list[str] = []
+    warmed = 0
     for path in template_paths:
         try:
             get_profile(path)
-        except Exception:
-            continue
+            warmed += 1
+        except Exception as exc:
+            failed.append(f"{Path(path).name}: {exc}")
+    return {"warmed": warmed, "failed": failed}

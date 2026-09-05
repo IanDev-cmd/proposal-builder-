@@ -14,6 +14,7 @@ import { consumeFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import {
   consumePendingGenerate,
   getSavedQuote,
+  getSavedQuoteAsync,
   listSavedQuotes,
   peekPendingGenerate,
   persistSavedQuote,
@@ -1129,32 +1130,44 @@ export function Forms() {
 
   useEffect(() => {
     let cancelled = false;
-    if (peekPendingGenerate() || freshStartRef.current) {
+    if (freshStartRef.current) {
       setDraftReady(true);
       return;
     }
-    loadQuoteDraft<FormData>(leadNotesKey)
-      .then((draft) => {
-        if (cancelled) return;
-        if (draft?.data) {
-          const leadForm = leadInit.data as FormData;
+    const pendingId = peekPendingGenerate();
+    const hydrate = pendingId
+      ? getSavedQuoteAsync(pendingId).then((row) => {
+          if (cancelled || !row?.data || !Object.keys(row.data).length) return;
           setData({
-            ...draft.data,
-            initialEnquiry: draft.data.initialEnquiry || String(leadForm.initialEnquiry || ''),
-            progressNotes: draft.data.progressNotes || String(leadForm.progressNotes || ''),
-            keyItems: draft.data.keyItems || String(leadForm.keyItems || ''),
+            ...INIT,
+            ...(row.data as FormData),
+            ...(fromSavedGenerateRef.current ? { costApproved: true } : {}),
           });
-          if (
-            !openAtEventCoreRef.current &&
-            Number(draft.step) >= 1 &&
-            Number(draft.step) <= LAST_CONTENT_STEP
-          ) {
-            setStep(startStepRef.current || draft.step);
+        })
+      : loadQuoteDraft<FormData>(leadNotesKey).then((draft) => {
+          if (cancelled) return;
+          if (draft?.data) {
+            const leadForm = leadInit.data as FormData;
+            setData({
+              ...draft.data,
+              initialEnquiry: draft.data.initialEnquiry || String(leadForm.initialEnquiry || ''),
+              progressNotes: draft.data.progressNotes || String(leadForm.progressNotes || ''),
+              keyItems: draft.data.keyItems || String(leadForm.keyItems || ''),
+            });
+            if (
+              !openAtEventCoreRef.current &&
+              Number(draft.step) >= 1 &&
+              Number(draft.step) <= LAST_CONTENT_STEP
+            ) {
+              setStep(startStepRef.current || draft.step);
+            }
           }
-        }
-        setDraftReady(true);
-      })
+        });
+    void hydrate
       .catch(() => {
+        /* keep mount state */
+      })
+      .finally(() => {
         if (!cancelled) setDraftReady(true);
       });
     return () => {
@@ -1322,6 +1335,8 @@ export function Forms() {
           'eventDate',
           'dateFlexible',
           'eventType',
+          'agentReferral',
+          'lineAmountOverrides',
         ].includes(key)
       ) {
         next.costApproved = false;

@@ -120,7 +120,17 @@ export function QuoteReview() {
         title: 'Quote approved',
         description: 'Saved Quotes now shows this under the matching toggle.',
       });
-    } catch {
+    } catch (err) {
+      if ((err as { localSaved?: boolean }).localSaved) {
+        setQuote(getSavedQuote(quote.id) || quote);
+        toastSuccess({
+          key: 'quote-review',
+          title: status === 'approved' ? 'Quote approved on this device' : 'Quote disapproved on this device',
+          description: 'Could not reach the shared workspace. Sync will retry automatically.',
+        });
+        if (status === 'disapproved') setDisapproveOpen(true);
+        return;
+      }
       toastError({ key: 'quote-review', title: 'Could not save review status' });
     } finally {
       setSaving(false);

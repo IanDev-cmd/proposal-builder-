@@ -18,6 +18,6 @@ services:
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120
     envVars:
       - key: NEXUS_TEAM_PASSWORD
-        value: "945762"
+        sync: false
       - key: NEXUS_AUTH_SECRET
         generateValue: true

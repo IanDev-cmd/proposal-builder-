@@ -55,7 +55,7 @@ def _signing_secret() -> bytes:
 
 
 def expected_pin() -> str | None:
-    raw = os.environ.get("NEXUS_TEAM_PASSWORD", "945762").strip()
+    raw = os.environ.get("NEXUS_TEAM_PASSWORD", "").strip()
     return raw if _PIN_RE.fullmatch(raw) else None
 
 

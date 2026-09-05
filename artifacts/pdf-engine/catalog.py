@@ -105,8 +105,10 @@ class TemplateCatalog:
             except (TypeError, ValueError):
                 slot = None
 
-        if template_id and template_id in self.by_id:
-            return self._result(self.by_id[template_id], matched_by="template_id")
+        if template_id:
+            if template_id in self.by_id:
+                return self._result(self.by_id[template_id], matched_by="template_id")
+            raise FileNotFoundError(f"Unknown template_id={template_id!r}")
 
         candidates = list(self.templates)
 
@@ -122,7 +124,11 @@ class TemplateCatalog:
                 aliases = [_slug(a) for a in t.get("aliases", [])] + [t["event_slug"], _slug(t["event_type"])]
                 if slug in aliases or slug.replace("_event", "") in [a.replace("_event", "") for a in aliases]:
                     matched.append(t)
-            candidates = matched or candidates
+            if not matched:
+                raise FileNotFoundError(
+                    f"No template found for event_type={event_type!r} category={category!r}"
+                )
+            candidates = matched
 
         if not candidates and self.templates:
             # broaden: search all categories by alias
@@ -133,19 +139,20 @@ class TemplateCatalog:
             ]
 
         if not candidates:
-            # Ultimate fallback: legacy single template or summer_event
-            for fallback_id in ("corporate/summer_event/any",):
-                if fallback_id in self.by_id:
-                    return self._result(self.by_id[fallback_id], matched_by="fallback_summer")
-            if LEGACY_TEMPLATE.exists():
-                return {
-                    "id": "legacy/template.pdf",
-                    "path": str(LEGACY_TEMPLATE),
-                    "category": category or "corporate",
-                    "event_type": event_type or "Summer Event",
-                    "slot": slot or "any",
-                    "matched_by": "legacy_template",
-                }
+            # Only when the payload has no event type / template id.
+            if not event_type:
+                for fallback_id in ("corporate/summer_event/any",):
+                    if fallback_id in self.by_id:
+                        return self._result(self.by_id[fallback_id], matched_by="fallback_summer")
+                if LEGACY_TEMPLATE.exists():
+                    return {
+                        "id": "legacy/template.pdf",
+                        "path": str(LEGACY_TEMPLATE),
+                        "category": category or "corporate",
+                        "event_type": event_type or "Summer Event",
+                        "slot": slot or "any",
+                        "matched_by": "legacy_template",
+                    }
             raise FileNotFoundError(
                 f"No template found for event_type={event_type!r} category={category!r}. "
                 f"Known event types: {self.list_event_types()}"

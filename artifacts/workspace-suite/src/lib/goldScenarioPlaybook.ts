@@ -24,7 +24,6 @@ export function applyGoldScenarioPlaybook<T extends Record<string, unknown>>(
 
   if (f.vesselType) set('vesselType', f.vesselType);
   if (f.eventType) set('eventType', f.eventType);
-  if (f.quoteVersion) set('quoteVersion', f.quoteVersion);
   if (f.weeklyPeriod) set('weeklyPeriod', f.weeklyPeriod);
   if (f.dayPeriod) set('dayPeriod', f.dayPeriod);
   if (f.groupBracket) set('groupBracket', f.groupBracket);

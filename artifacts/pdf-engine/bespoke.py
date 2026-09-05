@@ -192,7 +192,15 @@ def apply_menu_links(doc: "fitz.Document", menu_links: dict, warnings: list, pro
     existing = list(page.get_links())
 
     for key, uri in menu_links.items():
-        if not uri:
+        uri = str(uri).strip()
+        if not uri.lower().startswith("https://"):
+            warnings.append(
+                type(
+                    "ValidationWarning",
+                    (),
+                    {"field": "menu_links", "message": f"Skipped non-https menu link for {key}"},
+                )()
+            )
             continue
         target = targets.get(key)
         if not target:

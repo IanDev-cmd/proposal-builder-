@@ -97,10 +97,13 @@ def _warm_profiles() -> None:
     paths = [str(_BASE / t["path"]) for t in get_catalog().templates]
     try:
         clear_profile_cache()
-        warm_profiles(paths)
-        _WARM["ok"] = True
-        _WARM["error"] = None
-        _WARM["templates_warmed"] = len(paths)
+        report = warm_profiles(paths)
+        failed = report.get("failed") or []
+        _WARM["ok"] = not failed
+        _WARM["error"] = "; ".join(failed[:6]) if failed else None
+        _WARM["templates_warmed"] = int(report.get("warmed") or 0)
+        if failed:
+            app.logger.error("profile warm-up missed %s template(s)", len(failed))
     except Exception as exc:
         _WARM["ok"] = False
         _WARM["error"] = str(exc)
@@ -296,8 +299,12 @@ def generate():
             error="PDF layout validation failed — cover/contact measurements out of spec",
             validation_errors=exc.errors,
         ), 422
-    except Exception as exc:
-        return jsonify(error=f"Proposal generation failed: {exc}"), 500
+    except FileNotFoundError:
+        app.logger.exception("proposal template missing")
+        return jsonify(error="No matching proposal template for this event."), 422
+    except Exception:
+        app.logger.exception("proposal generation failed")
+        return jsonify(error="Proposal generation failed"), 500
 
     filename = proposal_download_name(payload, report)
     response = send_file(
@@ -334,7 +341,7 @@ def workspace_quotes_put(quote_id):
     payload = request.get_json(force=True, silent=True)
     if not isinstance(payload, dict):
         return jsonify(error="Request body must be valid JSON"), 400
-    payload["id"] = str(payload.get("id") or quote_id)
+    payload["id"] = str(quote_id)
     try:
         saved = workspace_put_quote(payload)
     except ValueError as exc:
@@ -370,7 +377,7 @@ def workspace_proposals_put(proposal_id):
     payload = request.get_json(force=True, silent=True)
     if not isinstance(payload, dict):
         return jsonify(error="Request body must be valid JSON"), 400
-    payload["id"] = str(payload.get("id") or proposal_id)
+    payload["id"] = str(proposal_id)
     try:
         saved = workspace_put_proposal(payload)
     except ValueError as exc:

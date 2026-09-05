@@ -129,14 +129,13 @@ export async function restoreTeamSession(): Promise<boolean> {
       timeoutMs: 15_000,
     });
     if (!res.ok) {
-      clearTeamSession();
+      if (res.status === 401) clearTeamSession();
       return false;
     }
     touchTeamSession();
     return true;
   } catch {
-    clearTeamSession();
-    return false;
+    return Boolean(getTeamToken());
   }
 }
 

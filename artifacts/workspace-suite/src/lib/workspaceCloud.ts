@@ -1,6 +1,6 @@
 import { PROPOSAL_ENGINE_URL } from '@/lib/backendUrls';
 import { fetchWithTimeout } from '@/lib/http';
-import { engineAuthHeaders, notifyTeamAuthExpired } from '@/lib/teamSession';
+import { engineAuthHeaders, getTeamToken, notifyTeamAuthExpired } from '@/lib/teamSession';
 import type { GeneratedProposal } from '@/lib/proposalStore';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 
@@ -12,7 +12,9 @@ async function cloudFetch(path: string, init?: RequestInit): Promise<Response> {
     headers: engineAuthHeaders(init?.headers),
     timeoutMs: 45_000,
   });
-  if (res.status === 401) notifyTeamAuthExpired();
+  if (res.status === 401) {
+    if (getTeamToken()) notifyTeamAuthExpired();
+  }
   return res;
 }
 
@@ -49,13 +51,9 @@ export async function cloudDeleteQuote(id: string): Promise<void> {
 
 export async function cloudClearQuotes(): Promise<number> {
   const res = await cloudFetch('/quotes', { method: 'DELETE' });
-  if (res.ok) {
-    const body = (await readJson(res)) as { deleted?: number } | null;
-    return Number(body?.deleted) || 0;
-  }
-  const listed = await cloudListQuotes();
-  await Promise.all(listed.map((q) => cloudDeleteQuote(q.id)));
-  return listed.length;
+  if (!res.ok) throw new Error(`Could not clear workspace quotes (${res.status})`);
+  const body = (await readJson(res)) as { deleted?: number } | null;
+  return Number(body?.deleted) || 0;
 }
 
 export async function cloudGetQuote(id: string): Promise<SavedQuote | null> {
@@ -101,13 +99,9 @@ export async function cloudDeleteProposal(id: string): Promise<void> {
 
 export async function cloudClearProposals(): Promise<number> {
   const res = await cloudFetch('/proposals', { method: 'DELETE' });
-  if (res.ok) {
-    const body = (await readJson(res)) as { deleted?: number } | null;
-    return Number(body?.deleted) || 0;
-  }
-  const listed = await cloudListProposals();
-  await Promise.all(listed.map((p) => cloudDeleteProposal(p.id)));
-  return listed.length;
+  if (!res.ok) throw new Error(`Could not clear workspace proposals (${res.status})`);
+  const body = (await readJson(res)) as { deleted?: number } | null;
+  return Number(body?.deleted) || 0;
 }
 
 export type CloudRatesCatalog = {

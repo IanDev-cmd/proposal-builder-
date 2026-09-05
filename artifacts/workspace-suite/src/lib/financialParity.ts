@@ -6,6 +6,7 @@ import { QUOTE_LINES } from '@/lib/quoteBuilderCatalog';
 import {
   calcFinancials,
   money,
+  pound,
   VAT_RATE,
   type QuoteFormInput,
 } from '@/lib/quoteFinance';
@@ -60,10 +61,10 @@ export function costApprovalBlocked(
 
 export function clientTotalsFromWeott(weott: number, marginPercent: number) {
   const margin = marginPercent / 100;
-  const packageCost = money(weott * (1 + margin));
-  const vat = money(packageCost * VAT_RATE);
-  const grand = money(packageCost + vat);
-  return { weott, packageCost, vat, grand, marginPercent };
+  const packageCost = pound(weott * (1 + margin));
+  const vat = pound(packageCost * VAT_RATE);
+  const grand = pound(packageCost + vat);
+  return { weott: money(weott), packageCost, vat, grand, marginPercent };
 }
 
 export type ParityRow = {
