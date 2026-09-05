@@ -188,6 +188,7 @@ class ChristmasOverlayTest(unittest.TestCase):
             doc = fitz.open(out)
             cover = doc[0].get_text("text") or ""
             self.assertIn("Overlay Client", cover)
+            self.assertIn("| Overlay Client", cover)
             self.assertIn("Overlay Co", cover)
             self.assertIn("WE.99999", cover)
             self.assertNotIn("Sarah Prentice", cover)

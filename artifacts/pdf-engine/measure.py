@@ -123,6 +123,36 @@ def _span_field(sp, next_sp=None, widen=2.0, max_x1=None):
     )
 
 
+def _tight_pipe_field(label_sp, text: str, panel_right, next_value_sp=None) -> dict:
+    """
+    InDesign cover rows pad 'Label          | value'. Keep the label, wipe the
+    padded gap + pipe + old value, and redraw '| value' one space after the words.
+    """
+    full = fitz.Rect(label_sp["bbox"])
+    left = text.split("|", 1)[0] if "|" in text else text
+    label = left.rstrip()
+    ratio = len(label) / max(len(text), 1)
+    label_end = full.x0 + full.width * ratio
+    x0 = round(label_end + 0.8, 1)
+    y0, y1 = float(full.y0), float(full.y1)
+    x1 = float(panel_right) if panel_right else float(full.x1)
+    if next_value_sp is not None:
+        y0 = min(y0, float(next_value_sp["bbox"][1]))
+        y1 = max(y1, float(next_value_sp["bbox"][3]))
+        x1 = max(x1, float(next_value_sp["bbox"][2]))
+        if panel_right:
+            x1 = min(x1, float(panel_right))
+    return dict(
+        bbox=(round(x0 - 0.4, 1), round(y0 - 0.2, 1), round(x1, 1), round(y1 + 0.2, 1)),
+        origin=(x0, round(label_sp["origin"][1], 1)),
+        size=round(label_sp["size"], 2),
+        bold="Bold" in label_sp["font"] or "bold" in label_sp["font"].lower(),
+        max_width=round(max(x1 - x0, 1.0), 1),
+        color=_span_color(label_sp),
+        prefix="| ",
+    )
+
+
 def _next_same_line(spans, i):
     """Return the next span on the same line as spans[i], or None."""
     if i + 1 >= len(spans):
@@ -133,7 +163,7 @@ def _next_same_line(spans, i):
     return None
 
 
-def _value_after_label(spans, label_substr, *, value_same_line=True, panel_right=None):
+def _value_after_label(spans, label_substr, *, value_same_line=True, panel_right=None, tight_pipe=True):
     """
     Locate the editable value span that follows a label such as
     'Event type |' or 'Prepared by '.
@@ -151,6 +181,8 @@ def _value_after_label(spans, label_substr, *, value_same_line=True, panel_right
         # Case A: label ends with '|', value is the next span on similar y
         if "|" in text and text.strip().endswith("|"):
             nxt = _next_same_line(spans, i)
+            if tight_pipe:
+                return _tight_pipe_field(sp, text, panel_right, nxt)
             if nxt is not None:
                 cap = _same_line_label_cap(spans, i + 1, panel_right) if panel_right else None
                 nxt2 = _next_same_line(spans, i + 1)
@@ -172,6 +204,9 @@ def _value_after_label(spans, label_substr, *, value_same_line=True, panel_right
 
         # Case C: combined 'Label | value' in one span — redact only the value portion
         if "|" in text:
+            if tight_pipe:
+                nxt = _next_same_line(spans, i)
+                return _tight_pipe_field(sp, text, panel_right, nxt)
             left, right = text.split("|", 1)
             if right.strip():
                 full = fitz.Rect(sp["bbox"])
@@ -386,7 +421,12 @@ def measure_cover(page) -> dict:
     }
     for key, (labels, panel) in label_map.items():
         for label in labels:
-            found = _value_after_label(spans, label, panel_right=panel)
+            found = _value_after_label(
+                spans,
+                label,
+                panel_right=panel,
+                tight_pipe=key not in ("guest_range", "key_items"),
+            )
             if found:
                 fields[key] = found
                 break
@@ -864,7 +904,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 10
+MEASURE_SCHEMA_VERSION = 11
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 

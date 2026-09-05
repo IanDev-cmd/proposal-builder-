@@ -528,6 +528,13 @@ def _fit_cover_value(field_name: str, value: str, spec: dict, font_mgr) -> str:
         return format_cover_email(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
     if field_name == "event_type":
         return format_event_type(value, font_mgr=font_mgr, max_width=max_w, base_size=base_size)
+    if field_name == "event_date":
+        first = value.split("\n", 1)[0]
+        if font_mgr and max_w and font_mgr.text_length(first, base_size, False) > float(max_w):
+            compact = format_event_date_compact(first)
+            rest = value.split("\n", 1)[1] if "\n" in value else ""
+            return f"{compact}\n{rest}" if rest else compact
+        return value
     if field_name == "key_items":
         return _ellipsis_to_width(value, font_mgr, max_w, base_size)
     if field_name == "client_name" and " / " in value:

@@ -3794,31 +3794,23 @@ export function Forms() {
                     <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#7c8a82]">
                       Quote Snapshot
                     </p>
-                    <div className="flex flex-col gap-1.5 text-[12px]">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="shrink-0 text-gray-400">Vessel</span>
-                        <span className="min-w-0 text-right font-semibold leading-snug text-gray-700 break-words">
-                          {data.vesselType.join(', ') || '—'}
-                        </span>
-                      </div>
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="shrink-0 text-gray-400">Event</span>
-                        <span className="min-w-0 text-right font-semibold leading-snug text-gray-700 break-words">
-                          {data.eventType || '—'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="shrink-0 text-gray-400">Guests</span>
-                        <span className="font-semibold text-gray-700">{data.guestCount || '—'}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400">Base Cost</span>
-                        <span className="font-semibold text-slate-800">£{fin.baseCost.toFixed(2)}</span>
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between border-t border-gray-100 pt-1.5">
-                        <span className="text-gray-500">Grand Total</span>
-                        <span className="font-black text-slate-800">{formatGbpPounds(fin.grand)}</span>
-                      </div>
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2 gap-y-1.5 text-[12px]">
+                      <span className="text-gray-400">Vessel</span>
+                      <span className="font-semibold leading-snug text-gray-700 break-words">
+                        {data.vesselType.join(', ') || '—'}
+                      </span>
+                      <span className="text-gray-400">Event</span>
+                      <span className="font-semibold leading-snug text-gray-700 break-words">
+                        {data.eventType || '—'}
+                      </span>
+                      <span className="text-gray-400">Guests</span>
+                      <span className="font-semibold text-gray-700">{data.guestCount || '—'}</span>
+                      <span className="text-gray-400">Base Cost</span>
+                      <span className="font-semibold text-slate-800">£{fin.baseCost.toFixed(2)}</span>
+                      <span className="border-t border-gray-100 pt-1.5 text-gray-500">Grand Total</span>
+                      <span className="border-t border-gray-100 pt-1.5 font-black text-slate-800">
+                        {formatGbpPounds(fin.grand)}
+                      </span>
                     </div>
                   </div>
                 </div>

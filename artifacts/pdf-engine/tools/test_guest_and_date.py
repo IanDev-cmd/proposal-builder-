@@ -29,6 +29,13 @@ def main() -> int:
         format_event_date("2026-09-03") == "Thursday 3rd September 2026",
         format_event_date("2026-09-03"),
     )
+    from cover_contact import format_event_date_compact
+
+    check(
+        "cover date compact fits the panel",
+        format_event_date_compact("2026-09-03") == "Thu 3rd Sep 2026",
+        format_event_date_compact("2026-09-03"),
+    )
     formatted = format_event_timings(
         "17:45 - 22:00",
         include_tbc=False,
