@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from typing import Iterable
 
 # Measured from config.COVER_FIELDS + catalog templates (corporate cluster).
+# quote_date may grow left to 198pt (see measure._measure_quote_date / config).
+LEFT_PANEL_X0 = 196.0
 LEFT_PANEL_X1 = 342.0
 RIGHT_PANEL_X1 = 465.0
 
@@ -94,13 +96,15 @@ def validate_profile_strict(profile, *, template_id: str | None = None, category
             errors.append(f"cover.{key}: invalid bbox {spec['bbox']}")
 
         if key in ("client_name", "organisation", "telephone", "email", "proposal_ref", "prepared_by", "quote_date"):
-            if x0 < 200 or x0 > 350:
+            if x0 < LEFT_PANEL_X0 or x0 > 350:
                 errors.append(f"cover.{key}: x0 {x0} outside left panel")
             if x1 > LEFT_PANEL_X1 + 4:
                 errors.append(f"cover.{key}: x1 {x1} bleeds past left panel")
 
         if key in ("event_type", "event_date", "event_timings", "guest_range", "guest_quote_n"):
-            if x0 < 360:
+            # 4pt inward of the designed 360pt split — Christmas and other
+            # InDesign packs drift a couple of points without leaving the panel.
+            if x0 < 356:
                 errors.append(f"cover.{key}: x0 {x0} outside right panel")
 
     if not profile.page_bespoke and profile.pages < 10:

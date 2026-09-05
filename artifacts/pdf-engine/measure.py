@@ -282,7 +282,7 @@ def _measure_quote_date(spans) -> dict | None:
     line = [
         sp
         for sp in spans
-        if 60.0 <= float(sp["bbox"][1]) <= 82.0 and 200.0 <= float(sp["bbox"][0]) <= 345.0
+        if 60.0 <= float(sp["bbox"][1]) <= 82.0 and 196.0 <= float(sp["bbox"][0]) <= 345.0
     ]
     if not line:
         return None
@@ -864,7 +864,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 9
+MEASURE_SCHEMA_VERSION = 10
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 

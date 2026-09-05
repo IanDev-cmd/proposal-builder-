@@ -50,6 +50,10 @@ export function humanizeEngineWarning(raw: string): string {
     const label = FIELD_LABELS[field] || field.replace(/_/g, ' ');
     return `The ${label} is too long for the cover field.`;
   }
+  if (/outside (left|right) panel/i.test(text)) {
+    const label = FIELD_LABELS[field] || field.replace(/_/g, ' ') || 'cover field';
+    return `The ${label} on this proposal cover sits just outside the measured panel. Retry generate after the latest engine deploy.`;
+  }
   return text.replace(/^\[[^\]]+\]\s*/, '');
 }
 

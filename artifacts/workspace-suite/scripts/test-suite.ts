@@ -43,7 +43,7 @@ import {
   proposalFileStemFromLead,
   proposalFilenameFromRecord,
 } from '../src/lib/proposalFilename.ts';
-import { insertsForGenerate, resolveProposalInserts } from '../src/lib/proposalPrefill.ts';
+import { insertsForGenerate, resolveProposalInserts, resolveProposalTemplate } from '../src/lib/proposalPrefill.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -441,6 +441,28 @@ check(
     'unit generate still attaches WEOTT II vessel insert when inserts were skipped',
     generatedInserts.some((id) => id.startsWith('weott_ii_')),
   );
+  check(
+    'unit Christmas evening pack resolves like other corporates',
+    resolveProposalTemplate({
+      proposalCategory: 'corporate',
+      eventType: 'Christmas Event',
+      embarkation: '18:00',
+      departure: '18:00',
+      disembarkation: '22:00',
+      eventDate: '2026-12-12',
+    }) === 'corporate/christmas_event/evening',
+  );
+  check(
+    'unit Christmas daytime pack resolves like other corporates',
+    resolveProposalTemplate({
+      proposalCategory: 'corporate',
+      eventType: 'Christmas Event',
+      embarkation: '11:00',
+      departure: '12:00',
+      disembarkation: '16:00',
+      eventDate: '2026-12-12',
+    }) === 'corporate/christmas_event/daytime',
+  );
 }
 
 check(
@@ -456,6 +478,11 @@ check(
   humanizeEngineWarning(
     "[telephone] '020 1234 5678 / 07700 900000' had to shrink from 7.5pt to 4.2pt to fit its box -- flagging for manual review.",
   ) === 'The telephone number is too long for the cover field.',
+);
+check(
+  'unit quote_date panel drift is not shown as raw coordinates',
+  humanizeEngineWarning('cover.quote_date: x0 198.0 outside left panel').includes('quote date') &&
+    !humanizeEngineWarning('cover.quote_date: x0 198.0 outside left panel').includes('198.0'),
 );
 check(
   'unit overflow warnings are collected without the generic 422 copy',
