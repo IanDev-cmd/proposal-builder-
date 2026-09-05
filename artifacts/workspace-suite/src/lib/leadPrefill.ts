@@ -318,11 +318,11 @@ export function parseEventDateForInput(display?: string, full?: string, _flexibl
   return '';
 }
 
-export function parseQuoteVersionFromNotes(notes?: string): string {
-  if (!notes?.trim()) return 'V1';
-  const nums = [...notes.matchAll(/\bV\s*(\d+)\b/gi)].map((m) => Number(m[1])).filter(Number.isFinite);
-  if (!nums.length) return 'V1';
-  return `V${Math.max(...nums)}`;
+export function parseQuoteVersionFromNotes(_notes?: string): string {
+  // New quote builds and the first option always start at V1. Notes often
+  // mention V1 and V2 together (group size / timings); taking the highest
+  // match made a fresh option land on V2.
+  return 'V1';
 }
 
 export function parseGuestHigh(groupSize?: string | number | null, guestCount?: string): string {

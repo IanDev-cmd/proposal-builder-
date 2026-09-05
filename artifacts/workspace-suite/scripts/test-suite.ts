@@ -14,7 +14,7 @@ import { quoteSharePlainText, quoteShareWebUrl } from '../src/lib/quoteShare.ts'
 import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
 import { savedQuoteSharePath, isSavedQuoteReviewPath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
-import { parseRequestedTimes } from '../src/lib/leadPrefill.ts';
+import { parseQuoteVersionFromNotes, parseRequestedTimes } from '../src/lib/leadPrefill.ts';
 import { formatEventTimingsPayload, itineraryHours, returnFromDisembarkation } from '../src/lib/proposalTimings.ts';
 import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
 import { formatEventDateForProposal } from '../src/lib/goldScenarioCover.ts';
@@ -179,6 +179,12 @@ check(
 check('unit guest range without quote number is ambiguous', parseGuestCountDetailed({ groupSize: '50 - 65' }).ambiguous === true);
 check('unit single guest number parses', parseGuestCountDetailed({ groupSize: '40 guests' }).value === '40');
 check('unit empty guests stay empty', parseGuestCountDetailed({}).value === '' && parseGuestCountDetailed({}).ambiguous === true);
+check(
+  'unit new quotes start at V1 even when notes mention V2',
+  parseQuoteVersionFromNotes('V1 - 100\nV2 - 70') === 'V1' &&
+    parseQuoteVersionFromNotes('Requested times V2 18:00') === 'V1' &&
+    parseQuoteVersionFromNotes('') === 'V1',
+);
 
 check(
   'unit cover timings are event window not embark',

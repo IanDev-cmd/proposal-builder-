@@ -1969,10 +1969,14 @@ export function Forms() {
     });
     } catch (err) {
       if ((err as { localSaved?: boolean }).localSaved) {
+        const msg = String((err as Error)?.message || '');
+        const authFail = /401|authentication|sign in|session expired/i.test(msg);
         toastError({
           key: 'quote-cloud',
           title: 'Quote saved on this device',
-          description: 'Could not reach the shared workspace. Sync will retry automatically.',
+          description: authFail
+            ? 'Team session expired. Sign in again so this quote can sync and PDFs can generate.'
+            : 'Could not reach the shared workspace. Sync will retry automatically.',
           err,
         });
         return getSavedQuote(quoteId) || existing || undefined;
@@ -2765,7 +2769,7 @@ export function Forms() {
                     ))}
                   <div className="flex items-center justify-between bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                     <span>Total Cost to WEOTT</span>
-                    <span className="text-[14px] font-black text-[#00e676]">£{baseCostBreakdown.total.toFixed(2)}</span>
+                    <span className="text-[14px] font-black text-slate-800">£{baseCostBreakdown.total.toFixed(2)}</span>
                   </div>
                 </div>
                 {baseCostBreakdown.notes.length > 0 && (
@@ -2813,7 +2817,7 @@ export function Forms() {
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-[10px] border border-[#e3e6e4]">
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                       <span>Total Cost to WEOTT</span>
-                      <span className="font-black text-[#00e676]">£{fin.baseCost.toFixed(2)}</span>
+                      <span className="font-black text-slate-800">£{fin.baseCost.toFixed(2)}</span>
                     </div>
                     {(
                       [
@@ -2829,26 +2833,26 @@ export function Forms() {
                     ).map(([label, val]) => (
                       <div key={label} className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                         <span>{label}</span>
-                        <span className="font-semibold text-[#00e676]">{formatFinMoney(label, val)}</span>
+                        <span className="font-semibold text-slate-800">{formatFinMoney(label, val)}</span>
                       </div>
                     ))}
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] bg-[#f0fdf5] px-5 py-3 text-[13px] font-bold text-gray-700">
                       <span>Cost to Client (exc VAT)</span>
-                      <span className="font-black text-[#00e676]">{formatGbpPounds(fin.costToClient)}</span>
+                      <span className="font-black text-slate-800">{formatGbpPounds(fin.costToClient)}</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>VAT (20%)</span>
-                      <span className="font-semibold text-[#00e676]">{formatGbpPounds(fin.vat)}</span>
+                      <span className="font-semibold text-slate-800">{formatGbpPounds(fin.vat)}</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600">
                       <span>£ / guest (exc / inc VAT)</span>
-                      <span className="font-semibold text-[#00e676]">
+                      <span className="font-semibold text-slate-800">
                         £{fin.costPerGuestExc.toFixed(2)} / £{fin.costPerGuestInc.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between bg-[#FF5A45] px-5 py-4 text-[14px] font-black text-white">
                       <span>Grand Total</span>
-                      <span className="text-[#00e676]">{formatGbpPounds(fin.grand)}</span>
+                      <span className="text-white">{formatGbpPounds(fin.grand)}</span>
                     </div>
                   </motion.div>
                 )}
@@ -2941,10 +2945,14 @@ export function Forms() {
                   ).map(([label, val]) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] text-gray-600 last:border-b-0"
+                      className={`flex items-center justify-between border-b border-[#f0f0f0] px-5 py-3 text-[13px] last:border-b-0 ${
+                        label === 'Grand total'
+                          ? 'bg-[#fafafa] font-bold text-slate-800'
+                          : 'text-gray-600'
+                      }`}
                     >
                       <span>{label}</span>
-                      <span className="font-semibold text-[#00e676]">{formatFinMoney(label, val)}</span>
+                      <span className="font-semibold text-slate-800">{formatFinMoney(label, val)}</span>
                     </div>
                   ))}
                 </div>
@@ -3564,7 +3572,7 @@ export function Forms() {
                       className="flex items-center justify-between border-b border-[#f0f0f0] px-4 py-2.5 text-[12.5px] text-gray-600 last:border-b-0"
                     >
                       <span>{label}</span>
-                      <span className="font-semibold text-[#00e676]">
+                      <span className="font-semibold text-slate-800">
                         {val == null
                           ? `£${fin.costPerGuestExc.toFixed(2)} / £${fin.costPerGuestInc.toFixed(2)}`
                           : formatFinMoney(label, val)}
@@ -3573,7 +3581,7 @@ export function Forms() {
                   ))}
                   <div className="flex items-center justify-between bg-[#FF5A45] px-4 py-3 text-[13px] font-black text-white">
                     <span>Grand total</span>
-                    <span className="text-[#00e676]">{formatGbpPounds(fin.grand)}</span>
+                    <span className="text-white">{formatGbpPounds(fin.grand)}</span>
                   </div>
                 </div>
               </div>
@@ -3790,11 +3798,11 @@ export function Forms() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Base Cost</span>
-                        <span className="font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]">£{fin.baseCost.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">£{fin.baseCost.toFixed(2)}</span>
                       </div>
                       <div className="mt-1.5 flex items-center justify-between border-t border-gray-100 pt-1.5">
                         <span className="text-gray-500">Grand Total</span>
-                        <span className="font-black text-[#00e676]">{formatGbpPounds(fin.grand)}</span>
+                        <span className="font-black text-slate-800">{formatGbpPounds(fin.grand)}</span>
                       </div>
                     </div>
                   </div>

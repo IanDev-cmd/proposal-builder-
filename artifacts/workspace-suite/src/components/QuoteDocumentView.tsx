@@ -68,19 +68,19 @@ export function QuoteDocumentView({ quote }: { quote: SavedQuote }) {
           <dl className="rounded-[12px] border border-slate-200 px-4 py-3 text-[13px]">
             <div className="flex justify-between py-1">
               <dt className="text-slate-500">Total to WEOTT</dt>
-              <dd className="font-semibold">{formatGbp(fin.baseCost)}</dd>
+              <dd className="font-semibold text-slate-800">{formatGbp(fin.baseCost)}</dd>
             </div>
             <div className="flex justify-between py-1">
               <dt className="text-slate-500">Cost to client (exc VAT)</dt>
-              <dd className="font-semibold">{formatGbpPounds(fin.costToClient)}</dd>
+              <dd className="font-semibold text-slate-800">{formatGbpPounds(fin.costToClient)}</dd>
             </div>
             <div className="flex justify-between py-1">
               <dt className="text-slate-500">VAT</dt>
-              <dd className="font-semibold">{formatGbpPounds(fin.vat)}</dd>
+              <dd className="font-semibold text-slate-800">{formatGbpPounds(fin.vat)}</dd>
             </div>
             <div className="flex justify-between py-1">
               <dt className="font-bold text-slate-800">Grand total</dt>
-              <dd className="font-bold text-[#00a85a]">{formatGbpPounds(fin.grand)}</dd>
+              <dd className="font-bold text-slate-800">{formatGbpPounds(fin.grand)}</dd>
             </div>
           </dl>
         </>
