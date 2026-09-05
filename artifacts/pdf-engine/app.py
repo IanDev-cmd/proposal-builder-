@@ -44,7 +44,7 @@ from workspace_store import (
     put_rates_catalog as workspace_put_rates_catalog,
 )
 from catalog import get_catalog
-from measure import warm_profiles, clear_profile_cache
+from measure import warm_profiles
 from inserts import get_insert_manifest, list_inserts
 from profile_validation import ProfileValidationError
 from payload_schema import GeneratePayload, validation_error_body
@@ -96,7 +96,6 @@ _WARM = {"ok": False, "error": None, "templates_warmed": 0}
 def _warm_profiles() -> None:
     paths = [str(_BASE / t["path"]) for t in get_catalog().templates]
     try:
-        clear_profile_cache()
         report = warm_profiles(paths)
         failed = report.get("failed") or []
         _WARM["ok"] = not failed

@@ -21,6 +21,8 @@ from pathlib import Path
 
 import fitz
 
+from pdf_cache import open_source_pdf
+
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "assets" / "inserts" / "manifest.json"
 
@@ -184,58 +186,51 @@ def resolve_insert_paths(selected_ids: list[str]) -> list[dict]:
 
 
 def _replace_page(doc: fitz.Document, insert_path: str, page_index: int, warnings: list) -> None:
-    src = fitz.open(insert_path)
-    try:
-        if src.page_count < 1:
-            warnings.append(
-                type(
-                    "ValidationWarning",
-                    (),
-                    {"field": "insert", "message": f"Insert has no pages: {insert_path}"},
-                )()
-            )
-            return
-        # Clamp if template is shorter than expected
-        if page_index < 0 or page_index >= doc.page_count:
-            warnings.append(
-                type(
-                    "ValidationWarning",
-                    (),
-                    {
-                        "field": "insert",
-                        "message": (
-                            f"target_page {page_index} out of range "
-                            f"(doc has {doc.page_count} pages) — appending instead"
-                        ),
-                    },
-                )()
-            )
-            doc.insert_pdf(src, from_page=0, to_page=0, start_at=doc.page_count)
-            return
-        doc.insert_pdf(src, from_page=0, to_page=0, start_at=page_index)
-        doc.delete_page(page_index + 1)
-    finally:
-        src.close()
+    src = open_source_pdf(insert_path)
+    if src.page_count < 1:
+        warnings.append(
+            type(
+                "ValidationWarning",
+                (),
+                {"field": "insert", "message": f"Insert has no pages: {insert_path}"},
+            )()
+        )
+        return
+    if page_index < 0 or page_index >= doc.page_count:
+        warnings.append(
+            type(
+                "ValidationWarning",
+                (),
+                {
+                    "field": "insert",
+                    "message": (
+                        f"target_page {page_index} out of range "
+                        f"(doc has {doc.page_count} pages) — appending instead"
+                    ),
+                },
+            )()
+        )
+        doc.insert_pdf(src, from_page=0, to_page=0, start_at=doc.page_count)
+        return
+    doc.insert_pdf(src, from_page=0, to_page=0, start_at=page_index)
+    doc.delete_page(page_index + 1)
 
 
 def _insert_page_at(doc: fitz.Document, insert_path: str, start_at: int, warnings: list) -> int:
     """Insert first page of insert_path at start_at. Returns new page count delta (1)."""
-    src = fitz.open(insert_path)
-    try:
-        if src.page_count < 1:
-            warnings.append(
-                type(
-                    "ValidationWarning",
-                    (),
-                    {"field": "insert", "message": f"Insert has no pages: {insert_path}"},
-                )()
-            )
-            return 0
-        at = max(0, min(start_at, doc.page_count))
-        doc.insert_pdf(src, from_page=0, to_page=0, start_at=at)
-        return 1
-    finally:
-        src.close()
+    src = open_source_pdf(insert_path)
+    if src.page_count < 1:
+        warnings.append(
+            type(
+                "ValidationWarning",
+                (),
+                {"field": "insert", "message": f"Insert has no pages: {insert_path}"},
+            )()
+        )
+        return 0
+    at = max(0, min(start_at, doc.page_count))
+    doc.insert_pdf(src, from_page=0, to_page=0, start_at=at)
+    return 1
 
 
 def apply_inserts(doc: fitz.Document, selected_ids: list[str], warnings: list, extra_page_shift: int = 0) -> dict:

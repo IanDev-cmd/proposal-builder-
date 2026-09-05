@@ -189,21 +189,31 @@ class ChristmasOverlayTest(unittest.TestCase):
             self.assertTrue(out.exists())
             self.assertEqual(report.get("template_id"), "corporate/christmas_event/evening")
             doc = fitz.open(out)
-            cover = doc[0].get_text("text") or ""
-            self.assertIn("Overlay Client", cover)
-            self.assertIn("| Overlay Client", cover)
-            self.assertIn("Overlay Co", cover)
-            self.assertIn("WE.99999", cover)
-            self.assertNotIn("Sarah Prentice", cover)
-            self.assertNotIn("Blue Apple", cover)
-            self.assertIn("Christmas Event", cover)
-            self.assertIn("18:00hrs", cover)
-            self.assertIn("22:00hrs", cover)
-            profile = get_profile(str(EVE), force=True)
-            pack = doc[profile.page_bespoke].get_text("text") or ""
-            self.assertIn("Embark will begin", pack)
-            self.assertIn("18:00hrs", pack)
-            doc.close()
+            try:
+                cover = doc[0].get_text("text") or ""
+                self.assertIn("Overlay Client", cover)
+                self.assertIn("Overlay Co", cover)
+                self.assertIn("WE.99999", cover)
+                self.assertNotIn("Sarah Prentice", cover)
+                self.assertNotIn("Blue Apple", cover)
+                self.assertIn("Christmas Event", cover)
+                self.assertIn("18:00hrs", cover)
+                self.assertIn("22:00hrs", cover)
+                page = doc[0]
+                self.assertTrue(page.search_for("Email |"), cover)
+                self.assertTrue(page.search_for("Client Name |"), cover)
+                self.assertTrue(page.search_for("Telephone |"), cover)
+                self.assertTrue(page.search_for("Organisation |"), cover)
+                self.assertIn("ops@overlay.test", cover)
+                profile = get_profile(str(EVE), force=True)
+                self.assertAlmostEqual(profile.cover_fields["email"]["bbox"][0], 243.4, delta=1.0)
+                self.assertAlmostEqual(profile.cover_fields["telephone"]["bbox"][0], 254.9, delta=1.0)
+                self.assertAlmostEqual(profile.cover_fields["client_name"]["bbox"][0], 260.0, delta=1.0)
+                pack = doc[profile.page_bespoke].get_text("text") or ""
+                self.assertIn("Embark will begin", pack)
+                self.assertIn("18:00hrs", pack)
+            finally:
+                doc.close()
 
     def test_cover_date_line_margin_and_validity(self) -> None:
         import fitz
@@ -220,6 +230,9 @@ class ChristmasOverlayTest(unittest.TestCase):
         doc = fitz.open(out)
         page = doc[0]
         self._assert_gold_date_line(page, label_x, tid="christmas evening")
+        self.assertTrue(page.search_for("Email |"))
+        self.assertTrue(page.search_for("Client Name |"))
+        self.assertTrue(page.search_for("Telephone |"))
         self.assertNotIn("27 January 2026", page.get_text("text") or "")
         doc.close()
 

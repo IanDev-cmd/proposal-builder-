@@ -11,7 +11,7 @@ from assets/vessels/.
 
 import os
 
-import fitz
+from pdf_cache import open_source_pdf
 
 import config
 
@@ -45,20 +45,16 @@ def swap_vessel_page(doc: "fitz.Document", vessel_id: str, warnings: list, page_
         )
         return False
 
-    profile = fitz.open(path)
-    try:
-        if profile.page_count < 1:
-            warnings.append(
-                type("ValidationWarning", (), {"field": "vessel", "message": (
-                    f"Vessel profile '{path}' has no pages."
-                )})()
-            )
-            return False
+    profile = open_source_pdf(path)
+    if profile.page_count < 1:
+        warnings.append(
+            type("ValidationWarning", (), {"field": "vessel", "message": (
+                f"Vessel profile '{path}' has no pages."
+            )})()
+        )
+        return False
 
-        target = page_index if page_index is not None else config.PAGE_VESSEL
-        doc.insert_pdf(profile, from_page=0, to_page=0, start_at=target)
-        doc.delete_page(target + 1)
-    finally:
-        profile.close()
-
+    target = page_index if page_index is not None else config.PAGE_VESSEL
+    doc.insert_pdf(profile, from_page=0, to_page=0, start_at=target)
+    doc.delete_page(target + 1)
     return True

@@ -645,18 +645,6 @@ _LEFT_PANEL_INSET = 1.4
 _QUOTE_DATE_GAP = 2.6
 
 
-def _quotation_valid_rects(page, bbox) -> list:
-    y0 = float(bbox[1]) - 4.0
-    y1 = float(bbox[3]) + 4.0
-    rects = []
-    for needle in ("Quotation valid", "quotation valid", "Valid for", "valid for"):
-        for rect in page.search_for(needle) or []:
-            if rect.y1 < y0 or rect.y0 > y1:
-                continue
-            rects.append(fitz.Rect(rect))
-    return rects
-
-
 def _prepare_quote_date(page, spec: dict, value: str, font_mgr, warnings: list, *, label_x0=None) -> list:
     """
     Draw the quote date on the same left margin as Client Name (gold cover),
@@ -702,8 +690,6 @@ def _prepare_quote_date(page, spec: dict, value: str, font_mgr, warnings: list, 
         redact_right,
         max(float(bbox[3]), y + 1.2) + 0.3,
     )
-    extra = [tuple(r) for r in _quotation_valid_rects(page, bbox)]
-
     date_spec = dict(
         bbox=redact,
         origin=(x0, y),
@@ -712,7 +698,6 @@ def _prepare_quote_date(page, spec: dict, value: str, font_mgr, warnings: list, 
         deep_bold=True,
         color=color,
         max_width=max(dw + 1.0, 8.0),
-        extra_redacts=extra,
     )
     valid_spec = dict(
         bbox=redact,
@@ -740,8 +725,6 @@ def _cover_slot_is_location(page, spec: dict) -> bool:
 def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
     page_index = profile.page_cover if profile else config.PAGE_COVER
     fields = dict(profile.cover_fields) if profile and profile.cover_fields else dict(config.COVER_FIELDS)
-    if "key_items" not in fields and config.COVER_FIELDS.get("key_items"):
-        fields["key_items"] = dict(config.COVER_FIELDS["key_items"])
     page = doc[page_index]
     font_mgr.ensure_registered(page)
     data = normalize_cover_lead(data)
