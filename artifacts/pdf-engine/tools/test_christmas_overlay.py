@@ -44,7 +44,7 @@ PAYLOAD = {
         "organisation": "Overlay Co",
         "proposal_ref": "WE.99999",
         "prepared_by": "Test Rep",
-        "quote_date": "2026-12-05",
+        "quote_date": "2026-09-05",
         "event_type": "Christmas Event",
         "event_date": "2026-12-12",
         "event_date_flexible": False,
@@ -132,7 +132,10 @@ class ChristmasOverlayTest(unittest.TestCase):
             self.assertTrue(profile.financial_fields)
             self.assertTrue(profile.package_columns)
             qd = profile.cover_fields["quote_date"]["bbox"][0]
-            self.assertGreaterEqual(qd, 196.0, f"{tid} quote_date x0 {qd} below left-panel floor")
+            cn = profile.cover_fields["prepared_by"].get("label_x0") or profile.cover_fields["client_name"]["bbox"][0]
+            self.assertGreaterEqual(qd, 220.0, f"{tid} quote_date x0 {qd} left of cover labels")
+            self.assertAlmostEqual(qd, float(cn), delta=2.0, msg=f"{tid} quote_date x0 {qd} vs label {cn}")
+            self.assertLessEqual(profile.cover_fields["quote_date"]["bbox"][2], 347.0)
 
     def test_all_catalog_templates_pass_layout_gates(self) -> None:
         cat = get_catalog()
@@ -201,6 +204,74 @@ class ChristmasOverlayTest(unittest.TestCase):
             self.assertIn("Embark will begin", pack)
             self.assertIn("18:00hrs", pack)
             doc.close()
+
+    def test_cover_date_line_margin_and_validity(self) -> None:
+        import fitz
+
+        out_dir = ROOT / "tools" / "output"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / "cover_quote_date_september.pdf"
+        payload = json.loads(json.dumps(PAYLOAD))
+        payload["lead"]["quote_date"] = "2026-09-05"
+        report = build_proposal(payload, "AUTO", str(out))
+        self.assertTrue(out.exists(), report)
+        profile = get_profile(str(EVE), force=True)
+        label_x = float(profile.cover_fields["prepared_by"]["label_x0"])
+        doc = fitz.open(out)
+        page = doc[0]
+        self._assert_gold_date_line(page, label_x, tid="christmas evening")
+        self.assertNotIn("27 January 2026", page.get_text("text") or "")
+        doc.close()
+
+    def test_all_catalog_covers_match_gold_date_line(self) -> None:
+        import fitz
+
+        from cover_contact import fill_cover_page
+        from fonts import get_font_manager
+
+        fm = get_font_manager()
+        lead = dict(PAYLOAD["lead"])
+        lead["quote_date"] = "2026-09-05"
+        out_dir = ROOT / "tools" / "output"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        checked = 0
+        save_ids = {
+            "corporate/christmas_event/evening",
+            "corporate/christmas_event/daytime",
+            "corporate/client_event/evening",
+        }
+        for t in get_catalog().templates:
+            path = ROOT / t["path"]
+            profile = get_profile(str(path), force=True)
+            if "quote_date" not in (profile.cover_fields or {}):
+                continue
+            doc = fitz.open(path)
+            fill_cover_page(doc, lead, fm, [], profile)
+            page = doc[profile.page_cover]
+            label_x = float(
+                (profile.cover_fields.get("prepared_by") or {}).get("label_x0")
+                or profile.cover_fields["quote_date"]["origin"][0]
+            )
+            self._assert_gold_date_line(page, label_x, tid=t["id"])
+            if t["id"] in save_ids:
+                dest = out_dir / f"cover_quote_date_{t['id'].replace('/', '_')}.pdf"
+                doc.save(str(dest), garbage=3, deflate=True)
+            doc.close()
+            checked += 1
+        self.assertGreaterEqual(checked, 18)
+
+    def _assert_gold_date_line(self, page, label_x: float, *, tid: str) -> None:
+        date_hit = page.search_for("5 September 2026")
+        valid_hit = page.search_for("Quotation valid for 28 days")
+        self.assertTrue(date_hit, f"{tid} missing date: {page.get_text('text')[:240]}")
+        self.assertTrue(valid_hit, f"{tid} missing validity phrase")
+        date_r = min(date_hit, key=lambda r: r.x0)
+        valid_r = max(valid_hit, key=lambda r: r.x1)
+        self.assertAlmostEqual(date_r.x0, float(label_x), delta=2.5, msg=tid)
+        self.assertGreaterEqual(valid_r.x0, date_r.x1 + 1.0, tid)
+        self.assertLessEqual(valid_r.x1, 344.0, f"{tid} validity x1 {valid_r.x1} past panel stroke")
+        self.assertGreaterEqual(valid_r.x1, 338.0, f"{tid} validity x1 {valid_r.x1} not at panel stroke")
+        self.assertFalse(page.search_for("Date | 5 September"), tid)
 
 
 if __name__ == "__main__":

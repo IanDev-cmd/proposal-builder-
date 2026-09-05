@@ -310,9 +310,9 @@ def _guest_quote_field(num_sp, guests_sp):
 
 def _measure_quote_date(spans) -> dict | None:
     """
-    Date glyphs are split ('27' / 'January' / '202' / '6'). Union every span
-    on the validity line to the left of '| Quotation valid…'. Never grow into
-    that template phrase — grow left if the box is under 34pt.
+    Date glyphs are split ('27' / 'January' / '202' / '6'). The value starts on
+    the same left margin as Client Name. Wipe through the panel edge so fill can
+    redraw '| Quotation valid…' against that stroke without growing left.
     """
     line = [
         sp
@@ -331,8 +331,6 @@ def _measure_quote_date(spans) -> dict | None:
     )
     if not valid:
         return None
-    # Stop at the validity phrase. A date span like "27 January 2026 |" includes
-    # the pipe at the RIGHT of the box — do not treat that x0 as the cap.
     cap = float(valid["bbox"][0])
     for sp in line:
         t = sp["text"].strip()
@@ -347,12 +345,9 @@ def _measure_quote_date(spans) -> dict | None:
         return None
     origin_sp = min(date_spans, key=lambda s: s["bbox"][0])
     x0 = float(origin_sp["bbox"][0])
-    y0 = min(float(s["bbox"][1]) for s in date_spans)
-    y1 = max(float(s["bbox"][3]) for s in date_spans)
-    x1 = cap - 0.7
-    min_w = 80.0
-    if x1 - x0 < min_w:
-        x0 = max(198.0, x1 - min_w)
+    y0 = min(float(s["bbox"][1]) for s in date_spans + [valid])
+    y1 = max(float(s["bbox"][3]) for s in date_spans + [valid])
+    x1 = 343.0
     return dict(
         bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)),
         origin=(round(x0, 1), round(origin_sp["origin"][1], 1)),
@@ -360,6 +355,9 @@ def _measure_quote_date(spans) -> dict | None:
         bold=True,
         max_width=round(max(x1 - x0, 1.0), 1),
         color=_span_color(origin_sp),
+        label_x0=round(x0, 1),
+        panel_right=344.0,
+        valid_phrase=(valid.get("text") or " Quotation valid for 28 days"),
     )
 
 
@@ -555,8 +553,8 @@ def measure_cover(page) -> dict:
         fields["proposal_ref"] = _expand_cover_field(
             fields["proposal_ref"], LEFT_PANEL, min_width=48.0, max_width_cap=56.0,
         )
-    # quote_date is already capped before "| Quotation valid..." — expanding
-    # toward the panel edge wipes that template line.
+    # quote_date bbox already runs to the left-panel stroke so fill can
+    # redraw the validity phrase against that line.
 
     right_expand = {
         "event_type": 78.0,
@@ -904,7 +902,7 @@ def measure_template(template_path: str) -> TemplateProfile:
 
 
 # Bump when measure_cover / contact rules change (invalidates disk profile cache).
-MEASURE_SCHEMA_VERSION = 11
+MEASURE_SCHEMA_VERSION = 13
 _PROFILE_CACHE: dict[str, TemplateProfile] = {}
 _DISK_CACHE_DIR = Path(__file__).resolve().parent / "assets" / "templates" / "catalog" / ".profile_cache"
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 # Measured from config.COVER_FIELDS + catalog templates (corporate cluster).
-# quote_date may grow left to 198pt (see measure._measure_quote_date / config).
+# Cover labels sit near 227pt; quote_date must not drift left of the panel.
 LEFT_PANEL_X0 = 196.0
 LEFT_PANEL_X1 = 342.0
 RIGHT_PANEL_X1 = 465.0

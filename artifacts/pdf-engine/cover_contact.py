@@ -637,58 +637,97 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
     return items
 
 
-def _quotation_valid_left(page, bbox) -> float | None:
-    """Left edge of '| Quotation valid for 28 days' on the quote-date line."""
-    y0 = float(bbox[1]) - 3.0
-    y1 = float(bbox[3]) + 3.0
-    left = None
+_QUOTE_VALID_PHRASE = " | Quotation valid for 28 days"
+# Cover frost-box right stroke (~344pt). Keep a 1.4pt air gap so redaction
+# does not punch the white rule.
+_LEFT_PANEL_STROKE = 344.0
+_LEFT_PANEL_INSET = 1.4
+_QUOTE_DATE_GAP = 2.6
+
+
+def _quotation_valid_rects(page, bbox) -> list:
+    y0 = float(bbox[1]) - 4.0
+    y1 = float(bbox[3]) + 4.0
+    rects = []
     for needle in ("Quotation valid", "quotation valid", "Valid for", "valid for"):
         for rect in page.search_for(needle) or []:
             if rect.y1 < y0 or rect.y0 > y1:
                 continue
-            left = rect.x0 if left is None else min(left, rect.x0)
-    if left is None:
-        return None
-    for rect in page.search_for("|") or []:
-        if rect.y1 < y0 or rect.y0 > y1:
-            continue
-        if float(bbox[0]) < rect.x0 < left:
-            left = min(left, rect.x0)
-    return left
+            rects.append(fitz.Rect(rect))
+    return rects
 
 
-def _snap_quote_date_spec(page, spec: dict, value: str, font_mgr) -> tuple:
+def _prepare_quote_date(page, spec: dict, value: str, font_mgr, warnings: list, *, label_x0=None) -> list:
     """
-    Draw 'Date | 3 September 2026' (full month). Never paint over template
-    '| Quotation valid for 28 days'. Never abbreviate the month.
+    Draw the quote date on the same left margin as Client Name (gold cover),
+    then park ' | Quotation valid for 28 days' against the left-panel stroke
+    without overlapping the date or crossing the rule.
     """
     spec = dict(spec)
-    bbox = list(spec.get("bbox") or (227.3, 67.1, 264.1, 73.7))
+    bbox = list(spec.get("bbox") or (227.3, 67.1, 342.0, 73.7))
     origin = list(spec.get("origin") or (227.3, 72.3))
     size = float(spec.get("size") or 4.63)
-    cap = _quotation_valid_left(page, bbox)
-    if cap is not None:
-        bbox[2] = cap - 0.7
-    else:
-        bbox[2] = min(float(bbox[2]), origin[0] + 90.0)
-    date_text = format_quote_date(value)
-    prefix = "Date | "
-    need = 88.0
-    if font_mgr is not None:
-        need = max(
-            72.0,
-            font_mgr.text_length(prefix, size, True) + font_mgr.text_length(date_text, size, True) + 1.0,
+    color = _cover_ink_from_template(spec.get("color"))
+    date_line = format_quote_date(value)
+    valid_line = _QUOTE_VALID_PHRASE
+
+    x0 = float(label_x0 if label_x0 is not None else spec.get("label_x0") or origin[0])
+    stroke = float(spec.get("panel_right") or _LEFT_PANEL_STROKE)
+    panel_right = min(stroke, _LEFT_PANEL_STROKE) - _LEFT_PANEL_INSET
+
+    def widths(sz: float):
+        echo = 0.18
+        return (
+            font_mgr.text_length(date_line, sz, False) + echo,
+            font_mgr.text_length(valid_line, sz, False),
         )
-    if float(bbox[2]) - float(origin[0]) < need:
-        origin[0] = max(198.0, float(bbox[2]) - need)
-        bbox[0] = min(float(bbox[0]), origin[0])
-    max_w = max(8.0, float(bbox[2]) - float(origin[0]))
-    spec["bbox"] = tuple(bbox)
-    spec["origin"] = tuple(origin)
-    spec["max_width"] = max_w
-    spec["prefix"] = prefix
-    spec["bold"] = True
-    return spec, date_text
+
+    draw_size = size
+    dw, vw = widths(draw_size)
+    while draw_size > 3.75 and x0 + dw + _QUOTE_DATE_GAP + vw > panel_right:
+        draw_size = round(draw_size - 0.05, 2)
+        dw, vw = widths(draw_size)
+
+    valid_x = panel_right - vw
+    if x0 + dw + _QUOTE_DATE_GAP > valid_x:
+        valid_x = x0 + dw + _QUOTE_DATE_GAP
+        if valid_x + vw > panel_right:
+            valid_x = panel_right - vw
+
+    y = float(origin[1])
+    redact_right = min(panel_right + 0.4, _LEFT_PANEL_STROKE - 1.0)
+    redact = (
+        min(float(bbox[0]), x0) - 1.2,
+        min(float(bbox[1]), y - 5.4) - 0.3,
+        redact_right,
+        max(float(bbox[3]), y + 1.2) + 0.3,
+    )
+    extra = [tuple(r) for r in _quotation_valid_rects(page, bbox)]
+
+    date_spec = dict(
+        bbox=redact,
+        origin=(x0, y),
+        size=draw_size,
+        bold=False,
+        deep_bold=True,
+        color=color,
+        max_width=max(dw + 1.0, 8.0),
+        extra_redacts=extra,
+    )
+    valid_spec = dict(
+        bbox=redact,
+        origin=(valid_x, y),
+        size=draw_size,
+        bold=False,
+        deep_bold=False,
+        color=color,
+        max_width=max(vw + 1.0, 8.0),
+        skip_redact=True,
+    )
+    return [
+        prepare_field_draw(date_spec, date_line, font_mgr, warnings, "quote_date"),
+        prepare_field_draw(valid_spec, valid_line, font_mgr, warnings, "quote_valid"),
+    ]
 
 
 def _cover_slot_is_location(page, spec: dict) -> bool:
@@ -723,7 +762,14 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
         spec = dict(spec)
         value = str(data[field_name])
         if field_name == "quote_date":
-            spec, value = _snap_quote_date_spec(page, spec, value, font_mgr)
+            label_x0 = spec.get("label_x0")
+            pb = fields.get("prepared_by") or {}
+            if pb.get("label_x0") is not None:
+                label_x0 = pb["label_x0"]
+            prepared.extend(
+                _prepare_quote_date(page, spec, value, font_mgr, warnings, label_x0=label_x0)
+            )
+            continue
         value = _fit_cover_value(field_name, value, spec, font_mgr)
         if field_name == "event_date":
             flexible = bool(data.get("date_flexible"))
