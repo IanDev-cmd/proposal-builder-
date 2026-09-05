@@ -281,10 +281,11 @@ class ChristmasOverlayTest(unittest.TestCase):
         date_r = min(date_hit, key=lambda r: r.x0)
         valid_r = max(valid_hit, key=lambda r: r.x1)
         self.assertAlmostEqual(date_r.x0, float(label_x), delta=2.5, msg=tid)
-        self.assertGreaterEqual(valid_r.x0, date_r.x1 + 1.0, tid)
+        self.assertGreaterEqual(valid_r.x0, date_r.x1, tid)
+        self.assertLess(valid_r.x0 - date_r.x1, 8.0, f"{tid} validity not tight after date")
         self.assertLessEqual(valid_r.x1, 344.0, f"{tid} validity x1 {valid_r.x1} past panel stroke")
-        self.assertGreaterEqual(valid_r.x1, 338.0, f"{tid} validity x1 {valid_r.x1} not at panel stroke")
         self.assertFalse(page.search_for("Date | 5 September"), tid)
+        self.assertFalse(page.search_for("Date 5 September"), tid)
 
 
 if __name__ == "__main__":

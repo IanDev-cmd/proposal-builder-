@@ -315,9 +315,9 @@ def _guest_quote_field(num_sp, guests_sp):
 
 def _measure_quote_date(spans) -> dict | None:
     """
-    Date glyphs are split ('27' / 'January' / '202' / '6'). The value starts on
-    the same left margin as Client Name. Wipe through the panel edge so fill can
-    redraw '| Quotation valid…' against that stroke without growing left.
+    Date glyphs are split ('27' / 'January' / '202' / '6'). Origin is the
+    gold date span (same left margin as Client Name). Wipe through the
+    template validity phrase so fill can redraw '{date} | Quotation valid…'.
     """
     line = [
         sp
