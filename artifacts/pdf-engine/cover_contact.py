@@ -432,7 +432,7 @@ _STAFF_FULL_NAMES = {
 
 
 def format_prepared_by_name(lead: dict) -> str:
-    """REP name with surname — gold keeps '| Client' + role on the template lines."""
+    """REP name only — title is drawn after a separate '|' run."""
     raw = str(lead.get("prepared_by") or "").strip()
     if not raw:
         return ""
@@ -450,10 +450,7 @@ def format_prepared_by_name(lead: dict) -> str:
 
 
 def format_prepared_by_role(lead: dict) -> str:
-    """
-    Second cover line under Prepared by (regular weight), matching gold:
-    'Relationship Manager' / 'Relationship Coordinator'.
-    """
+    """Full job title after the pipe, e.g. 'Client Relationship Manager'."""
     title = str(lead.get("contact_title") or "").strip()
     if not title:
         raw = str(lead.get("prepared_by") or "")
@@ -462,9 +459,10 @@ def format_prepared_by_role(lead: dict) -> str:
     if not title:
         title = "Client Relationship Manager"
     title = re.sub(r"^\s*prepared\s+by\s+", "", title, flags=re.I).strip()
-    # Gold drops the leading 'Client ' — that stays on line 1 after the pipe.
-    title = re.sub(r"^\s*client\s+", "", title, flags=re.I).strip()
-    return " ".join(title.split()) or "Relationship Manager"
+    title = " ".join(title.split())
+    if title and not re.match(r"(?i)^client\b", title):
+        title = f"Client {title}"
+    return title or "Client Relationship Manager"
 
 
 def format_prepared_by(lead: dict) -> str:
@@ -546,100 +544,96 @@ def _fit_cover_value(field_name: str, value: str, spec: dict, font_mgr) -> str:
     return value
 
 
+_QUOTE_VALID_PHRASE = " | Quotation valid for 28 days"
+_LEFT_PANEL_STROKE = 344.0
+_LEFT_PANEL_INSET = 1.4
+
+
 def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) -> list:
     """
-    Match gold PDF typography:
-      Prepared by {NAME} | Client     <- name+pipe bold (deep_bold), Client regular
-      Relationship Coordinator        <- regular, second line
+    Single cover line after the static 'Prepared by' label:
+      {NAME} | {TITLE}     <- name+pipe deep_bold, title regular
+    The pipe is its own run so a long surname cannot clip the divider.
+    The template's second role line is wiped, not redrawn.
     """
     color = _cover_ink_from_template(spec.get("color"))
     size = float(spec.get("size") or 4.63)
     name = format_prepared_by_name(data)
-    role = format_prepared_by_role(data)
+    title = format_prepared_by_role(data)
     if not name:
         return []
 
     x0, y = spec["origin"]
-    max_w = float(spec.get("max_width") or 120)
-    client = " Client"
+    panel_right = min(float(spec.get("panel_right") or _LEFT_PANEL_STROKE), _LEFT_PANEL_STROKE) - _LEFT_PANEL_INSET
+    max_w = max(float(spec.get("max_width") or 0), panel_right - x0)
     pipe = " |"
+    title_run = f" {title}"
 
-    # Fit name so "NAME | Client" stays on line 1 at designed size when possible.
-    def line1_width(sz):
+    def line_width(sz):
         return (
             font_mgr.text_length(name, sz, False)
             + font_mgr.text_length(pipe, sz, False)
-            + font_mgr.text_length(client, sz, False)
+            + font_mgr.text_length(title_run, sz, False)
         )
 
     draw_size = size
-    while draw_size > 2.8 and line1_width(draw_size) > max_w:
+    while draw_size > 2.8 and line_width(draw_size) > max_w:
         draw_size = round(draw_size - 0.1, 1)
     if draw_size < size * 0.72:
         warnings.append(
             ValidationWarning(
                 field="prepared_by",
-                message=f"prepared_by shrunk from {size}pt to {draw_size}pt to fit gold line-1 layout.",
+                message=f"prepared_by shrunk from {size}pt to {draw_size}pt to fit NAME | TITLE on one line.",
             )
         )
 
+    name_w = font_mgr.text_length(name, draw_size, False)
+    pipe_w = font_mgr.text_length(pipe, draw_size, False)
+    pipe_x = x0 + name_w
+    title_x = pipe_x + pipe_w
+
+    extra_redacts = list(spec.get("extra_redacts") or [])
+    role_bbox = spec.get("role_bbox")
+    if role_bbox:
+        extra_redacts.append(tuple(role_bbox))
+
     items = []
-    # Primary redact covers name + Client + role line.
-    bold_spec = dict(
+    name_spec = dict(
         bbox=spec["bbox"],
         origin=(x0, y),
         size=draw_size,
         bold=False,
         deep_bold=True,
         color=color,
-        max_width=max_w,
-        extra_redacts=list(spec.get("extra_redacts") or []),
+        max_width=max(name_w + 1.0, 8.0),
+        extra_redacts=extra_redacts,
     )
-    items.append(prepare_field_draw(bold_spec, f"{name}{pipe}", font_mgr, warnings, "prepared_by"))
+    items.append(prepare_field_draw(name_spec, name, font_mgr, warnings, "prepared_by"))
 
-    # Draw the divider as its own run so surnames cannot clip the dash.
+    pipe_spec = dict(
+        bbox=spec["bbox"],
+        origin=(pipe_x, y),
+        size=draw_size,
+        bold=False,
+        deep_bold=True,
+        color=color,
+        max_width=max(pipe_w + 1.0, 4.0),
+        skip_redact=True,
+    )
+    items.append(prepare_field_draw(pipe_spec, pipe, font_mgr, warnings, "prepared_by_pipe"))
 
-    name_w = font_mgr.text_length(name, draw_size, False)
-    pipe_w = font_mgr.text_length(pipe, draw_size, False)
-    client_x = x0 + name_w + pipe_w
-    client_spec = dict(
-        bbox=spec["bbox"],  # already redacted via first item
-        origin=(client_x, y),
+    title_spec = dict(
+        bbox=spec["bbox"],
+        origin=(title_x, y),
         size=draw_size,
         bold=False,
         deep_bold=False,
         color=color,
-        max_width=max(max_w - (client_x - x0), 8.0),
+        max_width=max(panel_right - title_x, 8.0),
         skip_redact=True,
     )
-    items.append(prepare_field_draw(client_spec, client, font_mgr, warnings, "prepared_by_client"))
-
-    role_origin = spec.get("role_origin") or (spec.get("label_x0", x0), y + 6.4)
-    role_bbox = spec.get("role_bbox") or (
-        spec.get("label_x0", x0),
-        y + 1.2,
-        float((spec.get("bbox") or (0, 0, x0 + 90, y))[2]),
-        y + 7.2,
-    )
-    # Keep "Relationship Manager" on one line above the quote-date row (~y 67–73).
-    role_right = max(float(role_bbox[2]), float(x0) + 90.0)
-    role_spec = dict(
-        bbox=(float(role_bbox[0]), float(role_bbox[1]), role_right, min(float(role_bbox[3]), 65.5)),
-        origin=(float(role_origin[0]), min(float(role_origin[1]), 64.2)),
-        size=size,
-        bold=False,
-        deep_bold=False,
-        color=color,
-        max_width=max(role_right - float(role_bbox[0]), 80.0),
-        skip_redact=True,
-    )
-    items.append(prepare_field_draw(role_spec, role, font_mgr, warnings, "prepared_by_role"))
+    items.append(prepare_field_draw(title_spec, title_run, font_mgr, warnings, "prepared_by_role"))
     return items
-
-
-_QUOTE_VALID_PHRASE = " | Quotation valid for 28 days"
-_LEFT_PANEL_STROKE = 344.0
-_LEFT_PANEL_INSET = 1.4
 
 
 def _prepare_quote_date(page, spec: dict, value: str, font_mgr, warnings: list, *, label_x0=None) -> list:

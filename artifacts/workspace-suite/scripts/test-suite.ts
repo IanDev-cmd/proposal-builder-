@@ -44,6 +44,7 @@ import {
   proposalFilenameFromRecord,
 } from '../src/lib/proposalFilename.ts';
 import { insertsForGenerate, resolveProposalInserts, resolveProposalTemplate } from '../src/lib/proposalPrefill.ts';
+import { HOME_PATH, isHomeDashboardPath } from '../src/lib/homeLanding.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -493,6 +494,15 @@ check(
 check(
   'unit layout overflow-only 422 can be distinguished',
   isLayoutOverflowOnly(['cover.telephone: had to shrink from 7.5pt to 4pt']) === true,
+);
+
+check('unit home landing path is /home', HOME_PATH === '/home');
+check(
+  'unit home dashboard matches / and /home',
+  isHomeDashboardPath('/') === true &&
+    isHomeDashboardPath('/home') === true &&
+    isHomeDashboardPath('/quote-builder') === false &&
+    isHomeDashboardPath('/saved-quotes/abc') === false,
 );
 
 if (failed) {

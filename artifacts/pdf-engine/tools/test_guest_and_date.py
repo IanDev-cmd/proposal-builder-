@@ -7,7 +7,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from cover_contact import format_event_date, format_event_timings, format_guest_count, format_guest_range, format_quote_date
+from cover_contact import (
+    format_event_date,
+    format_event_timings,
+    format_guest_count,
+    format_guest_range,
+    format_prepared_by_name,
+    format_prepared_by_role,
+    format_quote_date,
+)
 
 
 def main() -> int:
@@ -47,6 +55,21 @@ def main() -> int:
     check("cover uses departure not embark", formatted.startswith("18:00hrs") and "17:45" not in formatted, formatted)
     check("cover ends at disembark not return", "22:00hrs" in formatted and "21:45" not in formatted, formatted)
     check("quote date keeps full September", format_quote_date("2026-09-03") == "3 September 2026")
+    check(
+        "prepared-by name strips a pasted title",
+        format_prepared_by_name({"prepared_by": "Katherine Bulaon | Client Relationship Manager"})
+        == "Katherine Bulaon",
+    )
+    check(
+        "prepared-by role keeps Client on the same line",
+        format_prepared_by_role({"contact_title": "Client Relationship Manager"})
+        == "Client Relationship Manager",
+    )
+    check(
+        "prepared-by role prepends Client when missing",
+        format_prepared_by_role({"contact_title": "Relationship Manager"})
+        == "Client Relationship Manager",
+    )
 
     if failed:
         print(f"\n{failed} check(s) failed")

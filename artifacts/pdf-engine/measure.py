@@ -445,10 +445,10 @@ def measure_cover(page) -> dict:
                 fields["proposal_ref"] = _span_field(sp, next_sp=nxt, max_x1=LEFT_PANEL)
                 break
 
-    # Prepared by — gold layout is TWO lines (not one):
-    #   Line 1: "Prepared by {NAME} |" (bold) + " Client" (regular)
-    #   Line 2: "Relationship Manager/Coordinator" (regular)
-    # Measure anchors so fill can wipe the variable band and redraw like the gold PDF.
+    # Prepared by — templates still store a two-line gold sample
+    # (NAME | Client / Relationship Manager). Overlay redraws one line:
+    #   "Prepared by {NAME} | {FULL TITLE}"
+    # Measure both bands so fill can wipe leftover template role text.
     for i, sp in enumerate(spans):
         text = sp["text"]
         low = text.lower()

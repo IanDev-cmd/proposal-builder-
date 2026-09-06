@@ -43,7 +43,7 @@ PAYLOAD = {
         "client_name": "Overlay Client",
         "organisation": "Overlay Co",
         "proposal_ref": "WE.99999",
-        "prepared_by": "Test Rep",
+        "prepared_by": "Katherine Bulaon",
         "quote_date": "2026-09-05",
         "event_type": "Christmas Event",
         "event_date": "2026-12-12",
@@ -205,6 +205,7 @@ class ChristmasOverlayTest(unittest.TestCase):
                 self.assertTrue(page.search_for("Telephone |"), cover)
                 self.assertTrue(page.search_for("Organisation |"), cover)
                 self.assertIn("ops@overlay.test", cover)
+                self._assert_prepared_by_line(page, tid="christmas evening overlay")
                 profile = get_profile(str(EVE), force=True)
                 self.assertAlmostEqual(profile.cover_fields["email"]["bbox"][0], 243.4, delta=1.0)
                 self.assertAlmostEqual(profile.cover_fields["telephone"]["bbox"][0], 254.9, delta=1.0)
@@ -266,12 +267,31 @@ class ChristmasOverlayTest(unittest.TestCase):
                 or profile.cover_fields["quote_date"]["origin"][0]
             )
             self._assert_gold_date_line(page, label_x, tid=t["id"])
+            self.assertEqual(
+                (profile.cover_fields.get("prepared_by") or {}).get("layout"),
+                "gold_prepared_by",
+                t["id"],
+            )
+            self._assert_prepared_by_line(page, tid=t["id"])
             if t["id"] in save_ids:
                 dest = out_dir / f"cover_quote_date_{t['id'].replace('/', '_')}.pdf"
                 doc.save(str(dest), garbage=3, deflate=True)
             doc.close()
             checked += 1
         self.assertGreaterEqual(checked, 18)
+
+    def _assert_prepared_by_line(self, page, *, tid: str) -> None:
+        name_hit = page.search_for("Katherine Bulaon |")
+        title_hit = page.search_for("Client Relationship Manager")
+        cover = page.get_text("text") or ""
+        self.assertTrue(name_hit, f"{tid} missing name+pipe: {cover[:240]}")
+        self.assertTrue(title_hit, f"{tid} missing full title: {cover[:240]}")
+        self.assertAlmostEqual(
+            name_hit[0].y0,
+            title_hit[0].y0,
+            delta=1.5,
+            msg=f"{tid} title wrapped off the Prepared by line",
+        )
 
     def _assert_gold_date_line(self, page, label_x: float, *, tid: str) -> None:
         date_hit = page.search_for("5 September 2026")

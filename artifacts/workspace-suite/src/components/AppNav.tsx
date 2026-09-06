@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'wouter';
 import { Home, Users, ClipboardList, Bookmark, FileText, Settings } from 'lucide-react';
+import { HOME_PATH, isHomeDashboardPath } from '@/lib/homeLanding';
 import { isSavedQuoteReviewPath } from '@/lib/savedQuotesStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 
 const NAV_ITEMS = [
-  { href: '/',              label: 'Home',          icon: Home           },
+  { href: HOME_PATH,        label: 'Home',          icon: Home           },
   { href: '/leads',         label: 'Leads',         icon: Users          },
   { href: '/quote-builder', label: 'Quote Builder', icon: ClipboardList  },
   { href: '/saved-quotes',  label: 'Saved Quotes',  icon: Bookmark       },
@@ -27,7 +28,12 @@ export function AppNav() {
 
         <nav className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const isActive = href === '/saved-quotes' ? location.startsWith('/saved-quotes') : location === href;
+            const isActive =
+              href === HOME_PATH
+                ? isHomeDashboardPath(location)
+                : href === '/saved-quotes'
+                  ? location.startsWith('/saved-quotes')
+                  : location === href;
             return (
               <Link
                 key={href}

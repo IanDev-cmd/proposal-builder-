@@ -1,5 +1,6 @@
 import { useLocation } from 'wouter';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { HOME_PATH } from '@/lib/homeLanding';
 
 export default function NotFound() {
   const [, navigate] = useLocation();
@@ -13,7 +14,7 @@ export default function NotFound() {
           The page you're looking for doesn't exist.
         </p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate(HOME_PATH)}
           className="mt-2 flex items-center gap-2 bg-[#FF5A45] px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#F4412A]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

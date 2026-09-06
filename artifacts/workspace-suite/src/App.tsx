@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
+import { Redirect, Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { AppNav } from '@/components/AppNav';
 import { ActiveLeadProvider } from '@/context/ActiveLeadContext';
 import { TeamPasswordGate } from '@/components/TeamPasswordGate';
@@ -50,7 +50,8 @@ function Router() {
       <ScrollToTop />
       <AppNav />
       <Switch>
-        <Route path="/" component={Home} />
+        <Route path="/home" component={Home} />
+        <Route path="/">{() => <Redirect to="/home" />}</Route>
         <Route path="/leads" component={Leads} />
         <Route path="/quote-builder">{() => <QuoteBuilder key={quoteBuilderKey} />}</Route>
         <Route path="/saved-quotes/:id" component={QuoteReview} />
