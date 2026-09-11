@@ -7,8 +7,8 @@ import {
   FileIcon as FileGeneratedIcon,
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2, Link2,
 } from 'lucide-react';
-import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
-import { syncWorkspaceCloud } from '@/lib/workspaceSync';
+import { loadProposals, getProposal, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { requestWorkspaceSync } from '@/lib/syncManager';
 import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
@@ -126,7 +126,22 @@ export function ProposalDoc() {
         });
     };
     refresh();
-    void syncWorkspaceCloud().then(() => {
+    const deepId = new URLSearchParams(window.location.search).get('id');
+    if (deepId) {
+      void getProposal(deepId).then((row) => {
+        if (cancelled || !row) return;
+        setGenerated((prev) => {
+          if (prev.some((p) => p.id === row.id)) {
+            return prev.map((p) => (p.id === row.id ? { ...p, ...row } : p));
+          }
+          return [row, ...prev];
+        });
+      });
+    }
+    void requestWorkspaceSync('deep-link', {
+      path: '/proposal-doc',
+      search: window.location.search,
+    }).then(() => {
       if (!cancelled) refresh();
     });
     const unsubscribe = subscribeProposals(refresh);

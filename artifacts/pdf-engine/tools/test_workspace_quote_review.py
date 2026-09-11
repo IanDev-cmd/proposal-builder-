@@ -98,6 +98,10 @@ class QuoteReviewStoreTest(unittest.TestCase):
         self.assertIsNone(self.ws.get_quote("q1"))
         self.assertEqual(self.ws.list_quotes(), [])
 
+    def test_quote_write_sets_updated_at(self) -> None:
+        saved = self.ws.put_quote({"id": "q1", "title": "Quote"})
+        self.assertTrue(str(saved.get("updatedAt") or ""))
+
 
 if __name__ == "__main__":
     unittest.main()

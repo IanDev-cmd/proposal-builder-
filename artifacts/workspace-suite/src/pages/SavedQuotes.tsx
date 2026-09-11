@@ -16,7 +16,7 @@ import {
   hydrateSavedQuotesDb,
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
-import { syncWorkspaceCloud } from '@/lib/workspaceSync';
+import { requestWorkspaceSync } from '@/lib/syncManager';
 import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
 import { markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
@@ -100,7 +100,7 @@ export function SavedQuotes() {
     let cancelled = false;
     void hydrateSavedQuotesDb()
       .then(async () => {
-        await syncWorkspaceCloud();
+        await requestWorkspaceSync('route', { path: '/saved-quotes' });
         const snaps = await listOpsQuotes();
         if (!cancelled) {
           setQuotes(listSavedQuotes());

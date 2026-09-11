@@ -14,6 +14,8 @@ import {
   markWorkspaceMigrated,
 } from '@/lib/nexusWorkspaceDb';
 import { cloudDeleteProposal, cloudGetProposal, cloudPutProposal, cloudClearProposals } from '@/lib/workspaceCloud';
+import { dequeueSyncOutbox, enqueueSyncOutbox } from '@/lib/syncOutbox';
+import { noteCloudWriteSettled, noteSyncPendingCount, requestWorkspaceSync } from '@/lib/syncManager';
 import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
 
 export type GeneratedProposal = {
@@ -32,6 +34,7 @@ export type GeneratedProposal = {
   leadEmail?: string;
   leadCompany?: string;
   referenceNumber?: string;
+  updatedAt?: string;
 };
 
 const STORE = WORKSPACE_STORES.proposals;
@@ -133,9 +136,20 @@ export async function addProposal(proposal: GeneratedProposal): Promise<boolean>
     await ensureMigrated();
     await workspacePut(STORE, proposal);
     window.dispatchEvent(new Event(PROPOSALS_EVENT));
-    void cloudPutProposal(proposal).catch(() => {
-      /* local copy remains; next hydrate retries the upload */
-    });
+    void cloudPutProposal(proposal)
+      .then(async () => {
+        await dequeueSyncOutbox('proposal', proposal.id);
+        void noteCloudWriteSettled();
+      })
+      .catch(async (err: unknown) => {
+        await enqueueSyncOutbox(
+          'proposal',
+          proposal.id,
+          err instanceof Error ? err.message : String(err),
+        );
+        void noteSyncPendingCount();
+        void requestWorkspaceSync('manual');
+      });
     return true;
   } catch {
     return false;
@@ -152,9 +166,16 @@ export async function deleteProposal(id: string): Promise<boolean> {
     await ensureMigrated();
     await workspaceDelete(STORE, id);
     window.dispatchEvent(new Event(PROPOSALS_EVENT));
-    void cloudDeleteProposal(id).catch(() => {
-      /* ignore */
-    });
+    void cloudDeleteProposal(id)
+      .then(async () => {
+        await dequeueSyncOutbox('proposal-delete', id);
+        await dequeueSyncOutbox('proposal', id);
+        void noteSyncPendingCount();
+      })
+      .catch(async () => {
+        await enqueueSyncOutbox('proposal-delete', id);
+        void noteSyncPendingCount();
+      });
     return true;
   } catch {
     return false;

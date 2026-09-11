@@ -60,6 +60,7 @@ QUOTE_COLUMNS = {
     "id",
     "savedAt",
     "reviewedAt",
+    "updatedAt",
     "leadKey",
     "leadName",
     "referenceNumber",
@@ -92,6 +93,7 @@ PROPOSAL_COLUMNS = {
     "referenceNumber",
     "pdfDataUrl",
     "hasPdf",
+    "updatedAt",
 }
 
 
@@ -219,6 +221,9 @@ def quote_payload_from_row(row: dict) -> dict:
     reviewed = _iso(row.get("reviewed_at"))
     if reviewed:
         payload["reviewedAt"] = reviewed
+    updated = _iso(row.get("updated_at"))
+    if updated:
+        payload["updatedAt"] = updated
     return payload
 
 
@@ -267,6 +272,9 @@ def proposal_payload_from_row(row: dict, include_pdf: bool, encode_pdf) -> dict:
         "referenceNumber": row.get("reference_number") or "",
         "hasPdf": has_pdf,
     }
+    updated = _iso(row.get("updated_at"))
+    if updated:
+        payload["updatedAt"] = updated
     if include_pdf and pdf:
         payload["pdfDataUrl"] = encode_pdf(bytes(pdf))
     return payload

@@ -16,6 +16,7 @@ import { Settings } from '@/pages/Settings';
 import { Apps } from '@/pages/Apps';
 import NotFound from '@/pages/NotFound';
 import { FRESH_QUOTE_BUILDER_EVENT, REMOUNT_QUOTE_BUILDER_EVENT } from '@/lib/quoteBuilderSession';
+import { requestWorkspaceSync } from '@/lib/syncManager';
 
 function scrollPagesToTop() {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -34,6 +35,15 @@ function ScrollToTop() {
   return null;
 }
 
+function SyncOnRoute() {
+  const [location] = useLocation();
+  useEffect(() => {
+    const search = typeof window !== 'undefined' ? window.location.search : '';
+    void requestWorkspaceSync('route', { path: location, search });
+  }, [location]);
+  return null;
+}
+
 function Router() {
   const [quoteBuilderKey, setQuoteBuilderKey] = useState(0);
   useEffect(() => {
@@ -48,6 +58,7 @@ function Router() {
   return (
     <>
       <ScrollToTop />
+      <SyncOnRoute />
       <AppNav />
       <Switch>
         <Route path="/home" component={Home} />

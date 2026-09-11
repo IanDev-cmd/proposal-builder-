@@ -44,7 +44,8 @@ import {
   proposalFilenameFromRecord,
 } from '../src/lib/proposalFilename.ts';
 import { insertsForGenerate, resolveProposalInserts, resolveProposalTemplate } from '../src/lib/proposalPrefill.ts';
-import { HOME_PATH, isHomeDashboardPath, isShareDeepLink } from '../src/lib/homeLanding.ts';
+import { HOME_PATH, isHomeDashboardPath, isShareDeepLink, parseShareDeepLink } from '../src/lib/homeLanding.ts';
+import { buildSyncRunContext, syncStatusLabel } from '../src/lib/syncManager.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -514,6 +515,41 @@ check('unit saved quotes list does not survive login', isShareDeepLink('/saved-q
 check('unit proposal share query survives login', isShareDeepLink('/proposal-doc', '?id=p-1') === true);
 check('unit proposal list does not survive login', isShareDeepLink('/proposal-doc') === false);
 check('unit quote builder does not survive login', isShareDeepLink('/quote-builder') === false);
+check(
+  'unit parse quote deep link',
+  parseShareDeepLink('/saved-quotes/q-lily')?.kind === 'quote' &&
+    parseShareDeepLink('/saved-quotes/q-lily')?.id === 'q-lily',
+);
+check(
+  'unit parse proposal deep link',
+  parseShareDeepLink('/proposal-doc', '?id=p-1')?.kind === 'proposal' &&
+    parseShareDeepLink('/proposal-doc', '?id=p-1')?.id === 'p-1',
+);
+check(
+  'unit route to quote review is a deep-link sync',
+  buildSyncRunContext('route', { path: '/saved-quotes/q-lily' }).reason === 'deep-link' &&
+    buildSyncRunContext('route', { path: '/saved-quotes/q-lily' }).quoteId === 'q-lily',
+);
+check(
+  'unit route to proposal share is a deep-link sync',
+  buildSyncRunContext('route', { path: '/proposal-doc', search: '?id=p-1' }).proposalId === 'p-1',
+);
+check(
+  'unit sync label offline is saved locally',
+  syncStatusLabel({ online: false, phase: 'offline', pendingCount: 0 }) === 'Saved locally',
+);
+check(
+  'unit sync label syncing',
+  syncStatusLabel({ online: true, phase: 'syncing', pendingCount: 0 }) === 'Syncing...',
+);
+check(
+  'unit sync label synced',
+  syncStatusLabel({ online: true, phase: 'synced', pendingCount: 0 }) === 'Synced',
+);
+check(
+  'unit sync label pending stays local',
+  syncStatusLabel({ online: true, phase: 'synced', pendingCount: 1 }) === 'Saved locally',
+);
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

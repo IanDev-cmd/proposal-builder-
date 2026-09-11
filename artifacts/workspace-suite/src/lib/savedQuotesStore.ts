@@ -15,6 +15,8 @@ import {
   workspaceClear,
 } from '@/lib/nexusWorkspaceDb';
 import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote, cloudClearQuotes } from '@/lib/workspaceCloud';
+import { dequeueSyncOutbox, enqueueSyncOutbox } from '@/lib/syncOutbox';
+import { noteCloudWriteSettled, noteSyncPendingCount, requestWorkspaceSync } from '@/lib/syncManager';
 import { deleteOpsQuoteSnapshots } from '@/lib/opsStore';
 import {
   forgetDeletedQuoteIds,
@@ -43,6 +45,7 @@ export type SavedQuote = {
   /** pending = not yet approved or disapproved */
   reviewStatus?: QuoteReviewStatus;
   reviewedAt?: string;
+  updatedAt?: string;
 };
 
 const STORAGE_KEY = 'nexus_saved_quotes';
@@ -184,7 +187,12 @@ export async function persistSavedQuote(
   await workspacePut(STORE, next);
   try {
     await cloudPutQuote(next);
+    await dequeueSyncOutbox('quote', next.id);
+    void noteCloudWriteSettled();
   } catch (err) {
+    await enqueueSyncOutbox('quote', next.id, err instanceof Error ? err.message : String(err));
+    void noteSyncPendingCount();
+    void requestWorkspaceSync('manual');
     const wrapped = err instanceof Error ? err : new Error(String(err));
     (wrapped as Error & { localSaved?: boolean }).localSaved = true;
     throw wrapped;
@@ -243,7 +251,18 @@ export async function deleteSavedQuote(id: string, opts?: DeleteSavedQuoteOpts):
     }),
   );
   await deleteOpsQuoteSnapshots(ids, { referenceNumber: opts?.referenceNumber });
-  await Promise.all(ids.map((qid) => cloudDeleteQuote(qid).catch(() => undefined)));
+  await Promise.all(
+    ids.map(async (qid) => {
+      try {
+        await cloudDeleteQuote(qid);
+        await dequeueSyncOutbox('quote-delete', qid);
+        await dequeueSyncOutbox('quote', qid);
+      } catch {
+        await enqueueSyncOutbox('quote-delete', qid);
+      }
+    }),
+  );
+  void noteSyncPendingCount();
   return true;
 }
 

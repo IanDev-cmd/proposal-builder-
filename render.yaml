@@ -19,7 +19,7 @@ services:
     name: weott-proposal-engine
     runtime: python
     rootDir: artifacts/pdf-engine
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --preload
     envVars:

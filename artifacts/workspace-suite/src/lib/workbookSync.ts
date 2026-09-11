@@ -30,4 +30,7 @@ export function startWorkbookSync(): void {
   };
   window.addEventListener('focus', onVisible);
   document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('online', () => {
+    void pullWorkbookToUx();
+  });
 }

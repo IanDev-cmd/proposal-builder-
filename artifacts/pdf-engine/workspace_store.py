@@ -146,7 +146,7 @@ def list_quotes() -> list[dict]:
             """
             SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
                    vessel_type, event_type, guest_count, event_date, grand_total, step,
-                   review_status, proposal_id, lead_json, data_json, extra_json
+                   review_status, proposal_id, lead_json, data_json, extra_json, updated_at
             FROM quotes
             WHERE deleted_at IS NULL
             ORDER BY saved_at DESC
@@ -171,7 +171,7 @@ def get_quote(quote_id: str) -> dict | None:
             """
             SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
                    vessel_type, event_type, guest_count, event_date, grand_total, step,
-                   review_status, proposal_id, lead_json, data_json, extra_json
+                   review_status, proposal_id, lead_json, data_json, extra_json, updated_at
             FROM quotes
             WHERE id = %s AND deleted_at IS NULL
             """,
@@ -195,6 +195,7 @@ def put_quote(payload: dict) -> dict:
     _require_store()
     if _use_memory():
         payload.pop("_deleted", None)
+        payload["updatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         _MEMORY_QUOTES[quote_id] = dict(payload)
         return dict(payload)
     row = pg.quote_row_from_payload(payload)
@@ -313,7 +314,7 @@ def list_proposals(include_pdf: bool = False) -> list[dict]:
             """
             SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
                    guest_count, grand_total, lead_name, lead_email, lead_company,
-                   reference_number, extra_json, (pdf IS NOT NULL) AS has_pdf
+                   reference_number, extra_json, updated_at, (pdf IS NOT NULL) AS has_pdf
             FROM proposals
             WHERE deleted_at IS NULL
             ORDER BY created_at DESC
@@ -353,7 +354,7 @@ def get_proposal(proposal_id: str) -> dict | None:
             """
             SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
                    guest_count, grand_total, lead_name, lead_email, lead_company,
-                   reference_number, extra_json, pdf
+                   reference_number, extra_json, pdf, updated_at
             FROM proposals
             WHERE id = %s AND deleted_at IS NULL
             """,

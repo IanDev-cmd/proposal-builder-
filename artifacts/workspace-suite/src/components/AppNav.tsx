@@ -3,6 +3,7 @@ import { Home, Users, ClipboardList, Bookmark, FileText, Settings } from 'lucide
 import { HOME_PATH, isHomeDashboardPath } from '@/lib/homeLanding';
 import { isSavedQuoteReviewPath } from '@/lib/savedQuotesStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
+import { SyncStatusBadge } from '@/components/SyncStatusBadge';
 
 const NAV_ITEMS = [
   { href: HOME_PATH,        label: 'Home',          icon: Home           },
@@ -54,19 +55,22 @@ export function AppNav() {
           })}
         </nav>
 
-        <Link
-          href="/settings"
-          aria-label="Settings"
-          title="Settings"
-          data-testid="nav-settings"
-          className={`ml-auto flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-            location === '/settings' || location.startsWith('/settings/')
-              ? 'bg-[#FF5A45] text-white'
-              : 'text-black/40 hover:bg-black/5 hover:text-black'
-          }`}
-        >
-          <Settings className="h-4 w-4" />
-        </Link>
+        <div className="ml-auto flex items-center">
+          <SyncStatusBadge />
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            title="Settings"
+            data-testid="nav-settings"
+            className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+              location === '/settings' || location.startsWith('/settings/')
+                ? 'bg-[#FF5A45] text-white'
+                : 'text-black/40 hover:bg-black/5 hover:text-black'
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </header>
   );

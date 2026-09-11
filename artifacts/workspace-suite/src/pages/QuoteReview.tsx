@@ -15,7 +15,7 @@ import {
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
-import { syncWorkspaceCloud } from '@/lib/workspaceSync';
+import { requestWorkspaceSync } from '@/lib/syncManager';
 import { quoteReviewStatus } from '@/lib/quoteReview';
 import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
 import { toastError, toastSuccess } from '@/lib/notify';
@@ -37,7 +37,7 @@ export function QuoteReview() {
     let cancelled = false;
     void hydrateSavedQuotesDb()
       .then(async () => {
-        await syncWorkspaceCloud();
+        await requestWorkspaceSync('deep-link', { path: `/saved-quotes/${id}` });
         return getSavedQuoteAsync(id);
       })
       .then((row) => {
