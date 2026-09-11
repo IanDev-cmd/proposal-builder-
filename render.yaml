@@ -8,7 +8,6 @@ services:
   - type: web
     name: weott-quote-builder
     runtime: static
-    plan: starter
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/workspace-suite run build
     staticPublishPath: artifacts/workspace-suite/dist/public
     routes:
