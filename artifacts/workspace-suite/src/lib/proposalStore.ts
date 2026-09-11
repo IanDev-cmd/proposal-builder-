@@ -27,6 +27,7 @@ export type GeneratedProposal = {
   guestCount: string;
   grandTotal: number;
   pdfDataUrl: string;
+  hasPdf?: boolean;
   leadName?: string;
   leadEmail?: string;
   leadCompany?: string;
