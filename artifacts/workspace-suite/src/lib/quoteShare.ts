@@ -129,10 +129,14 @@ export async function openWebShareChannel(
     await copyText(shareUrl);
     return 'copied';
   }
-  if (opts.file) downloadFile(opts.file);
-  if (channel === 'dropbox' || channel === 'drive') await copyText(shareUrl);
+  // Open the web app before any clipboard/download work so the click is not treated as consumed.
   openWebTab(quoteShareWebUrl(channel, { title: opts.title, text: opts.text, shareUrl }));
-  return channel === 'dropbox' || channel === 'drive' ? 'opened-copied' : 'opened';
+  if (opts.file) downloadFile(opts.file);
+  if (channel === 'dropbox' || channel === 'drive') {
+    await copyText(shareUrl);
+    return 'opened-copied';
+  }
+  return 'opened';
 }
 
 export async function shareArtifact(channel: ShareChannel, artifact: ShareArtifact): Promise<QuoteShareWebResult> {

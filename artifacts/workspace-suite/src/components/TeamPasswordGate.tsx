@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { TeamLoginScreen } from '@/components/TeamLoginScreen';
-import { HOME_PATH } from '@/lib/homeLanding';
+import { HOME_PATH, isShareDeepLink } from '@/lib/homeLanding';
 import {
   TEAM_AUTH_EXPIRED_EVENT,
   TEAM_IDLE_MS,
@@ -10,15 +10,25 @@ import {
   restoreTeamSession,
   touchTeamSession,
 } from '@/lib/teamSession';
+import { startWorkspaceCloudSync } from '@/lib/workspaceSync';
+import { startWorkbookSync } from '@/lib/workbookSync';
 
 export function TeamPasswordGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
 
   const landOnHome = useCallback(() => {
     setLocation(HOME_PATH, { replace: true });
   }, [setLocation]);
+
+  const landAfterAuth = useCallback(() => {
+    const search = typeof window !== 'undefined' ? window.location.search : '';
+    if (isShareDeepLink(locationRef.current, search)) return;
+    landOnHome();
+  }, [landOnHome]);
 
   const lockToHome = useCallback(() => {
     clearTeamSession();
@@ -30,14 +40,14 @@ export function TeamPasswordGate({ children }: { children: ReactNode }) {
     let cancelled = false;
     void restoreTeamSession().then((ok) => {
       if (cancelled) return;
-      if (ok) landOnHome();
+      if (ok) landAfterAuth();
       setUnlocked(ok);
       setReady(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [landOnHome]);
+  }, [landAfterAuth]);
 
   useEffect(() => {
     window.addEventListener(TEAM_AUTH_EXPIRED_EVENT, lockToHome);
@@ -46,6 +56,8 @@ export function TeamPasswordGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!unlocked) return;
+    startWorkspaceCloudSync();
+    startWorkbookSync();
 
     const onActivity = () => touchTeamSession();
     const events: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'mousemove', 'scroll', 'touchstart'];
@@ -74,7 +86,7 @@ export function TeamPasswordGate({ children }: { children: ReactNode }) {
     return (
       <TeamLoginScreen
         onUnlocked={() => {
-          landOnHome();
+          landAfterAuth();
           setUnlocked(true);
         }}
       />

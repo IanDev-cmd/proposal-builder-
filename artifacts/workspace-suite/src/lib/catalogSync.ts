@@ -13,6 +13,7 @@ import { setLiveCatalogLines } from '@/lib/quoteBuilderCatalog';
 import { fetchCostRates, type CostRatesPayload } from '@/lib/sheetsSync';
 import { WORKSPACE_STORES, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
 import { cloudGetCatalog, cloudPutCatalog } from '@/lib/workspaceCloud';
+import { getTeamToken } from '@/lib/teamSession';
 
 export const CATALOG_EVENT = 'nexus:catalog-updated';
 export const CATALOG_REFRESH_MS = 30_000;
@@ -97,14 +98,16 @@ async function persistCache(payload: CostRatesPayload): Promise<CatalogCachePayl
   } catch {
     /* memory overlay already applied */
   }
-  void cloudPutCatalog({
-    id: RECORD_ID,
-    savedAt: new Date(row.fetchedAt).toISOString(),
-    catalogBuiltAt: row.catalogBuiltAt,
-    payload: payload as Record<string, unknown>,
-  }).catch(() => {
-    /* next poll retries */
-  });
+  if (getTeamToken()) {
+    void cloudPutCatalog({
+      id: RECORD_ID,
+      savedAt: new Date(row.fetchedAt).toISOString(),
+      catalogBuiltAt: row.catalogBuiltAt,
+      payload: payload as Record<string, unknown>,
+    }).catch(() => {
+      /* next poll retries */
+    });
+  }
   return row;
 }
 
@@ -119,10 +122,12 @@ async function readLocalCache(): Promise<CatalogCachePayload | null> {
 export async function hydrateCatalogCache(): Promise<void> {
   const local = await readLocalCache();
   let cloud: Awaited<ReturnType<typeof cloudGetCatalog>> = null;
-  try {
-    cloud = await cloudGetCatalog();
-  } catch {
-    cloud = null;
+  if (getTeamToken()) {
+    try {
+      cloud = await cloudGetCatalog();
+    } catch {
+      cloud = null;
+    }
   }
   const cloudRow: CatalogCachePayload | null =
     cloud?.payload && typeof cloud.payload === 'object'

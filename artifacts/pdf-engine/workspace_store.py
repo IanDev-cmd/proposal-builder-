@@ -1,49 +1,48 @@
-"""Shared Leads-adjacent workspace: Saved Quotes and Generated Proposals.
+"""Shared workspace: Saved Quotes and Generated Proposals in Render Postgres.
 
-Stored on the proposal engine so every browser session can load the same lists.
-PDFs are kept as binary files; quote form snapshots as JSON.
+Cost Mother catalog stays on disk (rebuilt from Apps Script). Quotes and
+proposal PDFs use DATABASE_URL. Tests may set WORKSPACE_STORE=memory.
 """
 
 from __future__ import annotations
 
-import json
 import os
-import re
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
+
+import workspace_pg as pg
 
 _BASE = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("WORKSPACE_DATA_DIR", str(_BASE / "data" / "workspace")))
-QUOTES_DIR = DATA_DIR / "quotes"
-PROPOSALS_DIR = DATA_DIR / "proposals"
 
-_SAFE_ID = re.compile(r"[^A-Za-z0-9._-]+")
+REVIEW_STATUSES = {"pending", "approved", "disapproved"}
+
+_MEMORY_QUOTES: dict[str, dict] = {}
+_MEMORY_PROPOSALS: dict[str, dict] = {}
 
 
-def _safe_id(raw: str) -> str:
-    cleaned = _SAFE_ID.sub("_", str(raw or "").strip())[:180]
-    return cleaned or "unknown"
+def _use_memory() -> bool:
+    return (os.environ.get("WORKSPACE_STORE") or "").strip().lower() == "memory"
+
+
+def _use_postgres() -> bool:
+    return bool(pg.database_url()) and not _use_memory()
+
+
+def reset_memory() -> None:
+    _MEMORY_QUOTES.clear()
+    _MEMORY_PROPOSALS.clear()
+
+
+def init_workspace() -> None:
+    """Create quote/proposal tables when DATABASE_URL is set."""
+    if _use_postgres():
+        pg.migrate()
 
 
 def _ensure_dirs() -> None:
-    QUOTES_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _write_bytes(path: Path, raw: bytes) -> None:
-    _ensure_dirs()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=path.name, dir=str(path.parent))
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(raw)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -52,6 +51,8 @@ def _write_json(path: Path, payload: dict) -> None:
     fd, tmp = tempfile.mkstemp(prefix=path.name, dir=str(path.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            import json
+
             json.dump(payload, handle, ensure_ascii=False)
         os.replace(tmp, path)
     except Exception:
@@ -63,6 +64,8 @@ def _write_json(path: Path, payload: dict) -> None:
 
 
 def _read_json(path: Path) -> dict | None:
+    import json
+
     try:
         with path.open(encoding="utf-8") as handle:
             data = json.load(handle)
@@ -91,9 +94,6 @@ def _encode_pdf(raw: bytes) -> str:
     return "data:application/pdf;base64," + base64.b64encode(raw).decode("ascii")
 
 
-REVIEW_STATUSES = {"pending", "approved", "disapproved"}
-
-
 def _normalize_review(payload: dict, existing: dict | None = None) -> dict:
     quote_id = str(payload.get("id") or "").strip()
     if existing is None and quote_id:
@@ -112,18 +112,74 @@ def _normalize_review(payload: dict, existing: dict | None = None) -> dict:
         payload["reviewedAt"] = reviewed_at
     elif "reviewedAt" in payload and not payload.get("reviewedAt"):
         payload.pop("reviewedAt", None)
+    if existing:
+        prev_data = existing.get("data")
+        next_data = payload.get("data")
+        if (not isinstance(next_data, dict) or not next_data) and isinstance(prev_data, dict) and prev_data:
+            payload["data"] = prev_data
+        if payload.get("savedAt") in (None, "") and existing.get("savedAt"):
+            payload["savedAt"] = existing["savedAt"]
+        prev_review = existing.get("reviewedAt") or ""
+        next_review = payload.get("reviewedAt") or ""
+        if prev_review > next_review:
+            payload["reviewStatus"] = existing.get("reviewStatus") or payload["reviewStatus"]
+            payload["reviewedAt"] = existing.get("reviewedAt")
     return payload
 
 
+def _require_store() -> None:
+    if _use_memory() or _use_postgres():
+        return
+    raise RuntimeError("DATABASE_URL is required for quotes and proposals")
+
+
 def list_quotes() -> list[dict]:
-    _ensure_dirs()
-    rows: list[dict] = []
-    for path in QUOTES_DIR.glob("*.json"):
-        row = _read_json(path)
-        if row and row.get("id"):
-            rows.append(_normalize_review(row, existing=row))
-    rows.sort(key=lambda r: str(r.get("savedAt") or ""), reverse=True)
-    return rows
+    _require_store()
+    if _use_memory():
+        rows = [dict(r) for r in _MEMORY_QUOTES.values() if not r.get("_deleted")]
+        out = [_normalize_review(row, existing=row) for row in rows]
+        out.sort(key=lambda r: str(r.get("savedAt") or ""), reverse=True)
+        return out
+    with pg.connection() as conn:
+        rows = pg.fetch_all(
+            conn,
+            """
+            SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
+                   vessel_type, event_type, guest_count, event_date, grand_total, step,
+                   review_status, proposal_id, lead_json, data_json, extra_json
+            FROM quotes
+            WHERE deleted_at IS NULL
+            ORDER BY saved_at DESC
+            """,
+        )
+    return [pg.quote_payload_from_row(row) for row in rows]
+
+
+def get_quote(quote_id: str) -> dict | None:
+    _require_store()
+    qid = str(quote_id or "").strip()
+    if not qid:
+        return None
+    if _use_memory():
+        row = _MEMORY_QUOTES.get(qid)
+        if not row or row.get("_deleted"):
+            return None
+        return _normalize_review(dict(row), existing=row)
+    with pg.connection() as conn:
+        row = pg.fetch_one(
+            conn,
+            """
+            SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
+                   vessel_type, event_type, guest_count, event_date, grand_total, step,
+                   review_status, proposal_id, lead_json, data_json, extra_json
+            FROM quotes
+            WHERE id = %s AND deleted_at IS NULL
+            """,
+            (qid,),
+        )
+    if not row:
+        return None
+    return pg.quote_payload_from_row(row)
 
 
 def put_quote(payload: dict) -> dict:
@@ -134,121 +190,297 @@ def put_quote(payload: dict) -> dict:
         payload["grandTotal"] = float(payload.get("grandTotal") or 0)
     except (TypeError, ValueError):
         payload["grandTotal"] = 0.0
+    payload["id"] = quote_id
     payload = _normalize_review(payload)
-    _write_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json", payload)
-    return payload
-
-
-def get_quote(quote_id: str) -> dict | None:
-    row = _read_json(QUOTES_DIR / f"{_safe_id(quote_id)}.json")
-    if not row:
-        return None
-    return _normalize_review(row, existing=row)
+    _require_store()
+    if _use_memory():
+        payload.pop("_deleted", None)
+        _MEMORY_QUOTES[quote_id] = dict(payload)
+        return dict(payload)
+    row = pg.quote_row_from_payload(payload)
+    with pg.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO quotes (
+              id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
+              vessel_type, event_type, guest_count, event_date, grand_total, step,
+              review_status, proposal_id, lead_json, data_json, extra_json, updated_at, deleted_at
+            ) VALUES (
+              %s, %s, %s, %s, %s, %s, %s,
+              %s, %s, %s, %s, %s, %s,
+              %s, %s, %s, %s, %s, %s, NULL
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              saved_at = EXCLUDED.saved_at,
+              reviewed_at = EXCLUDED.reviewed_at,
+              lead_key = EXCLUDED.lead_key,
+              lead_name = EXCLUDED.lead_name,
+              reference_number = EXCLUDED.reference_number,
+              title = EXCLUDED.title,
+              vessel_type = EXCLUDED.vessel_type,
+              event_type = EXCLUDED.event_type,
+              guest_count = EXCLUDED.guest_count,
+              event_date = EXCLUDED.event_date,
+              grand_total = EXCLUDED.grand_total,
+              step = EXCLUDED.step,
+              review_status = EXCLUDED.review_status,
+              proposal_id = EXCLUDED.proposal_id,
+              lead_json = EXCLUDED.lead_json,
+              data_json = EXCLUDED.data_json,
+              extra_json = EXCLUDED.extra_json,
+              updated_at = EXCLUDED.updated_at,
+              deleted_at = NULL
+            """,
+            (
+                row["id"],
+                row["saved_at"],
+                row["reviewed_at"],
+                row["lead_key"],
+                row["lead_name"],
+                row["reference_number"],
+                row["title"],
+                row["vessel_type"],
+                row["event_type"],
+                row["guest_count"],
+                row["event_date"],
+                row["grand_total"],
+                row["step"],
+                row["review_status"],
+                row["proposal_id"],
+                pg._jsonb(row["lead_json"]),
+                pg._jsonb(row["data_json"]),
+                pg._jsonb(row["extra_json"]),
+                row["updated_at"],
+            ),
+        )
+    saved = get_quote(quote_id)
+    return saved or payload
 
 
 def delete_quote(quote_id: str) -> bool:
-    path = QUOTES_DIR / f"{_safe_id(quote_id)}.json"
-    if not path.exists():
+    _require_store()
+    qid = str(quote_id or "").strip()
+    if not qid:
         return False
-    path.unlink()
-    return True
+    if _use_memory():
+        row = _MEMORY_QUOTES.get(qid)
+        if not row or row.get("_deleted"):
+            return False
+        row["_deleted"] = True
+        return True
+    with pg.connection() as conn:
+        cur = conn.execute(
+            """
+            UPDATE quotes SET deleted_at = %s, updated_at = %s
+            WHERE id = %s AND deleted_at IS NULL
+            """,
+            (pg._now(), pg._now(), qid),
+        )
+        return cur.rowcount > 0
 
 
 def clear_quotes() -> int:
-    _ensure_dirs()
-    count = 0
-    for path in QUOTES_DIR.glob("*.json"):
-        path.unlink()
-        count += 1
-    return count
-
-
-def _proposal_meta_path(proposal_id: str) -> Path:
-    return PROPOSALS_DIR / f"{_safe_id(proposal_id)}.json"
-
-
-def _proposal_pdf_path(proposal_id: str) -> Path:
-    return PROPOSALS_DIR / f"{_safe_id(proposal_id)}.pdf"
+    _require_store()
+    if _use_memory():
+        count = sum(1 for row in _MEMORY_QUOTES.values() if not row.get("_deleted"))
+        _MEMORY_QUOTES.clear()
+        return count
+    with pg.connection() as conn:
+        cur = conn.execute("DELETE FROM quotes")
+        return cur.rowcount or 0
 
 
 def list_proposals(include_pdf: bool = False) -> list[dict]:
-    _ensure_dirs()
-    rows: list[dict] = []
-    for path in PROPOSALS_DIR.glob("*.json"):
-        row = _read_json(path)
-        if not row or not row.get("id"):
-            continue
-        pdf_path = _proposal_pdf_path(str(row["id"]))
-        row = {**row, "hasPdf": pdf_path.exists()}
-        if include_pdf and pdf_path.exists() and not row.get("pdfDataUrl"):
-            try:
-                row["pdfDataUrl"] = _encode_pdf(pdf_path.read_bytes())
-            except OSError:
-                pass
-        elif not include_pdf:
-            row.pop("pdfDataUrl", None)
-        rows.append(row)
-    rows.sort(key=lambda r: str(r.get("createdAt") or ""), reverse=True)
-    return rows
+    _require_store()
+    if _use_memory():
+        rows = []
+        for row in _MEMORY_PROPOSALS.values():
+            if row.get("_deleted"):
+                continue
+            item = {k: v for k, v in row.items() if k not in {"_deleted", "_pdf"}}
+            pdf = row.get("_pdf")
+            item["hasPdf"] = bool(pdf or item.get("pdfDataUrl"))
+            if include_pdf and pdf and not item.get("pdfDataUrl"):
+                item["pdfDataUrl"] = _encode_pdf(pdf)
+            elif not include_pdf:
+                item.pop("pdfDataUrl", None)
+            rows.append(item)
+        rows.sort(key=lambda r: str(r.get("createdAt") or ""), reverse=True)
+        return rows
+    with pg.connection() as conn:
+        rows = pg.fetch_all(
+            conn,
+            """
+            SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
+                   guest_count, grand_total, lead_name, lead_email, lead_company,
+                   reference_number, extra_json, (pdf IS NOT NULL) AS has_pdf
+            FROM proposals
+            WHERE deleted_at IS NULL
+            ORDER BY created_at DESC
+            """,
+        )
+    out = []
+    for row in rows:
+        payload = pg.proposal_payload_from_row(
+            {**row, "pdf": None},
+            include_pdf=False,
+            encode_pdf=_encode_pdf,
+        )
+        payload["hasPdf"] = bool(row.get("has_pdf"))
+        payload.pop("pdfDataUrl", None)
+        out.append(payload)
+    return out
 
 
 def get_proposal(proposal_id: str) -> dict | None:
-    row = _read_json(_proposal_meta_path(proposal_id))
+    _require_store()
+    pid = str(proposal_id or "").strip()
+    if not pid:
+        return None
+    if _use_memory():
+        row = _MEMORY_PROPOSALS.get(pid)
+        if not row or row.get("_deleted"):
+            return None
+        item = {k: v for k, v in row.items() if k not in {"_deleted", "_pdf"}}
+        pdf = row.get("_pdf")
+        item["hasPdf"] = bool(pdf or item.get("pdfDataUrl"))
+        if pdf and not item.get("pdfDataUrl"):
+            item["pdfDataUrl"] = _encode_pdf(pdf)
+        return item
+    with pg.connection() as conn:
+        row = pg.fetch_one(
+            conn,
+            """
+            SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
+                   guest_count, grand_total, lead_name, lead_email, lead_company,
+                   reference_number, extra_json, pdf
+            FROM proposals
+            WHERE id = %s AND deleted_at IS NULL
+            """,
+            (pid,),
+        )
     if not row:
         return None
-    pdf_path = _proposal_pdf_path(proposal_id)
-    if pdf_path.exists():
-        try:
-            row["pdfDataUrl"] = _encode_pdf(pdf_path.read_bytes())
-            row["hasPdf"] = True
-        except OSError:
-            row["hasPdf"] = False
-    else:
-        row["hasPdf"] = bool(row.get("pdfDataUrl"))
-    return row
+    return pg.proposal_payload_from_row(row, include_pdf=True, encode_pdf=_encode_pdf)
 
 
 def put_proposal(payload: dict) -> dict:
     proposal_id = str(payload.get("id") or "").strip()
     if not proposal_id:
         raise ValueError("proposal id is required")
+    payload = dict(payload)
+    payload["id"] = proposal_id
     pdf_url = payload.get("pdfDataUrl")
-    meta = {k: v for k, v in payload.items() if k != "pdfDataUrl"}
-    if isinstance(pdf_url, str) and pdf_url:
-        raw = _decode_pdf(pdf_url)
-        if raw:
-            _ensure_dirs()
-            _write_bytes(_proposal_pdf_path(proposal_id), raw)
-            meta["hasPdf"] = True
-        elif pdf_url.startswith("data:application/pdf"):
+    raw = _decode_pdf(pdf_url) if isinstance(pdf_url, str) and pdf_url else None
+    _require_store()
+    existing = get_proposal(proposal_id)
+    if not raw and existing and existing.get("pdfDataUrl"):
+        raw = _decode_pdf(str(existing["pdfDataUrl"]))
+        payload["pdfDataUrl"] = existing["pdfDataUrl"]
+    if _use_memory():
+        meta = {k: v for k, v in payload.items() if k != "pdfDataUrl"}
+        prev = _MEMORY_PROPOSALS.get(proposal_id) or {}
+        pdf = raw or prev.get("_pdf")
+        if isinstance(pdf_url, str) and pdf_url.startswith("data:application/pdf") and not raw:
             meta["pdfDataUrl"] = pdf_url
-            meta["hasPdf"] = True
-    _write_json(_proposal_meta_path(proposal_id), meta)
-    return {**meta, "hasPdf": _proposal_pdf_path(proposal_id).exists() or bool(meta.get("pdfDataUrl"))}
+        meta["hasPdf"] = bool(pdf or meta.get("pdfDataUrl"))
+        if not meta.get("createdAt"):
+            meta["createdAt"] = prev.get("createdAt") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        _MEMORY_PROPOSALS[proposal_id] = {**meta, "_pdf": pdf, "_deleted": False}
+        return {**meta, "hasPdf": bool(pdf or meta.get("pdfDataUrl"))}
+    row = pg.proposal_row_from_payload(payload, raw)
+    if not raw:
+        with pg.connection() as conn:
+            prev = pg.fetch_one(conn, "SELECT pdf FROM proposals WHERE id = %s", (proposal_id,))
+            if prev and prev.get("pdf"):
+                row["pdf"] = prev["pdf"]
+    with pg.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO proposals (
+              id, created_at, event_date, title, filename, vessel_type, event_type,
+              guest_count, grand_total, lead_name, lead_email, lead_company,
+              reference_number, pdf, extra_json, updated_at, deleted_at
+            ) VALUES (
+              %s, %s, %s, %s, %s, %s, %s,
+              %s, %s, %s, %s, %s,
+              %s, %s, %s, %s, NULL
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              created_at = EXCLUDED.created_at,
+              event_date = EXCLUDED.event_date,
+              title = EXCLUDED.title,
+              filename = EXCLUDED.filename,
+              vessel_type = EXCLUDED.vessel_type,
+              event_type = EXCLUDED.event_type,
+              guest_count = EXCLUDED.guest_count,
+              grand_total = EXCLUDED.grand_total,
+              lead_name = EXCLUDED.lead_name,
+              lead_email = EXCLUDED.lead_email,
+              lead_company = EXCLUDED.lead_company,
+              reference_number = EXCLUDED.reference_number,
+              pdf = COALESCE(EXCLUDED.pdf, proposals.pdf),
+              extra_json = EXCLUDED.extra_json,
+              updated_at = EXCLUDED.updated_at,
+              deleted_at = NULL
+            """,
+            (
+                row["id"],
+                row["created_at"],
+                row["event_date"],
+                row["title"],
+                row["filename"],
+                row["vessel_type"],
+                row["event_type"],
+                row["guest_count"],
+                row["grand_total"],
+                row["lead_name"],
+                row["lead_email"],
+                row["lead_company"],
+                row["reference_number"],
+                row["pdf"],
+                pg._jsonb(row["extra_json"]),
+                row["updated_at"],
+            ),
+        )
+    saved = get_proposal(proposal_id)
+    if saved:
+        saved.pop("pdfDataUrl", None)
+        return saved
+    return {**payload, "hasPdf": bool(raw)}
 
 
 def delete_proposal(proposal_id: str) -> bool:
-    meta = _proposal_meta_path(proposal_id)
-    pdf = _proposal_pdf_path(proposal_id)
-    found = False
-    if meta.exists():
-        meta.unlink()
-        found = True
-    if pdf.exists():
-        pdf.unlink()
-        found = True
-    return found
+    _require_store()
+    pid = str(proposal_id or "").strip()
+    if not pid:
+        return False
+    if _use_memory():
+        row = _MEMORY_PROPOSALS.get(pid)
+        if not row or row.get("_deleted"):
+            return False
+        row["_deleted"] = True
+        return True
+    with pg.connection() as conn:
+        cur = conn.execute(
+            """
+            UPDATE proposals SET deleted_at = %s, updated_at = %s
+            WHERE id = %s AND deleted_at IS NULL
+            """,
+            (pg._now(), pg._now(), pid),
+        )
+        return cur.rowcount > 0
 
 
 def clear_proposals() -> int:
-    _ensure_dirs()
-    count = 0
-    for path in PROPOSALS_DIR.glob("*.json"):
-        path.unlink()
-        count += 1
-    for path in PROPOSALS_DIR.glob("*.pdf"):
-        path.unlink()
-    return count
+    _require_store()
+    if _use_memory():
+        count = sum(1 for row in _MEMORY_PROPOSALS.values() if not row.get("_deleted"))
+        _MEMORY_PROPOSALS.clear()
+        return count
+    with pg.connection() as conn:
+        cur = conn.execute("DELETE FROM proposals")
+        return cur.rowcount or 0
 
 
 def _rates_catalog_path() -> Path:
@@ -261,8 +493,6 @@ def get_rates_catalog() -> dict | None:
 
 
 def put_rates_catalog(payload: dict) -> dict:
-    from datetime import datetime, timezone
-
     row = dict(payload or {})
     row["id"] = "cost-rates"
     row["savedAt"] = row.get("savedAt") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")

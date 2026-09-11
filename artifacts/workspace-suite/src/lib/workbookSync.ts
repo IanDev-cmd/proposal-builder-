@@ -5,10 +5,12 @@
  */
 import { refreshLeadsFromNetwork } from '@/lib/leadCache';
 import { CATALOG_REFRESH_MS, hydrateCatalogCache, refreshCostCatalog } from '@/lib/catalogSync';
+import { getTeamToken } from '@/lib/teamSession';
 
 let started = false;
 
 export async function pullWorkbookToUx(): Promise<void> {
+  if (!getTeamToken()) return;
   await Promise.all([
     refreshLeadsFromNetwork().catch(() => undefined),
     refreshCostCatalog().catch(() => undefined),

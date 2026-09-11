@@ -44,7 +44,7 @@ import {
   proposalFilenameFromRecord,
 } from '../src/lib/proposalFilename.ts';
 import { insertsForGenerate, resolveProposalInserts, resolveProposalTemplate } from '../src/lib/proposalPrefill.ts';
-import { HOME_PATH, isHomeDashboardPath } from '../src/lib/homeLanding.ts';
+import { HOME_PATH, isHomeDashboardPath, isShareDeepLink } from '../src/lib/homeLanding.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -159,6 +159,11 @@ const gmail = quoteShareWebUrl('email', { title: 'Quote: Lily Day V1', text, sha
 check('unit Gmail compose has no to=', !/[?&]to=/.test(gmail));
 check('unit Gmail compose does not include lead email', !gmail.includes(encodeURIComponent('lily@example.com')));
 check('unit Gmail is Gmail web', gmail.startsWith('https://mail.google.com/mail/'));
+check('unit Gmail body includes quote URL', gmail.includes(encodeURIComponent(shareUrl)));
+check(
+  'unit WhatsApp text includes quote URL',
+  quoteShareWebUrl('whatsapp', { title: 't', text, shareUrl }).includes(encodeURIComponent(shareUrl)),
+);
 check('unit WhatsApp compose has no recipient phone', quoteShareWebUrl('whatsapp', { title: 't', text, shareUrl }).startsWith('https://web.whatsapp.com/send?text='));
 check('unit WhatsApp is WhatsApp Web not wa.me', !quoteShareWebUrl('whatsapp', { title: 't', text, shareUrl }).includes('wa.me'));
 check('unit Drive is Google Drive web', quoteShareWebUrl('drive', { title: 't', text, shareUrl }).startsWith('https://drive.google.com/'));
@@ -504,6 +509,11 @@ check(
     isHomeDashboardPath('/quote-builder') === false &&
     isHomeDashboardPath('/saved-quotes/abc') === false,
 );
+check('unit quote share path survives login', isShareDeepLink('/saved-quotes/q-lily') === true);
+check('unit saved quotes list does not survive login', isShareDeepLink('/saved-quotes') === false);
+check('unit proposal share query survives login', isShareDeepLink('/proposal-doc', '?id=p-1') === true);
+check('unit proposal list does not survive login', isShareDeepLink('/proposal-doc') === false);
+check('unit quote builder does not survive login', isShareDeepLink('/quote-builder') === false);
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

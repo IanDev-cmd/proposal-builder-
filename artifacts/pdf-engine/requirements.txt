@@ -2,3 +2,4 @@ flask
 gunicorn
 pymupdf
 pydantic
+psycopg[binary]

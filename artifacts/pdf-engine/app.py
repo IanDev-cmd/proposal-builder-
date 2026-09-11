@@ -37,6 +37,7 @@ from workspace_store import (
     get_proposal as workspace_get_proposal,
     get_quote as workspace_get_quote,
     get_rates_catalog as workspace_get_rates_catalog,
+    init_workspace,
     list_proposals as workspace_list_proposals,
     list_quotes as workspace_list_quotes,
     put_proposal as workspace_put_proposal,
@@ -111,6 +112,10 @@ def _warm_profiles() -> None:
 
 
 _warm_profiles()
+try:
+    init_workspace()
+except Exception:
+    app.logger.exception("workspace postgres init failed")
 
 
 @app.before_request

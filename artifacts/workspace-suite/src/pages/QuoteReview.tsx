@@ -15,6 +15,7 @@ import {
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
+import { syncWorkspaceCloud } from '@/lib/workspaceSync';
 import { quoteReviewStatus } from '@/lib/quoteReview';
 import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
 import { toastError, toastSuccess } from '@/lib/notify';
@@ -35,7 +36,10 @@ export function QuoteReview() {
   useEffect(() => {
     let cancelled = false;
     void hydrateSavedQuotesDb()
-      .then(() => getSavedQuoteAsync(id))
+      .then(async () => {
+        await syncWorkspaceCloud();
+        return getSavedQuoteAsync(id);
+      })
       .then((row) => {
         if (!cancelled) {
           setQuote(row);

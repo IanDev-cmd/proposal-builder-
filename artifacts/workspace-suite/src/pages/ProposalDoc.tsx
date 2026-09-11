@@ -8,6 +8,7 @@ import {
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2, Link2,
 } from 'lucide-react';
 import { loadProposals, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { syncWorkspaceCloud } from '@/lib/workspaceSync';
 import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
@@ -32,8 +33,7 @@ type ProposalFile = {
   sizeLabel: string;
   description: string;
   pdfDataUrl?: string;
-  // Carried through from the lead this quote was built for, when known —
-  // lets Share address Gmail to this exact person instead of a blank compose.
+  // Lead fields travel with the generated file for search, filenames, and the overlay subtitle.
   leadName?: string;
   leadEmail?: string;
   leadCompany?: string;
@@ -126,6 +126,9 @@ export function ProposalDoc() {
         });
     };
     refresh();
+    void syncWorkspaceCloud().then(() => {
+      if (!cancelled) refresh();
+    });
     const unsubscribe = subscribeProposals(refresh);
     return () => {
       cancelled = true;
@@ -293,11 +296,13 @@ export function ProposalDoc() {
       });
       return;
     }
+    const shareUrl = proposalShareUrl(active.id);
     try {
       await shareArtifact(channel, {
         file,
         title: `Proposal: ${active.title}`,
-        text: `Hi,\n\nPlease find attached the proposal "${active.title}".\n\n${active.description}\n\nBest regards`,
+        text: `Hi,\n\nPlease find attached the proposal "${active.title}".\n\n${active.description}\n\nOpen the proposal: ${shareUrl}\n\nBest regards`,
+        shareUrl,
         kind: 'pdf',
       });
     } catch {
@@ -534,11 +539,7 @@ export function ProposalDoc() {
       <ShareOverlay
         open={Boolean(shareOpen && active)}
         title="Share proposal"
-        subtitle={
-          active
-            ? `${active.title}${active.leadEmail ? ` · to ${active.leadEmail}` : ''}`
-            : undefined
-        }
+        subtitle={active?.title}
         targets={shareTargets}
         onClose={() => setShareOpen(false)}
       />

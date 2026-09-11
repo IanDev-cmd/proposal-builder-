@@ -93,6 +93,7 @@ export function ShareOverlay({
                   key={label}
                   type="button"
                   onClick={onClick}
+                  data-testid={`share-target-${label.toLowerCase().replace(/\s+/g, '-')}`}
                   className="flex flex-col items-center gap-2 rounded-[14px] p-2 transition-colors hover:bg-black/4"
                 >
                   <span

@@ -17,11 +17,12 @@ class QuoteReviewStoreTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         os.environ["WORKSPACE_DATA_DIR"] = self._tmp.name
+        os.environ["WORKSPACE_STORE"] = "memory"
+        os.environ.pop("DATABASE_URL", None)
         import workspace_store as ws
 
         ws.DATA_DIR = Path(self._tmp.name)
-        ws.QUOTES_DIR = ws.DATA_DIR / "quotes"
-        ws.PROPOSALS_DIR = ws.DATA_DIR / "proposals"
+        ws.reset_memory()
         self.ws = ws
 
     def tearDown(self) -> None:
@@ -77,6 +78,25 @@ class QuoteReviewStoreTest(unittest.TestCase):
         self.assertEqual(self.ws.clear_proposals(), 1)
         self.assertIsNone(self.ws.get_proposal("p1"))
         self.assertIsNotNone(self.ws.get_quote("q1"))
+
+    def test_proposal_pdf_round_trip(self) -> None:
+        import base64
+
+        raw = b"%PDF-1.4 test"
+        data_url = "data:application/pdf;base64," + base64.b64encode(raw).decode("ascii")
+        saved = self.ws.put_proposal({"id": "p-pdf", "title": "Deck", "pdfDataUrl": data_url})
+        self.assertTrue(saved["hasPdf"])
+        listed = self.ws.list_proposals(include_pdf=False)
+        self.assertEqual(len(listed), 1)
+        self.assertNotIn("pdfDataUrl", listed[0])
+        fetched = self.ws.get_proposal("p-pdf")
+        self.assertTrue(str(fetched["pdfDataUrl"]).startswith("data:application/pdf;base64,"))
+
+    def test_deleted_quote_hidden(self) -> None:
+        self.ws.put_quote({"id": "q1", "title": "Quote"})
+        self.assertTrue(self.ws.delete_quote("q1"))
+        self.assertIsNone(self.ws.get_quote("q1"))
+        self.assertEqual(self.ws.list_quotes(), [])
 
 
 if __name__ == "__main__":

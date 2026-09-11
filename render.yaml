@@ -1,3 +1,9 @@
+databases:
+  - name: weott-nexus-workspace
+    plan: basic-256mb
+    databaseName: weott_nexus
+    user: weott
+
 services:
   - type: web
     name: weott-quote-builder
@@ -21,3 +27,7 @@ services:
         sync: false
       - key: NEXUS_AUTH_SECRET
         generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: weott-nexus-workspace
+          property: connectionString
