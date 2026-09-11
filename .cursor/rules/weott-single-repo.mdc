@@ -17,6 +17,12 @@ Do not open, edit, clone, or deploy from `ProductionENV-Proposal_engine-`, `IanD
 | Browser DB | IndexedDB `nexus-workspace` (SPA) |
 | Engine DB | `artifacts/pdf-engine/data/workspace` |
 
-Render: both `weott-quote-builder` and `weott-proposal-engine` deploy from this repo (`render.yaml`). Keep `weott-proposal-engine` on Render **Starter ($7/mo)** (`plan: starter`) so the engine does not sleep. Never keep a separate engine GitHub as source of truth.
+Render: both `weott-quote-builder` and `weott-proposal-engine` deploy from this repo (`render.yaml`). Keep all three Blueprint resources on paid starter, never Free:
+
+- `weott-quote-builder` → `plan: starter`
+- `weott-proposal-engine` → `plan: starter` ($7/mo)
+- `weott-nexus-workspace` → `plan: basic-256mb` (Postgres paid starter; Render no longer sells a `$7` Postgres Starter for new DBs)
+
+Never keep a separate engine GitHub as source of truth.
 
 Do not rebuild multi-package PDFs or swap inserts. Overlay-only proposals.
