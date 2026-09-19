@@ -4,7 +4,7 @@
  * Paste into Extensions → Apps Script on the LIVE workbook.
  *
  * Setup:
- * 1. Paste files: Code.gs (this), Sentry.gs, Extras.gs, NexusApi.gs.
+ * 1. Paste files: Code.gs (this), References.gs, Sentry.gs, Extras.gs, NexusApi.gs.
  * 2. Run installNexusTriggers once (or open the workbook — onOpen installs missing ones).
  * 3. Authorize SpreadsheetApp + ScriptApp.
  *
@@ -12,7 +12,7 @@
  *   - onInstallableEdit  (any cell edit, any tab)
  *   - onSpreadsheetChange (row/column/tab/sheet insert, delete, rename, grid)
  *   - buildNexusCatalog   every 1 minute (safety net)
- *   - assignReferencesTimed every 1 minute
+ *   - assignReferencesTimed every 1 minute (implemented in References.gs)
  *
  * Any workbook change rebuilds "_Nexus Catalog" so CostRatesFetch / LeadDataFetch
  * return current Cost Mother labels, rates, and enquiry rows. Nexus polls that
@@ -21,6 +21,10 @@
  * Writes tab "_Nexus Catalog". NexusApi.gs CostRatesFetch reads that tab, and
  * rebuilds it first when the catalog is missing or stale.
  * Extras.gs appends margin / cutlery_ratio / staff_ratio rows.
+ *
+ * WE.N references live in References.gs. Do not define assignReferencesTimed
+ * or handleLeadAgentReference here — duplicate names fail the project.
+ * Triggers and pushWorkbookToNexus_ keep calling them by name.
  */
 
 var CATALOG_TAB = '_Nexus Catalog';
@@ -197,62 +201,6 @@ function onSpreadsheetChange(e) {
 function pushWorkbookToNexus_() {
   assignReferencesTimed();
   buildNexusCatalog();
-}
-
-function assignReferencesTimed() {
-  var ss = nexusWorkbook_();
-  var sheets = ss.getSheets();
-  for (var i = 0; i < sheets.length; i++) {
-    if (ENQUIRY_RE.test(sheets[i].getName())) {
-      handleLeadAgentReference(sheets[i]);
-    }
-  }
-}
-
-/** Column J (10) — assign WE.N when a new enquiry row has data but no ref. */
-function handleLeadAgentReference(sheet) {
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
-  } catch (err) {
-    return;
-  }
-  try {
-    var refCol = 10;
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return;
-    var numRows = lastRow - 1;
-    var refValues = sheet.getRange(2, refCol, numRows, 1).getValues();
-    var dataColValues = sheet.getRange(2, 1, numRows, 1).getValues();
-    var maxRef = 0;
-    var prefix = 'WE.';
-    refValues.forEach(function (r) {
-      var val = String(r[0]);
-      if (val.indexOf(prefix) === 0) {
-        var num = parseInt(val.replace(prefix, ''), 10);
-        if (!isNaN(num) && num > maxRef) maxRef = num;
-      }
-    });
-    var updates = [];
-    var hasUpdates = false;
-    refValues.forEach(function (r, i) {
-      var val = String(r[0]);
-      var rowHasData = dataColValues[i][0] !== '';
-      if (rowHasData && val.indexOf(prefix) !== 0) {
-        maxRef++;
-        updates.push([prefix + maxRef]);
-        hasUpdates = true;
-      } else {
-        updates.push([r[0]]);
-      }
-    });
-    if (hasUpdates) {
-      sheet.getRange(2, refCol, numRows, 1).setValues(updates);
-      SpreadsheetApp.flush();
-    }
-  } finally {
-    lock.releaseLock();
-  }
 }
 
 function findSheet_(ss, re) {

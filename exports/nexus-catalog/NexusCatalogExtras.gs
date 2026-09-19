@@ -5,8 +5,9 @@
  * Suggested name in the Apps Script editor: Extras.gs
  *
  * Complements:
- *   Code.gs    = NexusCatalog.gs (Cost Mother + enquiry refs)
- *   Sentry.gs  = NexusCatalogTaxonomy.gs (alias table — no Run functions)
+ *   Code.gs        = NexusCatalog.gs (Cost Mother catalog)
+ *   References.gs  = WE.N on Enquiry - Lead Data (2026)
+ *   Sentry.gs      = NexusCatalogTaxonomy.gs (alias table — no Run functions)
  *
  * Copies these tabs into _Nexus Catalog as extra kind rows:
  *   margin          ← Minimum target margin (per event type)
