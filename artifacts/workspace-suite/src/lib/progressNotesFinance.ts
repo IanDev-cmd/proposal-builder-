@@ -10,6 +10,7 @@
  * This matches how REPs write shorthand (HFB, AVON, SAME MARGIN AS V1, bar tab £1500).
  */
 
+import { parseCalendarDate } from '@/lib/calendarWhen';
 import {
   buildRateParts,
 } from '@/lib/costMotherLookup';
@@ -368,12 +369,10 @@ export function resolveSheetFinancialTargets(
   return hasAny ? merged : null;
 }
 
-/** Rate event date: use confirmed date, else parse fullEventDate even when flexible (for vessel rates). */
+/** Rate event date. A flexible quote with no calendar day does not borrow the lead date. */
 export function rateEventDateFromLead(lead: QuoteLead, eventDate: string, dateFlexible: boolean): string {
-  if (eventDate?.trim() && !/tbc/i.test(eventDate)) return eventDate.slice(0, 10);
-  const full = lead.fullEventDate || lead.eventDateDisplay || '';
-  if (!full || /tbc/i.test(full)) return '';
-  const d = new Date(full.replace(/(\d+)(st|nd|rd|th)/gi, '$1'));
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fromForm = parseCalendarDate(eventDate);
+  if (fromForm) return fromForm;
+  if (dateFlexible) return '';
+  return parseCalendarDate(lead.fullEventDate) || parseCalendarDate(lead.eventDateDisplay) || '';
 }

@@ -78,7 +78,7 @@ export function formatEventDateForProposal(opts: {
   if (eventDate?.trim() && !/tbc/i.test(eventDate)) {
     base = formatIsoDateHouseStyle(eventDate.trim()) || eventDate.trim().slice(0, 10);
   }
-  if (!base) {
+  if (!base && !dateFlexible) {
     const full = (fullEventDate || eventDateDisplay || '').trim();
     if (full && !/^date\s*tbc$/i.test(full)) {
       base = stripTbcMarkers(full);

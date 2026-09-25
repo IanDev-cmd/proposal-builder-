@@ -411,7 +411,9 @@ function parseCatalog_(rows) {
       itemsByLabel[label] = { row: itemOrder.length + 1, label: label, rates: {} };
       itemOrder.push(label);
     }
-    itemsByLabel[label].rates[rateKey] = rate;
+    // A spare sheet column repeats the same key as 0 and would wipe the hourly rate.
+    var prev = itemsByLabel[label].rates[rateKey];
+    if (!(Number(prev) > 0)) itemsByLabel[label].rates[rateKey] = rate;
     var parts = rateKey.split('|');
     if (parts[0]) vessels[parts[0]] = true;
     if (parts[1]) periods.weekly[parts[1]] = true;

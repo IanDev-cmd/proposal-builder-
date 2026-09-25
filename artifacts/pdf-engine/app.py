@@ -245,8 +245,18 @@ def _company_for_filename(raw: str) -> str:
     return company
 
 
+def _version_suffix(raw: str) -> str:
+    t = re.sub(r"\s+", " ", str(raw or "")).strip()
+    if re.fullmatch(r"bf\s*costs", t, re.I):
+        return "_BF Costs"
+    m = re.fullmatch(r"v\s*(\d+)", t, re.I)
+    if m:
+        return f"_V{int(m.group(1))}"
+    return ""
+
+
 def proposal_download_name(payload: dict, report: dict) -> str:
-    """Exact house name from the lead: Proposal - Name (Company) - REF.pdf"""
+    """Proposal - Name (Company) - REF_V2.pdf. The reference stays free of a version."""
     lead = payload.get("lead") or {}
     nexus = payload.get("nexusLead") or {}
     if not isinstance(lead, dict):
@@ -276,11 +286,22 @@ def proposal_download_name(payload: dict, report: dict) -> str:
     )
     if not ref:
         ref = clean(str(lead.get("proposal_ref") or report.get("proposal_ref") or "").strip())
-        ref = _REF_VERSION_TAIL.sub("", ref).strip()
+    tail = _REF_VERSION_TAIL.search(ref)
+    ref_version = tail.group(0).strip() if tail else ""
+    ref = _REF_VERSION_TAIL.sub("", ref).strip()
     if not ref:
         ref = "REF TBC"
+    version = (
+        lead.get("quote_version")
+        or lead.get("quoteVersion")
+        or nexus.get("quoteVersion")
+        or payload.get("quoteVersion")
+        or ref_version
+        or "V1"
+    )
+    suffix = _version_suffix(str(version)) or "_V1"
     who = f"{name} ({company})" if company else name
-    return f"Proposal - {who} - {ref}.pdf"
+    return f"Proposal - {who} - {ref}{suffix}.pdf"
 
 
 @app.post("/generate")

@@ -304,7 +304,8 @@ function parseCostMother_(sheet) {
     for (var c = 1; c < colCount; c++) {
       if (!colKeys[c]) continue;
       var n = toNumber_(row[c]);
-      if (n == null) continue;
+      // 0 is the blank twin of a merged header, not a second price.
+      if (n == null || n === 0) continue;
       numericCount++;
       rowRates.push({ key: colKeys[c], rate: n });
     }

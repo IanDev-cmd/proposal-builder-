@@ -592,9 +592,22 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
     pipe_x = x0 + name_w
     title_x = pipe_x + pipe_w
 
-    extra_redacts = list(spec.get("extra_redacts") or [])
+    # A long title on one line shrinks the divider. Keep template size and
+    # put the title on the role line the template already has.
     role_bbox = spec.get("role_bbox")
-    if role_bbox:
+    use_role_line = bool(role_bbox) and draw_size < size * config.COVER_SHRINK_RATIO_FLOOR
+    if use_role_line:
+        draw_size = size
+        name_w = font_mgr.text_length(name, draw_size, False)
+        pipe_w = font_mgr.text_length(pipe, draw_size, False)
+        pipe_x = x0 + name_w
+        title_x = float(role_bbox[0])
+        y_title = float(spec.get("role_origin", (title_x, float(role_bbox[3]) - 1.0))[1])
+    else:
+        y_title = y
+
+    extra_redacts = list(spec.get("extra_redacts") or [])
+    if role_bbox and not use_role_line:
         extra_redacts.append(tuple(role_bbox))
 
     items = []
@@ -623,14 +636,14 @@ def _prepare_gold_prepared_by(spec: dict, data: dict, font_mgr, warnings: list) 
     items.append(prepare_field_draw(pipe_spec, pipe, font_mgr, warnings, "prepared_by_pipe"))
 
     title_spec = dict(
-        bbox=spec["bbox"],
-        origin=(title_x, y),
+        bbox=spec["bbox"] if not use_role_line else tuple(role_bbox),
+        origin=(title_x, y_title),
         size=draw_size,
         bold=False,
         deep_bold=False,
         color=color,
-        max_width=max(panel_right - title_x, 8.0),
-        skip_redact=True,
+        max_width=max((panel_right if not use_role_line else float(role_bbox[2])) - title_x, 8.0),
+        skip_redact=not use_role_line,
     )
     items.append(prepare_field_draw(title_spec, title_run, font_mgr, warnings, "prepared_by_role"))
     return items
@@ -741,15 +754,17 @@ def fill_cover_page(doc, data: dict, font_mgr, warnings: list, profile=None):
                 parts = value.split("\n", 1)
                 value = parts[0].strip()
                 flexible = flexible or bool(re.search(r"tbc", parts[1], re.I))
-            # Keep the full weekday month date; shrink is handled in prepare_field_draw.
-            # Flexible: leave the template "(Date TBC)" under Event date requested.
-            # Fixed: wipe that template line so it does not stay on a confirmed date.
-            if not flexible:
-                x0, y0 = spec["origin"]
-                bbox = list(spec["bbox"])
-                bbox[3] = max(float(bbox[3]), float(y0) + 7.5)
-                spec["bbox"] = tuple(bbox)
-                spec["max_width"] = max(float(spec.get("max_width") or 0), bbox[2] - bbox[0])
+            # Flexible with no calendar day: the value is "Date TBC".
+            # Fixed: wipe only the template "(Date TBC)" glyphs, not the row rule.
+            if not flexible or re.match(r"(?i)^date\s*tbc$", value.strip()):
+                tbc_rects = page.search_for("(Date TBC)") or page.search_for("Date TBC")
+                extras = list(spec.get("extra_redacts") or [])
+                for rect in tbc_rects:
+                    if rect.y0 < 30 or rect.y0 > 90:
+                        continue
+                    extras.append((rect.x0 - 0.4, rect.y0 - 0.2, rect.x1 + 0.4, rect.y1 + 0.2))
+                if extras:
+                    spec["extra_redacts"] = extras
         # Page 1 must stay pixel-perfect with the chosen template: measured
         # span colour + Century Gothic only. Page-13 pure-white / Fallback-Bold
         # styling must not leak onto the cover.

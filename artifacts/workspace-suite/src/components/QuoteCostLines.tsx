@@ -8,6 +8,7 @@ import {
 import type { BespokeLine, QuoteFormInput } from '@/lib/quoteFinance';
 import { calcBaseCostBreakdown, CONTINGENCY_RATE, money } from '@/lib/quoteFinance';
 
+import { editBespokeAmount } from '@/lib/bespokeLines';
 import { PREFILL_INPUT_CLS } from '@/lib/leadPrefill';
 
 type Props = {
@@ -29,6 +30,7 @@ export function QuoteCostLines({
   onToggleLine,
   onBespokeChange,
 }: Props) {
+  const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(SECTION_META.map((s) => [s.id, s.id === 'catering' || s.id === 'entertainment'])),
   );
@@ -122,14 +124,21 @@ export function QuoteCostLines({
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={b.amount ? String(b.amount) : ''}
+                      value={
+                        amountDraft[b.id] !== undefined
+                          ? amountDraft[b.id]
+                          : b.amount
+                            ? String(b.amount)
+                            : ''
+                      }
                       onChange={(e) => {
-                        const amount = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
+                        const edited = editBespokeAmount(e.target.value);
+                        setAmountDraft((prev) => ({ ...prev, [b.id]: edited.text }));
                         const next = [...bespokeLines];
                         next[idx] = {
                           ...b,
-                          amount,
-                          enabled: amount > 0 || Boolean(String(b.label || '').trim()),
+                          amount: edited.amount,
+                          enabled: edited.amount > 0 || Boolean(String(b.label || '').trim()),
                         };
                         onBespokeChange(next);
                       }}

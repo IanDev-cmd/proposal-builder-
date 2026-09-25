@@ -2,6 +2,7 @@
  * Enquiry / Sheets → Quote Builder prefill.
  * Parses Sapphire lead aliases + progressNotes hints; tracks auto-filled keys for blue UI styling.
  */
+import { parseCalendarDate } from '@/lib/calendarWhen';
 import { VESSEL_TYPES, EVENT_TYPES, MENU_TYPES } from '@/lib/formOptions';
 import {
   QUOTE_LINES,
@@ -302,19 +303,8 @@ export function isRepeatClientSource(rawSource?: string): boolean {
 export function parseEventDateForInput(display?: string, full?: string, _flexible?: boolean): string {
   // Always keep a calendar date when the lead has one — Fixed/Flexible is a separate toggle.
   for (const candidate of [full, display]) {
-    const src = (candidate || '').trim();
-    if (!src || /^date\s*tbc$/i.test(src)) continue;
-    const cleaned = src
-      .replace(/\s*\n\s*TBC\s*$/i, '')
-      .replace(/\s*\(date\s*tbc\)\s*/gi, '')
-      .replace(/\s*\(tbc\)\s*/gi, '')
-      .trim();
-    if (!cleaned || /^date\s*tbc$/i.test(cleaned)) continue;
-    if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) return cleaned.slice(0, 10);
-    const d = new Date(cleaned);
-    if (!Number.isNaN(d.getTime())) {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
+    const iso = parseCalendarDate(candidate);
+    if (iso) return iso;
   }
   return '';
 }

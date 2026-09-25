@@ -47,11 +47,12 @@ def render_financials(doc: "fitz.Document", calculations: dict, font_mgr, warnin
         spec = fields.get(field_name)
         if not spec:
             continue
-        # Force deep bold white for orange-table figures (template look)
+        # One Century Gothic draw. Bold falls through to Poppins, and a second
+        # 0.18pt echo is what Acrobat shows as a duplicated figure.
         spec = dict(spec)
-        spec["bold"] = True
+        spec["bold"] = False
         spec["color"] = (1.0, 1.0, 1.0)
-        spec["deep_bold"] = True
+        spec["deep_bold"] = False
         draw = format_guest_count(value) if field_name == "pkg_guests" else str(value)
         prepared.append(prepare_field_draw(spec, draw, font_mgr, warnings, field_name))
     draw_fields_batched(page, prepared, font_mgr, clear_graphics=False)

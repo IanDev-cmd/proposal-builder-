@@ -14,9 +14,21 @@ import { quoteSharePlainText, quoteShareWebUrl } from '../src/lib/quoteShare.ts'
 import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
 import { savedQuoteSharePath, isSavedQuoteReviewPath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
+import { editBespokeAmount } from '../src/lib/bespokeLines.ts';
+import { PROPOSAL_INSERTS } from '../src/lib/proposalAssets.ts';
+import {
+  acceptQuoteVersion,
+  findSavedQuoteByVersion,
+  laterQuoteVersion,
+  quoteVersionNumber,
+} from '../src/lib/quoteBuilderCatalog.ts';
+import { versionBlock } from '../src/lib/progressNotesFinance.ts';
 import { parseQuoteVersionFromNotes, parseRequestedTimes } from '../src/lib/leadPrefill.ts';
 import { formatEventTimingsPayload, itineraryHours, returnFromDisembarkation } from '../src/lib/proposalTimings.ts';
-import { isEventDateTbc } from '../src/lib/quoteFinance.ts';
+import { isEventDateTbc, isWeekendOrPeak } from '../src/lib/quoteFinance.ts';
+import { buildRateParts, inferDayPeriod, inferGroupBracket, inferWeeklyPeriod } from '../src/lib/costMotherLookup.ts';
+import { parseCalendarDate, parseClock } from '../src/lib/calendarWhen.ts';
+import { inferTimeSlot } from '../src/lib/proposalPrefill.ts';
 import { formatEventDateForProposal } from '../src/lib/goldScenarioCover.ts';
 import { errorMessage } from '../src/lib/errors.ts';
 import { formatGbp, formatGbpPounds } from '../src/lib/utils.ts';
@@ -39,6 +51,7 @@ import {
 import {
   isAnonymousPdfFilename,
   isLegacyEventVesselProposalLabel,
+  proposalDownloadFilename,
   proposalDownloadFilenameFromLead,
   proposalFileStemFromLead,
   proposalFilenameFromRecord,
@@ -216,8 +229,81 @@ check(
   'unit billed hours end at disembark not return',
   itineraryHours({ embarkation: '11:45', departure: '12:00', returnTime: '16:45', disembarkation: '17:00' }) === 5,
 );
+let bespokeDraft = '';
+for (const ch of '172.50') bespokeDraft = editBespokeAmount(bespokeDraft + ch).text;
+check('unit bespoke 172.50 stores 172.5', editBespokeAmount(bespokeDraft).amount === 172.5);
+check(
+  'unit bespoke trailing dot stays while typing',
+  bespokeDraft === '172.50' && editBespokeAmount('172.').text === '172.',
+);
+check('unit bespoke empty amount is 0', editBespokeAmount('').amount === 0 && editBespokeAmount('').text === '');
+check(
+  'unit WEOTT III wedding reception is a vessel insert',
+  PROPOSAL_INSERTS.some(
+    (i) => i.kind === 'vessel' && i.vessel === 'WEOTT III' && i.label === 'WEOTT III - Wedding Reception',
+  ),
+);
+check('unit any lead can use V5', acceptQuoteVersion('v5') === 'V5' && laterQuoteVersion('V5') === 'V5' && quoteVersionNumber('V5') === 5);
+check('unit V version steps down to V1', quoteVersionNumber('V1') === 1 && quoteVersionNumber('BF Costs') === null);
+check('unit any lead can use BF Costs', acceptQuoteVersion('bf costs') === 'BF Costs' && laterQuoteVersion('BF Costs') === null);
+const versionQuotes = [
+  { leadKey: 'lead-a', data: { quoteVersion: 'V5' } },
+  { leadKey: 'lead-b', data: { quoteVersion: 'BF Costs' } },
+];
+check(
+  'unit saved quote is found by exact version for any lead',
+  findSavedQuoteByVersion(versionQuotes, 'lead-a', 'V5')?.data.quoteVersion === 'V5' &&
+    findSavedQuoteByVersion(versionQuotes, 'lead-b', 'BF Costs')?.data.quoteVersion === 'BF Costs' &&
+    findSavedQuoteByVersion(versionQuotes, 'lead-a', 'BF Costs') == null,
+);
+check(
+  'unit BF Costs does not scope notes as a V number',
+  versionBlock('V5 only | general note', 'BF Costs') === 'V5 only | general note',
+);
 check('unit missing event date is TBC', isEventDateTbc(undefined as unknown as string) === true);
 check('unit TBC date string', isEventDateTbc('TBC') === true);
+check('unit UK date is 7 Sep 2026', parseCalendarDate('07/09/2026') === '2026-09-07');
+check('unit named Monday stays 7 Sep', parseCalendarDate('Monday 7th September 2026') === '2026-09-07');
+check('unit TBC marker keeps the calendar day', parseCalendarDate('7 September 2026 (Date TBC)') === '2026-09-07');
+check('unit clock 6pm', parseClock('6pm') === '18:00');
+check(
+  'unit flexible Monday is Mon to Thur',
+  inferWeeklyPeriod('2026-09-07', true, 'London Rose') === 'Mon to Thur',
+);
+check(
+  'unit Friday is Fri to Sun',
+  inferWeeklyPeriod('Monday 11th September 2026', false, 'Avontuur') === 'Fri to Sun' ||
+    inferWeeklyPeriod('2026-09-11', false, 'Avontuur') === 'Fri to Sun',
+);
+check('unit missing date does not invent Fri to Sun', inferWeeklyPeriod('', true, 'London Rose') === '');
+check(
+  'unit Elizabethan Wednesday is Mon to Wed',
+  inferWeeklyPeriod('2026-09-09', true, 'Elizabethan') === 'Mon to Wed',
+);
+check(
+  'unit Elizabethan Thursday is Thur to Sun',
+  inferWeeklyPeriod('2026-09-10', false, 'Elizabethan') === 'Thur to Sun',
+);
+check('unit flexible Monday is not peak', isWeekendOrPeak('2026-09-07', true) === false);
+check('unit Friday is peak', isWeekendOrPeak('2026-09-11', false) === true);
+check('unit missing clock is not Daytime', inferDayPeriod('') === '');
+check('unit 15:59 is Daytime', inferDayPeriod('15:59') === 'Daytime');
+check('unit 4pm is Evening', inferDayPeriod('4pm') === 'Evening');
+check('unit Dixie Queen uses Standard', inferGroupBracket(80, 'Dixie Queen') === 'Standard');
+check('unit Dixie Queen 300 guests stays Standard', inferGroupBracket(300, 'Dixie Queen') === 'Standard');
+check('unit Erasmus 200 uses the upper band', inferGroupBracket(200, 'Erasmus') === '200 to 335 guests');
+check(
+  'unit Dixie ignores a saved guest band',
+  buildRateParts({
+    vesselUi: 'Dixie Queen',
+    groupBracket: '1 to 249 guests',
+    guests: 40,
+    weeklyPeriod: 'Thur to Sun',
+    dayPeriod: 'Evening',
+  }).groupBracket === 'Standard',
+);
+check('unit template slot uses 16:00', inferTimeSlot('16:00') === 'evening' && inferTimeSlot('12:00') === 'daytime');
+check('unit template slot empty stays unset', inferTimeSlot('') === 'daytime_or_evening');
 check(
   'unit flexible cover date uses (Date TBC) once',
   formatEventDateForProposal({ eventDate: '2026-08-26', dateFlexible: true }) ===
@@ -308,6 +394,25 @@ check(
   'unit on toggles apply discount and commission',
   togglesOn.discountAmount > 0 && togglesOn.commissionAmount > 0,
 );
+const grossDiscount = calcFinancials({
+  ...sampleForm,
+  selectedLineIds: [],
+  totalCost: '10000',
+  marginOverride: 0.25,
+  repeatClient: true,
+  discountPercent: '5',
+  agentReferral: false,
+});
+check('unit 5% discount leaves the 25% margin', grossDiscount.marginAmount === 2500);
+check('unit 5% discount is off the gross', grossDiscount.discountAmount === 625);
+check('unit 5% discount cost to client', grossDiscount.costToClient === 11875);
+check(
+  'unit discount rows add back to the gross',
+  grossDiscount.costToClient ===
+    grossDiscount.costToClientBeforeDiscount - grossDiscount.discountAmount &&
+    grossDiscount.updatedProfit === grossDiscount.marginAmount - grossDiscount.discountAmount &&
+    grossDiscount.grand === grossDiscount.costToClient + grossDiscount.vat,
+);
 
 setLiveCatalogLines([
   { label: 'Barbecue', section: 'catering', multiplier: 'guests' },
@@ -344,12 +449,12 @@ check(
     name: 'Lily Day',
     company: 'OpusApeiro',
     referenceNumber: 'WE.19108',
-  }) === 'Proposal - Lily Day (OpusApeiro) - WE.19108.pdf',
+  }) === 'Proposal - Lily Day (OpusApeiro) - WE.19108_V1.pdf',
 );
 check(
   'unit PDF name omits empty company',
   proposalFileStemFromLead({ name: 'Lily Day', referenceNumber: 'WE.19108' }) ===
-    'Proposal - Lily Day - WE.19108',
+    'Proposal - Lily Day - WE.19108_V1',
 );
 check(
   'unit PDF name drops NA company',
@@ -357,7 +462,7 @@ check(
     name: 'Katrina Watson',
     company: 'NA',
     referenceNumber: 'WE.19132',
-  }) === 'Proposal - Katrina Watson - WE.19132',
+  }) === 'Proposal - Katrina Watson - WE.19132_V1',
 );
 check(
   'unit PDF name drops dash placeholder company',
@@ -365,7 +470,24 @@ check(
     name: 'Katrina Watson',
     company: '—',
     referenceNumber: 'WE.19132',
-  }) === 'Proposal - Katrina Watson - WE.19132',
+  }) === 'Proposal - Katrina Watson - WE.19132_V1',
+);
+check(
+  'unit PDF name appends V2 once',
+  proposalDownloadFilename({
+    contactName: 'Rupali Patil Maria Evans',
+    companyName: 'ITC Infotech',
+    referenceCode: 'WE.19167',
+    quoteVersion: 'V2',
+  }) === 'Proposal - Rupali Patil Maria Evans (ITC Infotech) - WE.19167_V2.pdf',
+);
+check(
+  'unit PDF name appends BF Costs',
+  proposalDownloadFilename({
+    contactName: 'Alexis King',
+    referenceCode: 'WE.19001',
+    quoteVersion: 'BF Costs',
+  }) === 'Proposal - Alexis King - WE.19001_BF Costs.pdf',
 );
 check(
   'unit PDF name is Proposal - Joanna Eaton (EY) - WE.19103',
@@ -373,7 +495,7 @@ check(
     name: 'Joanna Eaton',
     company: 'EY',
     referenceNumber: 'WE.19103',
-  }) === 'Proposal - Joanna Eaton (EY) - WE.19103.pdf',
+  }) === 'Proposal - Joanna Eaton (EY) - WE.19103_V1.pdf',
 );
 check(
   'unit blob UUID is not kept as a PDF name',
@@ -386,7 +508,7 @@ check(
     leadName: 'Joanna Eaton',
     leadCompany: 'EY',
     referenceNumber: 'WE.19103',
-  }) === 'Proposal - Joanna Eaton (EY) - WE.19103.pdf',
+  }) === 'Proposal - Joanna Eaton (EY) - WE.19103_V1.pdf',
 );
 {
   const xmas = resolveProposalInserts({

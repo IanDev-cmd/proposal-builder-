@@ -9,6 +9,7 @@ import {
   type ProposalInsert,
   type ProposalTemplate,
 } from '@/lib/proposalAssets';
+import { parseCalendarDate, parseClock } from '@/lib/calendarWhen';
 import { versionBlock } from '@/lib/progressNotesFinance';
 
 export type ProposalTemplateContext = {
@@ -59,30 +60,19 @@ function slug(text: string): string {
     .replace(/^_|_$/g, '');
 }
 
-function parseHour(t?: string): number | null {
-  if (!t) return null;
-  const m = t.match(/(\d{1,2}):(\d{2})/);
-  if (!m) return null;
-  return parseInt(m[1], 10) + parseInt(m[2], 10) / 60;
-}
-
-/** Daytime vs evening for template slot + insert matching. */
-export function inferTimeSlot(embarkation?: string, disembarkation?: string): string {
-  const emb = parseHour(embarkation);
-  const dis = parseHour(disembarkation);
-  const h = emb ?? dis;
-  if (h == null) return 'daytime_or_evening';
-  if (h >= 17 || (dis != null && dis >= 19)) return 'evening';
-  if (h < 12) return 'daytime';
-  return h >= 15 ? 'evening' : 'daytime';
+/** Daytime vs evening for template slot. Same 16:00 rule as Cost Mother day period. */
+export function inferTimeSlot(start?: string, _finish?: string): string {
+  const clock = parseClock(start);
+  if (!clock) return 'daytime_or_evening';
+  return parseInt(clock.slice(0, 2), 10) >= 16 ? 'evening' : 'daytime';
 }
 
 export function inferSeason(eventDate?: string, eventType?: string): string {
   if (/christmas|xmas/i.test(eventType || '')) return 'christmas';
   if (!eventDate) return 'all_seasons';
-  const d = new Date(eventDate.slice(0, 10));
-  if (Number.isNaN(d.getTime())) return 'all_seasons';
-  const month = d.getMonth() + 1;
+  const iso = parseCalendarDate(eventDate);
+  if (!iso) return 'all_seasons';
+  const month = Number(iso.slice(5, 7));
   if (month === 12) return 'christmas';
   if (month >= 3 && month <= 8) return 'spring_summer';
   return 'autumn_winter';

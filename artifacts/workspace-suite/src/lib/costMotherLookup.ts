@@ -3,6 +3,7 @@
  * Keys: vessel|weeklyPeriod|dayPeriod|groupBracket
  */
 
+import { parseCalendarDate, parseClock, weekdayIndex } from '@/lib/calendarWhen';
 import bundled from '@/lib/costMotherRates.generated.json';
 import { resolveCostMotherVessel } from '@/lib/quoteBuilderCatalog';
 
@@ -117,26 +118,21 @@ export function makeRateKey(parts: RateKeyParts): string {
   return `${parts.vessel}|${parts.weeklyPeriod}|${parts.dayPeriod}|${parts.groupBracket}`;
 }
 
-/** Infer weekly period from date (and vessel family for Erasmus/Dixie Mon–Wed splits). */
+/** Infer weekly period from the calendar weekday. Flexible/TBC does not change a known day. */
 export function inferWeeklyPeriod(
   eventDate: string,
-  dateFlexible: boolean | undefined,
+  _dateFlexible: boolean | undefined,
   costMotherVessel: string | null,
 ): string {
+  const day = weekdayIndex(eventDate);
+  if (day == null) return '';
+
   const usesMidweekSplit =
     costMotherVessel === 'Erasmus' ||
     costMotherVessel === 'Dixie Queen' ||
     costMotherVessel === 'Elizabethan' ||
     costMotherVessel === 'Edwardian';
 
-  if (!eventDate?.trim() || dateFlexible || /tbc/i.test(eventDate)) {
-    return usesMidweekSplit ? 'Thur to Sun' : 'Fri to Sun';
-  }
-  const d = new Date(eventDate);
-  if (Number.isNaN(d.getTime())) {
-    return usesMidweekSplit ? 'Thur to Sun' : 'Fri to Sun';
-  }
-  const day = d.getDay(); // 0 Sun … 6 Sat
   if (usesMidweekSplit) {
     // Mon(1)–Wed(3) vs Thur(4)–Sun(0)
     return day >= 1 && day <= 3 ? 'Mon to Wed' : 'Thur to Sun';
@@ -144,9 +140,11 @@ export function inferWeeklyPeriod(
   return day === 0 || day >= 5 ? 'Fri to Sun' : 'Mon to Thur';
 }
 
-/** Infer day period from event start hour (evening if departure/embark ≥ 16:00). */
-export function inferDayPeriod(embarkation: string): string {
-  const h = parseInt((embarkation || '12:00').split(':')[0] || '12', 10);
+/** Daytime before 16:00, Evening from 16:00. Empty when the clock did not parse. */
+export function inferDayPeriod(clock?: string): string {
+  const hhmm = parseClock(clock);
+  if (!hhmm) return '';
+  const h = parseInt(hhmm.slice(0, 2), 10);
   return h >= 16 ? 'Evening' : 'Daytime';
 }
 
@@ -154,10 +152,7 @@ export function inferGroupBracket(guests: number, costMotherVessel: string | nul
   if (costMotherVessel === 'Erasmus') {
     return guests >= 200 ? '200 to 335 guests' : '1 to 199 guests';
   }
-  if (costMotherVessel === 'Dixie Queen') {
-    // Cost Mother uses several Dixie brackets; prefer 1–249 / 250–400 when present
-    return guests >= 250 ? '250 to 400 guests' : '1 to 249 guests';
-  }
+  // Dixie Queen is Standard in Cost Mother, same as Elizabethan. Guest bands miss every cell.
   return 'Standard';
 }
 
@@ -271,10 +266,10 @@ export function buildRateParts(opts: {
   const weekly =
     opts.weeklyPeriod ||
     inferWeeklyPeriod(opts.eventDate || '', opts.dateFlexible, vessel);
-  const day = opts.dayPeriod || inferDayPeriod(opts.departure || opts.embarkation || '12:00');
-  const group =
-    opts.groupBracket ||
-    inferGroupBracket(opts.guests || 0, vessel);
+  const day = opts.dayPeriod || inferDayPeriod(opts.departure || opts.embarkation || '');
+  const inferredGroup = inferGroupBracket(opts.guests || 0, vessel);
+  // A saved 1–249 / 250–400 choice is not a Dixie column. Always read Standard.
+  const group = vessel === 'Dixie Queen' ? inferredGroup : opts.groupBracket || inferredGroup;
   return { vessel, weeklyPeriod: weekly, dayPeriod: day, groupBracket: group };
 }
 
@@ -285,10 +280,10 @@ export function lookupMinMargin(eventType: string, eventDate: string, market?: s
   if (!rows.length) return null;
   const et = (eventType || '').toLowerCase();
   const monthIdx = (() => {
-    const d = new Date(eventDate);
-    if (Number.isNaN(d.getTime())) return null;
+    const iso = parseCalendarDate(eventDate);
+    if (!iso) return null;
     return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][
-      d.getMonth()
+      Number(iso.slice(5, 7)) - 1
     ];
   })();
   if (!monthIdx) return null;

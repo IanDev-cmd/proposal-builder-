@@ -57,7 +57,43 @@ export const GROUP_BRACKETS = [
   '1 to 249 guests',
   '250 to 400 guests',
 ] as const;
-export const QUOTE_VERSIONS = ['V1', 'V2', 'V3', 'V4'] as const;
+export const QUOTE_VERSIONS = ['V1', 'V2', 'V3', 'V4', 'BF Costs'] as const;
+
+/** V1–V4, BF Costs, or V5 and above. Anything else is rejected. */
+export function acceptQuoteVersion(raw: string): string | null {
+  const t = String(raw || '').trim();
+  if (/^bf\s*costs$/i.test(t)) return 'BF Costs';
+  const m = t.toUpperCase().replace(/\s+/g, '').match(/^V(\d+)$/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isInteger(n) || n < 1) return null;
+  return `V${n}`;
+}
+
+/** Numeric V, or null for BF Costs and anything that is not a V-number. */
+export function quoteVersionNumber(raw: string): number | null {
+  const v = acceptQuoteVersion(raw);
+  if (!v || v === 'BF Costs') return null;
+  return Number(v.slice(1));
+}
+
+/** Typed versions past the V1–V4 list. BF Costs is a listed option, not a V-number. */
+export function laterQuoteVersion(raw: string): string | null {
+  const v = acceptQuoteVersion(raw);
+  if (!v || v === 'BF Costs') return null;
+  return Number(v.slice(1)) >= 5 ? v : null;
+}
+
+export function findSavedQuoteByVersion<T extends { leadKey: string; data?: { quoteVersion?: string } }>(
+  quotes: T[],
+  leadKey: string,
+  quoteVersion: string,
+): T | undefined {
+  return quotes.find((q) => {
+    if (q.leadKey !== leadKey) return false;
+    return String(q.data?.quoteVersion || 'V1') === quoteVersion;
+  });
+}
 
 export const SECTION_META: { id: QuoteSectionId; title: string; hint?: string }[] = [
   { id: 'vessel', title: 'Section 1 — Vessel Cost', hint: 'Always on · × event hours' },

@@ -18,6 +18,7 @@
  * Flask /generate must NOT recalculate — pass-through only.
  */
 
+import { weekdayIndex } from '@/lib/calendarWhen';
 import {
   getQuoteLines,
   defaultSelectedLineIds,
@@ -112,11 +113,8 @@ export function isEventDateTbc(eventDate: string, dateFlexible?: boolean): boole
   return !value.trim() || /tbc/i.test(value);
 }
 
-export function isWeekendOrPeak(eventDate: string, dateFlexible?: boolean): boolean {
-  if (isEventDateTbc(eventDate, dateFlexible)) return true;
-  const parsed = new Date(eventDate);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const day = parsed.getDay();
+export function isWeekendOrPeak(eventDate: string, _dateFlexible?: boolean): boolean {
+  const day = weekdayIndex(eventDate);
   return day === 0 || day === 5 || day === 6;
 }
 
@@ -371,15 +369,18 @@ export function calcFinancials(data: QuoteFormInput) {
     Number.isFinite(manual) && data.totalCost.trim() !== '' ? Number(manual) : autoTotal;
 
   const margin = marginRateFor(data);
-  const marginRaw = weottRaw * margin;
-  const costToClientPreDiscount = weottRaw + marginRaw;
+  const weottCost = money(weottRaw);
+  // Margin is WEOTT × the entered %. A client discount does not change it.
+  const marginAmount = pound(weottCost * margin);
+  const costToClientBeforeDiscount = pound(weottCost + marginAmount);
 
   // Client-discount toggle is the master switch — leftover % is ignored when off.
+  // X% comes off the gross once (WEOTT + margin), in whole pounds.
   const discountPct = data.repeatClient
     ? Math.min(100, Math.max(0, parseFloat(data.discountPercent || '') || 0)) / 100
     : 0;
-  const discountAmount = costToClientPreDiscount * discountPct;
-  const costToClientRaw = costToClientPreDiscount - discountAmount;
+  const discountAmount = pound(costToClientBeforeDiscount * discountPct);
+  const costToClient = costToClientBeforeDiscount - discountAmount;
 
   // Agent-referral toggle is the master switch. When on and the box is blank, default 10%.
   const explicitCommission = data.commissionPercent?.trim()
@@ -390,17 +391,12 @@ export function calcFinancials(data: QuoteFormInput) {
     : explicitCommission != null
       ? explicitCommission
       : 0.1;
-  const commissionAmount = costToClientRaw * effectiveCommission;
-  const updatedProfit = marginRaw - discountAmount - commissionAmount;
+  const commissionAmount = pound(costToClient * effectiveCommission);
+  const updatedProfit = marginAmount - discountAmount - commissionAmount;
 
-  const vatRaw = costToClientRaw * VAT_RATE;
-  const grandRaw = costToClientRaw + vatRaw;
+  const vat = pound(costToClient * VAT_RATE);
+  const grand = costToClient + vat;
   const guests = parseFloat(data.guestCount) || 0;
-  const weottCost = money(weottRaw);
-  const marginAmount = pound(marginRaw);
-  const costToClient = pound(costToClientRaw);
-  const vat = pound(vatRaw);
-  const grand = pound(grandRaw);
   const costPerGuestExc = guests > 0 ? money(costToClient / guests) : 0;
   const costPerGuestInc = guests > 0 ? money(grand / guests) : 0;
 
@@ -413,12 +409,12 @@ export function calcFinancials(data: QuoteFormInput) {
     margin,
     marginAmount,
     costToClient,
-    costToClientBeforeDiscount: pound(costToClientPreDiscount),
+    costToClientBeforeDiscount,
     discountPercent: discountPct,
-    discountAmount: money(discountAmount),
+    discountAmount,
     commissionPercent: effectiveCommission,
-    commissionAmount: money(commissionAmount),
-    updatedProfit: pound(updatedProfit),
+    commissionAmount,
+    updatedProfit,
     vat,
     vatRate: VAT_RATE,
     grand,

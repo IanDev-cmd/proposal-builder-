@@ -26,7 +26,6 @@ import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
 import {
   filenameFromContentDisposition,
   proposalFileStem,
-  proposalFileStemFromLead,
   proposalFilenameFromRecord,
 } from '@/lib/proposalFilename';
 import {
@@ -41,6 +40,10 @@ import {
   DAY_PERIODS,
   GROUP_BRACKETS,
   QUOTE_VERSIONS,
+  acceptQuoteVersion,
+  findSavedQuoteByVersion,
+  laterQuoteVersion,
+  quoteVersionNumber,
   defaultSelectedLineIds,
   tablesForVessel,
 } from '@/lib/quoteBuilderCatalog';
@@ -131,6 +134,7 @@ type FormData = {
   source: string;
   eventDate: string;
   dateFlexible: boolean;
+  dateWindow: string;
   guestCount: string;
   guestCountHigh: string;
   embarkation: string;
@@ -210,6 +214,7 @@ const INIT: FormData = {
   source: '',
   eventDate: todayIso(),
   dateFlexible: false,
+  dateWindow: '',
   guestCount: '',
   guestCountHigh: '',
   embarkation: '11:45',
@@ -952,6 +957,7 @@ export function Forms() {
   const fromSavedGenerateRef = useRef(Boolean(pendingGenerateIdRef.current));
   const startStepRef = useRef(consumeQuoteBuilderStartStep());
   const openAtEventCoreRef = useRef(startStepRef.current === 1);
+  const [versionField, setVersionField] = useState('V1');
   const [step, setStep] = useState(() => {
     if (startStepRef.current) return startStepRef.current;
     if (openAtEventCoreRef.current) return 1;
@@ -1015,6 +1021,48 @@ export function Forms() {
   const [ambiguousFields] = useState<Set<string>>(
     () => new Set(leadInit.ambiguousFields || []),
   );
+
+  const applyQuoteVersion = (quoteVersion: string) => {
+    const saved = findSavedQuoteByVersion(listSavedQuotes(), leadNotesKey, quoteVersion);
+    if (saved?.data && Object.keys(saved.data).length) {
+    setVersionField(quoteVersion);
+    setData((prev) => ({
+      ...prev,
+      ...(saved.data as Partial<FormData>),
+      quoteVersion,
+      costApproved: false,
+    }));
+    return;
+  }
+    const patch = quoteLead
+      ? prefillForQuoteVersion(quoteLead, data, quoteVersion)
+      : { data: { quoteVersion }, prefilledKeys: ['quoteVersion'] as string[] };
+    setPrefilledKeys((prev) => {
+      const next = new Set(prev);
+      for (const k of patch.prefilledKeys || []) next.add(k);
+      return next;
+    });
+    if (patch.prefilledLineIds?.length) {
+      setPrefilledLineIds((prev) => {
+        const next = new Set(prev);
+        for (const id of patch.prefilledLineIds || []) next.add(id);
+        return next;
+      });
+    }
+    setVersionField(quoteVersion);
+    setData((prev) => ({
+      ...prev,
+      ...patch.data,
+      costApproved: false,
+    }));
+  };
+
+  const stepQuoteVersion = (delta: number) => {
+    const current = quoteVersionNumber(data.quoteVersion) ?? quoteVersionNumber(versionField);
+    const base = current ?? (delta > 0 ? 0 : 1);
+    const next = Math.max(1, base + delta);
+    applyQuoteVersion(`V${next}`);
+  };
   const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(() => new Set());
   const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [showAllInsertsPanel, setShowAllInsertsPanel] = useState(false);
@@ -1041,6 +1089,10 @@ export function Forms() {
   const [isNotesOpen, setIsNotesOpen] = useState(true);
   const [draftReady, setDraftReady] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setVersionField(data.quoteVersion || 'V1');
+  }, [data.quoteVersion]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -1853,7 +1905,12 @@ export function Forms() {
       }
 
       const proposalId = `proposal-${Date.now()}`;
-      const fileStem = proposalFileStemFromLead(quoteLead);
+      const fileStem = proposalFileStem({
+        contactName: quoteLead?.name,
+        companyName: quoteLead?.company,
+        referenceCode: quoteLead?.referenceNumber,
+        quoteVersion: data.quoteVersion,
+      });
       const filename = proposalFilenameFromRecord({
         filename:
           res.headers.get('X-Proposal-Filename') ||
@@ -1953,6 +2010,7 @@ export function Forms() {
       contactName: quoteLead?.name,
       companyName: quoteLead?.company,
       referenceCode: quoteLead?.referenceNumber,
+      quoteVersion: version,
     });
     const approved = Boolean(next.costApproved);
     const quoteId = existing?.id || `quote-${leadNotesKey}-${version}`;
@@ -2286,46 +2344,12 @@ export function Forms() {
                   <div>
                     <label className={fieldLabelCls}>Quote version</label>
                     <select
-                      value={data.quoteVersion}
-                      onChange={(e) => {
-                        const quoteVersion = e.target.value;
-                        const saved = listSavedQuotes().find((q) => {
-                          if (q.leadKey !== leadNotesKey) return false;
-                          const savedVer = String(
-                            (q.data as { quoteVersion?: string })?.quoteVersion || 'V1',
-                          );
-                          return savedVer === quoteVersion;
-                        });
-                        if (saved?.data && Object.keys(saved.data).length) {
-                          setData((prev) => ({
-                            ...prev,
-                            ...(saved.data as Partial<FormData>),
-                            quoteVersion,
-                            costApproved: false,
-                          }));
-                          return;
-                        }
-                        const patch = quoteLead
-                          ? prefillForQuoteVersion(quoteLead, data, quoteVersion)
-                          : { data: { quoteVersion }, prefilledKeys: ['quoteVersion'] as string[] };
-                        setPrefilledKeys((prev) => {
-                          const next = new Set(prev);
-                          for (const k of patch.prefilledKeys || []) next.add(k);
-                          return next;
-                        });
-                        if (patch.prefilledLineIds?.length) {
-                          setPrefilledLineIds((prev) => {
-                            const next = new Set(prev);
-                            for (const id of patch.prefilledLineIds || []) next.add(id);
-                            return next;
-                          });
-                        }
-                        setData((prev) => ({
-                          ...prev,
-                          ...patch.data,
-                          costApproved: false,
-                        }));
-                      }}
+                      value={
+                        (QUOTE_VERSIONS as readonly string[]).includes(data.quoteVersion)
+                          ? data.quoteVersion
+                          : laterQuoteVersion(data.quoteVersion) || 'V1'
+                      }
+                      onChange={(e) => applyQuoteVersion(e.target.value)}
                       className={fieldCls('quoteVersion')}
                     >
                       {QUOTE_VERSIONS.map((v) => (
@@ -2333,7 +2357,44 @@ export function Forms() {
                           {v}
                         </option>
                       ))}
+                      {laterQuoteVersion(data.quoteVersion) ? (
+                        <option value={data.quoteVersion}>{data.quoteVersion}</option>
+                      ) : null}
                     </select>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label="Previous quote version"
+                        onClick={() => stepQuoteVersion(-1)}
+                        className="h-10 w-10 shrink-0 rounded-[10px] border border-[#e3e6e4] text-[18px] font-semibold text-gray-700 hover:border-[#FF5A45]"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="text"
+                        value={versionField}
+                        onChange={(e) => setVersionField(e.target.value)}
+                        onBlur={() => {
+                          const next = acceptQuoteVersion(versionField);
+                          if (next) applyQuoteVersion(next);
+                          else setVersionField(data.quoteVersion || 'V1');
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                        }}
+                        placeholder="V5"
+                        aria-label="Type quote version"
+                        className={fieldCls('quoteVersion')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Next quote version"
+                        onClick={() => stepQuoteVersion(1)}
+                        className="h-10 w-10 shrink-0 rounded-[10px] border border-[#e3e6e4] text-[18px] font-semibold text-gray-700 hover:border-[#FF5A45]"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className={fieldLabelCls}>Weekly period</label>
@@ -2406,10 +2467,27 @@ export function Forms() {
                     onChange={(e) => set('eventDate', e.target.value)}
                     className={fieldCls('eventDate')}
                   />
-                  {data.dateFlexible && data.eventDate ? (
+                  {data.dateFlexible ? (
                     <p className="mt-1.5 text-[12px] font-semibold text-emerald-700">
-                      Proposal will show this date with (Date TBC) underneath
+                      {data.eventDate
+                        ? 'Proposal will show this date with (Date TBC) underneath. Clear the date if the day is not fixed.'
+                        : 'No calendar day. Weekly and day rates stay blank, and the cover says Date TBC.'}
                     </p>
+                  ) : null}
+                  {data.dateFlexible ? (
+                    <div className="mt-3">
+                      <label className={fieldLabelCls}>Date window</label>
+                      <input
+                        type="text"
+                        value={data.dateWindow}
+                        onChange={(e) => set('dateWindow', e.target.value)}
+                        placeholder="e.g. Mon/Tue Dec 2026"
+                        className={fieldCls('dateWindow')}
+                      />
+                      <p className="mt-1.5 text-[12px] text-gray-400">
+                        Shown for the team only. This note does not set a weekday or a rate band.
+                      </p>
+                    </div>
                   ) : null}
                 </div>
                 <div className="mb-7 rounded-[10px] border border-[#e3e6e4] p-4">
@@ -2662,7 +2740,7 @@ export function Forms() {
                 <div className={`mb-7 flex items-center justify-between rounded-[10px] border border-[#e3e6e4] p-4 ${prefilledKeys.has('repeatClient') ? PREFILL_INPUT_CLS : ''}`}>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">Apply Client Discount</p>
-                    <p className="text-[12px] text-gray-400">Reduces Margin by % set in box below</p>
+                    <p className="text-[12px] text-gray-400">Deducts this % from the total gross. The margin stays as entered.</p>
                   </div>
                   <button
                     type="button"

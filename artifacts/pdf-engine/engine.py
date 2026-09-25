@@ -25,7 +25,7 @@ from bespoke import (
     render_package_columns,
     apply_menu_links,
 )
-from vessel import swap_vessel_page
+from vessel import overlay_vessel_year, swap_vessel_page
 from catalog import resolve_template, get_catalog
 from measure import get_profile
 from inserts import apply_inserts, infer_insert_slot, pick_vessel_insert_id, resolve_insert_paths
@@ -157,6 +157,9 @@ def build_proposal(payload: dict, template_path: str | None, output_path: str | 
             insert_report = apply_inserts(
                 doc, list(selected_inserts), warnings, extra_page_shift=overflow_shift
             )
+
+        if profile.page_vessel is not None:
+            overlay_vessel_year(doc, profile.page_vessel, font_mgr)
 
         pdf_bytes = doc.tobytes(garbage=0, deflate=False)
         if output_path:

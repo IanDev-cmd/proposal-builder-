@@ -73,28 +73,47 @@ export function companyForFilename(raw?: string | null): string {
   return company;
 }
 
+/** V1 → _V1, V2 → _V2, BF Costs → _BF Costs. Missing version is _V1. */
+export function versionFilenameSuffix(raw?: string | null): string {
+  const t = String(raw || '').trim();
+  if (/^bf\s*costs$/i.test(t)) return '_BF Costs';
+  const m = t.toUpperCase().replace(/\s+/g, '').match(/^V(\d+)$/);
+  if (m) return `_V${Number(m[1])}`;
+  const tail = t.match(/\bV(\d+)\s*$/i);
+  if (tail) return `_V${Number(tail[1])}`;
+  return '_V1';
+}
+
+function referenceWithoutVersion(raw: string): string {
+  return raw.replace(/\s+V\d+\s*$/i, '').trim();
+}
+
 /**
  * Exact house filename from the lead:
- *   Proposal - Contact Name (Company Name) - Reference Code
- * Company omitted when the lead has none, NA, or a dash placeholder. Reference is the lead code, not a quote version.
+ *   Proposal - Contact Name (Company Name) - Reference Code_V2
+ * Company omitted when the lead has none, NA, or a dash placeholder.
  */
 export function proposalFileStem(opts: {
   contactName?: string;
   companyName?: string;
   referenceCode?: string;
+  quoteVersion?: string;
 }): string {
   const name = sanitizeFilenamePart(opts.contactName || '') || 'Contact TBC';
   const company = companyForFilename(opts.companyName);
-  const ref = sanitizeFilenamePart(opts.referenceCode || '') || 'REF TBC';
+  const ref = referenceWithoutVersion(sanitizeFilenamePart(opts.referenceCode || '')) || 'REF TBC';
   const who = company ? `${name} (${company})` : name;
-  return `Proposal - ${who} - ${ref}`;
+  return `Proposal - ${who} - ${ref}${versionFilenameSuffix(opts.quoteVersion || opts.referenceCode)}`;
 }
 
-export function proposalFileStemFromLead(lead?: LeadFilenameParts | null): string {
+export function proposalFileStemFromLead(
+  lead?: (LeadFilenameParts & { quoteVersion?: string }) | null,
+): string {
   return proposalFileStem({
     contactName: lead?.name,
     companyName: lead?.company || lead?.companyName,
     referenceCode: lead?.referenceNumber,
+    quoteVersion: lead?.quoteVersion,
   });
 }
 
@@ -102,6 +121,7 @@ export function proposalDownloadFilename(opts: {
   contactName?: string;
   companyName?: string;
   referenceCode?: string;
+  quoteVersion?: string;
 }): string {
   return `${proposalFileStem(opts)}.pdf`;
 }
@@ -118,6 +138,7 @@ export type ProposalFilenameRecord = {
   company?: string | null;
   companyName?: string | null;
   referenceNumber?: string | null;
+  quoteVersion?: string | null;
 };
 
 /** Prefer a stored house name; never keep a blob UUID / generic download name. */
@@ -133,6 +154,7 @@ export function proposalFilenameFromRecord(p: ProposalFilenameRecord): string {
     contactName: p.leadName || undefined,
     companyName: p.leadCompany || p.company || p.companyName || undefined,
     referenceCode: p.referenceNumber || undefined,
+    quoteVersion: p.quoteVersion || undefined,
   });
 }
 

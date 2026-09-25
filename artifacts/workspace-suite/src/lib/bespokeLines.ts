@@ -1,4 +1,4 @@
-import type { BespokeLine } from '@/lib/quoteFinance';
+import { money, type BespokeLine } from '@/lib/quoteFinance';
 
 export type BespokeLineInput = {
   id?: string;
@@ -47,6 +47,21 @@ export function normalizeBespokeLines(
   }
 
   return slots;
+}
+
+/** Keep typed pence ("172.", "172.50") and store at most two decimal places. */
+export function editBespokeAmount(raw: string): { text: string; amount: number } {
+  let text = String(raw || '').replace(/[^0-9.]/g, '');
+  const dot = text.indexOf('.');
+  if (dot >= 0) {
+    const whole = text.slice(0, dot);
+    const frac = text.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+    text = `${whole}.${frac}`;
+  }
+  if (!text || text === '.') return { text: text === '.' ? '.' : '', amount: 0 };
+  const n = parseFloat(text);
+  if (!Number.isFinite(n)) return { text, amount: 0 };
+  return { text, amount: money(n) };
 }
 
 export function bespokeTotal(lines: BespokeLine[]): number {
