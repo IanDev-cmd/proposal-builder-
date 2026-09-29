@@ -15,6 +15,7 @@ import { quotePageHtml, quotePageFileStem } from '../src/lib/quotePageHtml.ts';
 import { savedQuoteSharePath, isSavedQuoteReviewPath } from '../src/lib/savedQuotesStore.ts';
 import { parseGuestCountDetailed } from '../src/lib/parseGuestCount.ts';
 import { editBespokeAmount } from '../src/lib/bespokeLines.ts';
+import { quoteFormFromSaved } from '../src/lib/costSheet.ts';
 import { PROPOSAL_INSERTS } from '../src/lib/proposalAssets.ts';
 import {
   acceptQuoteVersion,
@@ -365,6 +366,34 @@ check('unit margin nearest pound', finRound.marginAmount === 4454);
 check('unit cost to client nearest pound', finRound.costToClient === 22270);
 check('unit vat nearest pound', finRound.vat === 4454);
 check('unit grand nearest pound', finRound.grand === 26724);
+const savedAuto = calcFinancials({
+  ...sampleForm,
+  selectedLineIds: [],
+  totalCost: '99999',
+  marginPercent: '25',
+  baseCostAuto: true,
+});
+check('unit auto base cost ignores the stored total', savedAuto.baseCost !== 99999);
+check('unit typed margin is kept without marginOverride', savedAuto.margin === 0.25);
+const savedManual = calcFinancials({
+  ...sampleForm,
+  selectedLineIds: [],
+  totalCost: '10000',
+  marginPercent: '25',
+  baseCostAuto: false,
+});
+check('unit manual base cost is kept', savedManual.baseCost === 10000 && savedManual.margin === 0.25);
+const fromSaved = quoteFormFromSaved({
+  ...sampleForm,
+  totalCost: '99999',
+  marginPercent: '25',
+  baseCostAuto: true,
+} as unknown as Record<string, unknown>);
+const savedDownload = fromSaved ? calcFinancials(fromSaved) : null;
+check(
+  'unit saved download uses the typed margin and the rollup',
+  savedDownload != null && savedDownload.baseCost !== 99999 && savedDownload.margin === 0.25,
+);
 
 const togglesOff = calcFinancials({
   ...sampleForm,

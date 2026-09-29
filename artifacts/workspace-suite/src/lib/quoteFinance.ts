@@ -80,6 +80,10 @@ export type QuoteFormInput = {
   menuType: string[];
   repeatClient: boolean;
   totalCost: string;
+  /** Typed margin, e.g. "25". Used when marginOverride was not copied onto a saved quote. */
+  marginPercent?: string;
+  /** True while Base Cost is the line rollup. A stored totalCost is then display-only. */
+  baseCostAuto?: boolean;
   /** Legacy upgrade labels — display only; ticks on Cost Lines are the cost source. */
   selectedUpgrades: string[];
   agentReferral?: boolean;
@@ -351,6 +355,10 @@ export function marginRateFor(data: QuoteFormInput): number {
   if (data.marginOverride != null && Number.isFinite(data.marginOverride)) {
     return Math.min(1, Math.max(0, data.marginOverride));
   }
+  const typed = parseFloat(data.marginPercent ?? '');
+  if (String(data.marginPercent ?? '').trim() !== '' && Number.isFinite(typed)) {
+    return Math.min(1, Math.max(0, typed / 100));
+  }
   const fromMatrix = lookupMinMargin(data.eventType, data.eventDate);
   if (fromMatrix != null) return fromMatrix;
   if (data.repeatClient) return REPEAT_CLIENT_MARGIN;
@@ -365,8 +373,8 @@ export function calcFinancials(data: QuoteFormInput) {
   // R184 Total Cost (to WEOTT) = Sections 1–13 + contingency. Manual totalCost overrides that total.
   const autoTotal = breakdown.total;
   const manual = parseFloat(data.totalCost);
-  const weottRaw =
-    Number.isFinite(manual) && data.totalCost.trim() !== '' ? Number(manual) : autoTotal;
+  const honorManual = data.baseCostAuto !== true && String(data.totalCost ?? '').trim() !== '';
+  const weottRaw = honorManual && Number.isFinite(manual) ? Number(manual) : autoTotal;
 
   const margin = marginRateFor(data);
   const weottCost = money(weottRaw);

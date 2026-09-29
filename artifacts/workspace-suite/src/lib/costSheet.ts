@@ -14,12 +14,16 @@ function csvCell(value: string | number): string {
 export function quoteFormFromSaved(data: Record<string, unknown> | undefined): QuoteFormInput | null {
   if (!data || typeof data !== 'object') return null;
   const vessel = data.vesselType;
+  const baseCostAuto = (data as { baseCostAuto?: boolean }).baseCostAuto !== false;
   return {
     ...(data as unknown as QuoteFormInput),
     vesselType: Array.isArray(vessel) ? (vessel as string[]) : vessel ? [String(vessel)] : [],
     menuType: Array.isArray(data.menuType) ? (data.menuType as string[]) : [],
     selectedUpgrades: Array.isArray(data.selectedUpgrades) ? (data.selectedUpgrades as string[]) : [],
     selectedLineIds: Array.isArray(data.selectedLineIds) ? (data.selectedLineIds as string[]) : [],
+    marginPercent: String((data as { marginPercent?: string }).marginPercent ?? ''),
+    baseCostAuto,
+    totalCost: baseCostAuto ? '' : String(data.totalCost ?? ''),
   };
 }
 

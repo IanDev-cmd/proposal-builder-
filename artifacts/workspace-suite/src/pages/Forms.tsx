@@ -145,6 +145,8 @@ type FormData = {
   repeatClient: boolean;
   agentReferral: boolean;
   totalCost: string;
+  /** False only after the base-cost box is typed. Saved so downloads do not treat the auto figure as a manual override. */
+  baseCostAuto: boolean;
   /** Margin % override (e.g. 25). Empty = matrix / repeat / new default. */
   marginPercent: string;
   discountPercent: string;
@@ -225,6 +227,7 @@ const INIT: FormData = {
   repeatClient: false,
   agentReferral: false,
   totalCost: '',
+  baseCostAuto: true,
   marginPercent: '',
   discountPercent: '',
   commissionPercent: '',
@@ -1078,7 +1081,7 @@ export function Forms() {
   // Base Cost stays auto-prefilled from the vessel/menu/guests/upgrades
   // formula until the user types their own figure into the field — then it
   // stops overwriting them until they explicitly ask to resync.
-  const [baseCostAuto, setBaseCostAuto] = useState(true);
+  const baseCostAuto = data.baseCostAuto !== false;
   const [ratesNote, setRatesNote] = useState<string>('');
   const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
@@ -1384,6 +1387,7 @@ export function Forms() {
           'groupBracket',
           'noOfTables',
           'totalCost',
+          'baseCostAuto',
           'eventDate',
           'dateFlexible',
           'eventType',
@@ -2883,7 +2887,7 @@ export function Forms() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setBaseCostAuto(true)}
+                        onClick={() => set('baseCostAuto', true)}
                         className="text-[11px] font-semibold text-gray-400 underline-offset-2 hover:text-[#FF5A45] hover:underline"
                       >
                         Reset to auto
@@ -2895,8 +2899,12 @@ export function Forms() {
                     min={0}
                     value={data.totalCost}
                     onChange={(e) => {
-                      setBaseCostAuto(false);
-                      set('totalCost', e.target.value);
+                      const value = e.target.value;
+                      setData((prev) => {
+                        const next = { ...prev, totalCost: value, baseCostAuto: false };
+                        if (prev.costApproved) next.costApproved = false;
+                        return next;
+                      });
                     }}
                     placeholder="Enter base event cost"
                     className={`${inputCls} font-semibold text-[#00e676] [text-shadow:0_0_6px_rgba(0,230,118,0.55)]`}
