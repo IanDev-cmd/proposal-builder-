@@ -60,6 +60,16 @@ import {
 import { insertsForGenerate, resolveProposalInserts, resolveProposalTemplate } from '../src/lib/proposalPrefill.ts';
 import { HOME_PATH, isHomeDashboardPath, isShareDeepLink, parseShareDeepLink } from '../src/lib/homeLanding.ts';
 import { buildSyncRunContext, syncStatusLabel } from '../src/lib/syncManager.ts';
+import { isQuoteDeletedConflict, QuoteDeletedConflict } from '../src/lib/workspaceCloud.ts';
+import {
+  CLOUD_REFRESH_MS,
+  catalogPushMark,
+  intervalSkippedWhileHidden,
+  planQuoteSync,
+  refreshesWorkbook,
+  shouldPushCatalog,
+  wakeOverlapsTick,
+} from '../src/lib/workspaceTraffic.ts';
 import type { SavedQuote } from '../src/lib/savedQuotesStore.ts';
 
 let failed = 0;
@@ -701,6 +711,103 @@ check(
   'unit sync label pending stays local',
   syncStatusLabel({ online: true, phase: 'synced', pendingCount: 1 }) === 'Saved locally',
 );
+
+const catalogA = catalogPushMark({
+  catalogBuiltAt: '2026-10-12T11:00:00Z',
+  payload: { lines: [1], margins: { a: 2, b: 1 } },
+});
+const catalogAReordered = catalogPushMark({
+  catalogBuiltAt: '2026-10-12T11:00:00Z',
+  payload: { margins: { b: 1, a: 2 }, lines: [1] },
+});
+const catalogNewer = catalogPushMark({
+  catalogBuiltAt: '2026-10-12T12:00:00Z',
+  payload: { lines: [1], margins: { a: 2, b: 1 } },
+});
+const catalogEdited = catalogPushMark({
+  catalogBuiltAt: '2026-10-12T11:00:00Z',
+  payload: { lines: [2], margins: { a: 2, b: 1 } },
+});
+check('catalog hash ignores key order', catalogA.hash === catalogAReordered.hash);
+check('catalog push skips an unchanged document', shouldPushCatalog(catalogA, catalogAReordered) === false);
+check('catalog push runs when nothing has been stored', shouldPushCatalog(null, catalogA) === true);
+check('catalog push runs when catalogBuiltAt changes', shouldPushCatalog(catalogA, catalogNewer) === true);
+check('catalog push runs when the payload hash changes', shouldPushCatalog(catalogA, catalogEdited) === true);
+
+const localQuote = {
+  id: 'quote-WE.19167-V1',
+  savedAt: '2026-10-12T11:00:00Z',
+  reviewedAt: '2026-10-12T11:00:00Z',
+  data: { guestCount: '40' },
+};
+const remoteSummary = {
+  id: 'quote-WE.19167-V1',
+  savedAt: '2026-10-12T11:00:00Z',
+  reviewedAt: '2026-10-12T11:00:00Z',
+};
+check(
+  'sync keeps a quote when the summary matches and local data exists',
+  planQuoteSync({ local: localQuote, remote: remoteSummary, deleted: false }) === 'keep',
+);
+check(
+  'sync uploads a local quote the server does not have',
+  planQuoteSync({ local: localQuote, remote: null, deleted: false }) === 'upload',
+);
+check(
+  'sync does not upload a tombstoned quote',
+  planQuoteSync({ local: localQuote, remote: null, deleted: true }) === 'keep',
+);
+check(
+  'sync deletes a remote row that this device already tombstoned',
+  planQuoteSync({ local: localQuote, remote: remoteSummary, deleted: true }) === 'drop-remote',
+);
+check(
+  'sync fetches a body only when the remote is newer and local data is missing',
+  planQuoteSync({
+    local: { ...localQuote, data: {}, savedAt: '2026-10-12T10:00:00Z' },
+    remote: remoteSummary,
+    deleted: false,
+  }) === 'fetch',
+);
+check(
+  'sync does not refetch when local already has data and the remote is newer',
+  planQuoteSync({
+    local: localQuote,
+    remote: { ...remoteSummary, savedAt: '2026-10-12T12:00:00Z' },
+    deleted: false,
+  }) === 'keep',
+);
+check(
+  'sync does not download every summary that is missing locally',
+  planQuoteSync({ local: null, remote: remoteSummary, deleted: false }) === 'keep',
+);
+check(
+  'sync uploads when the local review is newer',
+  planQuoteSync({
+    local: { ...localQuote, reviewedAt: '2026-10-12T12:00:00Z' },
+    remote: remoteSummary,
+    deleted: false,
+  }) === 'upload',
+);
+
+check('steady sync interval is 3 minutes', CLOUD_REFRESH_MS === 180_000);
+check('hidden tab skips the interval', intervalSkippedWhileHidden('hidden') === true);
+check('visible tab runs the interval', intervalSkippedWhileHidden('visible') === false);
+check(
+  'focus during the current tick does not start another run',
+  wakeOverlapsTick(1_000, 1_000 + CLOUD_REFRESH_MS - 1) === true,
+);
+check(
+  'focus after the interval may run',
+  wakeOverlapsTick(1_000, 1_000 + CLOUD_REFRESH_MS) === false,
+);
+check('a tick that has never run does not block the first wake', wakeOverlapsTick(0, 5_000) === false);
+check('interval refreshes the workbook', refreshesWorkbook('interval') === true);
+check('login refreshes the workbook', refreshesWorkbook('startup') === true);
+check('route changes do not refresh the workbook', refreshesWorkbook('route') === false);
+check('an explicit quote save does not rewrite the catalog', refreshesWorkbook('manual') === false);
+check('a deleted-quote conflict is a 409', isQuoteDeletedConflict(new QuoteDeletedConflict()) === true);
+check('a plain error is not a deleted-quote conflict', isQuoteDeletedConflict(new Error('offline')) === false);
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

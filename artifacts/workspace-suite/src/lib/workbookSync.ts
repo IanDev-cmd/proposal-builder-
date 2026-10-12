@@ -1,36 +1,32 @@
 /**
- * Pull every workbook change (leads + Cost Mother catalog) into the UX.
- * Apps Script rebuilds on edit/change; this loop guarantees a system-wide pull
- * within 30 seconds, including last-good fallback from IndexedDB / Flask.
+ * Pull workbook changes (leads + Cost Mother catalog) into the UX.
+ * The workspace sync manager owns the timer. This module only hydrates once
+ * and coalesces overlapping pulls from that scheduler.
  */
 import { refreshLeadsFromNetwork } from '@/lib/leadCache';
-import { CATALOG_REFRESH_MS, hydrateCatalogCache, refreshCostCatalog } from '@/lib/catalogSync';
+import { hydrateCatalogCache, refreshCostCatalog } from '@/lib/catalogSync';
 import { getTeamToken } from '@/lib/teamSession';
 
 let started = false;
+let pullInflight: Promise<void> | null = null;
 
-export async function pullWorkbookToUx(): Promise<void> {
-  if (!getTeamToken()) return;
-  await Promise.all([
+export function pullWorkbookToUx(): Promise<void> {
+  if (!getTeamToken()) return Promise.resolve();
+  if (pullInflight) return pullInflight;
+  pullInflight = Promise.all([
     refreshLeadsFromNetwork().catch(() => undefined),
     refreshCostCatalog().catch(() => undefined),
-  ]);
+  ])
+    .then(() => undefined)
+    .finally(() => {
+      pullInflight = null;
+    });
+  return pullInflight;
 }
 
+/** After PIN login: read the last catalog. The 3-minute loop lives in the sync manager. */
 export function startWorkbookSync(): void {
   if (typeof window === 'undefined' || started) return;
   started = true;
-  void hydrateCatalogCache().then(() => pullWorkbookToUx());
-  window.setInterval(() => {
-    void pullWorkbookToUx();
-  }, CATALOG_REFRESH_MS);
-  const onVisible = () => {
-    if (document.visibilityState === 'hidden') return;
-    void pullWorkbookToUx();
-  };
-  window.addEventListener('focus', onVisible);
-  document.addEventListener('visibilitychange', onVisible);
-  window.addEventListener('online', () => {
-    void pullWorkbookToUx();
-  });
+  void hydrateCatalogCache();
 }

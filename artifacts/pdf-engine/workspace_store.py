@@ -18,6 +18,33 @@ DATA_DIR = Path(os.environ.get("WORKSPACE_DATA_DIR", str(_BASE / "data" / "works
 
 REVIEW_STATUSES = {"pending", "approved", "disapproved"}
 
+QUOTE_SUMMARY_KEYS = (
+    "id",
+    "savedAt",
+    "reviewedAt",
+    "updatedAt",
+    "leadKey",
+    "leadName",
+    "referenceNumber",
+    "title",
+    "vesselType",
+    "eventType",
+    "guestCount",
+    "eventDate",
+    "grandTotal",
+    "step",
+    "reviewStatus",
+    "proposalId",
+)
+
+
+class QuoteDeletedError(ValueError):
+    """Soft-deleted quotes stay deleted. A later PUT must not clear deleted_at."""
+
+
+def quote_summary(row: dict) -> dict:
+    return {key: row[key] for key in QUOTE_SUMMARY_KEYS if key in row and row[key] is not None}
+
 _MEMORY_QUOTES: dict[str, dict] = {}
 _MEMORY_PROPOSALS: dict[str, dict] = {}
 
@@ -133,26 +160,50 @@ def _require_store() -> None:
     raise RuntimeError("DATABASE_URL is required for quotes and proposals")
 
 
-def list_quotes() -> list[dict]:
+_QUOTE_SUMMARY_SQL = """
+SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
+       vessel_type, event_type, guest_count, event_date, grand_total, step,
+       review_status, proposal_id, updated_at
+FROM quotes
+WHERE deleted_at IS NULL
+ORDER BY saved_at DESC
+"""
+
+_QUOTE_FULL_SQL = """
+SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
+       vessel_type, event_type, guest_count, event_date, grand_total, step,
+       review_status, proposal_id, lead_json, data_json, extra_json, updated_at
+FROM quotes
+WHERE deleted_at IS NULL
+ORDER BY saved_at DESC
+"""
+
+
+def quote_is_deleted(quote_id: str) -> bool:
+    qid = str(quote_id or "").strip()
+    if not qid:
+        return False
+    if _use_memory():
+        row = _MEMORY_QUOTES.get(qid)
+        return bool(row and row.get("_deleted"))
+    if not _use_postgres():
+        return False
+    with pg.connection() as conn:
+        row = pg.fetch_one(conn, "SELECT deleted_at FROM quotes WHERE id = %s", (qid,))
+    return bool(row and row.get("deleted_at"))
+
+
+def list_quotes(full: bool = False) -> list[dict]:
     _require_store()
     if _use_memory():
         rows = [dict(r) for r in _MEMORY_QUOTES.values() if not r.get("_deleted")]
         out = [_normalize_review(row, existing=row) for row in rows]
         out.sort(key=lambda r: str(r.get("savedAt") or ""), reverse=True)
-        return out
+        return out if full else [quote_summary(row) for row in out]
     with pg.connection() as conn:
-        rows = pg.fetch_all(
-            conn,
-            """
-            SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
-                   vessel_type, event_type, guest_count, event_date, grand_total, step,
-                   review_status, proposal_id, lead_json, data_json, extra_json, updated_at
-            FROM quotes
-            WHERE deleted_at IS NULL
-            ORDER BY saved_at DESC
-            """,
-        )
-    return [pg.quote_payload_from_row(row) for row in rows]
+        rows = pg.fetch_all(conn, _QUOTE_FULL_SQL if full else _QUOTE_SUMMARY_SQL)
+    out = [pg.quote_payload_from_row(row) for row in rows]
+    return out if full else [quote_summary(row) for row in out]
 
 
 def get_quote(quote_id: str) -> dict | None:
@@ -193,6 +244,8 @@ def put_quote(payload: dict) -> dict:
     payload["id"] = quote_id
     payload = _normalize_review(payload)
     _require_store()
+    if quote_is_deleted(quote_id):
+        raise QuoteDeletedError("quote was deleted")
     if _use_memory():
         payload.pop("_deleted", None)
         payload["updatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -229,8 +282,8 @@ def put_quote(payload: dict) -> dict:
               lead_json = EXCLUDED.lead_json,
               data_json = EXCLUDED.data_json,
               extra_json = EXCLUDED.extra_json,
-              updated_at = EXCLUDED.updated_at,
-              deleted_at = NULL
+              updated_at = EXCLUDED.updated_at
+            WHERE quotes.deleted_at IS NULL
             """,
             (
                 row["id"],
@@ -254,6 +307,8 @@ def put_quote(payload: dict) -> dict:
                 row["updated_at"],
             ),
         )
+    if quote_is_deleted(quote_id):
+        raise QuoteDeletedError("quote was deleted")
     saved = get_quote(quote_id)
     return saved or payload
 
@@ -499,3 +554,16 @@ def put_rates_catalog(payload: dict) -> dict:
     row["savedAt"] = row.get("savedAt") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     _write_json(_rates_catalog_path(), row)
     return row
+
+
+def catalog_put_body(saved: dict) -> dict:
+    """PUT acknowledgement. The stored document is not echoed back."""
+    body: dict = {"ok": True, "savedAt": saved.get("savedAt")}
+    built = saved.get("catalogBuiltAt")
+    if not built:
+        nested = saved.get("payload")
+        if isinstance(nested, dict):
+            built = nested.get("catalogBuiltAt")
+    if built:
+        body["catalogBuiltAt"] = built
+    return body

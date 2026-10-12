@@ -1,9 +1,18 @@
 import { refreshLeadsFromNetwork } from '@/lib/leadCache';
 import { getProposal, ingestRemoteProposals, loadProposals } from '@/lib/proposalStore';
 import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
-import { ingestRemoteQuotes, getSavedQuote, getSavedQuoteAsync, listSavedQuotes } from '@/lib/savedQuotesStore';
-import { listDeletedQuoteIds } from '@/lib/quoteTombstones';
+import {
+  discardDeletedQuote,
+  ingestRemoteQuotes,
+  getSavedQuote,
+  getSavedQuoteAsync,
+  listSavedQuotes,
+  type SavedQuote,
+} from '@/lib/savedQuotesStore';
+import { isQuoteDeleted, listDeletedQuoteIds } from '@/lib/quoteTombstones';
 import { getTeamToken } from '@/lib/teamSession';
+import { pullWorkbookToUx } from '@/lib/workbookSync';
+import { planQuoteSync, refreshesWorkbook } from '@/lib/workspaceTraffic';
 import {
   dequeueSyncOutbox,
   enqueueSyncOutbox,
@@ -25,6 +34,7 @@ import {
   cloudListQuotes,
   cloudPutProposal,
   cloudPutQuote,
+  isQuoteDeletedConflict,
 } from '@/lib/workspaceCloud';
 
 async function drainSyncOutbox(): Promise<void> {
@@ -53,12 +63,10 @@ async function flushOutboxJob(job: SyncOutboxJob): Promise<void> {
     return;
   }
   if (job.kind === 'quote') {
+    if (isQuoteDeleted(job.entityId)) return;
     const quote = getSavedQuote(job.entityId) || (await getSavedQuoteAsync(job.entityId));
-    if (!quote) {
-      await dequeueSyncOutbox(job.kind, job.entityId);
-      return;
-    }
-    await cloudPutQuote(quote);
+    if (!quote || isQuoteDeleted(quote.id)) return;
+    await putQuoteRespectingDelete(quote);
     return;
   }
   const proposal = await getProposal(job.entityId);
@@ -76,6 +84,20 @@ async function prefetchDeepLink(ctx?: SyncRunContext): Promise<void> {
   if (ctx?.proposalId) {
     const remote = await cloudGetProposal(ctx.proposalId);
     if (remote) await ingestRemoteProposals([remote]);
+  }
+}
+
+async function putQuoteRespectingDelete(quote: SavedQuote): Promise<void> {
+  if (isQuoteDeleted(quote.id)) return;
+  try {
+    await cloudPutQuote(quote);
+    await dequeueSyncOutbox('quote', quote.id);
+  } catch (err) {
+    if (isQuoteDeletedConflict(err)) {
+      await discardDeletedQuote(quote.id);
+      return;
+    }
+    throw err;
   }
 }
 
@@ -97,40 +119,47 @@ export async function syncWorkspaceCloud(ctx?: SyncRunContext): Promise<void> {
   try {
     const remoteQuotes = await cloudListQuotes();
     const deleted = listDeletedQuoteIds();
-    for (const quote of remoteQuotes) {
-      if (deleted.has(quote.id)) {
-        void cloudDeleteQuote(quote.id).catch(() => {
+    const remoteById = new Map(remoteQuotes.map((q) => [q.id, q]));
+    const localById = new Map(listSavedQuotes().map((q) => [q.id, q]));
+    const fetches: Promise<void>[] = [];
+    for (const remote of remoteQuotes) {
+      const action = planQuoteSync({
+        local: localById.get(remote.id) || null,
+        remote,
+        deleted: deleted.has(remote.id),
+      });
+      if (action === 'drop-remote') {
+        void cloudDeleteQuote(remote.id).catch(() => {
           /* retry on next sync */
         });
+        continue;
       }
-    }
-    await ingestRemoteQuotes(remoteQuotes.filter((q) => !deleted.has(q.id)));
-    const remoteById = new Map(remoteQuotes.map((q) => [q.id, q]));
-    const quoteUploads: Promise<void>[] = [];
-    for (const quote of listSavedQuotes()) {
-      if (deleted.has(quote.id)) continue;
-      const remote = remoteById.get(quote.id);
-      const remoteHasData = Boolean(remote?.data && Object.keys(remote.data).length);
-      const localHasData = Boolean(quote.data && Object.keys(quote.data).length);
-      const localReviewNewer = (quote.reviewedAt || '') > (remote?.reviewedAt || '');
-      if (
-        !remote ||
-        (quote.savedAt || '') > (remote.savedAt || '') ||
-        localReviewNewer ||
-        (localHasData && !remoteHasData)
-      ) {
-        quoteUploads.push(
-          cloudPutQuote(quote)
-            .then(async () => dequeueSyncOutbox('quote', quote.id))
-            .catch(async (err: unknown) => {
-              await enqueueSyncOutbox(
-                'quote',
-                quote.id,
-                err instanceof Error ? err.message : String(err),
-              );
-            }),
+      if (action === 'fetch') {
+        fetches.push(
+          (async () => {
+            const full = await cloudGetQuote(remote.id);
+            if (full && !listDeletedQuoteIds().has(full.id)) await ingestRemoteQuotes([full]);
+          })(),
         );
       }
+    }
+    await Promise.all(fetches);
+    await ingestRemoteQuotes(remoteQuotes.filter((q) => !deleted.has(q.id)));
+    const quoteUploads: Promise<void>[] = [];
+    for (const quote of listSavedQuotes()) {
+      const remote = remoteById.get(quote.id) || null;
+      if (planQuoteSync({ local: quote, remote, deleted: isQuoteDeleted(quote.id) }) !== 'upload') {
+        continue;
+      }
+      quoteUploads.push(
+        putQuoteRespectingDelete(quote).catch(async (err: unknown) => {
+          await enqueueSyncOutbox(
+            'quote',
+            quote.id,
+            err instanceof Error ? err.message : String(err),
+          );
+        }),
+      );
     }
     await Promise.all(quoteUploads);
   } catch {
@@ -206,7 +235,9 @@ export function startWorkspaceCloudSync(): void {
   if (typeof window === 'undefined') return;
   startSyncManager(async (ctx) => {
     if (!getTeamToken()) return;
-    await syncWorkspaceCloud(ctx);
+    const tasks: Promise<void>[] = [syncWorkspaceCloud(ctx)];
+    if (refreshesWorkbook(ctx.reason)) tasks.push(pullWorkbookToUx());
+    await Promise.all(tasks);
   });
 }
 

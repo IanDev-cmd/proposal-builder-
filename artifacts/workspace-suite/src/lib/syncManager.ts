@@ -4,6 +4,12 @@
  */
 import { parseShareDeepLink } from '@/lib/homeLanding';
 import { listSyncOutbox } from '@/lib/syncOutbox';
+import {
+  CLOUD_REFRESH_MS,
+  intervalSkippedWhileHidden,
+  isWakeReason,
+  wakeOverlapsTick,
+} from '@/lib/workspaceTraffic';
 
 export type SyncReason =
   | 'startup'
@@ -38,7 +44,6 @@ export type SyncSnapshot = {
 
 export const SYNC_STATUS_EVENT = 'nexus:sync-status';
 const LAST_SYNCED_KEY = 'nexus.sync.lastSyncedAt';
-const CLOUD_REFRESH_MS = 30_000;
 
 type SyncRunner = (ctx: SyncRunContext) => Promise<void>;
 
@@ -47,6 +52,7 @@ let listenersBound = false;
 let intervalId: number | null = null;
 let inflight: Promise<void> | null = null;
 let queued: SyncRunContext | null = null;
+let lastStartedAt = 0;
 
 let snapshot: SyncSnapshot = {
   phase: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'idle',
@@ -234,7 +240,12 @@ export function requestWorkspaceSync(
   opts?: { path?: string; search?: string; quoteId?: string; proposalId?: string },
 ): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
-  return runQueued(buildSyncRunContext(reason, opts));
+  const ctx = buildSyncRunContext(reason, opts);
+  if (isWakeReason(ctx.reason) && (inflight !== null || wakeOverlapsTick(lastStartedAt, Date.now()))) {
+    return inflight ?? Promise.resolve();
+  }
+  lastStartedAt = Date.now();
+  return runQueued(ctx);
 }
 
 function onVisible(reason: 'focus' | 'visibility' | 'pageshow') {
@@ -263,6 +274,7 @@ export function startSyncManager(run: SyncRunner): void {
   bindListeners();
   if (typeof window !== 'undefined' && intervalId == null) {
     intervalId = window.setInterval(() => {
+      if (intervalSkippedWhileHidden(document.visibilityState)) return;
       void requestWorkspaceSync('interval');
     }, CLOUD_REFRESH_MS);
   }

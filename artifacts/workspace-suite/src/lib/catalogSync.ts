@@ -14,9 +14,14 @@ import { fetchCostRates, type CostRatesPayload } from '@/lib/sheetsSync';
 import { WORKSPACE_STORES, workspaceGet, workspacePut } from '@/lib/nexusWorkspaceDb';
 import { cloudGetCatalog, cloudPutCatalog } from '@/lib/workspaceCloud';
 import { getTeamToken } from '@/lib/teamSession';
+import {
+  catalogPushMark,
+  shouldPushCatalog,
+  type CatalogPushMark,
+} from '@/lib/workspaceTraffic';
 
 export const CATALOG_EVENT = 'nexus:catalog-updated';
-export const CATALOG_REFRESH_MS = 30_000;
+export const CATALOG_REFRESH_MS = 3 * 60 * 1000;
 export const CATALOG_STALE_MS = 12 * 60 * 1000;
 const RECORD_ID = 'cost-rates';
 const STORE = WORKSPACE_STORES.catalog;
@@ -30,6 +35,7 @@ export type CatalogCachePayload = {
 
 let lastNote = '';
 let lastFetchedAt = 0;
+let lastPushed: CatalogPushMark | null = null;
 
 export function getCatalogRatesNote(): string {
   return lastNote;
@@ -99,14 +105,21 @@ async function persistCache(payload: CostRatesPayload): Promise<CatalogCachePayl
     /* memory overlay already applied */
   }
   if (getTeamToken()) {
-    void cloudPutCatalog({
-      id: RECORD_ID,
-      savedAt: new Date(row.fetchedAt).toISOString(),
-      catalogBuiltAt: row.catalogBuiltAt,
-      payload: payload as Record<string, unknown>,
-    }).catch(() => {
-      /* next poll retries */
-    });
+    const mark = catalogPushMark({ catalogBuiltAt: row.catalogBuiltAt, payload });
+    if (shouldPushCatalog(lastPushed, mark)) {
+      void cloudPutCatalog({
+        id: RECORD_ID,
+        savedAt: new Date(row.fetchedAt).toISOString(),
+        catalogBuiltAt: row.catalogBuiltAt,
+        payload: payload as Record<string, unknown>,
+      })
+        .then(() => {
+          lastPushed = mark;
+        })
+        .catch(() => {
+          /* next poll retries while lastPushed stays unchanged */
+        });
+    }
   }
   return row;
 }
@@ -138,6 +151,12 @@ export async function hydrateCatalogCache(): Promise<void> {
           payload: cloud.payload as CostRatesPayload,
         }
       : null;
+  if (cloudRow?.payload) {
+    lastPushed = catalogPushMark({
+      catalogBuiltAt: cloudRow.catalogBuiltAt,
+      payload: cloudRow.payload,
+    });
+  }
   const best =
     catalogTimestamp(cloudRow) > catalogTimestamp(local) ? cloudRow : local;
   if (best?.payload) {

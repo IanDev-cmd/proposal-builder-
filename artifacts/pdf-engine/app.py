@@ -43,6 +43,8 @@ from workspace_store import (
     put_proposal as workspace_put_proposal,
     put_quote as workspace_put_quote,
     put_rates_catalog as workspace_put_rates_catalog,
+    QuoteDeletedError,
+    catalog_put_body,
 )
 from catalog import get_catalog
 from measure import warm_profiles
@@ -350,7 +352,8 @@ def generate():
 
 @app.get("/workspace/quotes")
 def workspace_quotes_list():
-    return jsonify(quotes=workspace_list_quotes())
+    full = (request.args.get("full") or "").strip() == "1"
+    return jsonify(quotes=workspace_list_quotes(full=full))
 
 
 @app.get("/workspace/quotes/<quote_id>")
@@ -369,6 +372,8 @@ def workspace_quotes_put(quote_id):
     payload["id"] = str(quote_id)
     try:
         saved = workspace_put_quote(payload)
+    except QuoteDeletedError:
+        return jsonify(error="Quote was deleted"), 409
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
     return jsonify(ok=True, quote=saved)
@@ -434,7 +439,7 @@ def workspace_catalog_put():
     if not isinstance(payload, dict):
         return jsonify(error="Request body must be valid JSON"), 400
     saved = workspace_put_rates_catalog(payload)
-    return jsonify(ok=True, catalog=saved)
+    return jsonify(catalog_put_body(saved))
 
 
 if __name__ == "__main__":

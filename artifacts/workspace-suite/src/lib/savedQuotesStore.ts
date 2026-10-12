@@ -14,7 +14,13 @@ import {
   workspaceDelete,
   workspaceClear,
 } from '@/lib/nexusWorkspaceDb';
-import { cloudDeleteQuote, cloudGetQuote, cloudPutQuote, cloudClearQuotes } from '@/lib/workspaceCloud';
+import {
+  cloudDeleteQuote,
+  cloudGetQuote,
+  cloudPutQuote,
+  cloudClearQuotes,
+  isQuoteDeletedConflict,
+} from '@/lib/workspaceCloud';
 import { dequeueSyncOutbox, enqueueSyncOutbox } from '@/lib/syncOutbox';
 import { noteCloudWriteSettled, noteSyncPendingCount, requestWorkspaceSync } from '@/lib/syncManager';
 import { deleteOpsQuoteSnapshots } from '@/lib/opsStore';
@@ -190,6 +196,10 @@ export async function persistSavedQuote(
     await dequeueSyncOutbox('quote', next.id);
     void noteCloudWriteSettled();
   } catch (err) {
+    if (isQuoteDeletedConflict(err)) {
+      await discardDeletedQuote(next.id);
+      throw err;
+    }
     await enqueueSyncOutbox('quote', next.id, err instanceof Error ? err.message : String(err));
     void noteSyncPendingCount();
     void requestWorkspaceSync('manual');
@@ -228,6 +238,26 @@ export type DeleteSavedQuoteOpts = {
   quoteId?: string;
   referenceNumber?: string;
 };
+
+/** Drop a quote the server already deleted. Does not PUT or DELETE again. */
+export async function discardDeletedQuote(id: string): Promise<void> {
+  const qid = String(id || '').trim();
+  if (!qid) return;
+  rememberDeletedQuoteIds([qid]);
+  const list = ensureMemory().filter((q) => q.id !== qid);
+  setMemory(list);
+  try {
+    await workspaceDelete(STORE, qid);
+  } catch {
+    /* memory already dropped the row */
+  }
+  try {
+    await dequeueSyncOutbox('quote', qid);
+    await dequeueSyncOutbox('quote-delete', qid);
+  } catch {
+    /* tombstone still blocks the next upload */
+  }
+}
 
 export async function deleteSavedQuote(id: string, opts?: DeleteSavedQuoteOpts): Promise<boolean> {
   const ids = [

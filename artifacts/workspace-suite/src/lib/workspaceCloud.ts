@@ -28,11 +28,44 @@ async function readJson(res: Response): Promise<unknown> {
   }
 }
 
+export class QuoteDeletedConflict extends Error {
+  readonly status = 409;
+  constructor() {
+    super('Quote was deleted');
+    this.name = 'QuoteDeletedConflict';
+  }
+}
+
+export function isQuoteDeletedConflict(err: unknown): boolean {
+  if (err instanceof QuoteDeletedConflict) return true;
+  return Boolean(err && typeof err === 'object' && (err as { status?: number }).status === 409);
+}
+
+function asQuoteSummary(row: Partial<SavedQuote> & { id: string }): SavedQuote {
+  const data = row.data && typeof row.data === 'object' ? row.data : {};
+  return {
+    title: '',
+    vesselType: '',
+    eventType: '',
+    guestCount: '',
+    eventDate: '',
+    grandTotal: 0,
+    step: 0,
+    leadKey: '',
+    savedAt: '',
+    lead: null,
+    ...row,
+    data,
+  };
+}
+
 export async function cloudListQuotes(): Promise<SavedQuote[]> {
   const res = await cloudFetch('/quotes');
   if (!res.ok) throw new Error(`Workspace quotes failed (${res.status})`);
   const body = (await readJson(res)) as { quotes?: SavedQuote[] } | null;
-  return Array.isArray(body?.quotes) ? body.quotes.filter((q) => q && q.id) : [];
+  return Array.isArray(body?.quotes)
+    ? body.quotes.filter((q) => q && q.id).map((q) => asQuoteSummary(q))
+    : [];
 }
 
 export async function cloudPutQuote(quote: SavedQuote): Promise<void> {
@@ -41,6 +74,7 @@ export async function cloudPutQuote(quote: SavedQuote): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(quote),
   });
+  if (res.status === 409) throw new QuoteDeletedConflict();
   if (!res.ok) throw new Error(`Could not save quote to workspace (${res.status})`);
 }
 
@@ -58,14 +92,11 @@ export async function cloudClearQuotes(): Promise<number> {
 
 export async function cloudGetQuote(id: string): Promise<SavedQuote | null> {
   const res = await cloudFetch(`/quotes/${encodeURIComponent(id)}`);
-  if (res.ok) {
-    const body = (await readJson(res)) as SavedQuote | { quote?: SavedQuote } | null;
-    const row = body && 'id' in body && body.id ? (body as SavedQuote) : (body as { quote?: SavedQuote } | null)?.quote;
-    if (row?.id) return row;
-  }
-  if (res.status !== 404 && !res.ok) throw new Error(`Workspace quote failed (${res.status})`);
-  const listed = await cloudListQuotes();
-  return listed.find((q) => q.id === id) || null;
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Workspace quote failed (${res.status})`);
+  const body = (await readJson(res)) as SavedQuote | { quote?: SavedQuote } | null;
+  const row = body && 'id' in body && body.id ? (body as SavedQuote) : (body as { quote?: SavedQuote } | null)?.quote;
+  return row?.id ? row : null;
 }
 
 export async function cloudListProposals(): Promise<GeneratedProposal[]> {
