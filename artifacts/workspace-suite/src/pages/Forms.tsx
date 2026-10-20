@@ -8,7 +8,7 @@ import { LeadReferenceCard } from '@/components/LeadReferenceCard';
 import { ProposalTimingsCard } from '@/components/ProposalTimingsCard';
 import { getQuoteLead, setQuoteLead, consumeQuoteBuilderStartStep, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
-import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
+import { consumeOpenQuoteDraftKey, loadQuoteDraft, quoteDraftKey, saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { consumeFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import {
   consumePendingGenerate,
@@ -36,6 +36,7 @@ import {
   QUOTE_VERSIONS,
   acceptQuoteVersion,
   findSavedQuoteByVersion,
+  savedQuoteId,
   laterQuoteVersion,
   quoteVersionNumber,
   defaultSelectedLineIds,
@@ -501,6 +502,9 @@ export function Forms() {
       return;
     }
     const pendingId = peekPendingGenerate();
+    const openDraftKey = consumeOpenQuoteDraftKey();
+    const version =
+      (pendingQuote?.data as FormData | undefined)?.quoteVersion || data.quoteVersion || 'V1';
     const hydrate = pendingId
       ? getSavedQuoteAsync(pendingId).then((row) => {
           if (cancelled || !row?.data || !Object.keys(row.data).length) return;
@@ -510,22 +514,27 @@ export function Forms() {
             ...(fromSavedGenerateRef.current ? { costApproved: true } : {}),
           });
         })
-      : loadQuoteDraft<FormData>(leadNotesKey).then((draft) => {
+      : loadQuoteDraft<FormData>(openDraftKey || quoteDraftKey(leadNotesKey, version)).then(async (draft) => {
+          const row =
+            draft ||
+            (version === 'V1' && !openDraftKey ? await loadQuoteDraft<FormData>(leadNotesKey) : null);
+          if (cancelled || !row) return;
+          const draftData = row.data;
           if (cancelled) return;
-          if (draft?.data) {
+          if (draftData) {
             const leadForm = leadInit.data as FormData;
             setData({
-              ...draft.data,
-              initialEnquiry: draft.data.initialEnquiry || String(leadForm.initialEnquiry || ''),
-              progressNotes: draft.data.progressNotes || String(leadForm.progressNotes || ''),
-              keyItems: draft.data.keyItems || String(leadForm.keyItems || ''),
+              ...draftData,
+              initialEnquiry: draftData.initialEnquiry || String(leadForm.initialEnquiry || ''),
+              progressNotes: draftData.progressNotes || String(leadForm.progressNotes || ''),
+              keyItems: draftData.keyItems || String(leadForm.keyItems || ''),
             });
             if (
               !openAtEventCoreRef.current &&
-              Number(draft.step) >= 1 &&
-              Number(draft.step) <= LAST_CONTENT_STEP
+              Number(row.step) >= 1 &&
+              Number(row.step) <= LAST_CONTENT_STEP
             ) {
-              setStep(startStepRef.current || draft.step);
+              setStep(startStepRef.current || row.step);
             }
           }
         });
@@ -547,7 +556,7 @@ export function Forms() {
     if (!draftReady) return;
     const timer = window.setTimeout(() => {
       void saveQuoteDraft({
-        leadKey: leadNotesKey,
+        leadKey: quoteDraftKey(leadNotesKey, data.quoteVersion),
         step,
         data,
         leadName: quoteLead?.name,
@@ -955,12 +964,9 @@ export function Forms() {
 
 
   const persistWizardQuote = async (next: FormData) => {
-    const version = next.quoteVersion || 'V1';
-    const existing = listSavedQuotes().find((q) => {
-      if (q.leadKey !== leadNotesKey) return false;
-      const savedVer = String((q.data as { quoteVersion?: string })?.quoteVersion || 'V1');
-      return savedVer === version;
-    });
+    const version = acceptQuoteVersion(next.quoteVersion) || 'V1';
+    const quoteId = savedQuoteId(leadNotesKey, version);
+    const existing = getSavedQuote(quoteId);
     const stem = proposalFileStem({
       contactName: quoteLead?.name,
       companyName: quoteLead?.company,
@@ -968,7 +974,6 @@ export function Forms() {
       quoteVersion: version,
     });
     const approved = Boolean(next.costApproved);
-    const quoteId = existing?.id || `quote-${leadNotesKey}-${version}`;
     try {
       return await persistSavedQuote({
       id: quoteId,
@@ -1004,7 +1009,7 @@ export function Forms() {
           title: 'Quote saved on this device',
           description: authFail
             ? 'Team session expired. Sign in again so this quote can sync and PDFs can generate.'
-            : 'Could not reach the shared workspace. Sync will retry automatically.',
+            : msg || 'Could not reach the shared workspace. Sync will retry automatically.',
           err,
         });
         return getSavedQuote(quoteId) || existing || undefined;
@@ -1049,7 +1054,7 @@ export function Forms() {
     setStep6Sharing(true);
     try {
       const saved = await persistWizardQuote(data);
-      const quote = saved || getSavedQuote(`quote-${leadNotesKey}-${data.quoteVersion || 'V1'}`);
+      const quote = saved || getSavedQuote(savedQuoteId(leadNotesKey, data.quoteVersion || 'V1'));
       if (!quote) {
         toastError({
           key: 'share-quote',
@@ -1111,7 +1116,7 @@ export function Forms() {
     try {
       await persistWizardQuote(data);
       await saveQuoteDraft({
-        leadKey: leadNotesKey,
+        leadKey: quoteDraftKey(leadNotesKey, data.quoteVersion),
         step,
         data,
         leadName: quoteLead?.name,

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import sys
 import threading
+import types
 
 import pytest
 
@@ -89,6 +92,8 @@ def pool(monkeypatch: pytest.MonkeyPatch):
         name="nexus-workspace",
     )
     monkeypatch.setattr(workspace_pg, "_pool", fake)
+    monkeypatch.setattr(workspace_pg, "_pool_pid", os.getpid())
+    monkeypatch.setattr(workspace_pg, "_schema_pid", os.getpid())
     monkeypatch.setattr(workspace_pg, "_get_pool", lambda: fake)
     return fake
 
@@ -141,6 +146,44 @@ def test_split_sql_keeps_semicolons_inside_functions_and_json():
     assert "PERFORM 1;" in parts[1]
     assert "x;y" in parts[0]
     assert parts[2] == "SELECT 1"
+
+
+def test_forked_pool_is_replaced(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://example/nexus")
+    inherited = object()
+    monkeypatch.setattr(workspace_pg, "_pool", inherited)
+    monkeypatch.setattr(workspace_pg, "_pool_pid", os.getpid() + 1)
+
+    class FakePool:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    fake_mod = types.ModuleType("psycopg_pool")
+    fake_mod.ConnectionPool = FakePool
+    monkeypatch.setitem(sys.modules, "psycopg_pool", fake_mod)
+
+    pool = workspace_pg._get_pool()
+    assert pool is not inherited
+    assert isinstance(pool, FakePool)
+    assert pool.kwargs["open"] is True
+    assert workspace_pg._pool_pid == os.getpid()
+
+
+def test_quote_row_strips_nulls_and_coerces_step():
+    row = workspace_pg.quote_row_from_payload(
+        {
+            "id": "q\x001",
+            "title": "Anniv\x00ersary",
+            "step": "nope",
+            "data": {"notes": "a\x00b"},
+            "lead": {"name": "T\x00"},
+        }
+    )
+    assert row["id"] == "q1"
+    assert row["title"] == "Anniversary"
+    assert row["step"] == 0
+    assert row["data_json"]["notes"] == "ab"
+    assert row["lead_json"]["name"] == "T"
 
 
 def test_migrate_executes_whole_statements(pool: _Pool):

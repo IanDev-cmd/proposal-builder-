@@ -44,7 +44,6 @@ from workspace_store import (
     get_proposal as workspace_get_proposal,
     get_quote as workspace_get_quote,
     get_rates_catalog as workspace_get_rates_catalog,
-    init_workspace,
     list_proposals as workspace_list_proposals,
     list_quotes as workspace_list_quotes,
     put_proposal as workspace_put_proposal,
@@ -123,10 +122,19 @@ def _warm_profiles() -> None:
 
 
 _warm_profiles()
-try:
-    init_workspace()
-except Exception:
-    app.logger.exception("workspace postgres init failed")
+
+
+def _workspace_response(fn):
+    """Turn a database failure into JSON instead of a blank HTML 500."""
+    try:
+        return fn()
+    except QuoteDeletedError:
+        return jsonify(error="Quote was deleted"), 409
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    except Exception as exc:
+        app.logger.exception("workspace request failed")
+        return jsonify(error=f"Workspace database error ({type(exc).__name__})"), 500
 
 
 @app.before_request
@@ -362,15 +370,22 @@ def generate():
 @app.get("/workspace/quotes")
 def workspace_quotes_list():
     full = (request.args.get("full") or "").strip() == "1"
-    return jsonify(quotes=workspace_list_quotes(full=full))
+
+    def run():
+        return jsonify(quotes=workspace_list_quotes(full=full))
+
+    return _workspace_response(run)
 
 
 @app.get("/workspace/quotes/<quote_id>")
 def workspace_quotes_get(quote_id):
-    row = workspace_get_quote(quote_id)
-    if not row:
-        return jsonify(error="Not found"), 404
-    return jsonify(row)
+    def run():
+        row = workspace_get_quote(quote_id)
+        if not row:
+            return jsonify(error="Not found"), 404
+        return jsonify(row)
+
+    return _workspace_response(run)
 
 
 @app.put("/workspace/quotes/<quote_id>")
@@ -379,13 +394,12 @@ def workspace_quotes_put(quote_id):
     if not isinstance(payload, dict):
         return jsonify(error="Request body must be valid JSON"), 400
     payload["id"] = str(quote_id)
-    try:
+
+    def run():
         saved = workspace_put_quote(payload)
-    except QuoteDeletedError:
-        return jsonify(error="Quote was deleted"), 409
-    except ValueError as exc:
-        return jsonify(error=str(exc)), 400
-    return jsonify(ok=True, quote=saved)
+        return jsonify(ok=True, quote=saved)
+
+    return _workspace_response(run)
 
 
 @app.delete("/workspace/quotes")
@@ -403,15 +417,21 @@ def workspace_quotes_delete(quote_id):
 
 @app.get("/workspace/proposals")
 def workspace_proposals_list():
-    return jsonify(proposals=workspace_list_proposals(include_pdf=False))
+    def run():
+        return jsonify(proposals=workspace_list_proposals(include_pdf=False))
+
+    return _workspace_response(run)
 
 
 @app.get("/workspace/proposals/<proposal_id>")
 def workspace_proposals_get(proposal_id):
-    row = workspace_get_proposal(proposal_id)
-    if not row:
-        return jsonify(error="Not found"), 404
-    return jsonify(row)
+    def run():
+        row = workspace_get_proposal(proposal_id)
+        if not row:
+            return jsonify(error="Not found"), 404
+        return jsonify(row)
+
+    return _workspace_response(run)
 
 
 @app.put("/workspace/proposals/<proposal_id>")
@@ -420,11 +440,12 @@ def workspace_proposals_put(proposal_id):
     if not isinstance(payload, dict):
         return jsonify(error="Request body must be valid JSON"), 400
     payload["id"] = str(proposal_id)
-    try:
+
+    def run():
         saved = workspace_put_proposal(payload)
-    except ValueError as exc:
-        return jsonify(error=str(exc)), 400
-    return jsonify(ok=True, proposal={k: v for k, v in saved.items() if k != "pdfDataUrl"})
+        return jsonify(ok=True, proposal={k: v for k, v in saved.items() if k != "pdfDataUrl"})
+
+    return _workspace_response(run)
 
 
 @app.delete("/workspace/proposals")

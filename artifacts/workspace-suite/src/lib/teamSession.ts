@@ -12,6 +12,7 @@ export const TEAM_IDLE_MS = 2 * 60 * 60 * 1000;
 export const PIN_LENGTH = 6;
 export const TEAM_AUTH_EXPIRED_EVENT = 'nexus-team-auth-expired';
 const TOUCH_EVERY_MS = 60_000;
+let touchInFlight = false;
 
 type TeamSession = {
   token: string;
@@ -96,8 +97,12 @@ function applyServerToken(token: unknown, now = Date.now()): void {
 export function touchTeamSession(now = Date.now()): void {
   const session = readSession();
   if (!session || now - session.lastActivity >= TEAM_IDLE_MS) return;
-  writeSession({ ...session, lastActivity: now });
-  if (now - session.lastTouch < TOUCH_EVERY_MS) return;
+  if (touchInFlight || now - session.lastTouch < TOUCH_EVERY_MS) {
+    writeSession({ ...session, lastActivity: now });
+    return;
+  }
+  touchInFlight = true;
+  writeSession({ ...session, lastActivity: now, lastTouch: now });
   void fetchWithTimeout(`${PROPOSAL_ENGINE_URL}/auth/touch`, {
     method: 'POST',
     headers: engineAuthHeaders(),
@@ -114,6 +119,9 @@ export function touchTeamSession(now = Date.now()): void {
     })
     .catch(() => {
       /* offline touch stays local until the next engine call */
+    })
+    .finally(() => {
+      touchInFlight = false;
     });
 }
 

@@ -1,4 +1,4 @@
-import { saveQuoteDraft } from '@/lib/quoteDraftStore';
+import { markOpenQuoteDraft, quoteDraftKey, saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { markQuoteBuilderStartAt, setQuoteLead } from '@/lib/quoteLeadStore';
 import {
   clearFreshQuoteBuilderFlag,
@@ -23,8 +23,10 @@ export async function restoreSavedQuote(quote: SavedQuote, step?: number): Promi
   consumePendingGenerate();
   if (quote.lead) setQuoteLead(quote.lead);
   markQuoteBuilderStartAt(openAt);
+  const version = String((quote.data as { quoteVersion?: string } | undefined)?.quoteVersion || 'V1');
+  markOpenQuoteDraft(quote.leadKey, version);
   await saveQuoteDraft({
-    leadKey: quote.leadKey,
+    leadKey: quoteDraftKey(quote.leadKey, version),
     step: openAt,
     data: quote.data,
     leadName: quote.leadName,

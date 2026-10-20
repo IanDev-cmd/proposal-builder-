@@ -1,7 +1,35 @@
 /**
  * Quote Builder wizard drafts — IndexedDB so REPs can leave and resume.
- * One latest draft per lead key (reference / email / quote-draft).
+ * One draft per lead and quote version, so V2 does not replace the V1 draft.
  */
+
+const OPEN_DRAFT_KEY = 'nexus.openDraftKey';
+
+/** Storage key for one lead version. Bare lead keys stay readable for older V1 drafts. */
+export function quoteDraftKey(leadKey: string, quoteVersion?: string): string {
+  const version = String(quoteVersion || 'V1').trim() || 'V1';
+  return `${leadKey}::${version}`;
+}
+
+export function markOpenQuoteDraft(leadKey: string, quoteVersion?: string): string {
+  const key = quoteDraftKey(leadKey, quoteVersion);
+  try {
+    sessionStorage.setItem(OPEN_DRAFT_KEY, key);
+  } catch {
+    /* ignore */
+  }
+  return key;
+}
+
+export function consumeOpenQuoteDraftKey(): string | null {
+  try {
+    const key = sessionStorage.getItem(OPEN_DRAFT_KEY);
+    sessionStorage.removeItem(OPEN_DRAFT_KEY);
+    return key;
+  } catch {
+    return null;
+  }
+}
 
 export type QuoteWizardDraft<T = Record<string, unknown>> = {
   leadKey: string;

@@ -92,14 +92,23 @@ export function laterQuoteVersion(raw: string): string | null {
   return Number(v.slice(1)) >= 5 ? v : null;
 }
 
-export function findSavedQuoteByVersion<T extends { leadKey: string; data?: { quoteVersion?: string } }>(
+/** One saved-quote id per lead and version. V2 never reuses the V1 id. */
+export function savedQuoteId(leadKey: string, quoteVersion: string): string {
+  const version = acceptQuoteVersion(quoteVersion) || 'V1';
+  return `quote-${leadKey}-${version}`;
+}
+
+export function findSavedQuoteByVersion<T extends { id?: string; leadKey: string; data?: { quoteVersion?: string } }>(
   quotes: T[],
   leadKey: string,
   quoteVersion: string,
 ): T | undefined {
+  const version = acceptQuoteVersion(quoteVersion) || 'V1';
+  const id = savedQuoteId(leadKey, version);
   return quotes.find((q) => {
+    if (q.id === id) return true;
     if (q.leadKey !== leadKey) return false;
-    return String(q.data?.quoteVersion || 'V1') === quoteVersion;
+    return acceptQuoteVersion(String(q.data?.quoteVersion || '')) === version;
   });
 }
 

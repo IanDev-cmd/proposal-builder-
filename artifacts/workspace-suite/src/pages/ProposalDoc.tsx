@@ -13,7 +13,7 @@ import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromReco
 import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
 import { dataUrlToFile, shareArtifact, type ShareChannel } from '@/lib/quoteShare';
 import { toastError, toastSuccess } from '@/lib/notify';
-import { saveQuoteDraft } from '@/lib/quoteDraftStore';
+import { markOpenQuoteDraft, quoteDraftKey, saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { setQuoteLead } from '@/lib/quoteLeadStore';
 import { listSavedQuotes } from '@/lib/savedQuotesStore';
 import { formatGbpPounds } from '@/lib/utils';
@@ -256,8 +256,10 @@ export function ProposalDoc() {
     const linked = listSavedQuotes().find((q) => q.proposalId === active.id);
     if (linked) {
       if (linked.lead) setQuoteLead(linked.lead);
+      const version = String((linked.data as { quoteVersion?: string } | undefined)?.quoteVersion || 'V1');
+      markOpenQuoteDraft(linked.leadKey, version);
       await saveQuoteDraft({
-        leadKey: linked.leadKey,
+        leadKey: quoteDraftKey(linked.leadKey, version),
         step: Number(linked.step) >= 1 && Number(linked.step) <= 7 ? Number(linked.step) : 1,
         data: linked.data || {},
         leadName: linked.leadName,

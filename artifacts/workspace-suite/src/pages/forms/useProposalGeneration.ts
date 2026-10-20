@@ -34,6 +34,7 @@ import {
 } from '@/lib/engineWarnings';
 import { clearQuoteLead, type QuoteLead } from '@/lib/quoteLeadStore';
 import { getSavedQuote, listSavedQuotes, persistSavedQuote } from '@/lib/savedQuotesStore';
+import { savedQuoteId as versionedQuoteId } from '@/lib/quoteBuilderCatalog';
 import { LAST_CONTENT_STEP } from '@/pages/forms/useQuoteWizardState';
 
 type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
@@ -428,13 +429,29 @@ export async function runProposalGeneration(ctx: ProposalGenerationContext): Pro
       );
     }
 
+    const versionId = versionedQuoteId(leadNotesKey, data.quoteVersion);
     const savedQuoteId =
       pendingGenerateIdRef.current ||
+      (getSavedQuote(versionId) ? versionId : null) ||
       listSavedQuotes().find((quote) => quote.leadKey === leadNotesKey)?.id ||
       null;
     if (savedQuoteId) {
       const quote = getSavedQuote(savedQuoteId);
-      if (quote) await persistSavedQuote({ ...quote, proposalId });
+      if (quote) {
+        try {
+          await persistSavedQuote({ ...quote, proposalId });
+        } catch (err) {
+          const localSaved = Boolean((err as { localSaved?: boolean }).localSaved);
+          if (!localSaved) throw err;
+          toastError({
+            key: 'quote-cloud',
+            title: 'Proposal is ready',
+            description:
+              'The PDF is saved on this device. Linking it on the shared workspace will retry automatically.',
+            err,
+          });
+        }
+      }
       pendingGenerateIdRef.current = null;
     }
 

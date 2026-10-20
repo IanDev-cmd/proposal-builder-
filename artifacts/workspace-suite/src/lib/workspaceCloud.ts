@@ -75,7 +75,11 @@ export async function cloudPutQuote(quote: SavedQuote): Promise<void> {
     body: JSON.stringify(quote),
   });
   if (res.status === 409) throw new QuoteDeletedConflict();
-  if (!res.ok) throw new Error(`Could not save quote to workspace (${res.status})`);
+  if (!res.ok) {
+    const body = (await readJson(res)) as { error?: string } | null;
+    const detail = body?.error ? String(body.error) : '';
+    throw new Error(detail || `Could not save quote to workspace (${res.status})`);
+  }
 }
 
 export async function cloudDeleteQuote(id: string): Promise<void> {
