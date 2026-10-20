@@ -1,142 +1,198 @@
+/**
+ * Catalogue taxonomy is the financial contract.
+ * Reads exports/nexus-catalog/catalogueTaxonomy.json and writes:
+ *   quoteCatalogBindings.generated.ts  — line definitions consumed by quoteBuilderCatalog.ts
+ *   payload_schema.py                  — financial constants and the catalogue line model
+ *   NexusCatalogTaxonomy.gs            — passive taxonomy lookup tables
+ */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const catalogCandidates = [
-  path.join(root, 'artifacts/workspace-suite/src/lib/_catalogOrig.ts'),
-  path.join(root, 'artifacts/workspace-suite/src/lib/quoteBuilderCatalog.ts'),
-];
-const catalogPath = catalogCandidates.find((p) => fs.existsSync(p));
-const src = fs.readFileSync(catalogPath, 'utf8');
+const sourcePath = path.join(root, 'exports/nexus-catalog/catalogueTaxonomy.json');
+const suiteJson = path.join(root, 'artifacts/workspace-suite/src/lib/assets/catalogueTaxonomy.json');
+const catalogPath = path.join(root, 'artifacts/workspace-suite/src/lib/quoteBuilderCatalog.ts');
+const bindingsPath = path.join(
+  root,
+  'artifacts/workspace-suite/src/lib/quoteCatalogBindings.generated.ts',
+);
+const payloadPath = path.join(root, 'artifacts/pdf-engine/payload_schema.py');
+const pythonPath = path.join(root, 'artifacts/pdf-engine/catalogue_constants.py');
+const gasPath = path.join(root, 'exports/nexus-catalog/NexusCatalogTaxonomy.gs');
 
-const lines = [];
-const re =
-  /L\(\s*'([^']+)'\s*,\s*'((?:\\'|[^'])*)'\s*,\s*'([^']+)'\s*(?:,\s*(\{[\s\S]*?\}))?\s*\)/g;
-let m;
-while ((m = re.exec(src))) {
-  const [, section, label, multiplier, optsRaw] = m;
-  const rec = {
-    id: `${section}:${label}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_|_$/g, '')
-      .slice(0, 80),
-    section,
-    label,
-    multiplier,
-    aliases: [label],
-  };
-  if (optsRaw) {
-    if (/defaultOn:\s*true/.test(optsRaw)) rec.defaultOn = true;
-    const aw = optsRaw.match(/autoWithMenu:\s*\/(.+?)\/([a-z]*)/);
-    if (aw) rec.autoWithMenu = aw[1];
-    const pw = optsRaw.match(/proposalWording:\s*'((?:\\'|[^'])*)'/);
-    if (pw) rec.proposalWording = pw[1].replace(/\\'/g, "'");
-  }
-  lines.push(rec);
+const FINANCIAL_DEFAULTS = {
+  vatRate: 0.2,
+  contingencyRate: 0.0225,
+  staffHoursBuffer: 3,
+  eventManagerHoursBuffer: 4,
+  minBillableHours: 4,
+};
+
+const MULTIPLIERS = [
+  'vessel_hours',
+  'guests',
+  'guests_hours',
+  'hours',
+  'staff_hours',
+  'tables',
+  'set',
+];
+const MULTIPLIER_SET = new Set(MULTIPLIERS);
+
+const doc = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+if (!doc || !Array.isArray(doc.lines) || doc.lines.length < 50) {
+  console.error(`refusing to emit bindings: ${sourcePath} has ${doc?.lines?.length || 0} lines`);
+  process.exit(1);
 }
 
-function extractRecord(name) {
-  const start = src.indexOf(`export const ${name}`);
-  if (start < 0) return {};
-  const brace = src.indexOf('{', start);
-  let depth = 0;
-  let end = brace;
-  for (let i = brace; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
+const ids = new Set();
+for (const line of doc.lines) {
+  if (!line.id || !line.section || !line.label || !MULTIPLIER_SET.has(line.multiplier)) {
+    console.error(`invalid taxonomy line: ${JSON.stringify(line)}`);
+    process.exit(1);
+  }
+  if (ids.has(line.id)) {
+    console.error(`duplicate taxonomy id: ${line.id}`);
+    process.exit(1);
+  }
+  ids.add(line.id);
+}
+
+doc.financial = { ...FINANCIAL_DEFAULTS, ...(doc.financial || {}) };
+for (const [key, value] of Object.entries(FINANCIAL_DEFAULTS)) {
+  if (typeof doc.financial[key] !== 'number' || !Number.isFinite(doc.financial[key])) {
+    console.error(`financial.${key} must be a finite number`);
+    process.exit(1);
+  }
+}
+
+const taxonomy = {
+  schema: doc.schema,
+  version: doc.version,
+  financial: doc.financial,
+  lines: doc.lines,
+  vesselAliases: doc.vesselAliases || {},
+  menuAliases: doc.menuAliases || {},
+  upgradeToLineLabel: doc.upgradeToLineLabel || {},
+  noteAliases: doc.noteAliases || {},
+};
+
+const json = `${JSON.stringify(doc, null, 2)}\n`;
+fs.writeFileSync(sourcePath, json);
+fs.mkdirSync(path.dirname(suiteJson), { recursive: true });
+fs.writeFileSync(suiteJson, json);
+
+const fin = doc.financial;
+const ts = `/** Generated from exports/nexus-catalog/catalogueTaxonomy.json. Do not edit. */
+export const VAT_RATE = ${fin.vatRate};
+export const CONTINGENCY_RATE = ${fin.contingencyRate};
+export const STAFF_HOURS_BUFFER = ${fin.staffHoursBuffer};
+export const EVENT_MANAGER_HOURS_BUFFER = ${fin.eventManagerHoursBuffer};
+export const MIN_BILLABLE_HOURS = ${fin.minBillableHours};
+
+export const GENERATED_TAXONOMY = ${JSON.stringify(taxonomy, null, 2)} as const;
+`;
+fs.writeFileSync(bindingsPath, ts);
+
+const literal = MULTIPLIERS.map((name) => `"${name}"`).join(', ');
+const generatedPy = `# BEGIN GENERATED CATALOGUE CONSTANTS — scripts/build-catalogue-taxonomy.mjs
+VAT_RATE = ${fin.vatRate}
+CONTINGENCY_RATE = ${fin.contingencyRate}
+STAFF_HOURS_BUFFER = ${fin.staffHoursBuffer}
+EVENT_MANAGER_HOURS_BUFFER = ${fin.eventManagerHoursBuffer}
+MIN_BILLABLE_HOURS = ${fin.minBillableHours}
+
+
+class CatalogueLineBinding(BaseModel):
+    """Taxonomy line shape. Not applied to POST /generate, so PDF payload keys stay intact."""
+
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    section: str
+    label: str
+    multiplier: Literal[${literal}]
+
+
+# END GENERATED CATALOGUE CONSTANTS`;
+
+const payload = fs.readFileSync(payloadPath, 'utf8');
+const start = payload.indexOf('# BEGIN GENERATED CATALOGUE CONSTANTS');
+const end = payload.indexOf('# END GENERATED CATALOGUE CONSTANTS');
+if (start < 0 || end < 0 || end < start) {
+  console.error('payload_schema.py is missing the generated catalogue markers');
+  process.exit(1);
+}
+const nextPayload =
+  payload.slice(0, start) + generatedPy + payload.slice(end + '# END GENERATED CATALOGUE CONSTANTS'.length);
+fs.writeFileSync(payloadPath, nextPayload);
+
+fs.writeFileSync(
+  pythonPath,
+  `"""Generated re-exports. Assignments live in payload_schema.py. Do not edit."""
+
+from payload_schema import (
+    CONTINGENCY_RATE,
+    EVENT_MANAGER_HOURS_BUFFER,
+    MIN_BILLABLE_HOURS,
+    STAFF_HOURS_BUFFER,
+    VAT_RATE,
+)
+
+__all__ = [
+    "CONTINGENCY_RATE",
+    "EVENT_MANAGER_HOURS_BUFFER",
+    "MIN_BILLABLE_HOURS",
+    "STAFF_HOURS_BUFFER",
+    "VAT_RATE",
+]
+`,
+);
+
+fs.writeFileSync(
+  gasPath,
+  `/** Generated from catalogueTaxonomy.json. Passive lookup only. Do not edit. */
+var NEXUS_CATALOGUE_TAXONOMY = ${JSON.stringify(taxonomy)};
+
+function nexusTaxonomyLines_() {
+  var doc = NEXUS_CATALOGUE_TAXONOMY || {};
+  return doc.lines || [];
+}
+
+function nexusTaxonomyFinancial_() {
+  var doc = NEXUS_CATALOGUE_TAXONOMY || {};
+  return doc.financial || {};
+}
+
+/** Label or alias → { section, multiplier }. No rate maths. */
+function nexusTaxonomyLookup_(label) {
+  var n = String(label || '').toLowerCase().replace(/\\s+/g, ' ').trim();
+  if (!n) return null;
+  var lines = nexusTaxonomyLines_();
+  for (var i = 0; i < lines.length; i++) {
+    var aliases = lines[i].aliases || [lines[i].label];
+    for (var j = 0; j < aliases.length; j++) {
+      var alias = String(aliases[j] || '').toLowerCase().replace(/\\s+/g, ' ').trim();
+      if (alias === n) {
+        return { section: lines[i].section, multiplier: lines[i].multiplier };
       }
     }
   }
-  const body = src.slice(brace, end + 1);
-  const out = {};
-  const rr = /(?:'([^']+)'|([A-Za-z][A-Za-z0-9 ]*))\s*:\s*'([^']*)'/g;
-  let x;
-  while ((x = rr.exec(body))) {
-    const k = x[1] || x[2];
-    if (k && k.length >= 2 && !k.includes('Record') && k !== 'string') out[k] = x[3];
-  }
-  return out;
+  return null;
 }
+`,
+);
 
-function usableAlias(alias) {
-  return typeof alias === 'string' && alias.trim().length >= 2 && alias !== 's';
-}
-
-function pruneMap(map) {
-  return Object.fromEntries(Object.entries(map).filter(([k]) => usableAlias(k)));
-}
-
-const vesselAliases = pruneMap(extractRecord('VESSEL_TO_COST_MOTHER'));
-const menuAliases = pruneMap(extractRecord('MENU_TO_COST_MOTHER'));
-const upgradeToLineLabel = pruneMap(extractRecord('UPGRADE_TO_LINE_LABEL'));
-
-const noteAliases = {
-  HFB: 'Hot Fork Buffet (All Seasons)',
-  '3CSD': 'Three Course Seated Dinner (All Seasons)',
-  '2CSD': 'Two Course Seated Dinner - Main & Dessert OR Starter & Main (All Seasons)',
-  'SUB CANS': 'Substantial Canapes (All Sesons)',
-  CANAPES: 'Canapes (All Seasons)',
-  'STREET FOOD': 'Street Food Station (All Seasons)',
-  'BOWL FOOD': 'Bowl Food (All Seasons)',
-  BBQ: 'Barbecue',
-  'CHARCUTERIE CUPS': 'Charcuterie Cups (All Seasons)',
-  'CHARCUTERIE STATION': 'Charcuterie Station (All Seasons)',
-  'BURGER STATION': 'Burger Station',
-  'BG MUSIC': 'Background Music/Sound Equipment Hire',
-  'COCKTAIL RECEPTION': 'Cocktail Reception (1 x glass per guest)',
-  'CASINO TABLE x 2': 'Casino table with croupier - x 2',
-  'CASINO TABLE': 'Casino table with croupier - x 1',
-  'PHOTO BOOTH': 'Photobooth',
-  TV: 'TV - 55"',
-  'TEAM BUILDING': 'Team building activities with performance coach',
-  'DRINK TOKENS x 3': 'Drink tokens - x 3',
-  'DRINK TOKENS x 2': 'Drink tokens - x 2',
-};
-
-for (const [alias, label] of Object.entries(noteAliases)) {
-  const line = lines.find((l) => l.label === label);
-  if (line && !line.aliases.includes(alias)) line.aliases.push(alias);
-}
-for (const line of lines) {
-  line.aliases = line.aliases.filter(usableAlias);
-}
-for (const [alias, label] of Object.entries(menuAliases)) {
-  const line = lines.find((l) => l.label === label);
-  if (line && usableAlias(alias) && !line.aliases.includes(alias)) line.aliases.push(alias);
-}
-
-const out = {
-  schema: 'weott.nexus.catalogue.v1',
-  version: 1,
-  lines,
-  vesselAliases,
-  menuAliases,
-  upgradeToLineLabel,
-  noteAliases,
-};
-
-if (lines.length < 50) {
-  console.error(`refusing to write taxonomy from ${catalogPath}: only ${lines.length} lines`);
+const catalog = fs.readFileSync(catalogPath, 'utf8');
+if (!catalog.includes('GENERATED_TAXONOMY')) {
+  console.error('quoteBuilderCatalog.ts must build its line catalogue from GENERATED_TAXONOMY');
   process.exit(1);
 }
-const destA = path.join(root, 'artifacts/workspace-suite/src/lib/assets/catalogueTaxonomy.json');
-const destB = path.join(root, 'exports/nexus-catalog/catalogueTaxonomy.json');
-fs.mkdirSync(path.dirname(destB), { recursive: true });
-const json = JSON.stringify(out, null, 2);
-fs.writeFileSync(destA, json);
-fs.writeFileSync(destB, json);
-fs.writeFileSync(
-  path.join(root, 'exports/nexus-catalog/NexusCatalogTaxonomy.gs'),
-  '/** Paste alongside NexusCatalog.gs — canonical line taxonomy. */\nvar NEXUS_CATALOGUE_TAXONOMY = ' +
-    json +
-    ';\n',
-);
+if (!catalog.includes("from '@/lib/quoteCatalogBindings.generated'")) {
+  console.error('quoteBuilderCatalog.ts must re-export quoteCatalogBindings.generated');
+  process.exit(1);
+}
+
 console.log(
-  `wrote ${lines.length} lines, ${Object.keys(vesselAliases).length} vessels, ${Object.keys(menuAliases).length} menus`,
+  `bound ${doc.lines.length} lines from catalogueTaxonomy.json (vat ${fin.vatRate}, contingency ${fin.contingencyRate})`,
 );

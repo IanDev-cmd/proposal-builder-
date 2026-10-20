@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Iterator
@@ -104,30 +106,145 @@ def database_url() -> str:
     return raw
 
 
-def _connect():
-    import psycopg
+_pool: Any = None
+_pool_lock = threading.Lock()
+POOL_MIN_SIZE = 2
+POOL_MAX_SIZE = 10
+_DOLLAR_RE = re.compile(r"\$[A-Za-z0-9_]*\$")
 
+
+def split_sql_script(sql: str) -> list[str]:
+    """Split a SQL script on statement boundaries.
+
+    Semicolons inside quotes, comments, and dollar-quoted blocks stay in the
+    statement. A raw ``str.split(';')`` would break those blocks.
+    """
+    statements: list[str] = []
+    buf: list[str] = []
+    i = 0
+    length = len(sql)
+    in_single = False
+    in_double = False
+    in_line = False
+    in_block = False
+    dollar: str | None = None
+    while i < length:
+        ch = sql[i]
+        nxt = sql[i + 1] if i + 1 < length else ""
+        if in_line:
+            buf.append(ch)
+            if ch == "\n":
+                in_line = False
+            i += 1
+            continue
+        if in_block:
+            buf.append(ch)
+            if ch == "*" and nxt == "/":
+                buf.append(nxt)
+                i += 2
+                in_block = False
+                continue
+            i += 1
+            continue
+        if dollar is not None:
+            if sql.startswith(dollar, i):
+                buf.append(dollar)
+                i += len(dollar)
+                dollar = None
+                continue
+            buf.append(ch)
+            i += 1
+            continue
+        if in_single:
+            buf.append(ch)
+            if ch == "'" and nxt == "'":
+                buf.append(nxt)
+                i += 2
+                continue
+            if ch == "'":
+                in_single = False
+            i += 1
+            continue
+        if in_double:
+            buf.append(ch)
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        if ch == "-" and nxt == "-":
+            buf.append("--")
+            i += 2
+            in_line = True
+            continue
+        if ch == "/" and nxt == "*":
+            buf.append("/*")
+            i += 2
+            in_block = True
+            continue
+        if ch == "'":
+            in_single = True
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "$":
+            match = _DOLLAR_RE.match(sql, i)
+            if match:
+                dollar = match.group(0)
+                buf.append(dollar)
+                i += len(dollar)
+                continue
+        if ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
+def _get_pool() -> Any:
+    global _pool
     url = database_url()
     if not url:
         raise RuntimeError("DATABASE_URL is required for quotes and proposals")
-    return psycopg.connect(url, autocommit=True)
+    with _pool_lock:
+        if _pool is None:
+            from psycopg_pool import ConnectionPool
+
+            _pool = ConnectionPool(
+                conninfo=url,
+                min_size=POOL_MIN_SIZE,
+                max_size=POOL_MAX_SIZE,
+                kwargs={"autocommit": False},
+                open=True,
+                name="nexus-workspace",
+            )
+        return _pool
 
 
 @contextmanager
 def connection() -> Iterator[Any]:
-    conn = _connect()
-    try:
-        yield conn
-    finally:
-        conn.close()
+    pool = _get_pool()
+    with pool.connection() as conn:
+        with conn.transaction():
+            yield conn
 
 
 def migrate() -> None:
     with connection() as conn:
-        for stmt in SCHEMA_SQL.split(";"):
-            stmt = stmt.strip()
-            if stmt:
-                conn.execute(stmt)
+        for stmt in split_sql_script(SCHEMA_SQL):
+            conn.execute(stmt)
 
 
 def _as_dt(value: Any) -> datetime | None:

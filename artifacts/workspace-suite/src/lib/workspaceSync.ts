@@ -157,6 +157,7 @@ export async function syncWorkspaceCloud(ctx?: SyncRunContext): Promise<void> {
             'quote',
             quote.id,
             err instanceof Error ? err.message : String(err),
+            { revision: quote.syncRevision, updatedAt: quote.syncUpdatedAt },
           );
         }),
       );

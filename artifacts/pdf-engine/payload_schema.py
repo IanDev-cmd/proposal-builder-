@@ -5,23 +5,71 @@ Reject malformed bodies with HTTP 422 instead of failing mid-render.
 
 from __future__ import annotations
 
-from typing import Any
+import re
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+
+# BEGIN GENERATED CATALOGUE CONSTANTS — scripts/build-catalogue-taxonomy.mjs
+VAT_RATE = 0.2
+CONTINGENCY_RATE = 0.0225
+STAFF_HOURS_BUFFER = 3
+EVENT_MANAGER_HOURS_BUFFER = 4
+MIN_BILLABLE_HOURS = 4
+
+
+class CatalogueLineBinding(BaseModel):
+    """Taxonomy line shape. Not applied to POST /generate, so PDF payload keys stay intact."""
+
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    section: str
+    label: str
+    multiplier: Literal["vessel_hours", "guests", "guests_hours", "hours", "staff_hours", "tables", "set"]
+
+
+# END GENERATED CATALOGUE CONSTANTS
+
+__all__ = [
+    "CONTINGENCY_RATE",
+    "CatalogueLineBinding",
+    "EVENT_MANAGER_HOURS_BUFFER",
+    "GenerateLead",
+    "GeneratePayload",
+    "MIN_BILLABLE_HOURS",
+    "STAFF_HOURS_BUFFER",
+    "VAT_RATE",
+    "validation_error_body",
+]
+
+# Strict decimal. Currency symbols and thousands separators are rejected.
+_STRICT_NUMBER = re.compile(r"^-?(?:0|[1-9]\d*)(?:\.\d+)?$")
+_INSERT_KEYS = ("selectedInserts", "selected_inserts", "inserts")
 
 
 def _to_float(v: Any) -> float | None:
     if v is None or v == "":
         return None
-    if isinstance(v, bool):
-        raise ValueError("boolean is not a numeric calculation field")
-    if isinstance(v, (int, float)):
-        return float(v)
-    s = str(v).replace(",", "").replace("£", "").strip()
-    try:
-        return float(s)
-    except ValueError as exc:
-        raise ValueError(f"non-numeric value: {v!r}") from exc
+    if isinstance(v, bool) or not isinstance(v, (int, float, str)):
+        raise ValueError("numeric calculation fields must be JSON numbers")
+    if isinstance(v, str):
+        text = v.strip()
+        if not _STRICT_NUMBER.fullmatch(text):
+            raise ValueError(f"non-numeric value: {v!r}")
+        return float(text)
+    return float(v)
+
+
+def _insert_ids(value: Any) -> list[str]:
+    if isinstance(value, str) or not isinstance(value, list):
+        raise ValueError("selectedInserts must be a list of strings")
+    out: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError("selectedInserts must be a list of strings")
+        out.append(item.strip())
+    return out
 
 
 class GenerateLead(BaseModel):
@@ -86,12 +134,26 @@ class GeneratePayload(BaseModel):
     lead: GenerateLead = Field(default_factory=GenerateLead)
     calculations: Calculations = Field(default_factory=Calculations)
     selectedUpgrades: list[str] = Field(default_factory=list)
-    selectedInserts: list[str] | None = None
-    inserts: list[str] | None = None
-    selected_inserts: list[str] | None = None
+    selectedInserts: list[str] = Field(default_factory=list)
     packageWording: dict[str, Any] = Field(default_factory=dict)
     menuLinks: dict[str, Any] = Field(default_factory=dict)
     mode: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_inserts(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        payload = dict(data)
+        chosen: Any = None
+        for key in _INSERT_KEYS:
+            if key in payload and payload[key] is not None:
+                chosen = payload[key]
+                break
+        payload["selectedInserts"] = _insert_ids(chosen) if chosen is not None else []
+        payload.pop("inserts", None)
+        payload.pop("selected_inserts", None)
+        return payload
 
 
 def validation_error_body(exc: ValidationError) -> dict[str, Any]:

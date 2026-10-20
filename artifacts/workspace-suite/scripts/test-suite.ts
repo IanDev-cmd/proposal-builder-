@@ -789,6 +789,22 @@ check(
     deleted: false,
   }) === 'upload',
 );
+check(
+  'sync uploads when the local revision is newer than the server',
+  planQuoteSync({
+    local: { ...localQuote, syncRevision: 4, savedAt: '2026-10-12T09:00:00Z' },
+    remote: { ...remoteSummary, syncRevision: 2, savedAt: '2026-10-12T12:00:00Z' },
+    deleted: false,
+  }) === 'upload',
+);
+check(
+  'sync does not fetch a stale server row over a higher local revision',
+  planQuoteSync({
+    local: { ...localQuote, syncRevision: 5, data: {} },
+    remote: { ...remoteSummary, syncRevision: 3, savedAt: '2026-10-12T18:00:00Z' },
+    deleted: false,
+  }) === 'upload',
+);
 
 check('steady sync interval is 3 minutes', CLOUD_REFRESH_MS === 180_000);
 check('hidden tab skips the interval', intervalSkippedWhileHidden('hidden') === true);

@@ -20,6 +20,8 @@ export type SyncOutboxJob = {
   attempts: number;
   lastAttemptAt?: string;
   lastError?: string;
+  /** Quote edit counter captured when this push was queued. */
+  revision?: number;
 };
 
 const STORE = WORKSPACE_STORES.syncOutbox;
@@ -41,6 +43,7 @@ export async function enqueueSyncOutbox(
   kind: SyncOutboxKind,
   entityId: string,
   lastError?: string,
+  stamp?: { revision?: number; updatedAt?: string },
 ): Promise<void> {
   const id = syncOutboxId(kind, entityId);
   const now = new Date().toISOString();
@@ -50,10 +53,11 @@ export async function enqueueSyncOutbox(
     kind,
     entityId,
     createdAt: existing?.createdAt || now,
-    updatedAt: now,
+    updatedAt: stamp?.updatedAt || now,
     attempts: existing?.attempts || 0,
     lastAttemptAt: existing?.lastAttemptAt,
     lastError: lastError || existing?.lastError,
+    revision: stamp?.revision ?? existing?.revision,
   };
   try {
     await workspacePut(STORE, row);

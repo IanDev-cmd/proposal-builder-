@@ -5,3 +5,12 @@ services:
     plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 60 --preload
+    envVars:
+      - key: NEXUS_TEAM_PASSWORD
+        sync: false
+      - key: NEXUS_AUTH_SECRET
+        generateValue: true
+      - key: NEXUS_ADMIN_TOKEN
+        sync: false
+      - key: FLASK_ENV
+        value: production

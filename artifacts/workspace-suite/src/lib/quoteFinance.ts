@@ -18,6 +18,12 @@
  * Flask /generate must NOT recalculate — pass-through only.
  */
 
+import {
+  CONTINGENCY_RATE,
+  MIN_BILLABLE_HOURS,
+  STAFF_HOURS_BUFFER,
+  VAT_RATE,
+} from '@/lib/quoteCatalogBindings.generated';
 import { weekdayIndex } from '@/lib/calendarWhen';
 import {
   getQuoteLines,
@@ -37,14 +43,10 @@ import { isQuoteInstructionKeyItems } from '@/lib/quoteKeyItems';
 import { fullStaffName } from '@/lib/staffContacts';
 import { formatPhoneDisplay, staffPhoneSlots } from '@/lib/phoneFormat';
 
-export const CONTINGENCY_RATE = 0.0225;
-export const VAT_RATE = 0.2;
+/** Section 11 default is billed hours + STAFF_HOURS_BUFFER. Event Manager uses its own staffBuffer. */
+export { CONTINGENCY_RATE, MIN_BILLABLE_HOURS, STAFF_HOURS_BUFFER, VAT_RATE };
 export const REPEAT_CLIENT_MARGIN = 0.15;
 export const NEW_CLIENT_MARGIN = 0.25;
-/** Default Section 11 hours = billed + 3. Event Manager in house uses staffBuffer 4; CONTIGENCY STAFF uses billed hours only. */
-export const STAFF_HOURS_BUFFER = 3;
-/** Quote Sheet minimum hire / entertainment / staff base hours. */
-export const MIN_BILLABLE_HOURS = 4;
 
 /** @deprecated Prefer Cost Mother line catalogue — kept for PDF upgrade ids. */
 export const UPGRADES: { label: string; price: number; type: 'flat' | 'perGuest'; id: string }[] = [

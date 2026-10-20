@@ -1,9 +1,17 @@
 /**
  * Quote Builder 2026 — Sections 1–14 line catalogue.
  * Labels match Cost Mother Sheet (WEOTT). Multipliers match QB formulas.
- * Canonical taxonomy: src/lib/assets/catalogueTaxonomy.json
+ * Line definitions are generated from exports/nexus-catalog/catalogueTaxonomy.json.
  */
-import taxonomyJson from '@/lib/assets/catalogueTaxonomy.json';
+import { GENERATED_TAXONOMY } from '@/lib/quoteCatalogBindings.generated';
+
+export {
+  CONTINGENCY_RATE,
+  EVENT_MANAGER_HOURS_BUFFER,
+  MIN_BILLABLE_HOURS,
+  STAFF_HOURS_BUFFER,
+  VAT_RATE,
+} from '@/lib/quoteCatalogBindings.generated';
 
 export type LineMultiplier =
   | 'vessel_hours' // × event hours (Section 1)
@@ -124,7 +132,7 @@ export type TaxonomyLine = {
   staffBuffer?: number;
 };
 
-export const CATALOGUE_TAXONOMY = taxonomyJson as {
+export const CATALOGUE_TAXONOMY = GENERATED_TAXONOMY as unknown as {
   schema: string;
   version: number;
   lines: TaxonomyLine[];

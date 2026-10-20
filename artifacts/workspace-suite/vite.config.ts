@@ -33,6 +33,10 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+      allow: [
+        path.resolve(import.meta.dirname),
+        path.resolve(import.meta.dirname, '../../exports/nexus-catalog'),
+      ],
     },
   },
   preview: {

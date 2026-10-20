@@ -1325,5 +1325,12 @@
     "TEAM BUILDING": "Team building activities with performance coach",
     "DRINK TOKENS x 3": "Drink tokens - x 3",
     "DRINK TOKENS x 2": "Drink tokens - x 2"
+  },
+  "financial": {
+    "vatRate": 0.2,
+    "contingencyRate": 0.0225,
+    "staffHoursBuffer": 3,
+    "eventManagerHoursBuffer": 4,
+    "minBillableHours": 4
   }
 }

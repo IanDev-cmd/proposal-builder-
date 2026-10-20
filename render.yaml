@@ -27,6 +27,10 @@ services:
         sync: false
       - key: NEXUS_AUTH_SECRET
         generateValue: true
+      - key: NEXUS_ADMIN_TOKEN
+        sync: false
+      - key: FLASK_ENV
+        value: production
       - key: DATABASE_URL
         fromDatabase:
           name: weott-nexus-workspace

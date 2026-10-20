@@ -28,7 +28,14 @@ from flask import Flask, g, request, send_file, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from engine import build_proposal
-from team_auth import handle_login, refresh_session, require_team_session, revoke
+from team_auth import (
+    handle_login,
+    refresh_session,
+    require_bulk_erase,
+    require_team_session,
+    revoke,
+    trusted_proxy_hops,
+)
 from workspace_store import (
     clear_proposals as workspace_clear_proposals,
     clear_quotes as workspace_clear_quotes,
@@ -55,7 +62,9 @@ from pydantic import ValidationError
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+# Trust only the outer Render ingress hop. Extra hops would honor a client-supplied
+# X-Forwarded-For prefix and let a caller spoof the login lockout address.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxy_hops(), x_proto=1, x_host=0, x_prefix=0)
 _BASE = Path(__file__).resolve().parent
 
 _DEFAULT_CORS_ORIGINS = (
@@ -381,6 +390,9 @@ def workspace_quotes_put(quote_id):
 
 @app.delete("/workspace/quotes")
 def workspace_quotes_clear():
+    denied = require_bulk_erase(request)
+    if denied is not None:
+        return denied
     return jsonify(ok=True, deleted=workspace_clear_quotes())
 
 
@@ -417,6 +429,9 @@ def workspace_proposals_put(proposal_id):
 
 @app.delete("/workspace/proposals")
 def workspace_proposals_clear():
+    denied = require_bulk_erase(request)
+    if denied is not None:
+        return denied
     return jsonify(ok=True, deleted=workspace_clear_proposals())
 
 

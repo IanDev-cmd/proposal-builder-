@@ -362,73 +362,15 @@ function mapSection_(label) {
 }
 
 function catalogueLookup_(label) {
-  if (typeof NEXUS_CATALOGUE_TAXONOMY === 'undefined' || !NEXUS_CATALOGUE_TAXONOMY.lines) return null;
-  var n = String(label || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  if (!n) return null;
-  var lines = NEXUS_CATALOGUE_TAXONOMY.lines;
-  for (var i = 0; i < lines.length; i++) {
-    var aliases = lines[i].aliases || [lines[i].label];
-    for (var j = 0; j < aliases.length; j++) {
-      if (String(aliases[j]).toLowerCase().replace(/\s+/g, ' ').trim() === n) {
-        return { section: lines[i].section, multiplier: lines[i].multiplier };
-      }
-    }
-  }
+  if (typeof nexusTaxonomyLookup_ === 'function') return nexusTaxonomyLookup_(label);
   return null;
 }
 
+/** Section comes from the sheet header. Multiplier comes only from the taxonomy lookup. */
 function inferLine_(label, sectionHint) {
   var fromTaxonomy = catalogueLookup_(label);
   if (fromTaxonomy) return fromTaxonomy;
-  var s = label.toLowerCase();
-  var section = sectionHint || 'other';
-  var multiplier = 'set';
-
-  if (/vessel\/venue hire|venue hire/.test(s)) {
-    return { section: 'vessel', multiplier: 'vessel_hours' };
-  }
-  if (/own food surcharge/.test(s)) return { section: 'catering_surcharge', multiplier: 'set' };
-  if (/spoon|fork|knife|plate|bowl|napkin|cutlery|linen \(or/.test(s) || /dessert\/starter|dinner plates|small plates/.test(s)) {
-    return { section: 'catering_equipment', multiplier: 'guests' };
-  }
-  if (/unlimited drinks/.test(s)) return { section: 'beverages', multiplier: 'guests_hours' };
-  if (/onboard wifi/.test(s)) return { section: 'decor', multiplier: 'guests' };
-  if (/additional chefs/.test(s)) return { section: 'staff', multiplier: 'hours' };
-  if (/reception drink|drink token|prosecco|champagne hour|tea\/coffee|cocktail|half a bottle/.test(s)) {
-    return { section: 'beverages', multiplier: 'guests' };
-  }
-  if (/dj|live band|acoustic|steel band|jazz|piano|sax|karaoke|magician|tour guide|casino|photobooth|chocolate fountain|wine tasting|background music/.test(s)) {
-    return { section: 'entertainment', multiplier: 'hours' };
-  }
-  if (/centrepiece|table linen|event decor|disposable tableware|flowers/.test(s)) {
-    return { section: 'decor_table', multiplier: /cracker/i.test(s) ? 'guests' : 'tables' };
-  }
-  if (/festive cracker/.test(s)) return { section: 'decor_table', multiplier: 'guests' };
-  if (/astro turf|rattan|red carpet|bean bag|banner|welcome board|tv -|projector|boat flag|bunting|flower\/plant|white board|stationary \(pens/.test(s)) {
-    return { section: 'decor', multiplier: 'hours' };
-  }
-  if (/project management|pier coordinator|unit management/.test(s)) {
-    return { section: 'in_house', multiplier: 'set' };
-  }
-  if (/event manager|event coordinator|event assistant|wp runner|chef|catering assistant|photographer|videographer|security|contigency staff/.test(s)) {
-    return { section: 'staff', multiplier: /photographer|contigency staff|additional chefs/i.test(s) ? 'hours' : 'staff_hours' };
-  }
-  if (/van courier|taxi|pier stop|embark|pack down|welcome and thank|graphic work|creative kitty|staff food/.test(s)) {
-    return { section: 'other', multiplier: 'set' };
-  }
-  if (/financial admin/.test(s)) return { section: 'financial', multiplier: 'set' };
-  if (/canape|breakfast|brunch|bowl food|street food|charcuterie|afternoon tea|pie station|hot fork|barbecue|seated dinner|burger|dessert|fruit skewer|tart|catering delivery/.test(s)) {
-    return { section: 'catering', multiplier: /delivery/.test(s) ? 'set' : 'guests' };
-  }
-
-  if (section === 'vessel') multiplier = 'vessel_hours';
-  else if (section === 'staff') multiplier = 'staff_hours';
-  else if (section === 'entertainment' || section === 'decor') multiplier = 'hours';
-  else if (section === 'decor_table') multiplier = 'tables';
-  else if (section === 'catering' || section === 'catering_equipment' || section === 'beverages') multiplier = 'guests';
-  else multiplier = 'set';
-
-  return { section: section, multiplier: multiplier };
+  return { section: sectionHint || 'other', multiplier: '' };
 }
 
 function writeCatalog_(ss, parsed, extras) {

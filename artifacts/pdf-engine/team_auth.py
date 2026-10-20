@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 import re
 import secrets
 import threading
 import time
 from collections import defaultdict
+
+log = logging.getLogger("nexus.team_auth")
 
 from flask import Request, jsonify
 
@@ -45,12 +48,38 @@ _lock_until: dict[str, float] = {}
 _attempt_times: dict[str, list[float]] = defaultdict(list)
 _revoked: dict[str, float] = {}
 _BOOT_SECRET = secrets.token_bytes(32)
+_PRUNE_INTERVAL_SEC = 60.0
+
+
+class AuthConfigError(RuntimeError):
+    """Production started without a shared HMAC secret."""
+
+
+def _production() -> bool:
+    return os.environ.get("FLASK_ENV", "").strip().lower() == "production"
+
+
+def assert_signing_secret() -> None:
+    """Fail at startup in production so Gunicorn workers cannot each invent a secret."""
+    env = os.environ.get("NEXUS_AUTH_SECRET", "").strip()
+    if _production() and len(env) < 16:
+        raise AuthConfigError(
+            "NEXUS_AUTH_SECRET must be set to at least 16 characters when FLASK_ENV=production"
+        )
 
 
 def _signing_secret() -> bytes:
+    assert_signing_secret()
     env = os.environ.get("NEXUS_AUTH_SECRET", "").strip()
     if len(env) >= 16:
         return hashlib.sha256(f"nexus-auth|{env}".encode("utf-8")).digest()
+    if _production():
+        raise AuthConfigError(
+            "NEXUS_AUTH_SECRET must be set to at least 16 characters when FLASK_ENV=production"
+        )
+    log.warning(
+        "NEXUS_AUTH_SECRET is missing or shorter than 16 characters; using a process-local secret"
+    )
     return _BOOT_SECRET
 
 
@@ -69,6 +98,64 @@ def client_ip(req: Request) -> str:
 def _prune_times(times: list[float], now: float, window: float) -> list[float]:
     cutoff = now - window
     return [t for t in times if t > cutoff]
+
+
+def prune_attempt_maps(now: float | None = None) -> None:
+    """Drop expired lockout counters so failed logins cannot grow memory without bound."""
+    current = time.time() if now is None else now
+    stale_fail = [ip for ip, times in _fail_times.items() if not _prune_times(times, current, FAIL_WINDOW_SEC)]
+    for ip in stale_fail:
+        _fail_times.pop(ip, None)
+    for ip, times in list(_fail_times.items()):
+        _fail_times[ip] = _prune_times(times, current, FAIL_WINDOW_SEC)
+    stale_attempt = [
+        ip for ip, times in _attempt_times.items() if not _prune_times(times, current, HOUR_WINDOW_SEC)
+    ]
+    for ip in stale_attempt:
+        _attempt_times.pop(ip, None)
+    for ip, times in list(_attempt_times.items()):
+        _attempt_times[ip] = _prune_times(times, current, HOUR_WINDOW_SEC)
+    for ip, until in list(_lock_until.items()):
+        if until <= current:
+            _lock_until.pop(ip, None)
+
+
+def _prune_loop() -> None:
+    while True:
+        time.sleep(_PRUNE_INTERVAL_SEC)
+        with _lock:
+            prune_attempt_maps()
+
+
+def trusted_proxy_hops() -> int:
+    """How many ingress proxies may append X-Forwarded-For.
+
+    Render has one proxy. A larger hop count lets a client prepend a fake
+    address and bypass the login lockout.
+    """
+    raw = os.environ.get("NEXUS_PROXY_HOPS", "1").strip()
+    try:
+        hops = int(raw)
+    except ValueError:
+        return 1
+    if hops < 1:
+        return 1
+    return hops
+
+
+def require_bulk_erase(req: Request):
+    """Collection DELETE is an admin action, not a normal team-session action."""
+    secret = os.environ.get("NEXUS_ADMIN_TOKEN", "").strip()
+    if len(secret) < 16:
+        body = jsonify(error="Bulk erase is disabled.")
+        body.status_code = 403
+        return body
+    presented = (req.headers.get("X-Nexus-Admin-Token") or "").strip()
+    if not presented or not hmac.compare_digest(presented, secret):
+        body = jsonify(error="Admin authentication required.")
+        body.status_code = 403
+        return body
+    return None
 
 
 def _is_locked(ip: str, now: float) -> bool:
@@ -220,3 +307,7 @@ def handle_login(req: Request):
         _clear_fails(ip)
     token, _exp = issue_token()
     return jsonify(ok=True, token=token, expiresIn=SESSION_TTL_SEC)
+
+
+assert_signing_secret()
+threading.Thread(target=_prune_loop, name="nexus-auth-prune", daemon=True).start()

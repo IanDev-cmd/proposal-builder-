@@ -15,7 +15,15 @@ export type QuoteSyncRow = {
   savedAt?: string;
   reviewedAt?: string;
   data?: Record<string, unknown> | null;
+  syncRevision?: number;
+  syncUpdatedAt?: string;
 };
+
+function revisionOf(row?: { syncRevision?: number } | null): number | null {
+  if (!row || row.syncRevision == null) return null;
+  const value = Number(row.syncRevision);
+  return Number.isFinite(value) ? value : null;
+}
 
 export type QuoteSyncAction = 'upload' | 'fetch' | 'keep' | 'drop-remote';
 
@@ -70,6 +78,14 @@ export function planQuoteSync(args: {
   if (args.deleted) return remote ? 'drop-remote' : 'keep';
   if (local && !remote) return 'upload';
   if (!local || !remote) return 'keep';
+  const localRev = revisionOf(local);
+  const remoteRev = revisionOf(remote);
+  if (localRev != null && remoteRev != null && localRev > remoteRev) return 'upload';
+  if (localRev != null && remoteRev != null && remoteRev > localRev) {
+    const localHasBody = Boolean(local.data && Object.keys(local.data).length);
+    if (!localHasBody) return 'fetch';
+    return 'keep';
+  }
   const localSaveNewer = (local.savedAt || '') > (remote.savedAt || '');
   const localReviewNewer = (local.reviewedAt || '') > (remote.reviewedAt || '');
   if (localSaveNewer || localReviewNewer) return 'upload';

@@ -1,13 +1,12 @@
-import { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, Check, HelpCircle, AlertTriangle, X, UserRound, Layers, Search, Eye, Download, Share2 } from 'lucide-react';
-import { addProposal } from '@/lib/proposalStore';
-import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview, type MenuGroup } from '@/lib/formOptions';
+import { ChevronDown, ArrowRight, Check, HelpCircle, AlertTriangle, X, UserRound, Layers, Eye, Download, Share2 } from 'lucide-react';
+import { VESSEL_TYPES, EVENT_TYPES, MENU_GROUPS, getStoredPreview } from '@/lib/formOptions';
 import { ItineraryWatch } from '@/components/ItineraryWatch';
 import { LeadReferenceCard } from '@/components/LeadReferenceCard';
 import { ProposalTimingsCard } from '@/components/ProposalTimingsCard';
-import { getQuoteLead, clearQuoteLead, setQuoteLead, consumeQuoteBuilderStartStep, type QuoteLead } from '@/lib/quoteLeadStore';
+import { getQuoteLead, setQuoteLead, consumeQuoteBuilderStartStep, type QuoteLead } from '@/lib/quoteLeadStore';
 import { loadQuoteNotesDraft, saveQuoteNotesDraft } from '@/lib/leadNotes';
 import { loadQuoteDraft, saveQuoteDraft } from '@/lib/quoteDraftStore';
 import { consumeFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
@@ -23,15 +22,10 @@ import {
 import { QuoteShareButtons } from '@/components/QuoteShareButtons';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
 import { NOTES_BLUE } from '@/components/LeadNotesTimeline';
-import {
-  filenameFromContentDisposition,
-  proposalFileStem,
-  proposalFilenameFromRecord,
-} from '@/lib/proposalFilename';
+import { proposalFileStem } from '@/lib/proposalFilename';
 import {
   calcBaseCostBreakdown,
   calcFinancials,
-  buildStargtmPayload,
   CONTINGENCY_RATE,
   type BespokeLine,
 } from '@/lib/quoteFinance';
@@ -57,34 +51,24 @@ import {
   INSERT_PLACEMENT_RULES,
   PROPOSAL_INSERTS,
 } from '@/lib/proposalAssets';
-import { writeQuoteStatus } from '@/lib/sheetsSync';
 import { getCatalogRatesNote, subscribeCatalog } from '@/lib/catalogSync';
 import { pullWorkbookToUx } from '@/lib/workbookSync';
 import { resolveStaffContactFromInsertIds } from '@/lib/staffContacts';
 import { formatPhoneDisplay } from '@/lib/phoneFormat';
 import {
   buildItineraryProposalText,
-  parseItineraryProposalText,
-  buildItineraryProposalBlock,
   embarkationFromDeparture,
   returnFromDisembarkation,
-  formatEventTimingsPayload,
 } from '@/lib/proposalTimings';
-import { PROPOSAL_ENGINE_GENERATE_URL } from '@/lib/backendUrls';
-import { blobToDataUrl, fetchWithTimeout } from '@/lib/http';
-import { engineAuthHeaders, notifyTeamAuthExpired } from '@/lib/teamSession';
 import {
-  buildLeadPrefill,
   prefillForQuoteVersion,
-  prefillHealerTasks,
   PREFILL_INPUT_CLS,
   PREFILL_TOGGLE_CLS,
   PREFILL_CONFIRMED_CLS,
   PREFILL_CONFIRMED_SURFACE,
   PREFILL_BLUE_GLOW_CLS,
 } from '@/lib/leadPrefill';
-import { applyPrefillHealerMatches, requestPrefillHealer } from '@/lib/prefillHealer';
-import { indexProposalTemplates, indexProposalInserts, insertsForGenerate, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
+import { indexProposalTemplates, indexProposalInserts, resolveProposalTemplateFromForm } from '@/lib/proposalPrefill';
 import { formatGbpPounds } from '@/lib/utils';
 import { financialParityReport, costApprovalBlocked, clientTotalsFromWeott } from '@/lib/financialParity';
 import {
@@ -92,18 +76,27 @@ import {
   rateEventDateFromLead,
 } from '@/lib/progressNotesFinance';
 import { goldTargetsFromRef } from '@/lib/goldScenarioPlaybook';
-import { itineraryOverlayWording } from '@/lib/goldPackageWording';
-import { formatEventDateForProposal } from '@/lib/goldScenarioCover';
 import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
-import { autoConfirmPrefillKeys, collectPrefillConfirmKeys, hasPendingPrefillConfirms } from '@/lib/prefillConfirm';
+import { autoConfirmPrefillKeys, collectPrefillConfirmKeys } from '@/lib/prefillConfirm';
 import { toastError, toastSuccess } from '@/lib/notify';
-import { quoteNeedsApprovalFirst } from '@/lib/quoteReview';
 import { errorMessage as formatError } from '@/lib/errors';
+import { hydrateLeadForm, useLeadPrefillHealer } from '@/pages/forms/useLeadPrefill';
 import {
-  humanizeEngineWarning,
-  layoutOverflowMessages,
-  parseEngineWarningHeader,
-} from '@/lib/engineWarnings';
+  approvalAdvanceMessage,
+  LAST_CONTENT_STEP,
+  STEPS,
+  useQuoteWizardState,
+} from '@/pages/forms/useQuoteWizardState';
+import { runProposalGeneration } from '@/pages/forms/useProposalGeneration';
+import {
+  fieldLabelCls,
+  FluidFillCircle,
+  FormGroupedMenuSelect,
+  FormMultiSelect,
+  FormSelect,
+  inputCls,
+  sectionLabelCls,
+} from '@/pages/forms/FormControls';
 
 const SOURCE_TYPES = [
   'Build your event form',
@@ -255,7 +248,7 @@ const INIT: FormData = {
 };
 
 function formFromLead(lead: QuoteLead | null) {
-  return buildLeadPrefill(lead, INIT, SOURCE_TYPES);
+  return hydrateLeadForm(lead, INIT, SOURCE_TYPES);
 }
 
 type GenerationStage = 'idle' | 'preparing' | 'sending' | 'generating' | 'done' | 'error';
@@ -310,644 +303,6 @@ const STAGE_PERCENT: Record<GenerationStage, number> = {
   error: 0,
 };
 
-function FluidFillCircle({
-  percent,
-  color,
-  size = 88,
-}: {
-  percent: number;
-  color: string;
-  size?: number;
-}) {
-  const clipId = `fluid-${useId().replace(/:/g, '')}`;
-  const p = Math.max(0, Math.min(100, percent));
-  const r = size / 2;
-  const innerR = r - 4;
-  const fillTop = r + innerR - (p / 100) * innerR * 2;
-  return (
-    <div className="relative" style={{ width: size, height: size }} aria-label={`${Math.round(p)} percent`}>
-      <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full">
-        <defs>
-          <clipPath id={clipId}>
-            <circle cx={r} cy={r} r={innerR} />
-          </clipPath>
-        </defs>
-        <circle cx={r} cy={r} r={innerR + 1.6} fill={`${color}18`} stroke={color} strokeWidth={2.2} />
-        <g clipPath={`url(#${clipId})`}>
-          <motion.rect
-            x={-4}
-            width={size + 8}
-            height={size * 2}
-            fill={color}
-            initial={false}
-            animate={{ y: fillTop }}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-            opacity={0.9}
-          />
-          <motion.ellipse
-            cx={r}
-            rx={innerR * 0.92}
-            ry={5}
-            fill={color}
-            initial={false}
-            animate={{
-              cy: fillTop,
-              opacity: p > 3 && p < 97 ? 1 : 0,
-              scaleX: [1, 1.08, 1],
-            }}
-            transition={{
-              cy: { duration: 0.45, ease: 'easeOut' },
-              opacity: { duration: 0.2 },
-              scaleX: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
-            }}
-          />
-        </g>
-      </svg>
-      <span
-        className="absolute inset-0 flex items-center justify-center text-[15px] font-bold tabular-nums"
-        style={{ color: p > 52 ? '#fff' : color }}
-      >
-        {Math.round(p)}%
-      </span>
-    </div>
-  );
-}
-
-/**
- * Base Cost (Quote Sheet SoT via quoteFinance.ts) then flows through:
- * + Contingency (2.25%), then Margin (repeat 15% / new 25% or event minimum),
- * then VAT (20%). See lib/quoteFinance.ts.
- */
-/* financial helpers imported from @/lib/quoteFinance */
-
-/* DNB-style pill input: rounded, soft border, teal focus ring */
-const inputCls =
-  'w-full rounded-[10px] border border-[#e3e6e4] bg-white px-4 py-3.5 text-[13.5px] text-gray-800 placeholder-gray-400 outline-none focus:border-[#FF5A45] focus:ring-4 focus:ring-[#FF5A45]/12 transition-all appearance-none';
-const sectionLabelCls = 'mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#7c8a82]';
-const fieldLabelCls = 'mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-gray-700';
-
-/* ─── Custom Multi-Select (checkbox pill dropdown) ─── */
-function FormMultiSelect({
-  label,
-  field,
-  options,
-  value,
-  onChange,
-  onPreview,
-  helper,
-  prefilled,
-  confirmed,
-  onConfirm,
-  collapsedOptions,
-  onExpandOptions,
-}: {
-  label: string;
-  field: string;
-  options: string[];
-  value: string[];
-  onChange: (v: string[]) => void;
-  onPreview?: (field: string, option: string | null) => void;
-  helper?: string;
-  prefilled?: boolean;
-  confirmed?: boolean;
-  onConfirm?: () => void;
-  collapsedOptions?: boolean;
-  onExpandOptions?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutside = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [open]);
-
-  const toggle = (opt: string) => {
-    const next = value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt];
-    onChange(next);
-    if (prefilled && next.includes(opt)) onConfirm?.();
-  };
-
-  const visibleOptions =
-    collapsedOptions && value.length ? options.filter((o) => value.includes(o)) : options;
-
-  const triggerCls = [
-    inputCls,
-    'flex items-center justify-between',
-    prefilled && !confirmed ? PREFILL_INPUT_CLS : '',
-    confirmed ? PREFILL_CONFIRMED_CLS : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return (
-    <div
-      ref={rootRef}
-      className="relative"
-      onMouseEnter={() => onPreview?.(field, value[0] || null)}
-      onMouseLeave={() => onPreview?.(field, null)}
-    >
-      <label className={fieldLabelCls}>
-        {label}
-        {helper && (
-          <span title={helper} className="text-[#7c8a82]">
-            <HelpCircle className="h-3.5 w-3.5" />
-          </span>
-        )}
-      </label>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((p) => !p);
-          if (prefilled && value.length) onConfirm?.();
-        }}
-        className={triggerCls}
-      >
-        <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>
-          {value.length ? value.join(', ') : `Select ${label}`}
-        </span>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        </motion.div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.ul
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
-            className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[260px] overflow-y-auto rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
-          >
-            {visibleOptions.map((opt) => {
-              const checked = value.includes(opt);
-              return (
-                <motion.li
-                  key={opt}
-                  whileHover={{ backgroundColor: '#f0fdf5' }}
-                  onMouseEnter={() => onPreview?.(field, opt)}
-                  onClick={() => toggle(opt)}
-                  className="flex cursor-pointer items-center justify-between px-4 py-3 text-[13px] text-gray-700 transition-colors"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <span
-                      className={`flex h-4 w-4 items-center justify-center rounded-[5px] border transition-colors ${
-                        checked ? 'border-[#FF5A45] bg-[#FF5A45]' : 'border-[#d0d0d0]'
-                      }`}
-                    >
-                      {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
-                    </span>
-                    {opt}
-                  </span>
-                </motion.li>
-              );
-            })}
-            {collapsedOptions && options.length > visibleOptions.length ? (
-              <li>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onExpandOptions?.();
-                  }}
-                  className="w-full border-t border-[#f0f0f0] px-4 py-3 text-left text-[12px] font-semibold text-blue-700 hover:bg-blue-50"
-                >
-                  Show all {options.length} options…
-                </button>
-              </li>
-            ) : null}
-          </motion.ul>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/**
- * Nested Menu Type picker — groups by service style (Quote Builder 2026 + Cheat Sheet),
- * with search across all levels so REPs avoid scrolling one long list.
- */
-function FormGroupedMenuSelect({
-  label,
-  field,
-  groups,
-  value,
-  onChange,
-  onPreview,
-  helper,
-  prefilled,
-  confirmed,
-  onConfirm,
-  collapsedOptions,
-  onExpandOptions,
-}: {
-  label: string;
-  field: string;
-  groups: MenuGroup[];
-  value: string[];
-  onChange: (v: string[]) => void;
-  onPreview?: (field: string, option: string | null) => void;
-  helper?: string;
-  prefilled?: boolean;
-  confirmed?: boolean;
-  onConfirm?: () => void;
-  collapsedOptions?: boolean;
-  onExpandOptions?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState<string | null>(groups[0]?.id ?? null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutside = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery('');
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [open]);
-
-  useEffect(() => {
-    if (open) {
-      const t = setTimeout(() => searchRef.current?.focus(), 40);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [open]);
-
-  const q = query.trim().toLowerCase();
-  const baseGroups = useMemo(() => {
-    if (!collapsedOptions || !value.length) return groups;
-    return groups
-      .map((g) => ({ ...g, options: g.options.filter((o) => value.includes(o.label)) }))
-      .filter((g) => g.options.length > 0);
-  }, [groups, collapsedOptions, value]);
-
-  const filteredGroups = useMemo(() => {
-    if (!q) return baseGroups;
-    return baseGroups
-      .map((g) => ({
-        ...g,
-        options: g.options.filter(
-          (o) =>
-            o.label.toLowerCase().includes(q) ||
-            (o.style || '').toLowerCase().includes(q) ||
-            g.label.toLowerCase().includes(q),
-        ),
-      }))
-      .filter((g) => g.options.length > 0);
-  }, [baseGroups, q]);
-
-  const toggle = (opt: string) => {
-    const next = value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt];
-    onChange(next);
-    if (prefilled && next.includes(opt)) onConfirm?.();
-  };
-
-  const triggerCls = [
-    inputCls,
-    'flex items-center justify-between',
-    prefilled && !confirmed ? PREFILL_INPUT_CLS : '',
-    confirmed ? PREFILL_CONFIRMED_CLS : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const summary =
-    value.length === 0
-      ? `Select ${label}`
-      : value.length <= 2
-        ? value.join(', ')
-        : `${value.slice(0, 2).join(', ')} +${value.length - 2}`;
-
-  return (
-    <div
-      ref={rootRef}
-      className="relative"
-      onMouseEnter={() => onPreview?.(field, value[0] || null)}
-      onMouseLeave={() => onPreview?.(field, null)}
-    >
-      <label className={fieldLabelCls}>
-        {label}
-        {helper && (
-          <span title={helper} className="text-[#7c8a82]">
-            <HelpCircle className="h-3.5 w-3.5" />
-          </span>
-        )}
-      </label>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((p) => !p);
-          if (prefilled && value.length) onConfirm?.();
-        }}
-        className={triggerCls}
-      >
-        <span className={value.length ? 'text-gray-800' : 'text-gray-400'}>{summary}</span>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        </motion.div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
-            className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
-          >
-            {!collapsedOptions ? (
-            <div className="flex items-center gap-2 border-b border-[#e3e6e4] px-3 py-2.5">
-              <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search menus, stations, seated…"
-                className="w-full bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
-              />
-              {query && (
-                <button type="button" onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            ) : (
-              <p className="border-b border-[#e3e6e4] px-4 py-2 text-[11px] font-semibold text-blue-700">
-                Auto-selected from Sheets — click to confirm or expand full menu catalog
-              </p>
-            )}
-
-            <div className="max-h-[320px] overflow-y-auto">
-              {filteredGroups.length === 0 && (
-                <p className="px-4 py-6 text-center text-[12.5px] text-gray-400">No menus match “{query}”</p>
-              )}
-              {filteredGroups.map((group) => {
-                const isOpen = q ? true : expanded === group.id;
-                const selectedInGroup = group.options.filter((o) => value.includes(o.label)).length;
-                return (
-                  <div key={group.id} className="border-b border-[#f0f0f0] last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => setExpanded((prev) => (prev === group.id ? null : group.id))}
-                      className="flex w-full items-center justify-between bg-[#fafafa] px-4 py-2.5 text-left hover:bg-[#f5f5f5]"
-                    >
-                      <span>
-                        <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-gray-700">
-                          {group.label}
-                        </span>
-                        {group.description && (
-                          <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-gray-400">
-                            {group.description}
-                          </span>
-                        )}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {selectedInGroup > 0 && (
-                          <span className="rounded-full bg-[#FFF1F0] px-2 py-0.5 text-[10px] font-bold text-[#E22A12]">
-                            {selectedInGroup}
-                          </span>
-                        )}
-                        {!q && (
-                          <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.15 }}>
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
-                          </motion.span>
-                        )}
-                      </span>
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {isOpen && (
-                        <motion.ul
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="overflow-hidden"
-                        >
-                          {group.options.map((opt) => {
-                            const checked = value.includes(opt.label);
-                            return (
-                              <li
-                                key={opt.label}
-                                onMouseEnter={() => onPreview?.(field, opt.label)}
-                                onClick={() => toggle(opt.label)}
-                                className="flex cursor-pointer items-start justify-between gap-3 px-4 py-2.5 text-[13px] text-gray-700 hover:bg-[#f0fdf5]"
-                              >
-                                <span className="flex items-start gap-2.5">
-                                  <span
-                                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
-                                      checked ? 'border-[#FF5A45] bg-[#FF5A45]' : 'border-[#d0d0d0]'
-                                    }`}
-                                  >
-                                    {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
-                                  </span>
-                                  <span>
-                                    <span className="block leading-snug">{opt.label}</span>
-                                    {opt.style && (
-                                      <span className="mt-0.5 block text-[11px] text-gray-400">{opt.style}</span>
-                                    )}
-                                  </span>
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </div>
-            {collapsedOptions ? (
-              <button
-                type="button"
-                onClick={() => onExpandOptions?.()}
-                className="w-full border-t border-[#f0f0f0] px-4 py-3 text-left text-[12px] font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                Show full menu catalog…
-              </button>
-            ) : null}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ─── Custom Select (DNB pill dropdown) ─── */
-function FormSelect({
-  label,
-  field,
-  options,
-  value,
-  onChange,
-  onPreview,
-  helper,
-  prefilled,
-  confirmed,
-  onConfirm,
-  collapsedOptions,
-  onExpandOptions,
-}: {
-  label: string;
-  field: string;
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-  onPreview?: (field: string, option: string | null) => void;
-  helper?: string;
-  prefilled?: boolean;
-  confirmed?: boolean;
-  onConfirm?: () => void;
-  collapsedOptions?: boolean;
-  onExpandOptions?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutside = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [open]);
-
-  const visibleOptions =
-    collapsedOptions && value ? options.filter((o) => o === value) : options;
-
-  const triggerCls = [
-    inputCls,
-    'flex items-center justify-between',
-    prefilled && !confirmed ? PREFILL_INPUT_CLS : '',
-    confirmed ? PREFILL_CONFIRMED_CLS : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return (
-    <div
-      ref={rootRef}
-      className="relative"
-      onMouseEnter={() => onPreview?.(field, value || null)}
-      onMouseLeave={() => onPreview?.(field, null)}
-    >
-      <label className={fieldLabelCls}>
-        {label}
-        {helper && (
-          <span title={helper} className="text-[#7c8a82]">
-            <HelpCircle className="h-3.5 w-3.5" />
-          </span>
-        )}
-      </label>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((p) => !p);
-          if (prefilled && value) onConfirm?.();
-        }}
-        className={triggerCls}
-      >
-        <span className={value ? 'text-gray-800' : 'text-gray-400'}>
-          {value || `Select ${label}`}
-        </span>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        </motion.div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.ul
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
-            className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[260px] overflow-y-auto rounded-[10px] border border-[#e3e6e4] bg-white shadow-lg"
-          >
-            {visibleOptions.map((opt) => (
-              <motion.li
-                key={opt}
-                whileHover={{ backgroundColor: '#f0fdf5' }}
-                onMouseEnter={() => onPreview?.(field, opt)}
-                onClick={() => {
-                  onChange(opt);
-                  if (prefilled && opt === value) onConfirm?.();
-                  setOpen(false);
-                }}
-                className="flex cursor-pointer items-center justify-between px-4 py-3 text-[13px] text-gray-700 transition-colors"
-              >
-                {opt}
-                {value === opt && <Check className="h-3.5 w-3.5 text-[#FF5A45]" />}
-              </motion.li>
-            ))}
-            {collapsedOptions && options.length > visibleOptions.length ? (
-              <li>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onExpandOptions?.();
-                  }}
-                  className="w-full border-t border-[#f0f0f0] px-4 py-3 text-left text-[12px] font-semibold text-blue-700 hover:bg-blue-50"
-                >
-                  Show all {options.length} options…
-                </button>
-              </li>
-            ) : null}
-          </motion.ul>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ─── Steps ─── */
-const STEPS = [
-  { n: 1, label: 'Event Core' },
-  { n: 2, label: 'Guest Count' },
-  { n: 3, label: 'Schedule Timings' },
-  { n: 4, label: 'Cost Lines' },
-  { n: 5, label: 'Financials' },
-  { n: 6, label: 'Cost Approval' },
-  { n: 7, label: 'Proposal Pack' },
-];
-
-const LAST_CONTENT_STEP = 7;
-
-/** Run a Sheets write-back; toast on failure but do not throw (PDF may still succeed). */
-async function sheetsWrite(label: string, fn: () => Promise<unknown>): Promise<boolean> {
-  try {
-    await fn();
-    return true;
-  } catch (err) {
-    toastError({
-      key: `sheets:${label}`,
-      title: 'Sheets sync failed',
-      description: `${label} — ${formatError(err)}`,
-      err,
-    });
-    return false;
-  }
-}
-
 export function Forms() {
   const [, navigate] = useLocation();
   const freshStartRef = useRef(consumeFreshQuoteBuilder());
@@ -961,7 +316,7 @@ export function Forms() {
   const startStepRef = useRef(consumeQuoteBuilderStartStep());
   const openAtEventCoreRef = useRef(startStepRef.current === 1);
   const [versionField, setVersionField] = useState('V1');
-  const [step, setStep] = useState(() => {
+  const { step, setStep, goTo, goBack, goForward } = useQuoteWizardState(() => {
     if (startStepRef.current) return startStepRef.current;
     if (openAtEventCoreRef.current) return 1;
     return pendingQuote?.step && pendingQuote.step >= 1 ? pendingQuote.step : 1;
@@ -1123,58 +478,14 @@ export function Forms() {
     return () => window.clearInterval(id);
   }, [stage]);
 
-  // Gemini catalogue overlay — guests and money stay local. Skip gold playbook leads.
-  useEffect(() => {
-    const lead = getQuoteLead();
-    if (goldTargetsFromRef(lead?.referenceNumber)) return;
-    const notes = String(lead?.progressNotes || data.progressNotes || '');
-    if (!notes.trim()) return;
-    const tasks = prefillHealerTasks(notes, String(data.quoteVersion || 'V1'), String(data.keyItems || ''));
-    let cancelled = false;
-    requestPrefillHealer({ notes, quoteVersion: String(data.quoteVersion || ''), tasks })
-      .then((matches) => {
-        if (cancelled || !matches?.length) return;
-        const patch = applyPrefillHealerMatches({ matches, notes, data, tasks });
-        if (
-          !Object.keys(patch.data).length &&
-          !patch.prefilledKeys.length &&
-          !patch.prefilledLineIds.length &&
-          !patch.removedLineIds.length
-        ) {
-          return;
-        }
-        setData((prev) => ({ ...prev, ...patch.data }));
-        if (patch.prefilledKeys.length) {
-          setPrefilledKeys((prev) => {
-            const next = new Set(prev);
-            for (const k of patch.prefilledKeys) next.add(k);
-            return next;
-          });
-        }
-        if (patch.prefilledLineIds.length) {
-          setPrefilledLineIds((prev) => {
-            const next = new Set(prev);
-            for (const id of patch.prefilledLineIds) next.add(id);
-            return next;
-          });
-        }
-        if (patch.lowConfidenceKeys.length) {
-          setLowConfidenceKeys((prev) => {
-            const next = new Set(prev);
-            for (const k of patch.lowConfidenceKeys) next.add(k);
-            return next;
-          });
-        }
-      })
-      .catch(() => {
-        /* healer is optional — local prefill already ran */
-      });
-    return () => {
-      cancelled = true;
-    };
-    // Mount-only: local prefill is already applied; healer fills leftovers.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useLeadPrefillHealer({
+    data,
+    setData,
+    setPrefilledKeys,
+    setPrefilledLineIds,
+    setLowConfidenceKeys,
+  });
+
 
   useEffect(() => {
     saveQuoteNotesDraft(leadNotesKey, {
@@ -1622,386 +933,26 @@ export function Forms() {
 
   const confirmInsert = (id: string) => confirmKey(`insert:${id}`);
 
-  const handleGenerate = async () => {
-    setErrorMessage('');
-    setStage('preparing');
-
-    const fromSavedQuote = Boolean(fromSavedGenerateRef.current || pendingGenerateIdRef.current);
-    const savedForReview =
-      (pendingGenerateIdRef.current && getSavedQuote(pendingGenerateIdRef.current)) ||
-      listSavedQuotes().find((q) => q.leadKey === leadNotesKey) ||
-      null;
-    if (quoteNeedsApprovalFirst(savedForReview) && !data.costApproved) {
-      toastError({
-        key: 'approve-quote-first',
-        title: 'Approve Quote First',
-        description: 'You can still generate this proposal.',
-        duration: 8000,
-      });
-    }
-
-    if (!data.costApproved && !fromSavedQuote) {
-      setErrorMessage('Confirm cost cross-check approval before Proposal Pack / generate.');
-      setStage('error');
-      setStep(6);
-      return;
-    }
-
-    if (!fromSavedQuote && costApprovalBlocked(parity, sheetTargets)) {
-      setErrorMessage(
-        parity.hints[0] ||
-          'Financial cross-check failed — align WEOTT cost with Quote Sheet before generating.',
-      );
-      setStage('error');
-      setStep(6);
-      return;
-    }
-
-    const templateId = data.templateId || templateResolution.templateId;
-    if (!templateId) {
-      setErrorMessage('Select a proposal template in Proposal Pack before generating.');
-      setStage('error');
-      setStep(7);
-      return;
-    }
-
-    if (
-      !fromSavedQuote &&
-      hasPendingPrefillConfirms({
-        prefilledKeys,
-        confirmedKeys,
-        requiresInserts: data.requiresInserts,
-        selectedInserts: data.selectedInserts,
-      })
-    ) {
-      setErrorMessage('Confirm all blue suggestions (template + inserts) before generating.');
-      setStage('error');
-      setStep(7);
-      return;
-    }
-
-    const generateInserts = insertsForGenerate(data);
-
-    const staffContact = resolveStaffContactFromInsertIds(
-      generateInserts,
-      PROPOSAL_INSERTS,
-    );
-
-    const timingBlock =
-      parseItineraryProposalText(data.proposalTimingsNotes) ||
-      buildItineraryProposalBlock({
-        embarkation: data.embarkation,
-        departure: data.departure,
-        returnTime: data.returnTime,
-        disembarkation: data.disembarkation,
-      });
-    const packageWording = itineraryOverlayWording(timingBlock);
-
-    const payload = buildStargtmPayload({
-      form: financeInput,
-      financials: fin,
-      lead: quoteLead
-        ? {
-            name: quoteLead.name,
-            email: quoteLead.email,
-            phone: formatPhoneDisplay(quoteLead.phone),
-            company: quoteLead.company,
-            referenceNumber: quoteLead.referenceNumber,
-            designation: quoteLead.designation,
-            preparedBy: quoteLead.preparedBy,
-            assignedRep: quoteLead.assignedRep,
-            budget: quoteLead.budget || data.budget,
-            vessels: quoteLead.vessels,
-            market: quoteLead.market,
-            source: quoteLead.source || data.source,
-            yearOfEvent: quoteLead.yearOfEvent,
-            repeatClient: data.repeatClient,
-            eventDateDisplay: formatEventDateForProposal({
-              eventDate: data.eventDate,
-              dateFlexible: data.dateFlexible,
-              fullEventDate: quoteLead.fullEventDate,
-              eventDateDisplay: quoteLead.eventDateDisplay,
-            }),
-            eventDateFlexibleBool: data.dateFlexible,
-            requestedEventTimes: quoteLead.requestedEventTimes,
-            groupSize: quoteLead.groupSize,
-            groupSizeQuote: quoteLead.groupSizeQuote,
-            progressNotes: data.progressNotes,
-          }
-        : null,
-      nexusLead: quoteLead
-        ? {
-            ...(quoteLead.sapphire || {}),
-            // Form edits overlay Sheets SoT for fields the REP changed in the wizard
-            referenceNumber: quoteLead.referenceNumber,
-            name: quoteLead.name,
-            companyName: quoteLead.company,
-            companySector: quoteLead.companySector,
-            email: quoteLead.email,
-            phone: formatPhoneDisplay(quoteLead.phone),
-            jobRole: quoteLead.designation,
-            budget: data.budget || quoteLead.budget,
-            repeatClient: data.repeatClient ? 'YES' : 'NO',
-            preparedBy: quoteLead.preparedBy,
-            assignedRep: quoteLead.assignedRep || quoteLead.preparedBy,
-            status: quoteLead.status,
-            liveDead: quoteLead.liveDead,
-            source: data.source || quoteLead.source,
-            enquiryDate: quoteLead.enquiryDate,
-            eventType: data.eventType || quoteLead.eventType,
-            fullEventDate: quoteLead.fullEventDate,
-            eventDateFlexible: data.dateFlexible ? 'YES' : quoteLead.eventDateFlexible || 'NO',
-            eventDateFlexibleBool: data.dateFlexible,
-            eventDateDisplay: formatEventDateForProposal({
-              eventDate: data.eventDate,
-              dateFlexible: data.dateFlexible,
-              fullEventDate: quoteLead.fullEventDate,
-              eventDateDisplay: quoteLead.eventDateDisplay,
-            }),
-            requestedEventTimes: formatEventTimingsPayload(data),
-            groupSize: data.guestCount || quoteLead.groupSize,
-            groupSizeQuote: parseFloat(data.guestCount) || quoteLead.groupSizeQuote,
-            vessels: data.vesselType.join(', ') || quoteLead.vessels,
-            market: quoteLead.market,
-            bestTimeToCall: quoteLead.bestTimeToCall,
-            yearOfEvent: quoteLead.yearOfEvent,
-            progressNotes: data.progressNotes || quoteLead.progressNotes,
-            agent: data.agentReferral ? 'YES' : '',
-            // Cover / page-16 contact — Flask /generate reads nexusLead + lead
-            contact_name: staffContact.name,
-            contact_title: staffContact.title,
-            contact_phone: staffContact.phone,
-            contact_mobile: staffContact.mobile,
-            contact_email: staffContact.email,
-          }
-        : null,
-      templateId,
-      category: data.proposalCategory,
-      selectedInserts: generateInserts,
-      progressNotes: data.progressNotes,
-      packageWording,
-      staffContact,
-      fullEventDate: quoteLead?.fullEventDate,
+  const handleGenerate = () =>
+    runProposalGeneration({
+      data,
+      financeInput,
+      fin,
+      quoteLead,
+      leadNotesKey,
+      parity,
+      sheetTargets,
+      templateResolution,
+      prefilledKeys,
+      confirmedKeys,
+      fromSavedGenerateRef,
+      pendingGenerateIdRef,
+      setErrorMessage,
+      setStage,
+      setStep,
+      navigate,
     });
 
-    const outbound = { ...payload };
-
-    setStage('sending');
-
-    try {
-      // Do not block PDF generate on Apps Script — that round-trip is the long wait.
-      void sheetsWrite('Quote status (generating)', () =>
-        writeQuoteStatus({
-        referenceNumber: quoteLead?.referenceNumber,
-        email: quoteLead?.email,
-        leadName: quoteLead?.name,
-        status: 'generating',
-        version: data.quoteVersion,
-        title: `${data.eventType || 'Event'} Proposal`,
-        eventType: data.eventType,
-        eventDate: data.eventDate,
-        guestCount: data.guestCount,
-        guestCountHigh: data.guestCountHigh,
-        guests: parseFloat(data.guestCount) || 0,
-        repeatClient: data.repeatClient,
-        agentReferral: data.agentReferral,
-        selectedUpgrades: data.selectedUpgrades,
-        selectedLineLabels: (fin.lines || []).map((l) => l.label),
-        selectedLineIds: data.selectedLineIds,
-        keyItems: data.keyItems,
-        weeklyPeriod: data.weeklyPeriod || fin.rateParts?.weeklyPeriod,
-        dayPeriod: data.dayPeriod || fin.rateParts?.dayPeriod,
-        groupBracket: data.groupBracket || fin.rateParts?.groupBracket,
-        noOfTables: data.noOfTables,
-        templateId: data.templateId,
-        selectedInserts: generateInserts,
-        staffContact: staffContact.name,
-        baseCost: fin.baseCost,
-        subtotalBeforeContingency: fin.subtotalBeforeContingency,
-        contingency: fin.contingency,
-        contingencyRate: fin.contingencyRate,
-        margin: fin.margin,
-        marginAmount: fin.marginAmount,
-        discountPercent: fin.discountPercent,
-        discountAmount: fin.discountAmount,
-        commissionPercent: fin.commissionPercent,
-        commissionAmount: fin.commissionAmount,
-        updatedProfit: fin.updatedProfit,
-        costPerGuestExc: fin.costPerGuestExc,
-        costPerGuestInc: fin.costPerGuestInc,
-        costToClient: fin.costToClient,
-        packageCost: fin.costToClient,
-        vat: fin.vat,
-        vatRate: fin.vatRate,
-        upgradeTotal: fin.upgradeTotal,
-        grandTotal: fin.grand,
-        sectionTotals: fin.sectionTotals,
-        }),
-      );
-
-      setStage('generating');
-      const res = await fetchWithTimeout(PROPOSAL_ENGINE_GENERATE_URL, {
-        method: 'POST',
-        headers: engineAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(outbound),
-        timeoutMs: 120_000,
-      });
-
-      if (res.status === 401) {
-        notifyTeamAuthExpired();
-        throw new Error('Session expired. Sign in with the team PIN and try again.');
-      }
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        let detail = errText.trim().slice(0, 240);
-        try {
-          const j = JSON.parse(errText) as { error?: string; validation_errors?: unknown };
-          const overflow = layoutOverflowMessages(j?.validation_errors);
-          if (overflow.length) {
-            detail = overflow.join(' ');
-          } else if (Array.isArray(j?.validation_errors) && j.validation_errors.length) {
-            detail = j.validation_errors.map((item) => humanizeEngineWarning(String(item))).join('; ');
-          } else if (j?.error) {
-            detail = j.error;
-          }
-        } catch {
-          /* keep raw text */
-        }
-        throw new Error(
-          detail
-            ? `Proposal engine responded ${res.status}: ${detail}`
-            : `Proposal engine responded ${res.status} (empty body) from ${PROPOSAL_ENGINE_GENERATE_URL}`,
-        );
-      }
-
-      const overflowNotices = layoutOverflowMessages(parseEngineWarningHeader(res.headers.get('X-Warnings')));
-      if (overflowNotices.length) {
-        toastError({
-          key: 'layout-overflow',
-          title: overflowNotices[0],
-          description:
-            overflowNotices.slice(1).join(' ') || 'The proposal PDF was still generated.',
-        });
-      }
-
-      const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
-      let pdfDataUrl = '';
-
-      if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
-        pdfDataUrl = await blobToDataUrl(await res.blob());
-      } else {
-        const peek = await res.clone().arrayBuffer();
-        const bytes = new Uint8Array(peek.slice(0, 5));
-        const isPdf =
-          bytes.length >= 4 &&
-          bytes[0] === 0x25 &&
-          bytes[1] === 0x50 &&
-          bytes[2] === 0x44 &&
-          bytes[3] === 0x46;
-        if (isPdf) {
-          pdfDataUrl = await blobToDataUrl(new Blob([peek], { type: 'application/pdf' }));
-        } else {
-          throw new Error(
-            `Proposal engine returned ${contentType || 'no Content-Type'}; expected application/pdf.`,
-          );
-        }
-      }
-
-      const proposalId = `proposal-${Date.now()}`;
-      const fileStem = proposalFileStem({
-        contactName: quoteLead?.name,
-        companyName: quoteLead?.company,
-        referenceCode: quoteLead?.referenceNumber,
-        quoteVersion: data.quoteVersion,
-      });
-      const filename = proposalFilenameFromRecord({
-        filename:
-          res.headers.get('X-Proposal-Filename') ||
-          filenameFromContentDisposition(res.headers.get('Content-Disposition')) ||
-          `${fileStem}.pdf`,
-        title: fileStem,
-        leadName: quoteLead?.name,
-        leadCompany: quoteLead?.company,
-        referenceNumber: quoteLead?.referenceNumber,
-      });
-      const saved = await addProposal({
-        id: proposalId,
-        createdAt: new Date().toISOString(),
-        eventDate: data.eventDate,
-        title: fileStem,
-        filename,
-        vesselType: data.vesselType.join(', '),
-        eventType: data.eventType,
-        guestCount: data.guestCount,
-        grandTotal: fin.grand,
-        pdfDataUrl,
-        leadName: quoteLead?.name,
-        leadEmail: quoteLead?.email,
-        leadCompany: quoteLead?.company,
-        referenceNumber: quoteLead?.referenceNumber,
-      });
-
-      if (!saved) {
-        throw new Error(
-          'The PDF was generated but is too large to store in this browser — clear some space (e.g. delete older proposals) and try again.',
-        );
-      }
-
-      const savedQuoteId =
-        pendingGenerateIdRef.current ||
-        listSavedQuotes().find((q) => q.leadKey === leadNotesKey)?.id ||
-        null;
-      if (savedQuoteId) {
-        const q = getSavedQuote(savedQuoteId);
-        if (q) await persistSavedQuote({ ...q, proposalId });
-        pendingGenerateIdRef.current = null;
-      }
-
-      void sheetsWrite('Quote status (ready)', () =>
-        writeQuoteStatus({
-          referenceNumber: quoteLead?.referenceNumber,
-          email: quoteLead?.email,
-          leadName: quoteLead?.name,
-          status: 'ready',
-          version: data.quoteVersion,
-          eventType: data.eventType,
-          eventDate: data.eventDate,
-          guestCount: data.guestCount,
-          guestCountHigh: data.guestCountHigh,
-          grandTotal: fin.grand,
-          costToClient: fin.costToClient,
-          vat: fin.vat,
-          updatedProfit: fin.updatedProfit,
-          costPerGuestInc: fin.costPerGuestInc,
-          templateId: data.templateId,
-          selectedLineLabels: (fin.lines || []).map((l) => l.label),
-        }),
-      );
-
-      clearQuoteLead();
-      setStage('done');
-      setTimeout(() => navigate('/proposal-doc'), 400);
-    } catch (err) {
-      const msg = formatError(err, 'Failed to generate the proposal.');
-      setErrorMessage(msg);
-      setStage('error');
-      toastError({
-        key: 'generate',
-        title: 'Proposal generation failed',
-        description: msg,
-      });
-      void writeQuoteStatus({
-        referenceNumber: quoteLead?.referenceNumber,
-        email: quoteLead?.email,
-        leadName: quoteLead?.name,
-        status: 'failed',
-        version: data.quoteVersion,
-      }).catch(() => {
-        /* sheet write-back is best-effort */
-      });
-    }
-  };
 
   const persistWizardQuote = async (next: FormData) => {
     const version = next.quoteVersion || 'V1';
@@ -2067,28 +1018,30 @@ export function Forms() {
     void persistWizardQuote({ ...data, costApproved: false });
     setErrorMessage('');
     setStep6ShareOpen(false);
-    setStep(4);
+    goTo(4);
   };
 
   const approveAndContinueFromStep6 = () => {
+    const blocked = approvalAdvanceMessage({
+      costApproved: data.costApproved,
+      blocked: costApprovalBlocked(parity, sheetTargets),
+      hint: parity.hints[0],
+    });
+    if (blocked) {
+      setErrorMessage(blocked);
+      return;
+    }
     if (!data.costApproved) {
-      if (costApprovalBlocked(parity, sheetTargets)) {
-        setErrorMessage(
-          parity.hints[0] ||
-            'Financial cross-check failed — align WEOTT with Quote Sheet before continuing.',
-        );
-        return;
-      }
       set('costApproved', true);
       void persistWizardQuote({ ...data, costApproved: true }).then(() => {
         setQuoteDetailsOpen(false);
         setErrorMessage('');
-        setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+        goForward();
       });
       return;
     }
     setErrorMessage('');
-    setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+    goForward();
   };
 
   const openStep6ShareForApproval = async () => {
@@ -2249,7 +1202,7 @@ export function Forms() {
             return (
               <button
                 key={n}
-                onClick={() => setStep(n)}
+                onClick={() => goTo(n)}
                 data-testid={`step-tab-${n}`}
                 className="flex items-center gap-3 rounded-[10px] px-2 py-2.5 text-left transition-colors hover:bg-white/60"
               >
@@ -3492,7 +2445,7 @@ export function Forms() {
           <div className="mt-11 flex items-center justify-between gap-3">
             {step > 1 ? (
               <button
-                onClick={() => setStep((s) => Math.max(1, s - 1))}
+                onClick={goBack}
                 className="text-[13px] font-semibold text-gray-400 transition-colors hover:text-gray-700"
               >
                 Back
@@ -3504,7 +2457,7 @@ export function Forms() {
               <button
                 onClick={() => {
                   setErrorMessage('');
-                  setStep((s) => Math.min(LAST_CONTENT_STEP, s + 1));
+                  goForward();
                 }}
                 className="flex items-center gap-2 rounded-full bg-[#FF5A45] px-8 py-3.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#F4412A]"
                 data-testid="btn-next"

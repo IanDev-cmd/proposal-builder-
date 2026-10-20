@@ -52,6 +52,10 @@ export type SavedQuote = {
   reviewStatus?: QuoteReviewStatus;
   reviewedAt?: string;
   updatedAt?: string;
+  /** Monotonic local edit counter. Higher wins over an older cloud copy. */
+  syncRevision?: number;
+  /** UTC timestamp of the local edit that produced syncRevision. */
+  syncUpdatedAt?: string;
 };
 
 const STORAGE_KEY = 'nexus_saved_quotes';
@@ -99,12 +103,22 @@ function emit() {
   }
 }
 
+function revisionOf(row?: { syncRevision?: number } | null): number | null {
+  if (!row || row.syncRevision == null) return null;
+  const value = Number(row.syncRevision);
+  return Number.isFinite(value) ? value : null;
+}
+
 function mergeQuotePair(prev: SavedQuote, next: SavedQuote): SavedQuote {
   const prevHasData = Boolean(prev.data && Object.keys(prev.data).length);
   const nextHasData = Boolean(next.data && Object.keys(next.data).length);
+  const prevRev = revisionOf(prev);
+  const nextRev = revisionOf(next);
+  const revisionWins =
+    prevRev != null && nextRev != null && prevRev !== nextRev ? (nextRev > prevRev ? next : prev) : null;
   const nextNewerSave = (next.savedAt || '') > (prev.savedAt || '');
-  const base = nextNewerSave ? next : prev;
-  const other = nextNewerSave ? prev : next;
+  const base = revisionWins || (nextNewerSave ? next : prev);
+  const other = base === next ? prev : next;
   const data =
     base.data && Object.keys(base.data).length ? base.data : other.data;
   const review = pickReviewFields(prev, next);
@@ -158,11 +172,14 @@ export function upsertSavedQuote(
     : prev
       ? quoteReviewStatus(prev)
       : 'pending';
+  const priorRevision = revisionOf(prev) ?? 0;
   const next: SavedQuote = {
     ...input,
     savedAt: input.savedAt || new Date().toISOString(),
     reviewStatus,
     reviewedAt: input.reviewedAt ?? prev?.reviewedAt,
+    syncRevision: priorRevision + 1,
+    syncUpdatedAt: new Date().toISOString(),
   };
   forgetDeletedQuoteIds([next.id]);
   const list = ensureMemory().filter((q) => q.id !== next.id);
@@ -200,7 +217,10 @@ export async function persistSavedQuote(
       await discardDeletedQuote(next.id);
       throw err;
     }
-    await enqueueSyncOutbox('quote', next.id, err instanceof Error ? err.message : String(err));
+    await enqueueSyncOutbox('quote', next.id, err instanceof Error ? err.message : String(err), {
+      revision: next.syncRevision,
+      updatedAt: next.syncUpdatedAt,
+    });
     void noteSyncPendingCount();
     void requestWorkspaceSync('manual');
     const wrapped = err instanceof Error ? err : new Error(String(err));

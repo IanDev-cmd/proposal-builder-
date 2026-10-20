@@ -1,0 +1,51 @@
+name: Refactoring CI & Financial Parity
+on: [push, pull_request]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Dependencies
+        run: |
+          cd artifacts/pdf-engine
+          pip install -r requirements.txt pytest pytest-asyncio
+      - name: Run Backend Pytest Suite
+        run: |
+          cd artifacts/pdf-engine
+          pytest tests/ --verbose
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - name: Install & Run Vitest Suite
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @workspace/workspace-suite test
+
+  gold-financial-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - name: Run Gold Scenario Financial Parity
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @workspace/workspace-suite exec vitest run src/lib/__tests__/financialParity.test.ts

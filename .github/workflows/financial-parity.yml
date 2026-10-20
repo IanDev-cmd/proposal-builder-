@@ -1,0 +1,24 @@
+name: financial-parity
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Gold financial scenarios
+        run: pnpm --filter @workspace/workspace-suite run test:gold
+      - name: Financial playbook
+        run: pnpm --filter @workspace/workspace-suite run test:financials

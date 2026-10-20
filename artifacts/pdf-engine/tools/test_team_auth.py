@@ -15,7 +15,15 @@ sys.path.insert(0, str(ROOT))
 
 from flask import Flask, request  # noqa: E402
 
-from team_auth import handle_login, parse_token, require_team_session, revoke  # noqa: E402
+from team_auth import (  # noqa: E402
+    AuthConfigError,
+    assert_signing_secret,
+    handle_login,
+    issue_token,
+    parse_token,
+    require_team_session,
+    revoke,
+)
 
 
 def _status(resp) -> int:
@@ -87,6 +95,38 @@ def main() -> None:
     assert fresh.status_code == 200, fresh.status_code
     opened = client.get("/secure", headers={"Authorization": f"Bearer {fresh.get_json()['token']}"})
     assert opened.status_code == 200, opened.status_code
+
+    import hashlib
+    import hmac
+
+    previous_env = os.environ.get("FLASK_ENV")
+    previous_secret = os.environ.get("NEXUS_AUTH_SECRET")
+    try:
+        os.environ["FLASK_ENV"] = "production"
+        os.environ["NEXUS_AUTH_SECRET"] = "short"
+        try:
+            assert_signing_secret()
+            raise AssertionError("production accepted a short auth secret")
+        except AuthConfigError:
+            pass
+        shared = "shared-across-gunicorn-workers"
+        os.environ["NEXUS_AUTH_SECRET"] = shared
+        assert_signing_secret()
+        token, _exp = issue_token()
+        payload, sig = token.rsplit(".", 1)
+        secret = hashlib.sha256(f"nexus-auth|{shared}".encode("utf-8")).digest()
+        expected = hmac.new(secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        assert sig == expected
+        assert parse_token(token)
+    finally:
+        if previous_env is None:
+            os.environ.pop("FLASK_ENV", None)
+        else:
+            os.environ["FLASK_ENV"] = previous_env
+        if previous_secret is None:
+            os.environ.pop("NEXUS_AUTH_SECRET", None)
+        else:
+            os.environ["NEXUS_AUTH_SECRET"] = previous_secret
 
     print("team_auth tests passed")
 
