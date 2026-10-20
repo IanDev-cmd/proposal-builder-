@@ -18,7 +18,7 @@ import {
 } from '@/lib/savedQuotesStore';
 import { requestWorkspaceSync } from '@/lib/syncManager';
 import { displayGrandTotal } from '@/lib/costSheet';
-import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
+import { EVENT_CORE_STEP, restoreSavedQuote, startNextQuoteVersion } from '@/lib/restoreSavedQuote';
 import { markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
 import { openQuoteShareWeb, type ShareChannel } from '@/lib/quoteShare';
@@ -178,6 +178,19 @@ export function SavedQuotes() {
     await restoreQuote(quote);
     markPendingGenerate(quote.id);
     navigate('/quote-builder');
+  }
+
+  async function newQuoteVersion(quote: SavedQuote) {
+    try {
+      await startNextQuoteVersion(quote, listSavedQuotes());
+      navigate('/quote-builder');
+    } catch (err) {
+      toastError({
+        key: 'quote-new-version',
+        title: 'Could not start the next quote version',
+        err,
+      });
+    }
   }
 
   async function editQuote(quote: SavedQuote) {
@@ -368,6 +381,14 @@ export function SavedQuotes() {
                   data-testid={`saved-quote-open-${quote.id}`}
                 >
                   Open quote
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void newQuoteVersion(quote)}
+                  className="w-full rounded-[12px] bg-white py-2.5 text-[12.5px] font-bold text-[#2F7CF6] shadow-sm"
+                  data-testid={`saved-quote-new-version-${quote.id}`}
+                >
+                  Generate New Quote version
                 </button>
                 {disapproved ? (
                   <button

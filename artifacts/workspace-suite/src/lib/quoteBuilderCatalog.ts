@@ -92,6 +92,52 @@ export function laterQuoteVersion(raw: string): string | null {
   return Number(v.slice(1)) >= 5 ? v : null;
 }
 
+/** V1 becomes V2. BF Costs, which has no number, starts at V1. */
+export function nextQuoteVersion(raw: string): string {
+  const n = quoteVersionNumber(raw);
+  return `V${(n ?? 0) + 1}`;
+}
+
+/** Version stored on the quote, or V1 when the quote does not say. */
+export function quoteVersionOf(quote: { data?: { quoteVersion?: string }; title?: string }): string {
+  const fromData = acceptQuoteVersion(String(quote.data?.quoteVersion || ''));
+  if (fromData) return fromData;
+  const title = String(quote.title || '');
+  const paren = title.match(/\(\s*(V\d+|BF\s*Costs)\s*\)/i);
+  const fromParen = paren ? acceptQuoteVersion(paren[1]) : null;
+  if (fromParen) return fromParen;
+  const tail = title.match(/_V(\d+)\b/i);
+  if (tail) return `V${Number(tail[1])}`;
+  return 'V1';
+}
+
+/** Plus one from the chosen version, skipping a version that already has its own card. */
+export function nextFreeQuoteVersion(
+  quotes: Array<{ id?: string; leadKey: string; data?: { quoteVersion?: string } }>,
+  leadKey: string,
+  currentVersion: string,
+): string {
+  let version = nextQuoteVersion(currentVersion);
+  for (let guard = 0; guard < 40; guard += 1) {
+    if (!findSavedQuoteByVersion(quotes, leadKey, version)) return version;
+    version = nextQuoteVersion(version);
+  }
+  return version;
+}
+
+export function retitleQuoteVersion(title: string, from: string, to: string): string {
+  const source = String(title || '').trim();
+  if (!source) return to;
+  if (from === 'BF Costs') {
+    const replaced = source.replace(/BF\s*Costs/gi, to);
+    return replaced === source ? `${source} (${to})` : replaced;
+  }
+  const replaced = source.replace(new RegExp(`${from}(?!\\d)`, 'g'), to);
+  if (replaced !== source) return replaced;
+  if (/\bV\d+\b|BF\s*Costs/i.test(source)) return source;
+  return `${source} (${to})`;
+}
+
 /** One saved-quote id per lead and version. V2 never reuses the V1 id. */
 export function savedQuoteId(leadKey: string, quoteVersion: string): string {
   const version = acceptQuoteVersion(quoteVersion) || 'V1';
