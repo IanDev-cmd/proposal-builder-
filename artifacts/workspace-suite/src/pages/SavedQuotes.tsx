@@ -17,6 +17,7 @@ import {
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
 import { requestWorkspaceSync } from '@/lib/syncManager';
+import { displayGrandTotal } from '@/lib/costSheet';
 import { EVENT_CORE_STEP, restoreSavedQuote } from '@/lib/restoreSavedQuote';
 import { markQuoteBuilderStartAt } from '@/lib/quoteLeadStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
@@ -50,7 +51,7 @@ function opsQuoteToCard(q: OpsQuote): TimelineCard {
     summary: [q.leadName, q.eventType, q.status, q.guestCount && `${q.guestCount} guests`]
       .filter(Boolean)
       .join(' · '),
-    body: `${q.eventType || 'Event'} · ${q.status || 'snapshot'} · grand total ${formatGbpPounds(Number(q.grandTotal) || 0)}.`,
+    body: `${q.eventType || 'Event'} · ${q.status || 'snapshot'} · grand total ${formatGbpPounds(displayGrandTotal(q))}.`,
     kind: 'pipeline',
     kinds,
     when: formatWhen(q.updatedAt),
@@ -70,7 +71,7 @@ function quoteToCard(q: SavedQuote): TimelineCard {
     summary: [status, q.leadName, q.vesselType, q.eventType, q.guestCount && `${q.guestCount} guests`]
       .filter(Boolean)
       .join(' · '),
-    body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total ${formatGbpPounds(q.grandTotal)}.`,
+    body: `${q.eventType || 'Event'} aboard ${q.vesselType || 'vessel TBC'} for ${q.guestCount || '—'} guests. Grand total ${formatGbpPounds(displayGrandTotal(q))}.`,
     kind: 'pipeline',
     kinds,
     when: formatWhen(q.savedAt),

@@ -1,14 +1,12 @@
 import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
-import { calcFinancials } from '@/lib/quoteFinance';
-import { quoteFormFromSaved } from '@/lib/costSheet';
+import { linesWithContingency, savedQuoteFinancials, sectionTotalsWithContingency } from '@/lib/costSheet';
 import { CostSectionAccordion } from '@/components/CostSectionAccordion';
 import { formatGbp, formatGbpPounds } from '@/lib/utils';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 import { quoteReviewLabel, quoteReviewStatus } from '@/lib/quoteReview';
 
 export function QuoteDocumentView({ quote }: { quote: SavedQuote }) {
-  const form = quoteFormFromSaved(quote.data);
-  const fin = form ? calcFinancials(form) : null;
+  const fin = savedQuoteFinancials(quote);
   const keyItems = displayQuoteKeyItems((quote.data || {}) as { keyItems?: string; initialEnquiry?: string });
   const status = quoteReviewStatus(quote);
   const badgeCls =
@@ -49,7 +47,7 @@ export function QuoteDocumentView({ quote }: { quote: SavedQuote }) {
         </div>
         <div>
           <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Grand total</dt>
-          <dd className="font-bold text-[#00a85a]">{formatGbpPounds(quote.grandTotal)}</dd>
+          <dd className="font-bold text-[#00a85a]">{formatGbpPounds(fin ? fin.grand : quote.grandTotal)}</dd>
         </div>
       </dl>
       {keyItems ? (
@@ -61,8 +59,8 @@ export function QuoteDocumentView({ quote }: { quote: SavedQuote }) {
       {fin ? (
         <>
           <CostSectionAccordion
-            lines={fin.lines || []}
-            sectionTotals={fin.sectionTotals}
+            lines={linesWithContingency(fin)}
+            sectionTotals={sectionTotalsWithContingency(fin)}
             defaultOpen={['vessel', 'catering', 'entertainment', 'beverages', 'staff', 'financial', 'contingency']}
           />
           <dl className="rounded-[12px] border border-slate-200 px-4 py-3 text-[13px]">

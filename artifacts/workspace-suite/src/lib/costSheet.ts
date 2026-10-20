@@ -2,7 +2,7 @@
  * Downloadable quote cost sheet (CSV) for Cost Check and Saved Quotes.
  */
 import { SECTION_META } from '@/lib/quoteBuilderCatalog';
-import { calcFinancials, type QuoteFormInput } from '@/lib/quoteFinance';
+import { calcFinancials, type LineCalc, type QuoteFormInput } from '@/lib/quoteFinance';
 import type { SavedQuote } from '@/lib/savedQuotesStore';
 
 function csvCell(value: string | number): string {
@@ -27,6 +27,49 @@ export function quoteFormFromSaved(data: Record<string, unknown> | undefined): Q
   };
 }
 
+/** Catalogue lines plus Section 14, so the rows add up to Total to WEOTT. */
+export function linesWithContingency(fin: ReturnType<typeof calcFinancials>): LineCalc[] {
+  const lines = fin.lines || [];
+  if (!(fin.contingency > 0)) return lines;
+  const pct = (fin.contingencyRate * 100).toFixed(2);
+  return [
+    ...lines,
+    {
+      id: 'contingency',
+      section: 'contingency',
+      label: `Contingency (${pct}%)`,
+      unitRate: fin.contingency,
+      multiplier: 1,
+      amount: fin.contingency,
+    },
+  ];
+}
+
+export function sectionTotalsWithContingency(
+  fin: ReturnType<typeof calcFinancials>,
+): Record<string, number> {
+  if (!(fin.contingency > 0)) return fin.sectionTotals;
+  return { ...fin.sectionTotals, contingency: fin.contingency };
+}
+
+function formHasCosts(form: QuoteFormInput): boolean {
+  if (Array.isArray(form.selectedLineIds) && form.selectedLineIds.length > 0) return true;
+  if (form.baseCostAuto === false && String(form.totalCost ?? '').trim() !== '') return true;
+  return (form.bespokeLines || []).some((line) => line.enabled && Number(line.amount));
+}
+
+/** Recalculated figures when the saved quote still has its cost lines. */
+export function savedQuoteFinancials(quote: { data?: Record<string, unknown> }) {
+  const form = quoteFormFromSaved(quote.data);
+  if (!form || !formHasCosts(form)) return null;
+  return calcFinancials(form);
+}
+
+/** Recalculated grand total when the quote still has its cost lines. */
+export function displayGrandTotal(quote: { data?: Record<string, unknown>; grandTotal?: number | string }): number {
+  return savedQuoteFinancials(quote)?.grand ?? (Number(quote.grandTotal) || 0);
+}
+
 export function costSheetCsv(form: QuoteFormInput, title = 'Quote'): string {
   const fin = calcFinancials(form);
   const rows: (string | number)[][] = [
@@ -39,7 +82,7 @@ export function costSheetCsv(form: QuoteFormInput, title = 'Quote'): string {
     [],
     ['Section', 'Line', 'Amount'],
   ];
-  for (const line of fin.lines || []) {
+  for (const line of linesWithContingency(fin)) {
     if (!line.amount) continue;
     const sec = SECTION_META.find((s) => s.id === line.section);
     rows.push([sec?.title || line.section, line.label, line.amount.toFixed(2)]);
@@ -55,7 +98,7 @@ export function costSheetCsv(form: QuoteFormInput, title = 'Quote'): string {
 
 export function costSheetPlainText(form: QuoteFormInput, title = 'Quote'): string {
   const fin = calcFinancials(form);
-  const lines = (fin.lines || [])
+  const lines = linesWithContingency(fin)
     .filter((l) => l.amount > 0)
     .map((l) => `  ${l.label}: £${l.amount.toFixed(2)}`);
   return [

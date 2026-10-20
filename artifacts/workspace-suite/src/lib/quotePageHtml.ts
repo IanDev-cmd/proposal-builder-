@@ -3,8 +3,7 @@
  * sharing via Gmail, WhatsApp, Drive, or Dropbox.
  */
 import { SECTION_META } from '@/lib/quoteBuilderCatalog';
-import { calcFinancials } from '@/lib/quoteFinance';
-import { quoteFormFromSaved } from '@/lib/costSheet';
+import { linesWithContingency, savedQuoteFinancials, sectionTotalsWithContingency } from '@/lib/costSheet';
 import { displayQuoteKeyItems } from '@/lib/quoteKeyItems';
 import { formatGbp, formatGbpPounds } from '@/lib/utils';
 import { quoteReviewLabel, quoteReviewStatus } from '@/lib/quoteReview';
@@ -25,14 +24,15 @@ export function quotePageFileStem(quote: SavedQuote): string {
 }
 
 export function quotePageHtml(quote: SavedQuote, shareUrl = ''): string {
-  const form = quoteFormFromSaved(quote.data);
-  const fin = form ? calcFinancials(form) : null;
+  const fin = savedQuoteFinancials(quote);
+  const displayLines = fin ? linesWithContingency(fin) : [];
+  const displaySections = fin ? sectionTotalsWithContingency(fin) : {};
   const keyItems = displayQuoteKeyItems((quote.data || {}) as { keyItems?: string; initialEnquiry?: string });
   const status = quoteReviewStatus(quote);
   const sections = fin
     ? SECTION_META.map((sec) => {
-        const lines = (fin.lines || []).filter((line) => line.section === sec.id && (line.amount || line.label));
-        const total = fin.sectionTotals?.[sec.id] ?? lines.reduce((sum, line) => sum + (line.amount || 0), 0);
+        const lines = displayLines.filter((line) => line.section === sec.id && (line.amount || line.label));
+        const total = displaySections[sec.id] ?? lines.reduce((sum, line) => sum + (line.amount || 0), 0);
         if (!lines.length && !(total > 0)) return '';
         const rows = lines
           .map(
@@ -96,7 +96,7 @@ export function quotePageHtml(quote: SavedQuote, shareUrl = ''): string {
     <div><dt>Event</dt><dd>${escapeHtml(quote.eventType || '—')}</dd></div>
     <div><dt>Guests</dt><dd>${escapeHtml(quote.guestCount || '—')}</dd></div>
     <div><dt>Event date</dt><dd>${escapeHtml(quote.eventDate || '—')}</dd></div>
-    <div><dt>Grand total</dt><dd>${escapeHtml(formatGbpPounds(quote.grandTotal))}</dd></div>
+    <div><dt>Grand total</dt><dd>${escapeHtml(formatGbpPounds(fin ? fin.grand : quote.grandTotal))}</dd></div>
   </dl>
   ${keyItems ? `<div class="keys"><p class="kicker">Key items</p><p>${escapeHtml(keyItems)}</p></div>` : ''}
   ${sections}

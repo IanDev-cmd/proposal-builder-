@@ -3,6 +3,7 @@
  * the OS share sheet, .eml / Outlook, wa.me, or desktop clients.
  */
 import { savedQuoteShareUrl, type SavedQuote } from '@/lib/savedQuotesStore';
+import { displayGrandTotal } from '@/lib/costSheet';
 import { savedQuotePageFile } from '@/lib/quotePageHtml';
 import { formatGbpPounds } from '@/lib/utils';
 
@@ -74,7 +75,7 @@ export function quoteSharePlainText(quote: SavedQuote, shareUrl: string): string
     `Event: ${quote.eventType || '—'}`,
     `Guests: ${quote.guestCount || '—'}`,
     `Event date: ${quote.eventDate || '—'}`,
-    `Grand total: ${formatGbpPounds(quote.grandTotal)}`,
+    `Grand total: ${formatGbpPounds(displayGrandTotal(quote))}`,
     '',
     `Open the full quote: ${shareUrl}`,
     '',
