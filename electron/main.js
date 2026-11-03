@@ -54,6 +54,8 @@ function logLine(scope, message) {
   }
   process.stdout.write(line);
 }
+
+function readOrCreate(fileName, create) {
   const file = path.join(nexusDir(), fileName);
   if (fs.existsSync(file)) {
     const current = fs.readFileSync(file, 'utf8').trim();
@@ -89,8 +91,14 @@ const DEFAULT_TEAM_PIN = '945762';
 
 function localPin() {
   const file = path.join(nexusDir(), 'team-pin.txt');
-  fs.writeFileSync(file, DEFAULT_TEAM_PIN, 'utf8');
-  return DEFAULT_TEAM_PIN;
+  const freshInstall = !fs.existsSync(path.join(nexusDir(), 'workspace.sqlite'));
+  const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').trim() : '';
+  // Every new install gets 945762. The splash never shows it.
+  if (freshInstall || !current) {
+    fs.writeFileSync(file, DEFAULT_TEAM_PIN, 'utf8');
+    return DEFAULT_TEAM_PIN;
+  }
+  return current;
 }
 
 function startEngine() {
@@ -170,37 +178,63 @@ function getHealth() {
   });
 }
 
+let lastSplashAt = 0;
+let lastSplashLabel = '';
+let splashQueue = Promise.resolve();
+
 function splashProgress(percent, label) {
   if (!splash || splash.isDestroyed()) return;
-  splash.webContents
-    .executeJavaScript(`window.setSplash && window.setSplash(${percent}, ${JSON.stringify(label)})`)
-    .catch(() => {});
+  const now = Date.now();
+  const sameLabel = label === lastSplashLabel;
+  if (percent < 100 && sameLabel && now - lastSplashAt < 90) return;
+  lastSplashAt = now;
+  lastSplashLabel = label;
+  const target = splash;
+  const script = `window.setSplash && window.setSplash(${percent}, ${JSON.stringify(label)})`;
+  splashQueue = splashQueue.then(() => {
+    if (!target || target.isDestroyed()) return;
+    return target.webContents.executeJavaScript(script);
+  }).catch(() => {});
 }
 
-async function waitForEngine(pin) {
+function readyLabel(imported, fallback) {
+  const quotes = imported && Number(imported.quoteCount) > 0 ? Number(imported.quoteCount) : 0;
+  const proposals = imported && Number(imported.proposalCount) > 0 ? Number(imported.proposalCount) : 0;
+  if (quotes && proposals) return `Ready. ${quotes} quotes and ${proposals} proposals on this computer.`;
+  if (quotes) return `Ready. ${quotes} quotes on this computer.`;
+  if (proposals) return `Ready. ${proposals} proposals on this computer.`;
+  return fallback;
+}
+
+async function waitForEngine() {
   const started = Date.now();
   let tick = 0;
+  const firstInstall = !fs.existsSync(path.join(nexusDir(), 'workspace.sqlite'));
   while (Date.now() - started < HEALTH_TIMEOUT_MS) {
     tick += 1;
     const elapsed = Date.now() - started;
-    const percent = Math.min(92, 8 + Math.round((elapsed / HEALTH_TIMEOUT_MS) * 84));
-    splashProgress(percent, 'Opening proposal templates');
+    // Boot has no byte count. Creep only until the engine answers, then real stages take over.
+    const creep = Math.min(52, 8 + Math.round(elapsed / 700));
+    splashProgress(creep, firstInstall ? 'Starting the proposal engine' : 'Opening proposal templates');
     try {
       const health = await getHealth();
       if (health && (health.status === 'ok' || health.status === 'degraded')) {
         logLine('health', `status=${health.status} warmup=${Boolean(health.profile_warmup && health.profile_warmup.ok)} templates=${health.templates ?? ''}`);
-        const note = health.status === 'ok'
-          ? `Ready. Local team PIN ${pin}`
-          : `Templates need attention. Local team PIN ${pin}`;
-        splashProgress(100, note);
-        splashProgress(96, 'Downloading saved quotes');
+        const note = health.status === 'ok' ? 'Ready.' : 'Templates need attention.';
+        splashProgress(64, 'Opening proposal templates');
         try {
-          const imported = await importRenderWorkspace({ origin: ENGINE_ORIGIN, pin, app });
-          if (imported && imported.quoteCount) {
-            splashProgress(100, `Ready. ${imported.quoteCount} quotes on this computer. PIN ${pin}`);
+          const imported = await importRenderWorkspace({
+            origin: ENGINE_ORIGIN,
+            pin: localPin(),
+            app,
+            onProgress: (percent, label) => splashProgress(percent, label),
+          });
+          if (imported && imported.skipped && imported.reason === 'local-already-has-quotes') {
+            splashProgress(88, 'Opening proposals');
           }
+          splashProgress(100, readyLabel(imported, note));
         } catch (err) {
-          splashProgress(100, `Quotes stayed online. PIN ${pin}`);
+          splashProgress(100, 'Quotes stayed online.');
           console.error(err);
         }
         return health;
@@ -307,13 +341,14 @@ ipcMain.handle('desktop:install-update', () => {
 
 app.whenReady().then(async () => {
   splash = new BrowserWindow({
-    width: 460,
-    height: 240,
+    width: 960,
+    height: 639,
     frame: false,
     resizable: false,
     movable: true,
     center: true,
-    backgroundColor: '#102033',
+    show: false,
+    backgroundColor: '#06101f',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -321,11 +356,13 @@ app.whenReady().then(async () => {
   });
   logLine('window', 'splash created');
   await splash.loadFile(path.join(__dirname, 'splash.html'));
+  splash.show();
   setupAutoUpdater();
   try {
-    const pin = startEngine();
-    splashProgress(6, 'Starting the proposal engine');
-    await waitForEngine(pin);
+    const firstInstall = !fs.existsSync(path.join(nexusDir(), 'workspace.sqlite'));
+    startEngine();
+    splashProgress(8, firstInstall ? 'Starting the proposal engine' : 'Opening proposal templates');
+    await waitForEngine();
     openMain();
   } catch (err) {
     splashProgress(100, err instanceof Error ? err.message : String(err));

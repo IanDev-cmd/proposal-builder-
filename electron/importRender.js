@@ -114,9 +114,13 @@ async function login(origin, pin) {
   return res.json.token;
 }
 
-async function importRenderWorkspace({ origin, pin, app }) {
+async function importRenderWorkspace({ origin, pin, app, onProgress }) {
+  const report = (percent, label) => {
+    if (typeof onProgress === 'function') onProgress(percent, label);
+  };
   const url = readRenderUrl(app);
   if (!url) return { skipped: true, reason: 'no-render-url' };
+  report(68, 'Downloading saved quotes');
   const listed = await requestJson(`${origin}/workspace/quotes`, {
     headers: { Authorization: `Bearer ${await login(origin, pin)}` },
   });
@@ -131,6 +135,7 @@ async function importRenderWorkspace({ origin, pin, app }) {
     query_timeout: 120000,
     connectionTimeoutMillis: 20000,
   });
+  report(70, 'Downloading saved quotes');
   await client.connect();
   try {
     const token = await login(origin, pin);
@@ -142,7 +147,9 @@ async function importRenderWorkspace({ origin, pin, app }) {
        FROM quotes WHERE deleted_at IS NULL ORDER BY saved_at DESC`,
     );
     let quoteCount = 0;
-    for (const row of quotes.rows) {
+    const quoteTotal = quotes.rows.length;
+    for (let index = 0; index < quotes.rows.length; index += 1) {
+      const row = quotes.rows[index];
       const payload = quotePayload(row);
       const res = await requestJson(`${origin}/workspace/quotes/${encodeURIComponent(payload.id)}`, {
         method: 'PUT',
@@ -150,7 +157,10 @@ async function importRenderWorkspace({ origin, pin, app }) {
         body: JSON.stringify(payload),
       });
       if (res.status >= 200 && res.status < 300) quoteCount += 1;
+      const span = quoteTotal > 0 ? (index + 1) / quoteTotal : 1;
+      report(70 + Math.round(span * 14), 'Downloading saved quotes');
     }
+    report(84, 'Saving proposals');
     const proposals = await client.query(
       `SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
               guest_count, grand_total, lead_name, lead_email, lead_company,
@@ -158,7 +168,9 @@ async function importRenderWorkspace({ origin, pin, app }) {
        FROM proposals WHERE deleted_at IS NULL ORDER BY created_at DESC`,
     );
     let proposalCount = 0;
-    for (const row of proposals.rows) {
+    const proposalTotal = proposals.rows.length;
+    for (let index = 0; index < proposals.rows.length; index += 1) {
+      const row = proposals.rows[index];
       try {
         const pdf = await client.query('SELECT pdf FROM proposals WHERE id = $1', [row.id]);
         row.pdf = pdf.rows[0] && pdf.rows[0].pdf;
@@ -172,6 +184,8 @@ async function importRenderWorkspace({ origin, pin, app }) {
         body: JSON.stringify(payload),
       });
       if (res.status >= 200 && res.status < 300) proposalCount += 1;
+      const span = proposalTotal > 0 ? (index + 1) / proposalTotal : 1;
+      report(Math.min(98, 84 + Math.round(span * 14)), 'Saving proposals');
     }
     return { skipped: false, quoteCount, proposalCount };
   } finally {
