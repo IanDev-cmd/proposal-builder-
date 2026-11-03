@@ -2,15 +2,73 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "main": "electron/main.js",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --if-present run typecheck",
+    "build:exe": "node scripts/build-exe.mjs"
   },
   "private": true,
+  "dependencies": {
+    "electron-updater": "6.3.9",
+    "pg": "8.13.1"
+  },
   "devDependencies": {
+    "@esbuild/win32-x64": "0.27.3",
+    "@rollup/rollup-win32-x64-msvc": "4.62.2",
+    "@tailwindcss/oxide-win32-x64-msvc": "4.3.2",
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
+    "lightningcss-win32-x64-msvc": "1.32.0",
     "prettier": "^3.9.4",
     "typescript": "~5.9.3"
+  },
+  "build": {
+    "appId": "com.weott.quotebuilder",
+    "productName": "WEOTT Quote Builder",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "artifacts/pdf-engine/dist-engine",
+        "to": "dist-engine"
+      },
+      {
+        "from": "artifacts/workspace-suite/dist/public",
+        "to": "spa"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "WEOTT-Quote-Builder-Setup.exe",
+      "shortcutName": "WEOTT Quote Builder"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "IanDev-cmd",
+      "repo": "proposal-builder-"
+    }
   }
 }

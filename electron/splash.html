@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WEOTT Quote Builder</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #102033;
+      color: #f4f7fb;
+      font-family: "Segoe UI", sans-serif;
+    }
+    main {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+    p {
+      margin: 0;
+      min-height: 20px;
+      color: #c5d2e4;
+      font-size: 13px;
+    }
+    .track {
+      width: 280px;
+      height: 8px;
+      border-radius: 999px;
+      background: #24364d;
+      overflow: hidden;
+    }
+    .bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: #3d8bfd;
+      transition: width 180ms linear;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>WEOTT Quote Builder</h1>
+    <div class="track"><div id="bar" class="bar"></div></div>
+    <p id="label">Starting the proposal engine</p>
+  </main>
+  <script>
+    window.setSplash = function (percent, label) {
+      const bar = document.getElementById('bar');
+      const text = document.getElementById('label');
+      bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+      if (label) text.textContent = label;
+    };
+  </script>
+</body>
+</html>

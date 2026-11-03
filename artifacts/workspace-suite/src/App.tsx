@@ -27,6 +27,28 @@ function scrollPagesToTop() {
   });
 }
 
+function UpdateBanner() {
+  const [version, setVersion] = useState('');
+  useEffect(() => {
+    const desktop = window.weottDesktop;
+    if (!desktop?.onUpdateReady) return undefined;
+    return desktop.onUpdateReady((info) => setVersion(info?.version || ''));
+  }, []);
+  if (!version && !window.weottDesktop) return null;
+  if (!version) return null;
+  return (
+    <div className="flex items-center justify-between gap-4 bg-[#102033] px-6 py-2 text-[13px] text-white">
+      <span>A new version{version ? ` (${version})` : ''} is ready to install.</span>
+      <button
+        type="button"
+        className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#102033]"
+        onClick={() => void window.weottDesktop?.installUpdate()}
+      >
+        Restart to install
+      </button>
+    </div>
+  );
+}
 function ScrollToTop() {
   const [location] = useLocation();
   useEffect(() => {
@@ -82,7 +104,8 @@ function App() {
     <TooltipProvider>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
         <TeamPasswordGate>
-          <ActiveLeadProvider>
+        <UpdateBanner />
+        <ActiveLeadProvider>
             <Router />
           </ActiveLeadProvider>
         </TeamPasswordGate>

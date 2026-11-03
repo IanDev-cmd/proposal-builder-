@@ -1,7 +1,9 @@
-"""Shared workspace: Saved Quotes and Generated Proposals in Render Postgres.
+"""Shared workspace: Saved Quotes and Generated Proposals.
 
 Cost Mother catalog stays on disk (rebuilt from Apps Script). Quotes and
-proposal PDFs use DATABASE_URL. Tests may set WORKSPACE_STORE=memory.
+proposal PDFs use DATABASE_URL when it is set. A desktop build with
+DATABASE_URL unset and WORKSPACE_STORE=sqlite uses workspace_sqlite.py.
+Tests may set WORKSPACE_STORE=memory.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import workspace_pg as pg
+import workspace_sqlite as sqlite
 
 _BASE = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("WORKSPACE_DATA_DIR", str(_BASE / "data" / "workspace")))
@@ -57,15 +60,24 @@ def _use_postgres() -> bool:
     return bool(pg.database_url()) and not _use_memory()
 
 
+def _use_sqlite() -> bool:
+    """Local file store. Postgres wins when DATABASE_URL is set."""
+    if _use_memory() or pg.database_url():
+        return False
+    return (os.environ.get("WORKSPACE_STORE") or "").strip().lower() == "sqlite"
+
+
 def reset_memory() -> None:
     _MEMORY_QUOTES.clear()
     _MEMORY_PROPOSALS.clear()
 
 
 def init_workspace() -> None:
-    """Create quote/proposal tables when DATABASE_URL is set."""
+    """Create quote/proposal tables when a durable store is selected."""
     if _use_postgres():
         pg.migrate()
+    elif _use_sqlite():
+        sqlite.migrate()
 
 
 def _ensure_dirs() -> None:
@@ -155,7 +167,7 @@ def _normalize_review(payload: dict, existing: dict | None = None) -> dict:
 
 
 def _require_store() -> None:
-    if _use_memory() or _use_postgres():
+    if _use_memory() or _use_postgres() or _use_sqlite():
         return
     raise RuntimeError("DATABASE_URL is required for quotes and proposals")
 
@@ -186,6 +198,8 @@ def quote_is_deleted(quote_id: str) -> bool:
     if _use_memory():
         row = _MEMORY_QUOTES.get(qid)
         return bool(row and row.get("_deleted"))
+    if _use_sqlite():
+        return sqlite.quote_is_deleted(qid)
     if not _use_postgres():
         return False
     with pg.connection() as conn:
@@ -200,6 +214,9 @@ def list_quotes(full: bool = False) -> list[dict]:
         out = [_normalize_review(row, existing=row) for row in rows]
         out.sort(key=lambda r: str(r.get("savedAt") or ""), reverse=True)
         return out if full else [quote_summary(row) for row in out]
+    if _use_sqlite():
+        rows = sqlite.list_quotes()
+        return rows if full else [quote_summary(row) for row in rows]
     with pg.connection() as conn:
         rows = pg.fetch_all(conn, _QUOTE_FULL_SQL if full else _QUOTE_SUMMARY_SQL)
     out = [pg.quote_payload_from_row(row) for row in rows]
@@ -216,6 +233,8 @@ def get_quote(quote_id: str) -> dict | None:
         if not row or row.get("_deleted"):
             return None
         return _normalize_review(dict(row), existing=row)
+    if _use_sqlite():
+        return sqlite.get_quote(qid)
     with pg.connection() as conn:
         row = pg.fetch_one(
             conn,
@@ -251,6 +270,8 @@ def put_quote(payload: dict) -> dict:
         payload["updatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         _MEMORY_QUOTES[quote_id] = dict(payload)
         return dict(payload)
+    if _use_sqlite():
+        return sqlite.put_quote(payload)
     row = pg.quote_row_from_payload(payload)
     with pg.connection() as conn:
         conn.execute(
@@ -324,6 +345,8 @@ def delete_quote(quote_id: str) -> bool:
             return False
         row["_deleted"] = True
         return True
+    if _use_sqlite():
+        return sqlite.delete_quote(qid)
     with pg.connection() as conn:
         cur = conn.execute(
             """
@@ -341,6 +364,8 @@ def clear_quotes() -> int:
         count = sum(1 for row in _MEMORY_QUOTES.values() if not row.get("_deleted"))
         _MEMORY_QUOTES.clear()
         return count
+    if _use_sqlite():
+        return sqlite.clear_quotes()
     with pg.connection() as conn:
         cur = conn.execute("DELETE FROM quotes")
         return cur.rowcount or 0
@@ -363,6 +388,8 @@ def list_proposals(include_pdf: bool = False) -> list[dict]:
             rows.append(item)
         rows.sort(key=lambda r: str(r.get("createdAt") or ""), reverse=True)
         return rows
+    if _use_sqlite():
+        return sqlite.list_proposals(include_pdf=include_pdf)
     with pg.connection() as conn:
         rows = pg.fetch_all(
             conn,
@@ -403,6 +430,8 @@ def get_proposal(proposal_id: str) -> dict | None:
         if pdf and not item.get("pdfDataUrl"):
             item["pdfDataUrl"] = _encode_pdf(pdf)
         return item
+    if _use_sqlite():
+        return sqlite.get_proposal(pid)
     with pg.connection() as conn:
         row = pg.fetch_one(
             conn,
@@ -444,6 +473,8 @@ def put_proposal(payload: dict) -> dict:
             meta["createdAt"] = prev.get("createdAt") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         _MEMORY_PROPOSALS[proposal_id] = {**meta, "_pdf": pdf, "_deleted": False}
         return {**meta, "hasPdf": bool(pdf or meta.get("pdfDataUrl"))}
+    if _use_sqlite():
+        return sqlite.put_proposal(payload, raw)
     row = pg.proposal_row_from_payload(payload, raw)
     if not raw:
         with pg.connection() as conn:
@@ -517,6 +548,8 @@ def delete_proposal(proposal_id: str) -> bool:
             return False
         row["_deleted"] = True
         return True
+    if _use_sqlite():
+        return sqlite.delete_proposal(pid)
     with pg.connection() as conn:
         cur = conn.execute(
             """
@@ -534,6 +567,8 @@ def clear_proposals() -> int:
         count = sum(1 for row in _MEMORY_PROPOSALS.values() if not row.get("_deleted"))
         _MEMORY_PROPOSALS.clear()
         return count
+    if _use_sqlite():
+        return sqlite.clear_proposals()
     with pg.connection() as conn:
         cur = conn.execute("DELETE FROM proposals")
         return cur.rowcount or 0

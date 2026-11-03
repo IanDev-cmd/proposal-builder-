@@ -18,15 +18,18 @@ ENDPOINTS
 
 import io
 import json
+import logging
 import os
 import re
+from logging.handlers import RotatingFileHandler
 from urllib.parse import urlparse
 
 from pathlib import Path
 
-from flask import Flask, g, request, send_file, jsonify
+from flask import Flask, g, request, send_file, send_from_directory, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import config
 from engine import build_proposal
 from team_auth import (
     handle_login,
@@ -64,7 +67,7 @@ app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
 # Trust only the outer Render ingress hop. Extra hops would honor a client-supplied
 # X-Forwarded-For prefix and let a caller spoof the login lockout address.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxy_hops(), x_proto=1, x_host=0, x_prefix=0)
-_BASE = Path(__file__).resolve().parent
+_BASE = Path(config.BASE_DIR)
 
 _DEFAULT_CORS_ORIGINS = (
     "https://weott-quote-builder.onrender.com",
@@ -104,6 +107,38 @@ def _cors_origins() -> set[str]:
 _WARM = {"ok": False, "error": None, "templates_warmed": 0}
 
 
+def _configure_engine_logging() -> None:
+    """Write engine logs to the console and a 5 MB rotating file under LocalAppData."""
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    if not any(isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler) for handler in root.handlers):
+        stream = logging.StreamHandler()
+        stream.setFormatter(formatter)
+        root.addHandler(stream)
+    local = os.environ.get("LOCALAPPDATA", "").strip()
+    if not local:
+        return
+    try:
+        log_dir = Path(local) / "WEOTT" / "Nexus" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = RotatingFileHandler(
+            log_dir / "engine.log",
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(formatter)
+        root.addHandler(file_handler)
+        app.logger.addHandler(file_handler)
+    except OSError:
+        app.logger.exception("could not open the rotating engine log")
+    logging.captureWarnings(True)
+
+
+_configure_engine_logging()
+
+
 def _warm_profiles() -> None:
     paths = [str(_BASE / t["path"]) for t in get_catalog().templates]
     try:
@@ -122,6 +157,12 @@ def _warm_profiles() -> None:
 
 
 _warm_profiles()
+app.logger.info(
+    "profile warm-up ok=%s templates_warmed=%s error=%s",
+    _WARM["ok"],
+    _WARM["templates_warmed"],
+    _WARM["error"],
+)
 
 
 def _workspace_response(fn):
@@ -142,6 +183,8 @@ def _gate():
     if request.method == "OPTIONS":
         return ("", 204)
     if request.path == "/" and request.method == "GET":
+        return None
+    if request.path == "/ui" or request.path.startswith("/ui/"):
         return None
     if request.path == "/auth/login" and request.method == "POST":
         return None
@@ -350,6 +393,9 @@ def generate():
         app.logger.exception("proposal generation failed")
         return jsonify(error="Proposal generation failed"), 500
 
+    warnings = report.get("warnings") or []
+    if warnings:
+        app.logger.warning("PyMuPDF layout warnings: %s", warnings)
     filename = proposal_download_name(payload, report)
     response = send_file(
         io.BytesIO(pdf_bytes),
@@ -478,6 +524,42 @@ def workspace_catalog_put():
     return jsonify(catalog_put_body(saved))
 
 
+def _spa_root() -> Path | None:
+    raw = os.environ.get("WEOTT_SPA_DIR", "").strip()
+    if not raw:
+        return None
+    root = Path(raw).resolve()
+    return root if root.is_dir() else None
+
+
+@app.get("/ui")
+@app.get("/ui/")
+@app.get("/ui/<path:subpath>")
+def desktop_spa(subpath: str = ""):
+    """Serve the built React app on the same origin as the engine."""
+    root = _spa_root()
+    if root is None:
+        return jsonify(error="Desktop UI is not available"), 404
+    rel = (subpath or "index.html").replace("\\", "/").lstrip("/")
+    if not rel or rel.endswith("/"):
+        rel = (rel.rstrip("/") + "/index.html").lstrip("/")
+    candidate = (root / rel).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return jsonify(error="Not found"), 404
+    if candidate.is_file():
+        return send_from_directory(root, Path(rel).as_posix())
+    index = root / "index.html"
+    if index.is_file():
+        return send_from_directory(root, "index.html")
+    return jsonify(error="Not found"), 404
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port)
+    import sys
+
+    frozen = bool(getattr(sys, "frozen", False))
+    host = os.environ.get("HOST", "127.0.0.1" if frozen else "0.0.0.0")
+    port = int(os.environ.get("PORT", "8765" if frozen else "8000"))
+    app.run(host=host, port=port, threaded=True)

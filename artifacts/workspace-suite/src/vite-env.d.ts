@@ -1,5 +1,22 @@
 /// <reference types="vite/client" />
 
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_DESKTOP?: string;
+  }
+
+  interface Window {
+    __WEOTT_DESKTOP__?: boolean;
+    weottDesktop?: {
+      exportLogs: () => Promise<{ canceled?: boolean; filePath?: string; error?: string }>;
+      installUpdate: () => Promise<void>;
+      onUpdateReady: (callback: (info: { version?: string }) => void) => () => void;
+    };
+  }
+}
+
+export {};
+
 // Support uppercase image extensions
 declare module '*.PNG' {
   const src: string;

@@ -12,8 +12,23 @@ this file — the engine code itself never needs to change.
 """
 
 import os
+import sys
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def bundle_root() -> str:
+    """Directory that contains assets/ and template.pdf.
+
+    A PyInstaller onedir build extracts those files under _internal.
+    That folder is sys._MEIPASS. A normal checkout uses this file's folder.
+    """
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", "")
+        if meipass:
+            return meipass
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+BASE_DIR = bundle_root()
 FONT_DIR = os.path.join(BASE_DIR, "assets", "fonts")
 VESSEL_DIR = os.path.join(BASE_DIR, "assets", "vessels")
 

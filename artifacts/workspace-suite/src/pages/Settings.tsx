@@ -32,7 +32,39 @@ export function Settings() {
   const [photos, setPhotos] = useState<PhotoMap>(loadFieldPhotos);
   const [saved, setSaved]   = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const inputRefs           = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleExportLogs = async () => {
+    const desktop = window.weottDesktop;
+    if (!desktop?.exportLogs || exporting) return;
+    setExporting(true);
+    try {
+      const result = await desktop.exportLogs();
+      if (result?.canceled) return;
+      if (result?.error || !result?.filePath) {
+        toastError({
+          key: 'export-logs',
+          title: 'Could not export logs',
+          description: result?.error || 'No file was saved.',
+        });
+        return;
+      }
+      toastSuccess({
+        key: 'export-logs',
+        title: 'Diagnostic logs saved',
+        description: result.filePath,
+      });
+    } catch (err) {
+      toastError({
+        key: 'export-logs',
+        title: 'Could not export logs',
+        err,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleUpload = (key: string, file: File) => {
     const reader = new FileReader();
@@ -128,6 +160,24 @@ export function Settings() {
             {clearing ? 'Clearing…' : 'Clear all quotes and proposals'}
           </button>
         </div>
+        {typeof window !== 'undefined' && window.weottDesktop?.exportLogs ? (
+          <div className="mb-12 rounded-[16px] border border-black/10 p-6">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">Support</p>
+            <h2 className="mt-1 text-[16px] font-bold text-gray-900">Export diagnostic logs</h2>
+            <p className="mt-2 max-w-[52ch] text-[13px] leading-relaxed text-black/50">
+              Saves the engine and desktop logs as a zip file you can send for troubleshooting.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleExportLogs()}
+              disabled={exporting}
+              data-testid="export-diagnostic-logs"
+              className="mt-5 inline-flex items-center gap-2 rounded-[12px] border border-black/15 px-4 py-2.5 text-[13px] font-bold text-gray-900 hover:bg-black/[0.03] disabled:opacity-60"
+            >
+              {exporting ? 'Saving…' : 'Export Diagnostic Logs'}
+            </button>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-12">
           {PHOTO_CATEGORIES.map((category) => (
             <div key={category.key}>

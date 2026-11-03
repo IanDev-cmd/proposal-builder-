@@ -21,9 +21,10 @@ from pathlib import Path
 
 import fitz
 
+import config
 from pdf_cache import open_source_pdf
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(config.BASE_DIR)
 MANIFEST_PATH = BASE_DIR / "assets" / "inserts" / "manifest.json"
 
 _manifest_cache = None

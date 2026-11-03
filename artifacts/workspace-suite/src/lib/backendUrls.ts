@@ -5,8 +5,20 @@
  *   PDF + saved quotes → Flask (browser calls it directly)
  *
  * Paste the Web app /exec URL after Deploy → New deployment (see NexusApi.gs).
+ *
+ * Desktop builds set VITE_DESKTOP=1 so /generate and /workspace/* use the
+ * local engine. Electron can also set window.__WEOTT_DESKTOP__ before load.
  */
-export const PROPOSAL_ENGINE_URL = 'https://weott-proposal-engine.onrender.com';
+const DESKTOP_ENGINE_ORIGIN = 'http://127.0.0.1:8765';
+
+function desktopEngine(): boolean {
+  if (import.meta.env.VITE_DESKTOP === '1') return true;
+  return typeof window !== 'undefined' && window.__WEOTT_DESKTOP__ === true;
+}
+
+export const PROPOSAL_ENGINE_URL = desktopEngine()
+  ? DESKTOP_ENGINE_ORIGIN
+  : 'https://weott-proposal-engine.onrender.com';
 export const PROPOSAL_ENGINE_GENERATE_URL = `${PROPOSAL_ENGINE_URL}/generate`;
 
 /**

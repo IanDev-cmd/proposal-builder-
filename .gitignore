@@ -49,3 +49,9 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+scripts/render-database.url
+render_db.dump
+dist-engine/
+build-engine/
+.venv-desktop/
+Full codebase.txt

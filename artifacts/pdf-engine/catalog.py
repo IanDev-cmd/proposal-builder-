@@ -18,7 +18,9 @@ import os
 import re
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+import config
+
+BASE_DIR = Path(config.BASE_DIR)
 MANIFEST_PATH = BASE_DIR / "assets" / "templates" / "catalog" / "manifest.json"
 LEGACY_TEMPLATE = BASE_DIR / "template.pdf"
 
