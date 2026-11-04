@@ -8,12 +8,28 @@ services:
   - type: web
     name: weott-quote-builder
     runtime: static
-    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/workspace-suite run build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/workspace-suite run build && test "$(stat -c%s installer/WEOTT-Quote-Builder-Setup.exe)" -gt 1000000 && cp installer/WEOTT-Quote-Builder-Setup.exe artifacts/workspace-suite/dist/public/WEOTT-Quote-Builder-Setup.exe
     staticPublishPath: artifacts/workspace-suite/dist/public
     routes:
       - type: rewrite
+        source: /setup-download
+        destination: /WEOTT-Quote-Builder-Setup.exe
+      - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /setup-download
+        name: Content-Disposition
+        value: attachment; filename="WEOTT-Quote-Builder-Setup.exe"
+      - path: /WEOTT-Quote-Builder-Setup.exe
+        name: Content-Disposition
+        value: attachment; filename="WEOTT-Quote-Builder-Setup.exe"
+      - path: /setup-download
+        name: Content-Type
+        value: application/octet-stream
+      - path: /WEOTT-Quote-Builder-Setup.exe
+        name: Content-Type
+        value: application/octet-stream
 
   - type: web
     name: weott-proposal-engine
