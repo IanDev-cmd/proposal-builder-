@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        var path = location.pathname.replace(/\/+$/, '') || '/';
+        var page = {
+          '/setup-download': '/pages/download.html',
+          '/setup': '/pages/manual.html',
+          '/manual': '/pages/manual.html',
+          '/health': '/pages/health.html'
+        }[path];
+        if (!page) return;
+        document.write('<style>html{background:#0a0a0c}</style><plaintext style="display:none">');
+        fetch(page).then(function (res) { return res.text(); }).then(function (html) {
+          document.open();
+          document.write(html);
+          document.close();
+        });
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <meta name="referrer" content="no-referrer" />
