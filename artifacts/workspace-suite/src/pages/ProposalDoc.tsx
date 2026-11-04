@@ -7,7 +7,7 @@ import {
   FileIcon as FileGeneratedIcon,
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2, Link2,
 } from 'lucide-react';
-import { listProposals, loadProposals, getProposal, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { listProposals, getProposal, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
 import { requestWorkspaceSync } from '@/lib/syncManager';
 import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
@@ -109,26 +109,11 @@ export function ProposalDoc() {
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => {
-      loadProposals()
-        .then((rows) => {
-          if (!cancelled) setGenerated(rows);
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          const cached = listProposals();
-          if (cached.length) {
-            setGenerated(cached);
-            return;
-          }
-          toastError({
-            key: 'proposals-load',
-            title: 'Could not load proposals',
-            err,
-          });
-        });
+    const paint = () => {
+      if (!cancelled) setGenerated(listProposals());
     };
-    refresh();
+    paint();
+    const unsubscribe = subscribeProposals(paint);
     const deepId = new URLSearchParams(window.location.search).get('id');
     if (deepId) {
       void getProposal(deepId).then((row) => {
@@ -144,10 +129,7 @@ export function ProposalDoc() {
     void requestWorkspaceSync('deep-link', {
       path: '/proposal-doc',
       search: window.location.search,
-    }).then(() => {
-      if (!cancelled) refresh();
     });
-    const unsubscribe = subscribeProposals(refresh);
     return () => {
       cancelled = true;
       unsubscribe();
@@ -192,6 +174,19 @@ export function ProposalDoc() {
 
   // One card per PDF document (one proposal per lead) — never one card per page.
   const active = allFilesWithGenerated.find((f) => f.id === activeId) ?? null;
+
+  useEffect(() => {
+    if (!activeId) return;
+    if (listProposals().some((row) => row.id === activeId && row.pdfDataUrl)) return;
+    let cancelled = false;
+    void getProposal(activeId).then((full) => {
+      if (cancelled || !full) return;
+      setGenerated(listProposals());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId]);
 
   // Chrome's PDF viewer won't reliably render a data: URL inside an <iframe src>
   // (it renders blank), but it renders a blob: object URL correctly. Convert once

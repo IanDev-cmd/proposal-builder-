@@ -114,6 +114,7 @@ async function workspacePutAllSafe(rows: GeneratedProposal[]) {
 }
 
 async function ensureMigrated(): Promise<void> {
+  if (workspaceMigrated()) return;
   if (migrated) return migrated;
   migrated = (async () => {
     const existing = await workspaceGetAll<GeneratedProposal>(STORE);
@@ -145,12 +146,15 @@ export async function getProposal(id: string): Promise<GeneratedProposal | null>
   if (!id) return null;
   await ensureMigrated();
   const local = await workspaceGet<GeneratedProposal>(STORE, id);
-  if (local?.pdfDataUrl) return local;
+  if (local?.pdfDataUrl) {
+    cacheProposalList([local]);
+    return local;
+  }
   try {
     const remote = await cloudGetProposal(id);
     if (remote) {
       await workspacePut(STORE, remote);
-      window.dispatchEvent(new Event(PROPOSALS_EVENT));
+      cacheProposalList([remote]);
       return remote;
     }
   } catch {
@@ -252,42 +256,69 @@ export async function clearAllProposals(): Promise<void> {
   window.dispatchEvent(new Event(PROPOSALS_EVENT));
 }
 
+function mergeCard(prev: GeneratedProposal | undefined, next: GeneratedProposal): GeneratedProposal {
+  return {
+    ...(prev || {}),
+    ...next,
+    pdfDataUrl: next.pdfDataUrl || prev?.pdfDataUrl || '',
+    hasPdf: Boolean(next.hasPdf || next.pdfDataUrl || prev?.hasPdf || prev?.pdfDataUrl),
+  };
+}
+
+/** Put list rows on screen without reading proposal PDFs. */
+export function cacheProposalList(rows: GeneratedProposal[], dropIds: string[] = []): void {
+  const dropping = new Set(dropIds);
+  const current = new Map(
+    listProposals()
+      .filter((row) => !dropping.has(row.id))
+      .map((row) => [row.id, row]),
+  );
+  for (const row of rows) {
+    if (!row?.id || isLegacyEventVesselProposal(row)) continue;
+    current.set(row.id, mergeCard(current.get(row.id), row));
+  }
+  remember([...current.values()]);
+}
+
 export async function ingestRemoteProposals(rows: GeneratedProposal[]): Promise<void> {
-  let changed = false;
+  const cards: GeneratedProposal[] = [];
   for (const row of rows) {
     if (!row?.id) continue;
     if (isLegacyEventVesselProposal(row)) {
-      await workspaceDelete(STORE, row.id);
+      try {
+        await workspaceDelete(STORE, row.id);
+      } catch {
+        /* the card still drops from the list */
+      }
       void cloudDeleteProposal(row.id).catch(() => {
         /* ignore */
       });
-      changed = true;
       continue;
     }
-    const existing = await workspaceGet<GeneratedProposal>(STORE, row.id);
-    const incomingHasPdf = Boolean(row.pdfDataUrl);
-    const existingHasPdf = Boolean(existing?.pdfDataUrl);
-    if (!existing) {
-      await workspacePut(STORE, row);
-      changed = true;
-      continue;
-    }
-    if (incomingHasPdf && !existingHasPdf) {
-      await workspacePut(STORE, { ...existing, ...row });
-      changed = true;
-      continue;
-    }
-    if ((row.createdAt || '') > (existing.createdAt || '')) {
-      await workspacePut(
-        STORE,
-        incomingHasPdf || !existingHasPdf ? row : { ...row, pdfDataUrl: existing.pdfDataUrl },
-      );
-      changed = true;
+    cards.push(row);
+    if (!row.pdfDataUrl) continue;
+    try {
+      const existing = await workspaceGet<GeneratedProposal>(STORE, row.id);
+      if (!existing?.pdfDataUrl || (row.createdAt || '') > (existing.createdAt || '')) {
+        await workspacePut(STORE, existing?.pdfDataUrl && !row.pdfDataUrl ? { ...row, pdfDataUrl: existing.pdfDataUrl } : row);
+      }
+    } catch {
+      /* the card is already visible from the index */
     }
   }
-  if (changed) await loadProposals();
+  const removed = rows.filter((row) => row?.id && isLegacyEventVesselProposal(row)).map((row) => row.id);
+  cacheProposalList(cards, removed);
 }
 
 export async function hydrateProposalsDb(): Promise<void> {
-  await loadProposals();
+  listProposals();
+  try {
+    const { cloudListProposals } = await import('@/lib/workspaceCloud');
+    const { getTeamToken } = await import('@/lib/teamSession');
+    if (!getTeamToken()) return;
+    const remote = await cloudListProposals();
+    cacheProposalList(remote);
+  } catch {
+    /* the saved index stays on screen while the engine warms */
+  }
 }

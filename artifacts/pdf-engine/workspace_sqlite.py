@@ -291,21 +291,35 @@ def clear_quotes() -> int:
 def list_proposals(include_pdf: bool = False) -> list[dict]:
     conn = connection()
     with _lock:
-        rows = conn.execute(
-            """
-            SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
-                   guest_count, grand_total, lead_name, lead_email, lead_company,
-                   reference_number, extra_json, updated_at,
-                   CASE WHEN pdf IS NOT NULL THEN pdf ELSE NULL END AS pdf
-            FROM proposals
-            WHERE deleted_at IS NULL
-            ORDER BY created_at DESC
-            """
-        ).fetchall()
+        if include_pdf:
+            rows = conn.execute(
+                """
+                SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
+                       guest_count, grand_total, lead_name, lead_email, lead_company,
+                       reference_number, extra_json, updated_at, pdf
+                FROM proposals
+                WHERE deleted_at IS NULL
+                ORDER BY created_at DESC
+                """
+            ).fetchall()
+        else:
+            # Do not select the PDF blob. A list of 60+ proposals was reading every file
+            # before the page could draw a single row.
+            rows = conn.execute(
+                """
+                SELECT id, created_at, event_date, title, filename, vessel_type, event_type,
+                       guest_count, grand_total, lead_name, lead_email, lead_company,
+                       reference_number, extra_json, updated_at,
+                       CASE WHEN pdf IS NULL THEN 0 ELSE 1 END AS has_pdf
+                FROM proposals
+                WHERE deleted_at IS NULL
+                ORDER BY created_at DESC
+                """
+            ).fetchall()
     out = []
     for raw in rows:
         item = _proposal_row_dict(raw)
-        has_pdf = item.get("pdf") is not None
+        has_pdf = bool(item.get("has_pdf") if "has_pdf" in item else item.get("pdf"))
         if not include_pdf:
             item["pdf"] = None
         payload = pg.proposal_payload_from_row(item, include_pdf=include_pdf, encode_pdf=_encode_pdf)

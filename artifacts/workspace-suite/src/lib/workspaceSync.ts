@@ -1,5 +1,5 @@
 import { refreshLeadsFromNetwork } from '@/lib/leadCache';
-import { getProposal, ingestRemoteProposals, loadProposals } from '@/lib/proposalStore';
+import { getProposal, ingestRemoteProposals, listProposals } from '@/lib/proposalStore';
 import { isLegacyEventVesselProposal } from '@/lib/proposalFilename';
 import {
   discardDeletedQuote,
@@ -101,9 +101,49 @@ async function putQuoteRespectingDelete(quote: SavedQuote): Promise<void> {
   }
 }
 
+async function refreshProposalList(ctx?: SyncRunContext): Promise<void> {
+  try {
+    const remoteMeta = await cloudListProposals();
+    await ingestRemoteProposals(remoteMeta);
+    if (ctx?.proposalId) {
+      try {
+        const opened = await cloudGetProposal(ctx.proposalId);
+        if (opened) await ingestRemoteProposals([opened]);
+      } catch {
+        /* the card is already in the list */
+      }
+    }
+    const remoteById = new Map(remoteMeta.map((p) => [p.id, p]));
+    const proposalUploads: Promise<void>[] = [];
+    for (const proposal of listProposals()) {
+      if (isLegacyEventVesselProposal(proposal)) continue;
+      if (!proposal.pdfDataUrl) continue;
+      const remote = remoteById.get(proposal.id);
+      const localNewer = (proposal.createdAt || '') > (remote?.createdAt || '');
+      if (!remote || !remote.hasPdf || localNewer) {
+        proposalUploads.push(
+          cloudPutProposal(proposal)
+            .then(async () => dequeueSyncOutbox('proposal', proposal.id))
+            .catch(async (err: unknown) => {
+              await enqueueSyncOutbox(
+                'proposal',
+                proposal.id,
+                err instanceof Error ? err.message : String(err),
+              );
+            }),
+        );
+      }
+    }
+    await Promise.all(proposalUploads);
+  } catch {
+    /* engine asleep or offline — the cached list stays on screen */
+  }
+}
+
 /** Pull shared quotes/proposals from the proposal engine, then upload any local-only rows. */
 export async function syncWorkspaceCloud(ctx?: SyncRunContext): Promise<void> {
   if (!getTeamToken()) return;
+  const proposals = refreshProposalList(ctx);
   try {
     await prefetchDeepLink(ctx);
   } catch {
@@ -167,64 +207,7 @@ export async function syncWorkspaceCloud(ctx?: SyncRunContext): Promise<void> {
     /* engine asleep or offline — local IndexedDB still used */
   }
 
-  try {
-    const remoteMeta = await cloudListProposals();
-    for (const meta of remoteMeta) {
-      if (isLegacyEventVesselProposal(meta)) {
-        void cloudDeleteProposal(meta.id).catch(() => {
-          /* list hide still applies */
-        });
-      }
-    }
-    const local = await loadProposals();
-    const localById = new Map(local.map((p) => [p.id, p]));
-    const fetched = await Promise.all(
-      remoteMeta.map(async (meta) => {
-        if (isLegacyEventVesselProposal(meta)) return null;
-        if (ctx?.proposalId && meta.id === ctx.proposalId) {
-          try {
-            return await cloudGetProposal(meta.id);
-          } catch {
-            return null;
-          }
-        }
-        const localRow = localById.get(meta.id);
-        if (localRow?.pdfDataUrl && (localRow.createdAt || '') >= (meta.createdAt || '')) {
-          return null;
-        }
-        try {
-          return await cloudGetProposal(meta.id);
-        } catch {
-          return null;
-        }
-      }),
-    );
-    await ingestRemoteProposals(fetched.filter((row): row is NonNullable<typeof row> => Boolean(row)));
-    const remoteById = new Map(remoteMeta.map((p) => [p.id, p]));
-    const proposalUploads: Promise<void>[] = [];
-    for (const proposal of local) {
-      if (isLegacyEventVesselProposal(proposal)) continue;
-      if (!proposal.pdfDataUrl) continue;
-      const remote = remoteById.get(proposal.id);
-      const localNewer = (proposal.createdAt || '') > (remote?.createdAt || '');
-      if (!remote || !remote.hasPdf || localNewer) {
-        proposalUploads.push(
-          cloudPutProposal(proposal)
-            .then(async () => dequeueSyncOutbox('proposal', proposal.id))
-            .catch(async (err: unknown) => {
-              await enqueueSyncOutbox(
-                'proposal',
-                proposal.id,
-                err instanceof Error ? err.message : String(err),
-              );
-            }),
-        );
-      }
-    }
-    await Promise.all(proposalUploads);
-  } catch {
-    /* engine asleep or offline */
-  }
+  await proposals;
 }
 
 export async function syncSharedWorkspace(): Promise<void> {
