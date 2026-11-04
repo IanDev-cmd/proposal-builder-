@@ -40,7 +40,56 @@ export type GeneratedProposal = {
 const STORE = WORKSPACE_STORES.proposals;
 const PROPOSALS_EVENT = 'nexus:proposals-updated';
 const LEGACY_LOCALSTORAGE_KEY = 'nexus_generated_proposals';
+const INDEX_KEY = 'nexus_proposal_index';
 const LEGACY_IDB_NAME = 'nexus-proposals';
+
+let memory: GeneratedProposal[] | null = null;
+
+function readIndex(): GeneratedProposal[] {
+  try {
+    const raw = localStorage.getItem(INDEX_KEY);
+    const list = raw ? (JSON.parse(raw) as GeneratedProposal[]) : [];
+    return Array.isArray(list) ? list.filter((row) => row && row.id) : [];
+  } catch {
+    return [];
+  }
+}
+
+function sameProposalList(a: GeneratedProposal[], b: GeneratedProposal[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((row, index) => {
+    const other = b[index];
+    return other
+      && row.id === other.id
+      && row.createdAt === other.createdAt
+      && row.title === other.title
+      && (row.pdfDataUrl || '') === (other.pdfDataUrl || '')
+      && Boolean(row.hasPdf) === Boolean(other.hasPdf);
+  });
+}
+
+function remember(rows: GeneratedProposal[]) {
+  const next = [...rows].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const prev = memory || [];
+  memory = next;
+  try {
+    const slim = next.map(({ pdfDataUrl: _pdf, ...rest }) => ({
+      ...rest,
+      pdfDataUrl: '',
+      hasPdf: Boolean(rest.hasPdf || _pdf),
+    }));
+    localStorage.setItem(INDEX_KEY, JSON.stringify(slim));
+  } catch {
+    /* the list still renders from memory */
+  }
+  if (!sameProposalList(prev, next)) window.dispatchEvent(new Event(PROPOSALS_EVENT));
+}
+
+/** Synchronous list for the first paint. IndexedDB fills PDFs in the background. */
+export function listProposals(): GeneratedProposal[] {
+  if (!memory) memory = readIndex();
+  return memory.filter((row) => !isLegacyEventVesselProposal(row));
+}
 
 function readLegacyLocal(): GeneratedProposal[] {
   try {
@@ -126,16 +175,15 @@ export async function loadProposals(): Promise<GeneratedProposal[]> {
     }
     keep.push(row);
   }
-  if (purged) window.dispatchEvent(new Event(PROPOSALS_EVENT));
-  keep.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return keep;
+  remember(keep);
+  return listProposals();
 }
 
 export async function addProposal(proposal: GeneratedProposal): Promise<boolean> {
   try {
     await ensureMigrated();
     await workspacePut(STORE, proposal);
-    window.dispatchEvent(new Event(PROPOSALS_EVENT));
+    remember([proposal, ...listProposals().filter((row) => row.id !== proposal.id)]);
     void cloudPutProposal(proposal)
       .then(async () => {
         await dequeueSyncOutbox('proposal', proposal.id);
@@ -165,7 +213,7 @@ export async function deleteProposal(id: string): Promise<boolean> {
   try {
     await ensureMigrated();
     await workspaceDelete(STORE, id);
-    window.dispatchEvent(new Event(PROPOSALS_EVENT));
+    remember(listProposals().filter((row) => row.id !== id));
     void cloudDeleteProposal(id)
       .then(async () => {
         await dequeueSyncOutbox('proposal-delete', id);
@@ -195,6 +243,12 @@ export async function clearAllProposals(): Promise<void> {
     /* ignore */
   }
   await workspaceClear(STORE);
+  try {
+    localStorage.removeItem(INDEX_KEY);
+  } catch {
+    /* ignore */
+  }
+  memory = [];
   window.dispatchEvent(new Event(PROPOSALS_EVENT));
 }
 
@@ -231,10 +285,9 @@ export async function ingestRemoteProposals(rows: GeneratedProposal[]): Promise<
       changed = true;
     }
   }
-  if (changed) window.dispatchEvent(new Event(PROPOSALS_EVENT));
+  if (changed) await loadProposals();
 }
 
 export async function hydrateProposalsDb(): Promise<void> {
-  await ensureMigrated();
-  window.dispatchEvent(new Event(PROPOSALS_EVENT));
+  await loadProposals();
 }

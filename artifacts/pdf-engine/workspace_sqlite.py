@@ -66,7 +66,11 @@ CREATE TABLE IF NOT EXISTS proposals (
 
 CREATE INDEX IF NOT EXISTS quotes_saved_at_idx ON quotes (saved_at DESC);
 CREATE INDEX IF NOT EXISTS quotes_review_status_idx ON quotes (review_status);
+CREATE INDEX IF NOT EXISTS quotes_id_updated_status_idx ON quotes (id, updated_at, review_status);
+CREATE INDEX IF NOT EXISTS quotes_active_saved_idx ON quotes (deleted_at, saved_at);
 CREATE INDEX IF NOT EXISTS proposals_created_at_idx ON proposals (created_at DESC);
+CREATE INDEX IF NOT EXISTS proposals_id_created_idx ON proposals (id, created_at);
+CREATE INDEX IF NOT EXISTS proposals_active_created_idx ON proposals (deleted_at, created_at);
 """
 
 
@@ -114,6 +118,9 @@ def connection() -> sqlite3.Connection:
             conn = sqlite3.connect(str(path), check_same_thread=False)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA busy_timeout=2000")
+            conn.execute("PRAGMA temp_store=MEMORY")
             _migrate(conn)
             conn.commit()
             _conn = conn

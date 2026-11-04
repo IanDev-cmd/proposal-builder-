@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import threading
 from logging.handlers import RotatingFileHandler
 from urllib.parse import urlparse
 
@@ -104,7 +105,7 @@ def _cors_origins() -> set[str]:
             origins.add(origin)
     return origins
 
-_WARM = {"ok": False, "error": None, "templates_warmed": 0}
+_WARM = {"ok": False, "error": None, "templates_warmed": 0, "state": "warming"}
 
 
 def _configure_engine_logging() -> None:
@@ -145,24 +146,49 @@ def _warm_profiles() -> None:
         report = warm_profiles(paths)
         failed = report.get("failed") or []
         _WARM["ok"] = not failed
+        _WARM["state"] = "ok" if not failed else "failed"
         _WARM["error"] = "; ".join(failed[:6]) if failed else None
         _WARM["templates_warmed"] = int(report.get("warmed") or 0)
         if failed:
             app.logger.error("profile warm-up missed %s template(s)", len(failed))
     except Exception as exc:
         _WARM["ok"] = False
+        _WARM["state"] = "failed"
         _WARM["error"] = str(exc)
         _WARM["templates_warmed"] = 0
         app.logger.exception("profile warm-up failed")
+    app.logger.info(
+        "profile warm-up ok=%s templates_warmed=%s error=%s",
+        _WARM["ok"],
+        _WARM["templates_warmed"],
+        _WARM["error"],
+    )
 
 
-_warm_profiles()
-app.logger.info(
-    "profile warm-up ok=%s templates_warmed=%s error=%s",
-    _WARM["ok"],
-    _WARM["templates_warmed"],
-    _WARM["error"],
-)
+def _warm_local_store() -> None:
+    """Open SQLite, WAL, and indexes before the first list request."""
+    if (os.environ.get("WORKSPACE_STORE") or "").strip().lower() != "sqlite":
+        return
+    try:
+        import workspace_sqlite
+
+        workspace_sqlite.migrate()
+    except Exception:
+        app.logger.exception("sqlite warm-up failed")
+
+
+def _health_status() -> str:
+    state = str(_WARM.get("state") or "warming")
+    if state == "ok":
+        return "ok"
+    if state == "failed":
+        return "degraded"
+    return "warming"
+
+
+# Socket bind must not wait on PyMuPDF. Templates and SQLite warm beside the first requests.
+threading.Thread(target=_warm_profiles, name="profile-warm", daemon=True).start()
+threading.Thread(target=_warm_local_store, name="sqlite-warm", daemon=True).start()
 
 
 def _workspace_response(fn):
@@ -182,7 +208,7 @@ def _workspace_response(fn):
 def _gate():
     if request.method == "OPTIONS":
         return ("", 204)
-    if request.path == "/" and request.method == "GET":
+    if request.path in {"/", "/health"} and request.method == "GET":
         return None
     if request.path == "/ui" or request.path.startswith("/ui/"):
         return None
@@ -242,20 +268,33 @@ def auth_logout():
     return jsonify(ok=True)
 
 
-@app.get("/")
-def health():
+def _health_payload(*, full: bool) -> dict:
+    status = _health_status()
+    payload = {
+        "status": status,
+        "degraded": status == "degraded",
+        "profile_warmup": _WARM,
+        "service": "weott-proposal-engine",
+    }
+    if not full:
+        return payload
     cat = get_catalog()
     inserts = get_insert_manifest().get("inserts", [])
-    degraded = not _WARM["ok"]
-    return jsonify(
-        status="degraded" if degraded else "ok",
-        degraded=degraded,
-        profile_warmup=_WARM,
-        service="weott-proposal-engine",
-        templates=len(cat.templates),
-        inserts=len(inserts),
-        categories=["corporate", "wedding"],
-    )
+    payload["templates"] = len(cat.templates)
+    payload["inserts"] = len(inserts)
+    payload["categories"] = ["corporate", "wedding"]
+    return payload
+
+
+@app.get("/health")
+def health_ping():
+    """Returns as soon as the socket is bound. Template warm-up stays in the background."""
+    return jsonify(_health_payload(full=False))
+
+
+@app.get("/")
+def health():
+    return jsonify(_health_payload(full=True))
 
 
 @app.get("/templates")

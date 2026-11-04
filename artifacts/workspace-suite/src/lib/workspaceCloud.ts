@@ -6,11 +6,11 @@ import type { SavedQuote } from '@/lib/savedQuotesStore';
 
 const BASE = `${PROPOSAL_ENGINE_URL}/workspace`;
 
-async function cloudFetch(path: string, init?: RequestInit): Promise<Response> {
+async function cloudFetch(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<Response> {
   const res = await fetchWithTimeout(`${BASE}${path}`, {
     ...init,
     headers: engineAuthHeaders(init?.headers),
-    timeoutMs: 45_000,
+    timeoutMs: init?.timeoutMs ?? 45_000,
   });
   if (res.status === 401) {
     if (getTeamToken()) notifyTeamAuthExpired();
@@ -60,7 +60,7 @@ function asQuoteSummary(row: Partial<SavedQuote> & { id: string }): SavedQuote {
 }
 
 export async function cloudListQuotes(): Promise<SavedQuote[]> {
-  const res = await cloudFetch('/quotes');
+  const res = await cloudFetch('/quotes', { timeoutMs: 8_000 });
   if (!res.ok) throw new Error(`Workspace quotes failed (${res.status})`);
   const body = (await readJson(res)) as { quotes?: SavedQuote[] } | null;
   return Array.isArray(body?.quotes)
@@ -104,7 +104,7 @@ export async function cloudGetQuote(id: string): Promise<SavedQuote | null> {
 }
 
 export async function cloudListProposals(): Promise<GeneratedProposal[]> {
-  const res = await cloudFetch('/proposals');
+  const res = await cloudFetch('/proposals', { timeoutMs: 8_000 });
   if (!res.ok) throw new Error(`Workspace proposals failed (${res.status})`);
   const body = (await readJson(res)) as { proposals?: GeneratedProposal[] } | null;
   return Array.isArray(body?.proposals) ? body.proposals.filter((p) => p && p.id) : [];

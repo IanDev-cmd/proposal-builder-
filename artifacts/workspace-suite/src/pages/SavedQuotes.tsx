@@ -101,13 +101,12 @@ export function SavedQuotes() {
     let cancelled = false;
     void hydrateSavedQuotesDb()
       .then(async () => {
-        await requestWorkspaceSync('route', { path: '/saved-quotes' });
+        if (cancelled) return;
+        setQuotes(listSavedQuotes());
+        setLoading(false);
+        void requestWorkspaceSync('route', { path: '/saved-quotes' });
         const snaps = await listOpsQuotes();
-        if (!cancelled) {
-          setQuotes(listSavedQuotes());
-          setOpsQuotes(snaps);
-          setLoading(false);
-        }
+        if (!cancelled) setOpsQuotes(snaps);
       })
       .catch(() => {
         if (!cancelled) setLoading(false);
@@ -301,6 +300,14 @@ export function SavedQuotes() {
         </label>
       </div>
 
+      {loading && quotes.length === 0 ? (
+        <div className="grid gap-3 px-6 pb-4" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="h-16 animate-pulse rounded-[16px] bg-black/5" />
+          ))}
+        </div>
+      ) : null}
+
       <LeadNotesTimeline
         cards={cards}
         activeId={activeId}
@@ -326,8 +333,8 @@ export function SavedQuotes() {
         }}
         onSummarize={() => setQuotes(listSavedQuotes())}
         emptyLabel={
-          loading
-            ? 'Loading saved quotes…'
+          loading && quotes.length === 0
+            ? ''
             : query.trim()
               ? `No saved quotes match “${query.trim()}”.`
               : emptyByTab

@@ -7,7 +7,7 @@ import {
   FileIcon as FileGeneratedIcon,
   Maximize2, Mail, HardDrive, Box, MessageCircle, Trash2, Link2,
 } from 'lucide-react';
-import { loadProposals, getProposal, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
+import { listProposals, loadProposals, getProposal, subscribeProposals, deleteProposal, type GeneratedProposal } from '@/lib/proposalStore';
 import { requestWorkspaceSync } from '@/lib/syncManager';
 import { downloadNamedPdf, isLegacyEventVesselProposal, proposalFilenameFromRecord } from '@/lib/proposalFilename';
 import { ShareOverlay, ShareTriggerButton } from '@/components/ShareOverlay';
@@ -102,7 +102,7 @@ export function ProposalDoc() {
   const [, navigate] = useLocation();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [starred, setStarred] = useState<Set<string>>(new Set());
-  const [generated, setGenerated] = useState<GeneratedProposal[]>([]);
+  const [generated, setGenerated] = useState<GeneratedProposal[]>(() => listProposals());
   const [shareOpen, setShareOpen] = useState(false);
   const [query, setQuery] = useState('');
   const gridRef = useRef<HTMLDivElement>(null);
@@ -115,14 +115,17 @@ export function ProposalDoc() {
           if (!cancelled) setGenerated(rows);
         })
         .catch((err) => {
-          if (!cancelled) {
-            setGenerated([]);
-            toastError({
-              key: 'proposals-load',
-              title: 'Could not load proposals',
-              err,
-            });
+          if (cancelled) return;
+          const cached = listProposals();
+          if (cached.length) {
+            setGenerated(cached);
+            return;
           }
+          toastError({
+            key: 'proposals-load',
+            title: 'Could not load proposals',
+            err,
+          });
         });
     };
     refresh();

@@ -132,8 +132,23 @@ async function readLocalCache(): Promise<CatalogCachePayload | null> {
   }
 }
 
+function applyCachedPayload(row: CatalogCachePayload | null) {
+  if (!row?.payload) return;
+  try {
+    applyPayload(parseCostRatesPayload(row.payload));
+  } catch {
+    applyPayload(row.payload);
+  }
+  lastFetchedAt = row.fetchedAt;
+}
+
 export async function hydrateCatalogCache(): Promise<void> {
   const local = await readLocalCache();
+  applyCachedPayload(local);
+  void reconcileCatalogCloud(local);
+}
+
+async function reconcileCatalogCloud(local: CatalogCachePayload | null): Promise<void> {
   let cloud: Awaited<ReturnType<typeof cloudGetCatalog>> = null;
   if (getTeamToken()) {
     try {
@@ -159,15 +174,7 @@ export async function hydrateCatalogCache(): Promise<void> {
   }
   const best =
     catalogTimestamp(cloudRow) > catalogTimestamp(local) ? cloudRow : local;
-  if (best?.payload) {
-    try {
-      const parsed = parseCostRatesPayload(best.payload);
-      applyPayload(parsed);
-    } catch {
-      applyPayload(best.payload);
-    }
-    lastFetchedAt = best.fetchedAt;
-  }
+  if (best && best !== local) applyCachedPayload(best);
 }
 
 export async function refreshCostCatalog(): Promise<void> {

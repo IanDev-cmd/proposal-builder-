@@ -3,6 +3,7 @@ import { Home, Users, ClipboardList, Bookmark, FileText, Settings } from 'lucide
 import { HOME_PATH, isHomeDashboardPath } from '@/lib/homeLanding';
 import { isSavedQuoteReviewPath } from '@/lib/savedQuotesStore';
 import { emitFreshQuoteBuilder } from '@/lib/quoteBuilderSession';
+import { EngineStatusBadge } from '@/components/EngineStatusBadge';
 import { SyncStatusBadge } from '@/components/SyncStatusBadge';
 
 const NAV_ITEMS = [
@@ -56,6 +57,7 @@ export function AppNav() {
         </nav>
 
         <div className="ml-auto flex items-center">
+          <EngineStatusBadge />
           <SyncStatusBadge />
           <Link
             href="/settings"

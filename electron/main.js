@@ -158,7 +158,7 @@ function stopEngine() {
 
 function getHealth() {
   return new Promise((resolve, reject) => {
-    const req = http.get(`${ENGINE_ORIGIN}/`, (res) => {
+    const req = http.get(`${ENGINE_ORIGIN}/health`, (res) => {
       let body = '';
       res.on('data', (chunk) => {
         body += chunk;
@@ -171,7 +171,7 @@ function getHealth() {
         }
       });
     });
-    req.setTimeout(2000, () => {
+    req.setTimeout(700, () => {
       req.destroy(new Error('health timeout'));
     });
     req.on('error', reject);
@@ -197,54 +197,43 @@ function splashProgress(percent, label) {
   }).catch(() => {});
 }
 
-function readyLabel(imported, fallback) {
-  const quotes = imported && Number(imported.quoteCount) > 0 ? Number(imported.quoteCount) : 0;
-  const proposals = imported && Number(imported.proposalCount) > 0 ? Number(imported.proposalCount) : 0;
-  if (quotes && proposals) return `Ready. ${quotes} quotes and ${proposals} proposals on this computer.`;
-  if (quotes) return `Ready. ${quotes} quotes on this computer.`;
-  if (proposals) return `Ready. ${proposals} proposals on this computer.`;
-  return fallback;
+function engineIsUp(health) {
+  const status = health && health.status;
+  return status === 'ok' || status === 'degraded' || status === 'warming';
+}
+
+function pullCloudWorkspace() {
+  void importRenderWorkspace({
+    origin: ENGINE_ORIGIN,
+    pin: localPin(),
+    app,
+    onProgress: () => {},
+  }).then((imported) => {
+    logLine('import', imported && imported.skipped ? `skipped ${imported.reason || ''}` : 'finished');
+  }).catch((err) => {
+    logLine('import', err instanceof Error ? err.message : String(err));
+  });
 }
 
 async function waitForEngine() {
   const started = Date.now();
   let tick = 0;
-  const firstInstall = !fs.existsSync(path.join(nexusDir(), 'workspace.sqlite'));
   while (Date.now() - started < HEALTH_TIMEOUT_MS) {
     tick += 1;
     const elapsed = Date.now() - started;
-    // Boot has no byte count. Creep only until the engine answers, then real stages take over.
-    const creep = Math.min(52, 8 + Math.round(elapsed / 700));
-    splashProgress(creep, firstInstall ? 'Starting the proposal engine' : 'Opening proposal templates');
+    const creep = Math.min(92, 18 + Math.round(elapsed / 70));
+    splashProgress(creep, 'Opening Nexus');
     try {
       const health = await getHealth();
-      if (health && (health.status === 'ok' || health.status === 'degraded')) {
+      if (engineIsUp(health)) {
         logLine('health', `status=${health.status} warmup=${Boolean(health.profile_warmup && health.profile_warmup.ok)} templates=${health.templates ?? ''}`);
-        const note = health.status === 'ok' ? 'Ready.' : 'Templates need attention.';
-        splashProgress(64, 'Opening proposal templates');
-        try {
-          const imported = await importRenderWorkspace({
-            origin: ENGINE_ORIGIN,
-            pin: localPin(),
-            app,
-            onProgress: (percent, label) => splashProgress(percent, label),
-          });
-          if (imported && imported.skipped && imported.reason === 'local-already-has-quotes') {
-            splashProgress(88, 'Opening proposals');
-          }
-          splashProgress(100, readyLabel(imported, note));
-        } catch (err) {
-          splashProgress(100, 'Quotes stayed online.');
-          console.error(err);
-        }
+        splashProgress(100, health.status === 'degraded' ? 'Templates need attention.' : 'Ready.');
         return health;
       }
     } catch (err) {
-      if (tick === 1 || tick % 20 === 0) logLine('health', err instanceof Error ? err.message : String(err));
-      /* engine is still importing PyMuPDF and warming templates */
+      if (tick === 1 || tick % 40 === 0) logLine('health', err instanceof Error ? err.message : String(err));
     }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    if (tick > 400) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error('The proposal engine did not become ready.');
 }
@@ -340,9 +329,16 @@ ipcMain.handle('desktop:install-update', () => {
 });
 
 app.whenReady().then(async () => {
+  let bootError = null;
+  try {
+    startEngine();
+  } catch (err) {
+    bootError = err;
+    logLine('engine', err instanceof Error ? err.message : String(err));
+  }
   splash = new BrowserWindow({
-    width: 960,
-    height: 639,
+    width: 1080,
+    height: 608,
     frame: false,
     resizable: false,
     movable: true,
@@ -357,13 +353,16 @@ app.whenReady().then(async () => {
   logLine('window', 'splash created');
   await splash.loadFile(path.join(__dirname, 'splash.html'));
   splash.show();
+  splashProgress(18, 'Opening Nexus');
   setupAutoUpdater();
+  if (bootError) {
+    splashProgress(100, bootError instanceof Error ? bootError.message : String(bootError));
+    return;
+  }
   try {
-    const firstInstall = !fs.existsSync(path.join(nexusDir(), 'workspace.sqlite'));
-    startEngine();
-    splashProgress(8, firstInstall ? 'Starting the proposal engine' : 'Opening proposal templates');
     await waitForEngine();
     openMain();
+    pullCloudWorkspace();
   } catch (err) {
     splashProgress(100, err instanceof Error ? err.message : String(err));
   }

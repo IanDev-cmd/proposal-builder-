@@ -8,7 +8,9 @@ import { Avatar } from '@/components/Avatar';
 import { personAvatarUrl } from '@/lib/avatar';
 import {
   persistLeadsCache,
+  readLeadsCache,
   readLeadsFromDb,
+  subscribeLeadsCache,
   LEADS_REFRESH_MS,
 } from '@/lib/leadCache';
 import { fetchLeadsFromWebhook } from '@/lib/leadsNetwork';
@@ -19,12 +21,15 @@ const TABS = ['Live', 'Booked', 'Dead', 'Blacklisted'] as const;
 
 export function Leads() {
   const { setActiveLead } = useActiveLead();
+  const openingCache = readLeadsCache();
   const [activeTab, setActiveTab] = useState(0);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [leads, setLeads] = useState<Lead[]>(() => openingCache?.leads ?? []);
+  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>(() =>
+    openingCache?.leads?.length ? 'ok' : 'loading',
+  );
   const [syncing, setSyncing] = useState(false);
   const [stale, setStale] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(openingCache?.fetchedAt ?? null);
   const [panelLead, setPanelLead] = useState<Lead | null>(null);
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -75,6 +80,15 @@ export function Leads() {
       if (!ac.signal.aborted) setSyncing(false);
     }
   }, []);
+
+  useEffect(() => subscribeLeadsCache(() => {
+    const cached = readLeadsCache();
+    if (cached?.leads?.length) {
+      setLeads(cached.leads);
+      setLastSyncedAt(cached.fetchedAt);
+      setStatus('ok');
+    }
+  }), []);
 
   useEffect(() => {
     let cancelled = false;

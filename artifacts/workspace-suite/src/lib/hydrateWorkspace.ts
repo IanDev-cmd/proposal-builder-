@@ -1,3 +1,4 @@
+import { hydrateCatalogCache } from './catalogSync';
 import { hydrateLeadsDb, refreshLeadsFromNetwork } from './leadCache';
 import { getWorkspaceDb } from './nexusWorkspaceDb';
 import { hydrateProposalsDb } from './proposalStore';
@@ -11,7 +12,12 @@ export function hydrateWorkspace(): Promise<void> {
   started = (async () => {
     try {
       await getWorkspaceDb();
-      await Promise.all([hydrateLeadsDb(), hydrateSavedQuotesDb(), hydrateProposalsDb()]);
+      await Promise.all([
+        hydrateLeadsDb(),
+        hydrateSavedQuotesDb(),
+        hydrateProposalsDb(),
+        hydrateCatalogCache(),
+      ]);
       window.dispatchEvent(new Event('nexus:workspace-ready'));
     } catch (err) {
       started = null;

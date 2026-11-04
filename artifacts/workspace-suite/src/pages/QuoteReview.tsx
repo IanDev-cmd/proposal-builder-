@@ -37,12 +37,17 @@ export function QuoteReview() {
     let cancelled = false;
     void hydrateSavedQuotesDb()
       .then(async () => {
-        await requestWorkspaceSync('deep-link', { path: `/saved-quotes/${id}` });
+        const cached = id ? getSavedQuote(id) : null;
+        if (!cancelled && cached) {
+          setQuote(cached);
+          setLoading(false);
+        }
+        void requestWorkspaceSync('deep-link', { path: `/saved-quotes/${id}` });
         return getSavedQuoteAsync(id);
       })
       .then((row) => {
         if (!cancelled) {
-          setQuote(row);
+          if (row) setQuote(row);
           setLoading(false);
         }
       })
