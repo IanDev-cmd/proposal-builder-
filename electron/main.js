@@ -1,12 +1,16 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
-const { importRenderWorkspace } = require('./importRender');
+const { syncRenderWorkspace, localChangeSignature, login, requestJson } = require('./importRender');
 const { spawn, spawnSync } = require('child_process');
+const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
+const os = require('os');
 const path = require('path');
 
 const ENGINE_PORT = 8765;
 const ENGINE_ORIGIN = `http://127.0.0.1:${ENGINE_PORT}`;
+const HEALTH_PULSE_URL = 'https://electron-y515.onrender.com/api/desktop-health';
 const HEALTH_TIMEOUT_MS = 90000;
 
 let engineProc = null;
@@ -202,17 +206,146 @@ function engineIsUp(health) {
   return status === 'ok' || status === 'degraded' || status === 'warming';
 }
 
-function pullCloudWorkspace() {
-  void importRenderWorkspace({
+let syncingWorkspace = false;
+let lastWorkspaceSignature = '';
+let lastSyncLabel = 'waiting';
+let syncTimer = null;
+let watchTimer = null;
+let changeTimer = null;
+
+async function readLocalSignature() {
+  const token = await login(ENGINE_ORIGIN, localPin());
+  const headers = { Authorization: `Bearer ${token}` };
+  const quotes = await requestJson(`${ENGINE_ORIGIN}/workspace/quotes`, { headers });
+  const proposals = await requestJson(`${ENGINE_ORIGIN}/workspace/proposals`, { headers });
+  return localChangeSignature(
+    quotes.json && quotes.json.quotes,
+    proposals.json && proposals.json.proposals,
+  );
+}
+
+function runWorkspaceSync(reason) {
+  if (syncingWorkspace || quitting) return;
+  syncingWorkspace = true;
+  logLine('sync', `start ${reason}`);
+  void syncRenderWorkspace({
     origin: ENGINE_ORIGIN,
     pin: localPin(),
     app,
-    onProgress: () => {},
-  }).then((imported) => {
-    logLine('import', imported && imported.skipped ? `skipped ${imported.reason || ''}` : 'finished');
+  }).then((result) => {
+    lastSyncLabel = result && result.skipped ? `skipped ${result.reason || ''}` : `ok ${reason}`;
+    logLine('sync', `${reason} ${JSON.stringify(result)}`);
   }).catch((err) => {
-    logLine('import', err instanceof Error ? err.message : String(err));
+    lastSyncLabel = 'failed';
+    logLine('sync', err instanceof Error ? err.message : String(err));
+  }).finally(() => {
+    syncingWorkspace = false;
   });
+}
+
+function installId() {
+  const file = path.join(nexusDir(), 'install-id.txt');
+  try {
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (/^[A-Za-z0-9_-]{8,80}$/.test(existing)) return existing;
+  } catch { /* first launch */ }
+  const created = crypto.randomBytes(12).toString('hex');
+  fs.mkdirSync(nexusDir(), { recursive: true });
+  fs.writeFileSync(file, created, 'utf8');
+  return created;
+}
+
+function postJson(url, body) {
+  return new Promise((resolve) => {
+    const payload = Buffer.from(JSON.stringify(body));
+    const target = new URL(url);
+    const req = https.request({
+      hostname: target.hostname,
+      path: target.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': payload.length,
+      },
+      timeout: 8000,
+    }, (res) => {
+      res.resume();
+      resolve(res.statusCode);
+    });
+    req.on('error', () => resolve(0));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(0);
+    });
+    req.end(payload);
+  });
+}
+
+async function reportDesktopHealth() {
+  let engine = 'down';
+  let quoteCount = 0;
+  let proposalCount = 0;
+  let databaseStatus = 'down';
+  try {
+    const health = await getHealth();
+    engine = health && health.status ? health.status : 'down';
+  } catch { /* engine still starting */ }
+  try {
+    const token = await login(ENGINE_ORIGIN, localPin());
+    const headers = { Authorization: `Bearer ${token}` };
+    const quotes = await requestJson(`${ENGINE_ORIGIN}/workspace/quotes`, { headers });
+    const proposals = await requestJson(`${ENGINE_ORIGIN}/workspace/proposals`, { headers });
+    quoteCount = quotes.json && Array.isArray(quotes.json.quotes) ? quotes.json.quotes.length : 0;
+    proposalCount = proposals.json && Array.isArray(proposals.json.proposals) ? proposals.json.proposals.length : 0;
+    databaseStatus = quotes.status === 200 && proposals.status === 200 ? 'ok' : 'degraded';
+  } catch {
+    databaseStatus = 'down';
+  }
+  const ux = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()
+    ? 'ready'
+    : (splash && !splash.isDestroyed() ? 'opening' : 'background');
+  const status = engine === 'ok' && databaseStatus === 'ok' && ux === 'ready' ? 'ok' : 'degraded';
+  const code = await postJson(HEALTH_PULSE_URL, {
+    installId: installId(),
+    computerName: os.hostname(),
+    appVersion: app.getVersion(),
+    platform: `${process.platform} ${os.release()}`,
+    ux,
+    engine,
+    quoteCount,
+    proposalCount,
+    databaseStatus,
+    lastSync: lastSyncLabel,
+    status,
+  });
+  logLine('fleet', `pulse ${code} ux=${ux} engine=${engine} db=${databaseStatus}`);
+}
+
+function startWorkspaceSyncLoop() {
+  if (syncTimer) return;
+  runWorkspaceSync('session');
+  syncTimer = setInterval(() => runWorkspaceSync('interval'), 90_000);
+  watchTimer = setInterval(() => {
+    void readLocalSignature().then((signature) => {
+      if (lastWorkspaceSignature && signature !== lastWorkspaceSignature) {
+        clearTimeout(changeTimer);
+        changeTimer = setTimeout(() => runWorkspaceSync('local-change'), 4000);
+      }
+      lastWorkspaceSignature = signature;
+    }).catch((err) => {
+      logLine('sync', err instanceof Error ? err.message : String(err));
+    });
+  }, 20_000);
+}
+
+let healthTimer = null;
+
+function startHealthReports() {
+  if (healthTimer) return;
+  void reportDesktopHealth();
+  healthTimer = setInterval(() => {
+    void reportDesktopHealth();
+  }, 30_000);
 }
 
 async function waitForEngine() {
@@ -354,6 +487,7 @@ app.whenReady().then(async () => {
   await splash.loadFile(path.join(__dirname, 'splash.html'));
   splash.show();
   splashProgress(18, 'Opening Nexus');
+  startHealthReports();
   setupAutoUpdater();
   if (bootError) {
     splashProgress(100, bootError instanceof Error ? bootError.message : String(bootError));
@@ -362,7 +496,7 @@ app.whenReady().then(async () => {
   try {
     await waitForEngine();
     openMain();
-    pullCloudWorkspace();
+    startWorkspaceSyncLoop();
   } catch (err) {
     splashProgress(100, err instanceof Error ? err.message : String(err));
   }

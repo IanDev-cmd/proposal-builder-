@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Download the Render workspace database and restore it into local PostgreSQL.
+# One-time restore of the Render workspace into a local PostgreSQL database.
+# The desktop app does not use this restore as its only copy. While it is open
+# it repeats the same Render exchange every 90 seconds, and again when the
+# local SQLite database gains or changes a quote or proposal.
 # The connection string is read from scripts/render-database.url (gitignored).
 set -euo pipefail
 

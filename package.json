@@ -1,6 +1,6 @@
 {
   "name": "workspace",
-  "version": "0.0.0",
+  "version": "1.2.0",
   "license": "MIT",
   "main": "electron/main.js",
   "scripts": {
@@ -43,6 +43,10 @@
       {
         "from": "artifacts/workspace-suite/dist/public",
         "to": "spa"
+      },
+      {
+        "from": "scripts/render-database.url",
+        "to": "render-database.url"
       }
     ],
     "win": {
