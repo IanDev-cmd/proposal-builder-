@@ -124,6 +124,8 @@ function startEngine() {
     NEXUS_AUTH_SECRET: readOrCreate('auth-secret.txt', randomSecret),
     NEXUS_AUTH_TEST: '1',
   };
+  // Postgres wins whenever this variable is present. The installed app keeps SQLite.
+  delete env.DATABASE_URL;
   logLine('engine', `spawn ${exe}`);
   engineProc = spawn(exe, [], {
     env,
