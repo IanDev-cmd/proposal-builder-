@@ -435,6 +435,8 @@ function setupAutoUpdater() {
   }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  // Releases are unsigned. latest.yml checksums still have to match the downloaded setup.
+  autoUpdater.verifyUpdateCodeSignature = false;
   autoUpdater.logger = {
     info: (message) => logLine('update', message),
     warn: (message) => logLine('update', message),

@@ -1,0 +1,65 @@
+name: Desktop release
+
+on:
+  push:
+    branches: [Nexus-Desktop]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-nexus
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Set the release version
+        shell: pwsh
+        run: node scripts/set-desktop-release-version.mjs
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+
+      - name: Write the desktop database file
+        shell: pwsh
+        env:
+          DESKTOP_DATABASE_URL: ${{ secrets.DESKTOP_DATABASE_URL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DESKTOP_DATABASE_URL)) {
+            throw "Add the DESKTOP_DATABASE_URL repository secret before this release can be built."
+          }
+          $path = Join-Path (Get-Location) "scripts/render-database.url"
+          [System.IO.File]::WriteAllText($path, $env:DESKTOP_DATABASE_URL.Trim())
+
+      - name: Create the desktop Python environment
+        shell: pwsh
+        run: |
+          python -m venv artifacts/pdf-engine/.venv-desktop
+          & artifacts/pdf-engine/.venv-desktop/Scripts/python.exe -m pip install --upgrade pip
+          & artifacts/pdf-engine/.venv-desktop/Scripts/python.exe -m pip install -r artifacts/pdf-engine/requirements-desktop.txt pyinstaller==6.11.1
+
+      - name: Build and publish the installer
+        shell: pwsh
+        env:
+          DESKTOP_PUBLISH: always
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: node scripts/build-exe.mjs

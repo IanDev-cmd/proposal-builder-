@@ -63,7 +63,9 @@ if (!fs.existsSync(engineExe)) {
 console.log('Building the React app');
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 // The repo preinstall script calls sh, which is not present on a stock Windows install.
-run(pnpm, ['install', '--ignore-scripts'], { cwd: root });
+const installArgs = ['install', '--ignore-scripts'];
+if (process.env.CI) installArgs.push('--frozen-lockfile');
+run(pnpm, installArgs, { cwd: root });
 ensureElectron();
 run(pnpm, ['--filter', '@workspace/workspace-suite', 'exec', 'vite', 'build', '--config', 'vite.config.ts'], {
   cwd: root,
@@ -74,7 +76,12 @@ run(pnpm, ['--filter', '@workspace/workspace-suite', 'exec', 'vite', 'build', '-
 });
 
 console.log('Packaging the Windows installer');
-run(pnpm, ['exec', 'electron-builder', '--win', 'nsis', '--x64'], { cwd: root });
+const builderArgs = ['exec', 'electron-builder', '--win', 'nsis', '--x64'];
+if (process.env.DESKTOP_PUBLISH === 'always') builderArgs.push('--publish', 'always');
+run(pnpm, builderArgs, {
+  cwd: root,
+  env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' },
+});
 
 const installer = path.join(root, 'dist', 'WEOTT-Quote-Builder-Setup.exe');
 if (!fs.existsSync(installer)) {
