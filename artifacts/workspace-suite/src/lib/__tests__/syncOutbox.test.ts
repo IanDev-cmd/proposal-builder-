@@ -70,7 +70,7 @@ describe('outbox revisions and stale-server rejection', () => {
         remote: { id: 'q', syncRevision: 8, savedAt: '2026-03-01T00:00:00.000Z', data: { a: 2 } },
         deleted: false,
       }),
-    ).toBe('keep');
+    ).toBe('fetch');
   });
 
   it('flushes ten queued edits one id at a time without duplicates', async () => {

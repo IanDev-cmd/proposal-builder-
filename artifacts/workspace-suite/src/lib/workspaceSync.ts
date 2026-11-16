@@ -9,7 +9,12 @@ import {
   listSavedQuotes,
   type SavedQuote,
 } from '@/lib/savedQuotesStore';
-import { isQuoteDeleted, listDeletedQuoteIds } from '@/lib/quoteTombstones';
+import {
+  forgetDeletedQuoteIds,
+  isQuoteDeleted,
+  isSessionDeleted,
+  listDeletedQuoteIds,
+} from '@/lib/quoteTombstones';
 import { getTeamToken } from '@/lib/teamSession';
 import { pullWorkbookToUx } from '@/lib/workbookSync';
 import { planQuoteSync, refreshesWorkbook } from '@/lib/workspaceTraffic';
@@ -35,6 +40,7 @@ import {
   cloudPutProposal,
   cloudPutQuote,
   isQuoteDeletedConflict,
+  isQuoteStaleConflict,
 } from '@/lib/workspaceCloud';
 
 async function drainSyncOutbox(): Promise<void> {
@@ -93,6 +99,15 @@ async function putQuoteRespectingDelete(quote: SavedQuote): Promise<void> {
     await cloudPutQuote(quote);
     await dequeueSyncOutbox('quote', quote.id);
   } catch (err) {
+    if (isQuoteStaleConflict(err)) {
+      const remote = await cloudGetQuote(quote.id);
+      if (remote?.id) {
+        forgetDeletedQuoteIds([remote.id]);
+        await ingestRemoteQuotes([remote]);
+      }
+      await dequeueSyncOutbox('quote', quote.id);
+      return;
+    }
     if (isQuoteDeletedConflict(err)) {
       await discardDeletedQuote(quote.id);
       return;
@@ -167,6 +182,7 @@ export async function syncWorkspaceCloud(ctx?: SyncRunContext): Promise<void> {
         local: localById.get(remote.id) || null,
         remote,
         deleted: deleted.has(remote.id),
+        deletedThisSession: isSessionDeleted(remote.id),
       });
       if (action === 'drop-remote') {
         void cloudDeleteQuote(remote.id).catch(() => {
@@ -188,7 +204,14 @@ export async function syncWorkspaceCloud(ctx?: SyncRunContext): Promise<void> {
     const quoteUploads: Promise<void>[] = [];
     for (const quote of listSavedQuotes()) {
       const remote = remoteById.get(quote.id) || null;
-      if (planQuoteSync({ local: quote, remote, deleted: isQuoteDeleted(quote.id) }) !== 'upload') {
+      if (
+        planQuoteSync({
+          local: quote,
+          remote,
+          deleted: isQuoteDeleted(quote.id),
+          deletedThisSession: isSessionDeleted(quote.id),
+        }) !== 'upload'
+      ) {
         continue;
       }
       quoteUploads.push(

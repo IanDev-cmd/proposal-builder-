@@ -134,14 +134,37 @@ export function retitleQuoteVersion(title: string, from: string, to: string): st
   }
   const replaced = source.replace(new RegExp(`${from}(?!\\d)`, 'g'), to);
   if (replaced !== source) return replaced;
-  if (/\bV\d+\b|BF\s*Costs/i.test(source)) return source;
+  // "_" is a word character, so \b does not see _V10. Leave an existing version token alone.
+  if (/(^|[^A-Za-z0-9])V\d+\b|BF\s*Costs/i.test(source)) return source;
   return `${source} (${to})`;
+}
+
+/** Lead identity for a quote id. A blank result must not be saved. */
+export function quoteLeadKey(parts: {
+  referenceNumber?: string | null;
+  email?: string | null;
+  id?: string | number | null;
+  fallbackKey?: string | null;
+}): string {
+  const usable = (value: string | null | undefined) => {
+    const text = String(value || '').trim();
+    if (!text || text === '—' || text === 'quote-draft') return '';
+    return text;
+  };
+  return (
+    usable(parts.referenceNumber) ||
+    usable(parts.email) ||
+    (parts.id != null && String(parts.id).trim() !== '' ? `lead-${parts.id}` : '') ||
+    usable(parts.fallbackKey)
+  );
 }
 
 /** One saved-quote id per lead and version. V2 never reuses the V1 id. */
 export function savedQuoteId(leadKey: string, quoteVersion: string): string {
   const version = acceptQuoteVersion(quoteVersion) || 'V1';
-  return `quote-${leadKey}-${version}`;
+  const key = quoteLeadKey({ fallbackKey: leadKey });
+  if (!key) return '';
+  return `quote-${key}-${version}`;
 }
 
 export function findSavedQuoteByVersion<T extends { id?: string; leadKey: string; data?: { quoteVersion?: string } }>(
@@ -150,10 +173,12 @@ export function findSavedQuoteByVersion<T extends { id?: string; leadKey: string
   quoteVersion: string,
 ): T | undefined {
   const version = acceptQuoteVersion(quoteVersion) || 'V1';
-  const id = savedQuoteId(leadKey, version);
+  const key = quoteLeadKey({ fallbackKey: leadKey });
+  if (!key) return undefined;
+  const id = savedQuoteId(key, version);
   return quotes.find((q) => {
+    if (q.leadKey !== key) return false;
     if (q.id === id) return true;
-    if (q.leadKey !== leadKey) return false;
     return acceptQuoteVersion(String(q.data?.quoteVersion || '')) === version;
   });
 }

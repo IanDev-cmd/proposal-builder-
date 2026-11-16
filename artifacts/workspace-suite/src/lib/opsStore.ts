@@ -153,10 +153,7 @@ export async function deleteOpsQuoteSnapshots(
     local = [];
   }
   const related = local.filter(
-    (row) =>
-      unique.includes(row.id) ||
-      (row.quoteId && unique.includes(row.quoteId)) ||
-      (ref && row.referenceNumber === ref),
+    (row) => unique.includes(row.id) || (row.quoteId && unique.includes(row.quoteId)),
   );
   rememberDeletedQuoteIds(related.flatMap((row) => [row.id, row.quoteId]));
   for (const row of related) {

@@ -443,12 +443,11 @@ const grossDiscount = calcFinancials({
   agentReferral: false,
 });
 check('unit 5% discount leaves the 25% margin', grossDiscount.marginAmount === 2500);
-check('unit 5% discount is off the gross', grossDiscount.discountAmount === 625);
-check('unit 5% discount cost to client', grossDiscount.costToClient === 11875);
+check('unit 5% discount is off the margin', grossDiscount.discountAmount === 125);
+check('unit 5% discount leaves the client total', grossDiscount.costToClient === 12500);
 check(
-  'unit discount rows add back to the gross',
-  grossDiscount.costToClient ===
-    grossDiscount.costToClientBeforeDiscount - grossDiscount.discountAmount &&
+  'unit discount stays off the client total',
+  grossDiscount.costToClient === grossDiscount.costToClientBeforeDiscount &&
     grossDiscount.updatedProfit === grossDiscount.marginAmount - grossDiscount.discountAmount &&
     grossDiscount.grand === grossDiscount.costToClient + grossDiscount.vat,
 );
@@ -758,8 +757,17 @@ check(
   planQuoteSync({ local: localQuote, remote: null, deleted: true }) === 'keep',
 );
 check(
-  'sync deletes a remote row that this device already tombstoned',
-  planQuoteSync({ local: localQuote, remote: remoteSummary, deleted: true }) === 'drop-remote',
+  'sync fetches a stale tombstone instead of deleting the server row',
+  planQuoteSync({ local: localQuote, remote: remoteSummary, deleted: true }) === 'fetch',
+);
+check(
+  'sync deletes a remote row only when this session deleted it',
+  planQuoteSync({
+    local: localQuote,
+    remote: remoteSummary,
+    deleted: true,
+    deletedThisSession: true,
+  }) === 'drop-remote',
 );
 check(
   'sync fetches a body only when the remote is newer and local data is missing',
@@ -770,24 +778,24 @@ check(
   }) === 'fetch',
 );
 check(
-  'sync does not refetch when local already has data and the remote is newer',
+  'sync fetches when the server is newer even if this device already has the form',
   planQuoteSync({
     local: localQuote,
     remote: { ...remoteSummary, savedAt: '2026-10-12T12:00:00Z' },
     deleted: false,
-  }) === 'keep',
+  }) === 'fetch',
 );
 check(
-  'sync does not download every summary that is missing locally',
-  planQuoteSync({ local: null, remote: remoteSummary, deleted: false }) === 'keep',
+  'sync downloads a server quote this device does not have',
+  planQuoteSync({ local: null, remote: remoteSummary, deleted: false }) === 'fetch',
 );
 check(
-  'sync uploads when the local review is newer',
+  'sync keeps a quote when only the review stamp differs',
   planQuoteSync({
     local: { ...localQuote, reviewedAt: '2026-10-12T12:00:00Z' },
     remote: remoteSummary,
     deleted: false,
-  }) === 'upload',
+  }) === 'keep',
 );
 check(
   'sync uploads when the local revision is newer than the server',

@@ -12,7 +12,8 @@
 const DESKTOP_ENGINE_ORIGIN = 'http://127.0.0.1:8765';
 
 function desktopEngine(): boolean {
-  if (import.meta.env.VITE_DESKTOP === '1') return true;
+  const env = (import.meta as ImportMeta & { env?: { VITE_DESKTOP?: string } }).env;
+  if (env?.VITE_DESKTOP === '1') return true;
   return typeof window !== 'undefined' && window.__WEOTT_DESKTOP__ === true;
 }
 

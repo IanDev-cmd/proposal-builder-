@@ -158,6 +158,55 @@ def quote_is_deleted(quote_id: str) -> bool:
     return bool(row and row["deleted_at"])
 
 
+def quote_meta(quote_id: str) -> dict | None:
+    qid = str(quote_id or "").strip()
+    if not qid:
+        return None
+    conn = connection()
+    with _lock:
+        row = conn.execute(
+            "SELECT deleted_at, updated_at, data_json, extra_json FROM quotes WHERE id = ?",
+            (qid,),
+        ).fetchone()
+    if not row:
+        return None
+    extra = _load_json(row["extra_json"]) or {}
+    data = _load_json(row["data_json"]) or {}
+    return {
+        "deleted": bool(row["deleted_at"]),
+        "updatedAt": row["updated_at"],
+        "data": data if isinstance(data, dict) else {},
+        "syncRevision": extra.get("syncRevision") if isinstance(extra, dict) else None,
+        "syncUpdatedAt": extra.get("syncUpdatedAt") if isinstance(extra, dict) else None,
+    }
+
+
+def list_deleted_quotes() -> list[dict]:
+    conn = connection()
+    with _lock:
+        rows = conn.execute(
+            "SELECT id, updated_at, deleted_at FROM quotes WHERE deleted_at IS NOT NULL"
+        ).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "updatedAt": row["updated_at"] or "",
+            "deletedAt": row["deleted_at"] or "",
+        }
+        for row in rows
+    ]
+
+
+def clear_quote_deleted(quote_id: str) -> None:
+    qid = str(quote_id or "").strip()
+    if not qid:
+        return
+    conn = connection()
+    with _lock:
+        conn.execute("UPDATE quotes SET deleted_at = NULL WHERE id = ?", (qid,))
+        conn.commit()
+
+
 def list_quotes() -> list[dict]:
     conn = connection()
     with _lock:

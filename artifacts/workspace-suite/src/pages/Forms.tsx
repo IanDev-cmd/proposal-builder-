@@ -36,6 +36,7 @@ import {
   QUOTE_VERSIONS,
   acceptQuoteVersion,
   findSavedQuoteByVersion,
+  quoteLeadKey,
   savedQuoteId,
   laterQuoteVersion,
   quoteVersionNumber,
@@ -332,10 +333,12 @@ export function Forms() {
   const [leadInit] = useState(() =>
     formFromLead(freshStartRef.current ? null : getQuoteLead() || pendingQuote?.lead || null),
   );
-  const leadNotesKey =
-    quoteLead?.referenceNumber ||
-    quoteLead?.email ||
-    (quoteLead?.id != null ? `lead-${quoteLead.id}` : pendingQuote?.leadKey || 'quote-draft');
+  const leadNotesKey = quoteLeadKey({
+    referenceNumber: quoteLead?.referenceNumber,
+    email: quoteLead?.email,
+    id: quoteLead?.id,
+    fallbackKey: pendingQuote?.leadKey,
+  });
   const [data, setData] = useState<FormData>(() => {
     if (freshStartRef.current) return { ...INIT };
     if (pendingQuote?.data) {
@@ -346,11 +349,7 @@ export function Forms() {
       };
     }
     const d = leadInit.data as FormData;
-    const draft = loadQuoteNotesDraft(
-      quoteLead?.referenceNumber ||
-        quoteLead?.email ||
-        (quoteLead?.id != null ? `lead-${quoteLead.id}` : 'quote-draft'),
-    );
+    const draft = loadQuoteNotesDraft(leadNotesKey || 'unsaved');
     return {
       ...d,
       keyItems: d.keyItems || draft?.keyItems || '',
@@ -966,6 +965,9 @@ export function Forms() {
   const persistWizardQuote = async (next: FormData) => {
     const version = acceptQuoteVersion(next.quoteVersion) || 'V1';
     const quoteId = savedQuoteId(leadNotesKey, version);
+    if (!quoteId) {
+      throw new Error('This quote has no lead reference yet');
+    }
     const existing = getSavedQuote(quoteId);
     const stem = proposalFileStem({
       contactName: quoteLead?.name,

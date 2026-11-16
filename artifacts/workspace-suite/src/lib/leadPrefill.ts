@@ -557,7 +557,7 @@ export function buildLeadPrefill<T extends Record<string, unknown>>(
   const disembarkation = schedule.disembarkation;
 
   let vesselType = matchVessels(lead.vessels);
-  vesselType = vesselsForVersion(notes, quoteVersion, vesselType);
+  if (!vesselType.length) vesselType = vesselsForVersion(notes, quoteVersion, vesselType);
 
   const source = matchSourceType(lead.source, sourceTypes);
   const repeatClient = isRepeatYes(lead.repeatClient) || isRepeatClientSource(lead.source);

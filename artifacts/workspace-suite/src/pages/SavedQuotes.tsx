@@ -10,6 +10,7 @@ import { QuoteShareButtons } from '@/components/QuoteShareButtons';
 import {
   consumePendingGenerate,
   deleteSavedQuote,
+  getSavedQuoteAsync,
   listSavedQuotes,
   markPendingGenerate,
   subscribeSavedQuotes,
@@ -194,7 +195,8 @@ export function SavedQuotes() {
 
   async function editQuote(quote: SavedQuote) {
     try {
-      await restoreSavedQuote(quote, EVENT_CORE_STEP);
+      const fresh = (await getSavedQuoteAsync(quote.id)) || quote;
+      await restoreSavedQuote(fresh, EVENT_CORE_STEP);
       navigate('/quote-builder');
     } catch (err) {
       toastError({ key: 'quote-edit', title: 'Could not open this quote for editing', err });
@@ -344,19 +346,8 @@ export function SavedQuotes() {
           if (!window.confirm('Delete this saved quote?')) return;
           const snap = opsQuotes.find((q) => q.id === card.id);
           const quote = quotes.find((q) => q.id === card.id);
-          const relatedSnaps = opsQuotes.filter(
-            (row) =>
-              row.id === card.id ||
-              (snap?.quoteId && (row.id === snap.quoteId || row.quoteId === snap.quoteId)) ||
-              (quote?.referenceNumber && row.referenceNumber === quote.referenceNumber) ||
-              (snap?.referenceNumber && row.referenceNumber === snap.referenceNumber),
-          );
           try {
-            await deleteSavedQuote(card.id, {
-              extraIds: relatedSnaps.flatMap((row) => [row.id, row.quoteId]),
-              quoteId: snap?.quoteId,
-              referenceNumber: quote?.referenceNumber || snap?.referenceNumber,
-            });
+            await deleteSavedQuote(card.id);
             setQuotes(listSavedQuotes());
             setOpsQuotes(await listOpsQuotes());
             setActiveId((cur) => (cur === card.id ? null : cur));
