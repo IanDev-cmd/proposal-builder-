@@ -30,15 +30,34 @@ async function readJson(res: Response): Promise<unknown> {
 
 export class QuoteDeletedConflict extends Error {
   readonly status = 409;
+  readonly code = 'deleted';
   constructor() {
     super('Quote was deleted');
     this.name = 'QuoteDeletedConflict';
   }
 }
 
+export class QuoteStaleConflict extends Error {
+  readonly status = 409;
+  readonly code = 'stale';
+  constructor() {
+    super('Quote changed on the server');
+    this.name = 'QuoteStaleConflict';
+  }
+}
+
+export function isQuoteStaleConflict(err: unknown): boolean {
+  if (err instanceof QuoteStaleConflict) return true;
+  return Boolean(err && typeof err === 'object' && (err as { code?: string }).code === 'stale');
+}
+
 export function isQuoteDeletedConflict(err: unknown): boolean {
+  if (err instanceof QuoteStaleConflict) return false;
   if (err instanceof QuoteDeletedConflict) return true;
-  return Boolean(err && typeof err === 'object' && (err as { status?: number }).status === 409);
+  if (!err || typeof err !== 'object') return false;
+  const code = (err as { code?: string }).code;
+  if (code === 'stale') return false;
+  return (err as { status?: number }).status === 409 && code !== 'stale';
 }
 
 function asQuoteSummary(row: Partial<SavedQuote> & { id: string }): SavedQuote {
@@ -68,18 +87,27 @@ export async function cloudListQuotes(): Promise<SavedQuote[]> {
     : [];
 }
 
-export async function cloudPutQuote(quote: SavedQuote): Promise<void> {
+export async function cloudPutQuote(
+  quote: SavedQuote,
+  opts?: { restoreDeleted?: boolean },
+): Promise<SavedQuote | null> {
+  const payload = opts?.restoreDeleted ? { ...quote, restoreDeleted: true } : quote;
   const res = await cloudFetch(`/quotes/${encodeURIComponent(quote.id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(quote),
+    body: JSON.stringify(payload),
   });
-  if (res.status === 409) throw new QuoteDeletedConflict();
+  const body = (await readJson(res)) as { error?: string; code?: string; quote?: SavedQuote } | null;
+  if (res.status === 409) {
+    const message = String(body?.error || '');
+    if (body?.code === 'stale' || /changed on the server/i.test(message)) throw new QuoteStaleConflict();
+    throw new QuoteDeletedConflict();
+  }
   if (!res.ok) {
-    const body = (await readJson(res)) as { error?: string } | null;
     const detail = body?.error ? String(body.error) : '';
     throw new Error(detail || `Could not save quote to workspace (${res.status})`);
   }
+  return body?.quote?.id ? body.quote : null;
 }
 
 export async function cloudDeleteQuote(id: string): Promise<void> {

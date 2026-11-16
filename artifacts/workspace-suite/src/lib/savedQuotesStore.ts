@@ -20,6 +20,7 @@ import {
   cloudPutQuote,
   cloudClearQuotes,
   isQuoteDeletedConflict,
+  isQuoteStaleConflict,
 } from '@/lib/workspaceCloud';
 import { dequeueSyncOutbox, enqueueSyncOutbox } from '@/lib/syncOutbox';
 import { noteCloudWriteSettled, noteSyncPendingCount, requestWorkspaceSync } from '@/lib/syncManager';
@@ -27,8 +28,10 @@ import { deleteOpsQuoteSnapshots } from '@/lib/opsStore';
 import {
   forgetDeletedQuoteIds,
   isQuoteDeleted,
+  isSessionDeleted,
   listDeletedQuoteIds,
   rememberDeletedQuoteIds,
+  rememberSessionDelete,
 } from '@/lib/quoteTombstones';
 import { pickReviewFields, quoteReviewStatus, type QuoteReviewStatus } from '@/lib/quoteReview';
 
@@ -109,18 +112,29 @@ function revisionOf(row?: { syncRevision?: number } | null): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+function stampOf(row: { updatedAt?: string; syncUpdatedAt?: string; savedAt?: string }): string {
+  return row.updatedAt || row.syncUpdatedAt || row.savedAt || '';
+}
+
 function mergeQuotePair(prev: SavedQuote, next: SavedQuote): SavedQuote {
   const prevHasData = Boolean(prev.data && Object.keys(prev.data).length);
   const nextHasData = Boolean(next.data && Object.keys(next.data).length);
-  const prevRev = revisionOf(prev);
-  const nextRev = revisionOf(next);
-  const revisionWins =
-    prevRev != null && nextRev != null && prevRev !== nextRev ? (nextRev > prevRev ? next : prev) : null;
-  const nextNewerSave = (next.savedAt || '') > (prev.savedAt || '');
-  const base = revisionWins || (nextNewerSave ? next : prev);
+  const prevStamp = stampOf(prev);
+  const nextStamp = stampOf(next);
+  let base: SavedQuote;
+  if (prevStamp && nextStamp && prevStamp !== nextStamp) {
+    base = nextStamp > prevStamp ? next : prev;
+  } else {
+    const prevRev = revisionOf(prev);
+    const nextRev = revisionOf(next);
+    if (prevRev != null && nextRev != null && prevRev !== nextRev) {
+      base = nextRev > prevRev ? next : prev;
+    } else {
+      base = (next.savedAt || '') > (prev.savedAt || '') ? next : prev;
+    }
+  }
   const other = base === next ? prev : next;
-  const data =
-    base.data && Object.keys(base.data).length ? base.data : other.data;
+  const data = base.data && Object.keys(base.data).length ? base.data : other.data;
   const review = pickReviewFields(prev, next);
   return {
     ...base,
@@ -206,13 +220,27 @@ export async function setQuoteReviewStatus(
 export async function persistSavedQuote(
   input: Omit<SavedQuote, 'savedAt'> & { savedAt?: string },
 ): Promise<SavedQuote> {
-  const next = upsertSavedQuote(input);
+  let next = upsertSavedQuote(input);
   await workspacePut(STORE, next);
   try {
-    await cloudPutQuote(next);
+    const saved = await cloudPutQuote(next, { restoreDeleted: true });
+    if (saved?.updatedAt) {
+      next = { ...next, updatedAt: saved.updatedAt };
+      const list = ensureMemory().map((row) => (row.id === next.id ? next : row));
+      setMemory(list);
+      await workspacePut(STORE, next);
+    }
     await dequeueSyncOutbox('quote', next.id);
     void noteCloudWriteSettled();
   } catch (err) {
+    if (isQuoteStaleConflict(err)) {
+      const remote = await cloudGetQuote(next.id);
+      if (remote?.id) {
+        forgetDeletedQuoteIds([remote.id]);
+        await ingestRemoteQuotes([remote]);
+      }
+      throw err;
+    }
     if (isQuoteDeletedConflict(err)) {
       await discardDeletedQuote(next.id);
       throw err;
@@ -232,17 +260,17 @@ export async function persistSavedQuote(
 
 export async function ingestRemoteQuotes(rows: SavedQuote[]): Promise<void> {
   if (!rows.length) return;
-  const deleted = listDeletedQuoteIds();
-  const keep = rows.filter((q) => q?.id && !deleted.has(q.id));
-  const stale = rows.filter((q) => q?.id && deleted.has(q.id));
-  for (const row of stale) {
+  const keep = rows.filter((q) => q?.id && !isSessionDeleted(q.id));
+  const sessionDropped = rows.filter((q) => q?.id && isSessionDeleted(q.id));
+  for (const row of sessionDropped) {
     void cloudDeleteQuote(row.id).catch(() => {
       /* retry on next sync */
     });
   }
+  forgetDeletedQuoteIds(keep.map((row) => row.id));
   if (!keep.length) return;
   const merged = mergeQuotes(
-    ensureMemory().filter((q) => !deleted.has(q.id)),
+    ensureMemory().filter((q) => !isSessionDeleted(q.id)),
     keep,
   );
   setMemory(merged);
@@ -288,6 +316,7 @@ export async function deleteSavedQuote(id: string, opts?: DeleteSavedQuoteOpts):
     ),
   ];
   if (!ids.length) return false;
+  rememberSessionDelete(ids);
   rememberDeletedQuoteIds(ids);
   const list = ensureMemory().filter((q) => !ids.includes(q.id));
   setMemory(list);
@@ -398,9 +427,22 @@ export function isSavedQuoteReviewPath(pathname: string): boolean {
   return /^\/saved-quotes\/[^/]+$/.test(path);
 }
 
+const PUBLIC_QUOTE_ORIGIN = 'https://weott-quote-builder.onrender.com';
+
+function quoteShareOrigin(): string {
+  const desktopFlag =
+    (import.meta as ImportMeta & { env?: { VITE_DESKTOP?: string } }).env?.VITE_DESKTOP === '1' ||
+    (typeof window !== 'undefined' &&
+      (window as Window & { __WEOTT_DESKTOP__?: boolean }).__WEOTT_DESKTOP__ === true);
+  if (desktopFlag) return PUBLIC_QUOTE_ORIGIN;
+  if (typeof window === 'undefined') return '';
+  return window.location.origin;
+}
+
 export function savedQuoteShareUrl(id: string): string {
-  if (typeof window === 'undefined') return savedQuoteSharePath(id);
-  return `${window.location.origin}${savedQuoteSharePath(id)}`;
+  const origin = quoteShareOrigin();
+  if (!origin) return savedQuoteSharePath(id);
+  return `${origin}${savedQuoteSharePath(id)}`;
 }
 
 export function savedQuoteIsCostView(search?: string): boolean {
@@ -409,31 +451,45 @@ export function savedQuoteIsCostView(search?: string): boolean {
 }
 
 export async function getSavedQuoteAsync(id: string): Promise<SavedQuote | null> {
-  if (!id) return null;
-  if (isQuoteDeleted(id)) return null;
-  const local = getSavedQuote(id);
-  if (local?.data && Object.keys(local.data).length) return local;
-  try {
-    const row = await workspaceGet<SavedQuote>(STORE, id);
-    if (row?.data && Object.keys(row.data).length) {
-      setMemory(mergeQuotes(ensureMemory(), [row]));
-      return getSavedQuote(id);
+  if (!id || isSessionDeleted(id)) return null;
+  let local = getSavedQuote(id);
+  if (!local?.data || !Object.keys(local.data).length) {
+    try {
+      const row = await workspaceGet<SavedQuote>(STORE, id);
+      if (row?.data && Object.keys(row.data).length) {
+        setMemory(mergeQuotes(ensureMemory(), [row]));
+        local = getSavedQuote(id);
+      }
+    } catch {
+      /* fall through to the shared workspace */
     }
-  } catch {
-    /* fall through to shared workspace */
   }
   try {
     const remote = await cloudGetQuote(id);
-    if (remote) {
-      setMemory(mergeQuotes(ensureMemory(), [remote]));
-      void workspacePut(STORE, remote).catch(() => {
-        /* overlay can still render from memory */
-      });
-      return getSavedQuote(id) || remote;
+    if (remote?.id) {
+      const remoteAt = remote.updatedAt || '';
+      const localAt = local?.updatedAt || '';
+      const localRev = revisionOf(local);
+      const remoteRev = revisionOf(remote);
+      const localDirty =
+        localRev != null &&
+        remoteRev != null &&
+        localRev > remoteRev &&
+        (local?.syncUpdatedAt || '') > remoteAt;
+      if (!localDirty && (!localAt || !remoteAt || remoteAt >= localAt)) {
+        forgetDeletedQuoteIds([remote.id]);
+        setMemory(mergeQuotes(ensureMemory(), [remote]));
+        const stored = getSavedQuote(id) || remote;
+        void workspacePut(STORE, stored).catch(() => {
+          /* the review page can still render from memory */
+        });
+        return stored;
+      }
     }
   } catch {
     /* engine offline */
   }
+  if (isQuoteDeleted(id)) return null;
   return local;
 }
 
