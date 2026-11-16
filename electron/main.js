@@ -506,13 +506,39 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on('before-quit', () => {
+let quitSyncStarted = false;
+
+app.on('before-quit', (event) => {
+  if (quitSyncStarted) return;
+  quitSyncStarted = true;
+  event.preventDefault();
   quitting = true;
-  stopEngine();
+  const finish = () => {
+    stopEngine();
+    app.exit(0);
+  };
+  const timer = setTimeout(finish, 15000);
+  const pushLatest = () => syncRenderWorkspace({
+    origin: ENGINE_ORIGIN,
+    pin: localPin(),
+    app,
+  }).catch(() => {});
+  const pending = syncingWorkspace
+    ? new Promise((resolve) => {
+        const wait = setInterval(() => {
+          if (!syncingWorkspace) {
+            clearInterval(wait);
+            resolve();
+          }
+        }, 200);
+      }).then(pushLatest)
+    : pushLatest();
+  pending.finally(() => {
+    clearTimeout(timer);
+    finish();
+  });
 });
 
 app.on('window-all-closed', () => {
-  quitting = true;
-  stopEngine();
   app.quit();
 });

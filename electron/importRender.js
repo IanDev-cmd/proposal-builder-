@@ -208,6 +208,8 @@ function quoteRow(quote) {
   for (const [key, value] of Object.entries(quote || {})) {
     if (!known.has(key)) extra[key] = value;
   }
+  if (quote && quote.syncRevision != null) extra.syncRevision = quote.syncRevision;
+  if (quote && quote.syncUpdatedAt) extra.syncUpdatedAt = quote.syncUpdatedAt;
   return {
     id: quote.id,
     savedAt: quote.savedAt || quote.updatedAt || new Date().toISOString(),
@@ -227,7 +229,7 @@ function quoteRow(quote) {
     lead: quote.lead || null,
     data: quote.data && typeof quote.data === 'object' ? quote.data : {},
     extra,
-    updatedAt: quote.updatedAt || quote.savedAt || new Date().toISOString(),
+    updatedAt: quote.updatedAt || quote.savedAt || '1970-01-01T00:00:00.000Z',
   };
 }
 
@@ -280,11 +282,20 @@ async function upsertRemoteQuote(client, quote) {
        review_status = EXCLUDED.review_status,
        proposal_id = EXCLUDED.proposal_id,
        lead_json = EXCLUDED.lead_json,
-       data_json = EXCLUDED.data_json,
-       extra_json = EXCLUDED.extra_json,
+       data_json = CASE
+         WHEN EXCLUDED.data_json IS NULL OR EXCLUDED.data_json = '{}'::jsonb THEN quotes.data_json
+         ELSE EXCLUDED.data_json
+       END,
+       extra_json = CASE
+         WHEN EXCLUDED.extra_json ? 'syncRevision' THEN EXCLUDED.extra_json
+         ELSE COALESCE(quotes.extra_json, '{}'::jsonb) || EXCLUDED.extra_json
+       END,
        updated_at = EXCLUDED.updated_at,
-       deleted_at = NULL
-     WHERE quotes.updated_at IS NULL OR quotes.updated_at <= EXCLUDED.updated_at`,
+       deleted_at = CASE
+         WHEN quotes.deleted_at IS NOT NULL THEN NULL
+         ELSE quotes.deleted_at
+       END
+     WHERE quotes.updated_at IS NULL OR quotes.updated_at < EXCLUDED.updated_at`,
     [
       row.id, row.savedAt, row.reviewedAt, row.leadKey, row.leadName, row.referenceNumber, row.title,
       row.vesselType, row.eventType, row.guestCount, row.eventDate, row.grandTotal, row.step,
@@ -362,8 +373,40 @@ async function syncRenderWorkspace({ origin, pin, app }) {
       `SELECT id, updated_at FROM quotes WHERE deleted_at IS NULL`,
     );
     const remoteQuoteById = new Map(remoteQuotes.rows.map((row) => [row.id, row]));
+    const remoteDeleted = await client.query(
+      `SELECT id, updated_at FROM quotes WHERE deleted_at IS NOT NULL`,
+    );
+    const localDeletedRes = await requestJson(`${origin}/workspace/quotes?deleted=1`, { headers: auth });
+    const localDeleted = localDeletedRes.json && Array.isArray(localDeletedRes.json.quotes)
+      ? localDeletedRes.json.quotes
+      : [];
+    const skipPull = new Set();
+    const skipPush = new Set();
+    for (const local of localDeleted) {
+      const remoteLive = remoteQuoteById.get(local.id);
+      if (!remoteLive) continue;
+      if (stamp(local.deletedAt || local.updatedAt) <= stamp(remoteLive.updated_at)) continue;
+      await client.query(
+        `UPDATE quotes SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL`,
+        [local.id],
+      );
+      skipPull.add(local.id);
+      remoteQuoteById.delete(local.id);
+    }
+    for (const remote of remoteDeleted.rows) {
+      const local = localQuoteById.get(remote.id);
+      if (!local) continue;
+      if (stamp(local.updatedAt || local.savedAt) > stamp(remote.updated_at)) continue;
+      await requestJson(`${origin}/workspace/quotes/${encodeURIComponent(remote.id)}`, {
+        method: 'DELETE',
+        headers: auth,
+      });
+      skipPush.add(remote.id);
+      localQuoteById.delete(remote.id);
+    }
 
     for (const remote of remoteQuotes.rows) {
+      if (skipPull.has(remote.id)) continue;
       const local = localQuoteById.get(remote.id);
       if (local && stamp(local.updatedAt || local.savedAt) >= stamp(remote.updated_at)) continue;
       const full = await client.query(
@@ -377,17 +420,21 @@ async function syncRenderWorkspace({ origin, pin, app }) {
       const res = await requestJson(`${origin}/workspace/quotes/${encodeURIComponent(remote.id)}`, {
         method: 'PUT',
         headers: auth,
-        body: JSON.stringify(quotePayload(full.rows[0])),
+        body: JSON.stringify({ ...quotePayload(full.rows[0]), restoreDeleted: true }),
       });
       if (res.status >= 200 && res.status < 300) counts.pulledQuotes += 1;
     }
 
     for (const local of localQuotes) {
+      if (skipPush.has(local.id)) continue;
       const remote = remoteQuoteById.get(local.id);
       if (remote && stamp(remote.updated_at) >= stamp(local.updatedAt || local.savedAt)) continue;
       const full = await requestJson(`${origin}/workspace/quotes/${encodeURIComponent(local.id)}`, { headers: auth });
-      if (!full.json || !full.json.id) continue;
-      await upsertRemoteQuote(client, full.json.quote && full.json.quote.id ? full.json.quote : full.json);
+      const body = full.json && full.json.quote && full.json.quote.id ? full.json.quote : full.json;
+      if (!body || !body.id) continue;
+      const hasBody = body.data && typeof body.data === 'object' && Object.keys(body.data).length > 0;
+      if (remote && !hasBody) continue;
+      await upsertRemoteQuote(client, body);
       counts.pushedQuotes += 1;
     }
 
