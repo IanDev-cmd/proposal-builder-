@@ -45,10 +45,12 @@ from workspace_store import (
     get_quote as workspace_get_quote,
     get_rates_catalog as workspace_get_rates_catalog,
     list_proposals as workspace_list_proposals,
+    list_deleted_quotes as workspace_list_deleted_quotes,
     list_quotes as workspace_list_quotes,
     put_proposal as workspace_put_proposal,
     put_quote as workspace_put_quote,
     put_rates_catalog as workspace_put_rates_catalog,
+    QuoteConflictError,
     QuoteDeletedError,
     catalog_put_body,
 )
@@ -129,7 +131,9 @@ def _workspace_response(fn):
     try:
         return fn()
     except QuoteDeletedError:
-        return jsonify(error="Quote was deleted"), 409
+        return jsonify(error="Quote was deleted", code="deleted"), 409
+    except QuoteConflictError:
+        return jsonify(error="Quote changed on the server", code="stale"), 409
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
     except Exception as exc:
@@ -370,8 +374,11 @@ def generate():
 @app.get("/workspace/quotes")
 def workspace_quotes_list():
     full = (request.args.get("full") or "").strip() == "1"
+    deleted_only = (request.args.get("deleted") or "").strip() == "1"
 
     def run():
+        if deleted_only:
+            return jsonify(quotes=workspace_list_deleted_quotes())
         return jsonify(quotes=workspace_list_quotes(full=full))
 
     return _workspace_response(run)

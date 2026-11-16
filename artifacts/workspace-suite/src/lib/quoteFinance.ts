@@ -385,12 +385,12 @@ export function calcFinancials(data: QuoteFormInput) {
   const costToClientBeforeDiscount = pound(weottCost + marginAmount);
 
   // Client-discount toggle is the master switch — leftover % is ignored when off.
-  // X% comes off the gross once (WEOTT + margin), in whole pounds.
+  // X% comes off the margin only. The client total (WEOTT + margin) stays intact.
   const discountPct = data.repeatClient
     ? Math.min(100, Math.max(0, parseFloat(data.discountPercent || '') || 0)) / 100
     : 0;
-  const discountAmount = pound(costToClientBeforeDiscount * discountPct);
-  const costToClient = costToClientBeforeDiscount - discountAmount;
+  const discountAmount = pound(marginAmount * discountPct);
+  const costToClient = costToClientBeforeDiscount;
 
   // Agent-referral toggle is the master switch. When on and the box is blank, default 10%.
   const explicitCommission = data.commissionPercent?.trim()

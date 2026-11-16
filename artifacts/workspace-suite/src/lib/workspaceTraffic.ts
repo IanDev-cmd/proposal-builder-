@@ -14,6 +14,7 @@ export type QuoteSyncRow = {
   id: string;
   savedAt?: string;
   reviewedAt?: string;
+  updatedAt?: string;
   data?: Record<string, unknown> | null;
   syncRevision?: number;
   syncUpdatedAt?: string;
@@ -64,36 +65,35 @@ export function shouldPushCatalog(prev: CatalogPushMark | null, next: CatalogPus
 }
 
 /**
- * Summary reconcile. Full quote bodies are fetched only when the remote
- * timestamps are newer and this device does not already have form data.
- * A tombstoned id is never uploaded.
+ * Summary reconcile. A newer server updatedAt is fetched even when this
+ * device already has form data. Upload only when the local edit is newer.
+ * drop-remote runs only for a delete made in this session.
  */
 export function planQuoteSync(args: {
   local?: QuoteSyncRow | null;
   remote?: QuoteSyncRow | null;
   deleted: boolean;
+  /** True only when this browser deleted the id during the current page session. */
+  deletedThisSession?: boolean;
 }): QuoteSyncAction {
   const local = args.local || null;
   const remote = args.remote || null;
-  if (args.deleted) return remote ? 'drop-remote' : 'keep';
+  if (args.deleted && args.deletedThisSession) return remote ? 'drop-remote' : 'keep';
+  if (args.deleted && !args.deletedThisSession) return remote ? 'fetch' : 'keep';
   if (local && !remote) return 'upload';
+  if (!local && remote) return 'fetch';
   if (!local || !remote) return 'keep';
+  const localAt = local.updatedAt || '';
+  const remoteAt = remote.updatedAt || '';
+  if (remoteAt && remoteAt !== localAt) return remoteAt > localAt ? 'fetch' : 'upload';
   const localRev = revisionOf(local);
   const remoteRev = revisionOf(remote);
-  if (localRev != null && remoteRev != null && localRev > remoteRev) return 'upload';
-  if (localRev != null && remoteRev != null && remoteRev > localRev) {
-    const localHasBody = Boolean(local.data && Object.keys(local.data).length);
-    if (!localHasBody) return 'fetch';
-    return 'keep';
+  if (localRev != null && remoteRev != null && localRev !== remoteRev) {
+    return localRev > remoteRev ? 'upload' : 'fetch';
   }
-  const localSaveNewer = (local.savedAt || '') > (remote.savedAt || '');
-  const localReviewNewer = (local.reviewedAt || '') > (remote.reviewedAt || '');
-  if (localSaveNewer || localReviewNewer) return 'upload';
-  const remoteNewer =
-    (remote.savedAt || '') > (local.savedAt || '') ||
-    (remote.reviewedAt || '') > (local.reviewedAt || '');
-  const localHasData = Boolean(local.data && Object.keys(local.data).length);
-  if (remoteNewer && !localHasData) return 'fetch';
+  const localSave = local.savedAt || '';
+  const remoteSave = remote.savedAt || '';
+  if (localSave && remoteSave && localSave !== remoteSave) return localSave > remoteSave ? 'upload' : 'fetch';
   return 'keep';
 }
 

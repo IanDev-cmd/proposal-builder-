@@ -143,6 +143,15 @@ class WorkspaceTrafficTest(unittest.TestCase):
         self.assertEqual(revived.get_json()["error"], "Quote was deleted")
         gone = client.get("/workspace/quotes/quote-WE.19167-V1", headers=headers)
         self.assertEqual(gone.status_code, 404)
+        restored = client.put(
+            "/workspace/quotes/quote-WE.19167-V1",
+            headers=headers,
+            json={**self._fat_quote(), "restoreDeleted": True},
+        )
+        self.assertEqual(restored.status_code, 200, restored.get_data(as_text=True))
+        back = client.get("/workspace/quotes/quote-WE.19167-V1", headers=headers)
+        self.assertEqual(back.status_code, 200)
+        self.assertEqual(back.get_json()["data"]["lines"], [1, 2, 3])
 
         catalog = client.put(
             "/workspace/catalog",
@@ -155,6 +164,26 @@ class WorkspaceTrafficTest(unittest.TestCase):
         self.assertLess(len(catalog.data), 400)
         fetched_catalog = client.get("/workspace/catalog", headers=headers)
         self.assertIn("payload", fetched_catalog.get_json())
+
+    def test_stale_put_does_not_clobber(self) -> None:
+        self.ws.put_quote(self._fat_quote())
+        current = self.ws.get_quote("quote-WE.19167-V1")
+        self.assertTrue(current["updatedAt"])
+        stale = dict(self._fat_quote())
+        stale["guestCount"] = "10"
+        stale["updatedAt"] = "2000-01-01T00:00:00Z"
+        stale["data"] = {"blob": "stale", "lines": [9]}
+        with self.assertRaises(self.ws.QuoteConflictError):
+            self.ws.put_quote(stale)
+        kept = self.ws.get_quote("quote-WE.19167-V1")
+        self.assertEqual(kept["guestCount"], "40")
+        self.assertEqual(kept["data"]["lines"], [1, 2, 3])
+        fresh = dict(self._fat_quote())
+        fresh["guestCount"] = "180"
+        fresh["updatedAt"] = current["updatedAt"]
+        saved = self.ws.put_quote(fresh)
+        self.assertEqual(saved["guestCount"], "180")
+        self.assertGreater(saved["updatedAt"], current["updatedAt"])
 
     def test_gunicorn_stays_one_worker_on_starter(self) -> None:
         for path in (REPO / "render.yaml", ROOT / "render.yaml"):

@@ -39,11 +39,20 @@ QUOTE_SUMMARY_KEYS = (
 
 
 class QuoteDeletedError(ValueError):
-    """Soft-deleted quotes stay deleted. A later PUT must not clear deleted_at."""
+    """The row is soft-deleted and this save did not ask to restore it."""
+
+
+class QuoteConflictError(ValueError):
+    """Another save landed after this client loaded the quote."""
 
 
 def quote_summary(row: dict) -> dict:
-    return {key: row[key] for key in QUOTE_SUMMARY_KEYS if key in row and row[key] is not None}
+    out = {key: row[key] for key in QUOTE_SUMMARY_KEYS if key in row and row[key] is not None}
+    if row.get("syncRevision") is not None:
+        out["syncRevision"] = row["syncRevision"]
+    if row.get("syncUpdatedAt"):
+        out["syncUpdatedAt"] = row["syncUpdatedAt"]
+    return out
 
 _MEMORY_QUOTES: dict[str, dict] = {}
 _MEMORY_PROPOSALS: dict[str, dict] = {}
@@ -163,7 +172,7 @@ def _require_store() -> None:
 _QUOTE_SUMMARY_SQL = """
 SELECT id, saved_at, reviewed_at, lead_key, lead_name, reference_number, title,
        vessel_type, event_type, guest_count, event_date, grand_total, step,
-       review_status, proposal_id, updated_at
+       review_status, proposal_id, extra_json, updated_at
 FROM quotes
 WHERE deleted_at IS NULL
 ORDER BY saved_at DESC
@@ -191,6 +200,41 @@ def quote_is_deleted(quote_id: str) -> bool:
     with pg.connection() as conn:
         row = pg.fetch_one(conn, "SELECT deleted_at FROM quotes WHERE id = %s", (qid,))
     return bool(row and row.get("deleted_at"))
+
+
+def list_deleted_quotes() -> list[dict]:
+    """Id and timestamps only. Used by the desktop sync to tell a real delete from a stale tombstone."""
+    _require_store()
+    if _use_memory():
+        out = []
+        for row in _MEMORY_QUOTES.values():
+            if not row.get("_deleted"):
+                continue
+            out.append(
+                {
+                    "id": row.get("id"),
+                    "updatedAt": row.get("updatedAt") or "",
+                    "deletedAt": row.get("deletedAt") or row.get("updatedAt") or "",
+                }
+            )
+        return out
+    with pg.connection() as conn:
+        rows = pg.fetch_all(
+            conn,
+            """
+            SELECT id, updated_at, deleted_at
+            FROM quotes
+            WHERE deleted_at IS NOT NULL
+            """,
+        )
+    return [
+        {
+            "id": row["id"],
+            "updatedAt": pg._iso(row.get("updated_at")) or "",
+            "deletedAt": pg._iso(row.get("deleted_at")) or "",
+        }
+        for row in rows
+    ]
 
 
 def list_quotes(full: bool = False) -> list[dict]:
@@ -233,19 +277,82 @@ def get_quote(quote_id: str) -> dict | None:
     return pg.quote_payload_from_row(row)
 
 
+def _quote_write_meta(quote_id: str) -> dict | None:
+    """Existing row, including a soft-deleted one, for conflict and restore checks."""
+    if _use_memory():
+        row = _MEMORY_QUOTES.get(quote_id)
+        if not row:
+            return None
+        return {
+            "deleted": bool(row.get("_deleted")),
+            "updatedAt": row.get("updatedAt"),
+            "data": row.get("data") if isinstance(row.get("data"), dict) else {},
+            "syncRevision": row.get("syncRevision"),
+            "syncUpdatedAt": row.get("syncUpdatedAt"),
+        }
+    if not _use_postgres():
+        return None
+    with pg.connection() as conn:
+        row = pg.fetch_one(
+            conn,
+            """
+            SELECT deleted_at, updated_at, data_json, extra_json
+            FROM quotes WHERE id = %s
+            """,
+            (quote_id,),
+        )
+    if not row:
+        return None
+    extra = row.get("extra_json") if isinstance(row.get("extra_json"), dict) else {}
+    data = row.get("data_json") if isinstance(row.get("data_json"), dict) else {}
+    return {
+        "deleted": bool(row.get("deleted_at")),
+        "updatedAt": row.get("updated_at"),
+        "data": data,
+        "syncRevision": extra.get("syncRevision"),
+        "syncUpdatedAt": extra.get("syncUpdatedAt"),
+    }
+
+
 def put_quote(payload: dict) -> dict:
     quote_id = str(payload.get("id") or "").strip()
     if not quote_id:
+        raise ValueError("quote id is required")
+    if quote_id.startswith("quote-quote-draft-") or quote_id.startswith("quote-quote-draft"):
         raise ValueError("quote id is required")
     try:
         payload["grandTotal"] = float(payload.get("grandTotal") or 0)
     except (TypeError, ValueError):
         payload["grandTotal"] = 0.0
     payload["id"] = quote_id
-    payload = _normalize_review(payload)
+    restore = bool(payload.pop("restoreDeleted", False))
     _require_store()
-    if quote_is_deleted(quote_id):
+    meta = _quote_write_meta(quote_id)
+    if meta and meta["deleted"] and not restore:
         raise QuoteDeletedError("quote was deleted")
+    if meta and not meta["deleted"]:
+        client_at = pg._as_dt(payload.get("updatedAt"))
+        server_at = pg._as_dt(meta.get("updatedAt"))
+        if server_at and (client_at is None or client_at < server_at):
+            raise QuoteConflictError("Quote changed on the server")
+    if meta:
+        if payload.get("syncRevision") is None and meta.get("syncRevision") is not None:
+            payload["syncRevision"] = meta["syncRevision"]
+            if not payload.get("syncUpdatedAt") and meta.get("syncUpdatedAt"):
+                payload["syncUpdatedAt"] = meta["syncUpdatedAt"]
+        incoming = payload.get("data")
+        if (not isinstance(incoming, dict) or not incoming) and isinstance(meta.get("data"), dict) and meta["data"]:
+            payload["data"] = meta["data"]
+    payload = _normalize_review(payload)
+    if meta and meta["deleted"] and restore:
+        if _use_memory():
+            _MEMORY_QUOTES.get(quote_id, {}).pop("_deleted", None)
+        elif _use_postgres():
+            with pg.connection() as conn:
+                conn.execute(
+                    "UPDATE quotes SET deleted_at = NULL WHERE id = %s AND deleted_at IS NOT NULL",
+                    (quote_id,),
+                )
     if _use_memory():
         payload.pop("_deleted", None)
         payload["updatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -322,7 +429,10 @@ def delete_quote(quote_id: str) -> bool:
         row = _MEMORY_QUOTES.get(qid)
         if not row or row.get("_deleted"):
             return False
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         row["_deleted"] = True
+        row["deletedAt"] = now
+        row["updatedAt"] = now
         return True
     with pg.connection() as conn:
         cur = conn.execute(

@@ -87,6 +87,26 @@ describe('quoteFinance formulas', () => {
     expect(Number.isInteger(fin.grand)).toBe(true);
   });
 
+  it('takes a repeat-client discount off the margin and leaves the client total', () => {
+    const fin = calcFinancials(
+      form({
+        selectedLineIds: [],
+        totalCost: '8918.04',
+        baseCostAuto: false,
+        marginPercent: '15',
+        repeatClient: true,
+        discountPercent: '5',
+      }),
+    );
+    expect(fin.marginAmount).toBe(1338);
+    expect(fin.discountAmount).toBe(67);
+    expect(fin.costToClient).toBe(10256);
+    expect(fin.costToClient).toBe(fin.costToClientBeforeDiscount);
+    expect(fin.vat).toBe(2051);
+    expect(fin.grand).toBe(12307);
+    expect(fin.updatedProfit).toBe(fin.marginAmount - fin.discountAmount);
+  });
+
   it('keeps line money at 2 decimal places and rounds client pounds half away from zero via Math.round', () => {
     expect(money(10.005)).toBe(10.01);
     expect(money(10.004)).toBe(10);

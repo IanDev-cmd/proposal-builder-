@@ -40,6 +40,21 @@ export function rememberDeletedQuoteIds(ids: Array<string | undefined | null>): 
   writeIds(next);
 }
 
+/** Deletes made in this page session. A leftover localStorage tombstone must not DELETE the server row. */
+const sessionDeleted = new Set<string>();
+
+export function rememberSessionDelete(ids: Array<string | undefined | null>): void {
+  for (const id of ids) {
+    const value = String(id || '').trim();
+    if (value) sessionDeleted.add(value);
+  }
+}
+
+export function isSessionDeleted(id: string | undefined | null): boolean {
+  const value = String(id || '').trim();
+  return Boolean(value) && sessionDeleted.has(value);
+}
+
 export function forgetDeletedQuoteIds(ids: Array<string | undefined | null>): void {
   const drop = new Set(
     ids.map((id) => String(id || '').trim()).filter(Boolean),
