@@ -87,7 +87,7 @@ describe('quoteFinance formulas', () => {
     expect(Number.isInteger(fin.grand)).toBe(true);
   });
 
-  it('takes a repeat-client discount off the margin and leaves the client total', () => {
+  it('takes a repeat-client discount off the WEOTT cost and leaves the client total', () => {
     const fin = calcFinancials(
       form({
         selectedLineIds: [],
@@ -99,7 +99,7 @@ describe('quoteFinance formulas', () => {
       }),
     );
     expect(fin.marginAmount).toBe(1338);
-    expect(fin.discountAmount).toBe(67);
+    expect(fin.discountAmount).toBe(446);
     expect(fin.costToClient).toBe(10256);
     expect(fin.costToClient).toBe(fin.costToClientBeforeDiscount);
     expect(fin.vat).toBe(2051);

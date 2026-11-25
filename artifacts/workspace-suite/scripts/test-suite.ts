@@ -60,7 +60,12 @@ import {
 import { insertsForGenerate, resolveProposalInserts, resolveProposalTemplate } from '../src/lib/proposalPrefill.ts';
 import { HOME_PATH, isHomeDashboardPath, isShareDeepLink, parseShareDeepLink } from '../src/lib/homeLanding.ts';
 import { buildSyncRunContext, syncStatusLabel } from '../src/lib/syncManager.ts';
-import { isQuoteDeletedConflict, QuoteDeletedConflict } from '../src/lib/workspaceCloud.ts';
+import {
+  isQuoteDeletedConflict,
+  isQuoteStaleConflict,
+  QuoteDeletedConflict,
+  QuoteStaleConflict,
+} from '../src/lib/workspaceCloud.ts';
 import {
   CLOUD_REFRESH_MS,
   catalogPushMark,
@@ -443,7 +448,7 @@ const grossDiscount = calcFinancials({
   agentReferral: false,
 });
 check('unit 5% discount leaves the 25% margin', grossDiscount.marginAmount === 2500);
-check('unit 5% discount is off the margin', grossDiscount.discountAmount === 125);
+check('unit 5% discount is 5% of the WEOTT cost', grossDiscount.discountAmount === 500);
 check('unit 5% discount leaves the client total', grossDiscount.costToClient === 12500);
 check(
   'unit discount stays off the client total',
@@ -832,6 +837,8 @@ check('route changes do not refresh the workbook', refreshesWorkbook('route') ==
 check('an explicit quote save does not rewrite the catalog', refreshesWorkbook('manual') === false);
 check('a deleted-quote conflict is a 409', isQuoteDeletedConflict(new QuoteDeletedConflict()) === true);
 check('a plain error is not a deleted-quote conflict', isQuoteDeletedConflict(new Error('offline')) === false);
+check('a stale save is not reported as a deleted quote', isQuoteDeletedConflict(new QuoteStaleConflict()) === false);
+check('a stale save says the quote changed on the server', isQuoteStaleConflict(new QuoteStaleConflict()) === true);
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

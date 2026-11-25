@@ -34,6 +34,7 @@ describe('cost sheet contingency row', () => {
     const fin = calcFinancials(input);
     const csv = costSheetCsv(input, 'Christmas Event V1');
     expect(csv).toContain('Contingency (2.25%)');
+    expect(csv).toContain('Grand total (includes VAT)');
     expect(csv).toContain(fin.contingency.toFixed(2));
     const lineSum = linesWithContingency(fin).reduce((sum, line) => sum + (line.amount || 0), 0);
     expect(money(lineSum)).toBe(fin.baseCost);
