@@ -14,6 +14,26 @@ describe('planQuoteSync', () => {
     ).toBe('fetch');
   });
 
+  it('fetches a newer server approval instead of keeping a local disapproval', () => {
+    expect(
+      planQuoteSync({
+        local: {
+          id: 'quote-WE.19333-V2',
+          updatedAt: '2026-11-19T17:00:00.000Z',
+          reviewStatus: 'disapproved',
+          data: body,
+        },
+        remote: {
+          id: 'quote-WE.19333-V2',
+          updatedAt: '2026-11-20T13:36:12.000Z',
+          reviewStatus: 'approved',
+          grandTotal: 11484,
+        },
+        deleted: false,
+      }),
+    ).toBe('fetch');
+  });
+
   it('uploads only when the local edit is newer', () => {
     expect(
       planQuoteSync({

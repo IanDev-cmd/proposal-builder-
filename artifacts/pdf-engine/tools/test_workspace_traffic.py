@@ -185,6 +185,37 @@ class WorkspaceTrafficTest(unittest.TestCase):
         self.assertEqual(saved["guestCount"], "180")
         self.assertGreater(saved["updatedAt"], current["updatedAt"])
 
+    def test_stale_http_put_and_missing_lead_write_nothing(self) -> None:
+        import app as engine_app
+
+        client = engine_app.app.test_client()
+        login = client.post("/auth/login", json={"pin": "945762"})
+        self.assertEqual(login.status_code, 200, login.get_data(as_text=True))
+        headers = {"Authorization": f"Bearer {login.get_json()['token']}"}
+        created = client.put(
+            "/workspace/quotes/quote-WE.19167-V1",
+            headers=headers,
+            json=self._fat_quote(),
+        )
+        self.assertEqual(created.status_code, 200, created.get_data(as_text=True))
+        stale = dict(self._fat_quote())
+        stale["guestCount"] = "1"
+        stale["updatedAt"] = "2000-01-01T00:00:00Z"
+        stale["data"] = {"blob": "stale", "lines": [9]}
+        rejected = client.put("/workspace/quotes/quote-WE.19167-V1", headers=headers, json=stale)
+        self.assertEqual(rejected.status_code, 409)
+        self.assertEqual(rejected.get_json()["error"], "Quote changed on the server")
+        self.assertEqual(rejected.get_json()["code"], "stale")
+        kept = client.get("/workspace/quotes/quote-WE.19167-V1", headers=headers)
+        self.assertEqual(kept.get_json()["guestCount"], "40")
+        self.assertEqual(kept.get_json()["data"]["lines"], [1, 2, 3])
+
+        draft = dict(self._fat_quote())
+        draft["id"] = "quote-quote-draft-V1"
+        missing = client.put("/workspace/quotes/quote-quote-draft-V1", headers=headers, json=draft)
+        self.assertEqual(missing.status_code, 400)
+        self.assertIsNone(self.ws.get_quote("quote-quote-draft-V1"))
+
     def test_gunicorn_stays_one_worker_on_starter(self) -> None:
         for path in (REPO / "render.yaml", ROOT / "render.yaml"):
             text = path.read_text(encoding="utf-8")

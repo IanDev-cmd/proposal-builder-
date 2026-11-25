@@ -323,16 +323,13 @@ export function Forms() {
     if (openAtEventCoreRef.current) return 1;
     return pendingQuote?.step && pendingQuote.step >= 1 ? pendingQuote.step : 1;
   });
-  const [quoteLead] = useState<QuoteLead | null>(() =>
-    freshStartRef.current
-      ? null
-      : openAtEventCoreRef.current
-        ? getQuoteLead()
-        : pendingQuote?.lead || getQuoteLead(),
-  );
-  const [leadInit] = useState(() =>
-    formFromLead(freshStartRef.current ? null : getQuoteLead() || pendingQuote?.lead || null),
-  );
+  const openedLead = freshStartRef.current
+    ? null
+    : pendingQuote
+      ? pendingQuote.lead || null
+      : getQuoteLead();
+  const [quoteLead] = useState<QuoteLead | null>(() => openedLead);
+  const [leadInit] = useState(() => formFromLead(openedLead));
   const leadNotesKey = quoteLeadKey({
     referenceNumber: quoteLead?.referenceNumber,
     email: quoteLead?.email,
